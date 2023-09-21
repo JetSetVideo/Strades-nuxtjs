@@ -6,7 +6,7 @@
   <div>
     <NuxtWelcome />
   </div>
-  <h1 class="hello">Hello World!</h1>
+  <h1 class="hello">Hello Strades!</h1>
 </template>
 
 <style scoped>
