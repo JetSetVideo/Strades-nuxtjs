@@ -36,16 +36,15 @@ export default {
 <template>
     <div class="navigation-bar">
       <logo-component />
-      <ButtonComponent class="button-group">
-        <ButtonComponent text="Button 1"/>
+        <ButtonComponent class="button-group" text="Button 1"/>
         <ButtonComponent>Button 1.5</ButtonComponent>
         <button-component>Button 2</button-component>
         <button-component>Button 3</button-component>
-      </div>
     </div>
 </template>
-  
-  <style lang="scss">
+
+
+<style lang="scss">
   .navigation-bar {
     height: 50px;
     display: flex;
