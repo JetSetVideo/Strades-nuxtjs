@@ -3,7 +3,7 @@
 
 <template>
 <div>
-  <h1 class="navbar">Hello Strades!</h1>
+  <h1 class="navbar">NavigationBar Strades!!!</h1>
 </div>
 </template>
 

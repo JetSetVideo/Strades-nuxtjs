@@ -14,7 +14,7 @@ import navigation-bar from '@/components/navigation-bar.vue'
   </div>
 
 
-  <h1 class="hello">Hello Strades!</h1>
+  <h1 class="hello">Hello Strades 3</h1>
 </template>
 
 <style scoped>
