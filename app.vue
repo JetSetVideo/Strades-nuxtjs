@@ -1,6 +1,7 @@
 <script setup lang="ts">
 
-import navbar from '@/components/NavigationBar.vue'
+import NavigationBar from '@/components/NavigationBar.vue'
+import navigation-bar from '@/components/navigation-bar.vue'
 </script>
 
 <template>
@@ -9,7 +10,9 @@ import navbar from '@/components/NavigationBar.vue'
   </div>
   <div>
     <NavigationBar />
+    <navigation-bar />
   </div>
+
 
   <h1 class="hello">Hello Strades!</h1>
 </template>
