@@ -10,7 +10,6 @@ import NavigationBar from './components/NavigationBar.vue'
   </div>
   <div>
     <NavigationBar />
-    <navigationbar2 />
   </div>
 
 

@@ -3,7 +3,7 @@ import LogoComponent from './LogoComponent.vue';
 import ButtonComponent from './ButtonComponent.vue';
 
 export default {
-  name: 'navigationbar2',
+  name: 'NavigationMenu',
   components: {
     LogoComponent,
     ButtonComponent
