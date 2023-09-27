@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import NavigationBar from './components/NavigationBar.vue'
-import navigationbar2 from './components/navigation-bar.vue'
+
 </script>
 
 <template>
