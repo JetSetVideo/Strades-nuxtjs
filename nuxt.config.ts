@@ -13,7 +13,7 @@ export default {
       {
         name: 'about',
         path: '/about',
-        component: 'pages/about.vue'
+        component: '~/pages/about.vue'
       },
       // Add more routes as needed
     ]
