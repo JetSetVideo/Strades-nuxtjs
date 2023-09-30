@@ -12,7 +12,7 @@
     <NuxtWelcome />
   </div>
   <div>
-    <NavigationBar />
+
   </div>
 
 
