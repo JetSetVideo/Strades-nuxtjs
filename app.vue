@@ -6,6 +6,9 @@ import NavigationBar from './components/NavigationBar.vue'
 
 <template>
   <div>
+    <NavBar />
+  </div>
+  <div>
     <NuxtWelcome />
   </div>
   <div>
