@@ -5,16 +5,11 @@
 <template>
   <div>
     <Navbar />
-  </div>
-  <div>
-    <NuxtWelcome />
-  </div>
-  <div>
-
+    <NuxtPage />
+    <h1 class="hello">Hello Strades 3</h1>
   </div>
 
-
-  <h1 class="hello">Hello Strades 3</h1>
+  
 </template>
 
 <style scoped>
