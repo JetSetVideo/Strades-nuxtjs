@@ -15,7 +15,11 @@ export default {
         path: '/about',
         component: '~/pages/about.vue'
       },
-      // Add more routes as needed
+      {
+        name: 'contact',
+        path: '/contact',
+        component: '~/pages/contact.vue'
+      },
     ]
   },
 };
