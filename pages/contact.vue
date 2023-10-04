@@ -1,3 +1,24 @@
+<script setup>
+  export default {
+    data() {
+      return {
+        message: '',
+      };
+    },
+    methods: {
+      sendEmail() {
+        // You can implement the logic to send an email here
+        // Example: Send an email using your preferred email service/API
+        const email = 'maximilien.pelletier@Strades.app';
+        const subject = 'Contact from Strades App';
+        const body = this.message;
+        const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
+        window.location.href = mailtoLink;
+      },
+    },
+  };
+</script>
+
 <template>
     <div class="contact-page">
       <div class="background"></div>
@@ -25,30 +46,9 @@
         </div>
       </section>
     </div>
-  </template>
+</template>
   
-  <script>
-  export default {
-    data() {
-      return {
-        message: '',
-      };
-    },
-    methods: {
-      sendEmail() {
-        // You can implement the logic to send an email here
-        // Example: Send an email using your preferred email service/API
-        const email = 'maximilien.pelletier@Strades.app';
-        const subject = 'Contact from Strades App';
-        const body = this.message;
-        const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
-        window.location.href = mailtoLink;
-      },
-    },
-  };
-  </script>
-  
-  <style scoped>
+<style scoped>
   .contact-page {
     position: relative;
     width: 100%;
@@ -146,5 +146,5 @@
       background-position: -100% 0;
     }
   }
-  </style>
+</style>
   
