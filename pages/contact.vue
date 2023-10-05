@@ -4,7 +4,7 @@
     <AccountingWidget />
     <Article />
     <AssetWidget/>
-    <ButtonComponent/>
+    <ButtonComponent text="Strades"/>
     <ButtonTimer/>
     <Calendar/>
     <CapitalDistribution/>

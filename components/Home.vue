@@ -1,5 +1,5 @@
 <script setup>
-import imageUrl from "../../src/assets/imgs/home.png";
+import imageUrl from "../../src/assets/StradeLogoPrototype_icon.svg";
 </script>
 <template>
   <div style="background-color: beige">
