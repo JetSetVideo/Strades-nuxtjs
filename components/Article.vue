@@ -1,5 +1,5 @@
 <script setup>
-import imageUrl from "../../src/assets/StradeLogoPrototype_icon.svg";
+import imageUrl from "../src/assets/StradeLogoPrototype_icon.svg";
 </script>
 <template>
   <div style="background-color: rgb(214, 229, 211)">
