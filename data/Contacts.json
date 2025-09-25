@@ -1,0 +1,36 @@
+[
+  {
+    "id": 1,
+    "name": "John Doe",
+    "username": "johndoe",
+    "avatar": "https://example.com/john.png",
+    "status": "online",
+    "lastSeen": "2024-02-09T12:00:00",
+    "lastMessage": "Hello!",
+    "wallet": "0.00",
+    "list_trades":[]
+  },
+  {
+    "id": 2,
+    "name": "Jane Smith",
+    "username": "janesmith",
+    "avatar": "https://example.com/jane.png",
+    "status": "online",
+    "lastSeen": "2024-02-09T12:00:00",
+    "lastMessage": "Hello!",
+    "wallet": "0.00",
+    "list_trades":[]
+  },
+  {
+    "id": 3,
+    "name": "Bob Johnson",
+    "username": "bobjohnson",
+    "avatar": "https://example.com/bob.png",
+    "status": "online",
+    "lastSeen": "2024-02-09T12:00:00",
+    "lastMessage": "Hello!",
+    "wallet": "0.00",
+    "list_trades":[]
+  }
+]
+

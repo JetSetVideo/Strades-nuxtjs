@@ -1,6 +1,6 @@
 <script setup></script>
 <template>
-  <div style="background-color: rgb(241, 172, 172)">
+  <div class="structuration-container">
     <h1>Structuration</h1>
     <div><ul>
         <li class="button">Main Data</li>
@@ -17,6 +17,13 @@
   </div>
 </template>
 <style scoped>
+.structuration-container{
+  background-color: rgba(50, 50, 50, 0.8);
+  border-radius: 8px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
+  padding: 1rem;
+}
+
 .button {
     display: inline-block;
     padding: 0.5em 1em;

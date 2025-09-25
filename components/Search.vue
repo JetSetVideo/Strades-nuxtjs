@@ -6,7 +6,9 @@
 
     <ul>
         <li class="button">Options</li>
+        <li class="button">Favorites</li>
         <li class="button">Past Searches</li>
+        <li class="button">Recommended</li>
     </ul>
   </div>
 </template>

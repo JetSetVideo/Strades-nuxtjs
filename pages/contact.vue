@@ -1,46 +1,22 @@
-<script setup lang="ts">
+<!-- contact page -->
+<script setup>
 </script>
 <template>
-    <AccountingWidget />
-    <Article />
-    <AssetWidget/>
-    <ButtonComponent text="Strades"/>
-    <ButtonTimer/>
-    <Calendar/>
-    <CapitalDistribution/>
-    <ChartAnalyse/>
-    <ChartAnalysis/>
-    <Company/>
-    <CompanyPage/>
-    <Comparator/>
-    <ContactPage/>
-    <Filter/>
-    <GlobalCategories/>
-    <Heatmap/>
-    <HelloWorld/>
-    <Home/>
-    <InformationsPage/>
-    <InvestmentDashboard/>
-    <MarketPage/>
-    <Notification/>
-    <OptionBar/>
-    <PercentageWallet/>
-    <Portfolio/>
-    <Prediction/>
-    <Profil/>
-    <Radar/>
-    <Search/>
-    <SearchBar/>
-    <Sentiment/>
-    <Settings/>
-    <ShareButton/>
-    <Shop/>
-    <Strategies/>
-    <Strategy/>
-    <StrategyCreator/>
-    <Structuration/>
-    <TransferWidget/>
-    <UserProfil/>
+    <div class="contact">
+        <h1>Contact</h1>
+        <p>Feel free to contact us</p>
+    </div>
 </template>
-<style scoped>
+<style>
+.contact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 1rem;
+    padding: 1rem;
+    background-color: rgba(20, 20, 20, 0.1);
+    border-radius: 0.5rem;
+}
 </style>

@@ -1,94 +1,55 @@
-<script setup lang="ts">
-</script>
+<script setup>
 
+import imageUrl from "/assets/Logo_Color.png";
+</script>
 <template>
-    <div class="about-page">
-      <section class="hero">
-        <div class="hero-content">
-          <h1 class="title">About Strades</h1>
-          <p class="description">
-            Strades is a revolutionary financial application that combines the power of a social network with cutting-edge artificial intelligence to transform the way you invest.
-          </p>
-        </div>
-      </section>
-  
-      <section class="features">
-        <div class="feature">
-          <div class="icon">
-            <i class="fas fa-chart-line"></i>
-          </div>
-          <h2 class="feature-title">Invest Together</h2>
-          <p class="feature-description">
-            Connect with like-minded investors and collaborate on investment strategies. Strades brings the community together to achieve financial success.
-          </p>
-        </div>
-  
-        <div class="feature">
-          <div class="icon">
-            <i class="fas fa-robot"></i>
-          </div>
-          <h2 class="feature-title">AI-Powered Insights</h2>
-          <p class="feature-description">
-            Our AI algorithms analyze market data and provide you with intelligent investment recommendations, helping you make informed decisions.
-          </p>
-        </div>
-  
-        <div class="feature">
-          <div class="icon">
-            <i class="fas fa-chart-bar"></i>
-          </div>
-          <h2 class="feature-title">Track Records</h2>
-          <p class="feature-description">
-            Share your backtest results and track records with the community. Transparency is key to building trust and investing safely.
-          </p>
-        </div>
-      </section>
+  <div class="about-container">
+    <h1 class="about-title">About Page</h1>
+    <h2 class="about-subtitle">www.Strades.info</h2>
+    <h2 class="company-presentation">Presentation of the company</h2>
+    <h2 class="team-presentation">Presentation of the team</h2>
+    <img :src="imageUrl" alt="about logo" class="about-logo" />
+    <div class="contact-section">
+      <p class="contact-text"> Contact us</p><br/>
+      <p class="message-text">Message</p>
     </div>
-  </template>
-  
-  <style scoped>
-  .about-page {
-    background-color: #000;
-    color: #fff;
-    padding: 40px;
-  }
-  
-  .hero {
-    text-align: center;
-    margin-bottom: 40px;
-  }
-  
-  .title {
-    font-size: 36px;
-  }
-  
-  .description {
-    font-size: 18px;
-  }
-  
-  .features {
-    display: flex;
-    justify-content: space-between;
-  }
-  
-  .feature {
-    flex: 1;
-    text-align: center;
-    padding: 20px;
-  }
-  
-  .icon {
-    font-size: 36px;
-    margin-bottom: 10px;
-  }
-  
-  .feature-title {
-    font-size: 24px;
-    margin-bottom: 10px;
-  }
-  
-  .feature-description {
-    font-size: 16px;
-  }
-  </style>
-  
+  </div>
+</template>
+<style>
+.about-container {
+  background-color: rgba(189, 189, 189,0.9);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  margin: 20px;
+}
+
+.about-title, .about-subtitle, .company-presentation, .team-presentation {
+  color: rgba(0,0,0,0.5);
+  margin-bottom: 15px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.about-logo {
+  width: 100px;
+  height: 100px;
+  display: block;
+  margin: 20px auto;
+  border-radius: 50%;
+}
+
+.contact-section {
+  background-color: rgba(255,255,255,0.5);
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.contact-text, .message-text {
+  color: rgba(0,0,0,0.5);
+  font-size: 16px;
+  line-height: 1.5;
+  text-align: center;
+}
+</style>

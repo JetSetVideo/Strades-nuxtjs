@@ -1,0 +1,18 @@
+[{
+    "id":"0101",
+    "name":"Github Commits",
+    "image_url":"https//www.source.com",
+    "description":"number of commits on Github for the selected project"
+},
+{
+    "id":"0102",
+    "name":"CryptoWallet",
+    "image_url":"https//www.source.com",
+    "description":"Evolution of the trades in a cryptowallet"
+},
+{
+    "id":"0103",
+    "name":"Stock Market Trends",
+    "image_url":"https://www.source.com",
+    "description":"Analysis of current trends in the stock market"
+}]

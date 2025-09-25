@@ -4,7 +4,7 @@
 <template>
   <div style="background-color: rgb(201, 211, 232)">
     <h1>Capital Distribution</h1>
-    <p> 100% </p><p> Diversification VS Concetration </p>
+    <p> 100% </p><p> Diversification VS Concentration </p>
     <ul>
         <li class="button">Previous Trades</li>
         <li class="button">Planned Trades</li>

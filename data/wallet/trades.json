@@ -1,0 +1,12 @@
+[
+    { "date": "2023-05-01", "asset": "BTC", "type": "buy", "amount": 0.1, "price": 30000 },
+    { "date": "2023-05-02", "asset": "ETH", "type": "sell", "amount": 1, "price": 2000 },
+    { "date": "2023-05-03", "asset": "USDT", "type": "buy", "amount": 1000, "price": 1 },
+    { "date": "2023-05-04", "asset": "BTC", "type": "sell", "amount": 0.05, "price": 31000 },
+    { "date": "2023-05-05", "asset": "ETH", "type": "buy", "amount": 0.5, "price": 1900 },
+    { "date": "2023-05-06", "asset": "XRP", "type": "buy", "amount": 500, "price": 0.5 },
+    { "date": "2023-05-07", "asset": "ADA", "type": "buy", "amount": 200, "price": 0.3 },
+    { "date": "2023-05-08", "asset": "AAPL", "type": "buy", "amount": 5, "price": 150 },
+    { "date": "2023-05-09", "asset": "GOOGL", "type": "buy", "amount": 2, "price": 2500 },
+    { "date": "2023-05-10", "asset": "TSLA", "type": "sell", "amount": 3, "price": 180 }
+  ]

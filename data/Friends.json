@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "name": "Ben Stiller",
+    "username": "benstiller",
+    "image": "https://i.pinimg.com/originals/28/d2/e6/28d2e684e7859a0dd17fbd0cea00f8a9.jpg",
+    "value": 100,
+    "value-evolution-percent": 4.5,
+    "online": true,
+    "messages": [
+      {
+        "id": 1,
+        "senderId": 1,
+        "text": "Hey, how's it going?",
+        "timestamp": "2023-06-10T10:00:00Z"
+      },
+      {
+        "id": 2,
+        "senderId": 0,
+        "text": "I'm doing great, thanks for asking!",
+        "timestamp": "2023-06-10T10:05:00Z"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Patrick Stewart",
+    "username": "patrickstewart",
+    "image": "https://i.pinimg.com/originals/ee/85/08/ee850842e68cfcf6e3943c048f45c6d1.jpg",
+    "value": 110,
+    "value-evolution-percent": 8.5,
+    "online": true,
+    "messages": [
+      {
+        "id": 1,
+        "senderId": 1,
+        "text": "Hey, how's it going?",
+        "timestamp": "2023-06-10T10:00:00Z"
+      },
+      {
+        "id": 2,
+        "senderId": 0,
+        "text": "I'm doing great, thanks for asking!",
+        "timestamp": "2023-06-10T10:05:00Z"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Al Pacino",
+    "username": "alpacino",
+    "image": "https://i.pinimg.com/736x/8f/a0/51/8fa051251f5ac2d0b756027089fbffde--terry-o-neill-al-pacino.jpg",
+    "value": 121,
+    "value-evolution-percent": 3.9,
+    "online": true,
+    "messages": [
+      {
+        "id": 1,
+        "senderId": 1,
+        "text": "Hey, how's it going?",
+        "timestamp": "2023-06-10T10:00:00Z"
+      },
+      {
+        "id": 2,
+        "senderId": 0,
+        "text": "I'm doing great, thanks for asking!",
+        "timestamp": "2023-06-10T10:05:00Z"
+      }
+    ]
+  }
+]
+

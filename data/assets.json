@@ -1,0 +1,538 @@
+{
+  "name": "assets",
+  "categories": [
+    {
+      "name": "Companies",
+      "companies": [
+        {
+          "id": "apple",
+          "name": "Apple Inc.",
+          "sector": "Technology",
+          "symbol": "AAPL",
+          "stock_price_usd": "150",
+          "market_cap_usd": "2 trillion",
+          "description": "Designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.",
+          "headquarter": "Cupertino, CA, USA",
+          "yearOfCreation": "1976",
+          "ceo": "Tim Cook",
+          "founders": "Steve Jobs, Steve Wozniak, Ronald Wayne",
+          "website": "https://www.apple.com",
+          "tags": ["@Apple"],
+          "profileIcon": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Apple_logo_grey.svg/1724px-Apple_logo_grey.svg.png",
+          "relation": {
+            "name": "Apple",
+            "value": 15,
+            "type": "black",
+            "level": "grey",
+            "children": [
+              {
+                "name": "Inb Electronics",
+                "value": 10,
+                "type": "grey",
+                "level": "grey",
+                "children": [
+                  {
+                    "name": "Hp",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  },
+                  {
+                    "name": "HandProducts",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  }
+                ]
+              },
+              {
+                "name": "Primax Electronics",
+                "value": 10,
+                "type": "grey",
+                "level": "grey",
+                "children": [
+                  {
+                    "name": "Hp",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  },
+                  {
+                    "name": "HandProducts",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  }
+                ]
+              },
+              {
+                "name": "Electronics Future",
+                "value": 10,
+                "type": "grey",
+                "level": "grey",
+                "children": [
+                  {
+                    "name": "A I C/O Geodis",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  },
+                  {
+                    "name": "Hp",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  },
+                  {
+                    "name": "HandProducts",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  }
+                ]
+              },
+              {
+                "name": "Sound Technology",
+                "value": 10,
+                "type": "grey",
+                "level": "grey",
+                "children": [
+                  {
+                    "name": "A I C/O Geodis",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  }
+                ]
+              },
+              {
+                "name": "Shanghai Computer",
+                "value": 10,
+                "type": "grey",
+                "level": "grey",
+                "children": [
+                  {
+                    "name": "Hp",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  },
+                  {
+                    "name": "HandProducts",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  }
+                ]
+              }
+            ]
+          },
+          "heatmap": {
+            "name": "Video Game Sales Data Top 100",
+            "children": [
+              {
+                "name": "2600",
+                "children": [
+                  {
+                    "name": "Pac-Man",
+                    "category": "2600",
+                    "value": "7.81"
+                  },
+                  {
+                    "name": "Pac-Man2",
+                    "category": "2600",
+                    "value": "7.81"
+                  },
+                  {
+                    "name": "Pac-Man3",
+                    "category": "2600",
+                    "value": "7.81"
+                  }
+                ]
+              },
+              {
+                "name": "Wii",
+                "children": [
+                  {
+                    "name": "Wii",
+                    "category": "Wii",
+                    "value": "82.53"
+                  },
+                  {
+                    "name": "Mario",
+                    "category": "Wii",
+                    "value": "35.52"
+                  },
+                  {
+                    "name": "Wii",
+                    "category": "Wii",
+                    "value": "32.77"
+                  },
+                  {
+                    "name": "Play",
+                    "category": "Wii",
+                    "value": "28.92"
+                  },
+                  {
+                    "name": "Super",
+                    "category": "Wii",
+                    "value": "28.32"
+                  },
+                  {
+                    "name": "WiiFit",
+                    "category": "Wii",
+                    "value": "22.7"
+                  },
+                  {
+                    "name": "FitPlus",
+                    "category": "Wii",
+                    "value": "21.79"
+                  },
+                  {
+                    "name": "Brawl",
+                    "category": "Wii",
+                    "value": "12.84"
+                  },
+                  {
+                    "name": "Galaxy",
+                    "category": "Wii",
+                    "value": "11.35"
+                  },
+                  {
+                    "name": "Dance3",
+                    "category": "Wii",
+                    "value": "10.12"
+                  },
+                  {
+                    "name": "Dance2",
+                    "category": "Wii",
+                    "value": "9.44"
+                  },
+                  {
+                    "name": "Wii Party",
+                    "category": "Wii",
+                    "value": "8.38"
+                  },
+                  {
+                    "name": "Party8",
+                    "category": "Wii",
+                    "value": "8.27"
+                  },
+                  {
+                    "name": "MarioSonic",
+                    "category": "Wii",
+                    "value": "7.99"
+                  },
+                  {
+                    "name": "Galaxy2",
+                    "category": "Wii",
+                    "value": "7.51"
+                  }
+                ]
+              },
+              {
+                "name": "NES",
+                "children": [
+                  {
+                    "name": "SuperMarioBros.",
+                    "category": "NES",
+                    "value": "40.24"
+                  },
+                  {
+                    "name": "DuckHunt",
+                    "category": "NES",
+                    "value": "28.31"
+                  },
+                  {
+                    "name": "Super3",
+                    "category": "NES",
+                    "value": "17.28"
+                  },
+                  {
+                    "name": "Supe2",
+                    "category": "NES",
+                    "value": "7.46"
+                  }
+                ]
+              },
+              {
+                "name": "GB",
+                "children": [
+                  {
+                    "name": "Red/Pokemon",
+                    "category": "GB",
+                    "value": "31.37"
+                  },
+                  {
+                    "name": "Tetris",
+                    "category": "GB",
+                    "value": "30.26"
+                  },
+                  {
+                    "name": "Gold/Pokemon",
+                    "category": "GB",
+                    "value": "23.1"
+                  },
+                  {
+                    "name": "Land",
+                    "category": "GB",
+                    "value": "18.14"
+                  },
+                  {
+                    "name": "Yellow",
+                    "category": "GB",
+                    "value": "14.64"
+                  },
+                  {
+                    "name": "Land2",
+                    "category": "GB",
+                    "value": "11.18"
+                  }
+                ]
+              },
+              {
+                "name": "DS",
+                "children": [
+                  {
+                    "name": "SuperMario",
+                    "category": "DS",
+                    "value": "29.8"
+                  },
+                  {
+                    "name": "Nintendogs",
+                    "category": "DS",
+                    "value": "24.67"
+                  },
+                  {
+                    "name": "Kart",
+                    "category": "DS",
+                    "value": "23.21"
+                  },
+                  {
+                    "name": "BrainAge",
+                    "category": "DS",
+                    "value": "20.15"
+                  },
+                  {
+                    "name": "Diamond/Pokemon",
+                    "category": "DS",
+                    "value": "18.25"
+                  },
+                  {
+                    "name": "Brain",
+                    "category": "DS",
+                    "value": "15.29"
+                  },
+                  {
+                    "name": "Black/Pokemon",
+                    "category": "DS",
+                    "value": "15.14"
+                  },
+                  {
+                    "name": "Animal",
+                    "category": "DS",
+                    "value": "12.13"
+                  },
+                  {
+                    "name": "HeartGold/Pokemon",
+                    "category": "DS",
+                    "value": "11.77"
+                  },
+                  {
+                    "name": "Super",
+                    "category": "DS",
+                    "value": "10.3"
+                  },
+                  {
+                    "name": "Mario",
+                    "category": "DS",
+                    "value": "8.91"
+                  },
+                  {
+                    "name": "Black",
+                    "category": "DS",
+                    "value": "8.07"
+                  },
+                  {
+                    "name": "Pokémon",
+                    "category": "DS",
+                    "value": "7.72"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "tesla",
+          "name": "Tesla, Inc.",
+          "sector": "Automotive",
+          "symbol": "TSLA",
+          "stock_price_usd": "700",
+          "market_cap_usd": "700 billion",
+          "description": "Designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems.",
+          "headquarter": "Palo Alto, CA, USA",
+          "yearOfCreation": "2003",
+          "ceo": "Elon Musk",
+          "founders": "Elon Musk, JB Strauss, Martin Eberhard, Marc Tarpenning",
+          "website": "https://www.tesla.com",
+          "tags": ["@Tesla", "#Automotive", "#ElectricVehicles"],
+          "profileIcon": "https://upload.wikimedia.org/wikipedia/commons/e/e8/Tesla_logo.png",
+          "relation": {
+            "name": "Tesla",
+            "value": 15,
+            "type": "black",
+            "level": "grey",
+            "children": [
+              {
+                "name": "Battery Suppliers",
+                "value": 10,
+                "type": "grey",
+                "level": "grey",
+                "children": [
+                  {
+                    "name": "Panasonic",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  },
+                  {
+                    "name": "LG Chem",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                  }
+                ]
+              },
+              {
+                "name": "Autonomous Tech",
+                "value": 10,
+                "type": "grey",
+                "level": "grey",
+                "children": [
+                  {
+                    "name": "NVIDIA",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                    },
+                    {
+                    "name": "Mobileye",
+                    "value": 7.5,
+                    "type": "grey",
+                    "level": "grey"
+                    }
+                    ]
+                    }
+                    ]
+                    },
+                    "heatmap": {
+                    "name": "Electric Vehicle Sales Data",
+                    "children": [
+                    {
+                    "name": "Model S",
+                    "category": "Tesla",
+                    "value": "7.81"
+                    },
+                    {
+                    "name": "Model 3",
+                    "category": "Tesla",
+                    "value": "82.53"
+                    },
+                    {
+                    "name": "Model X",
+                    "category": "Tesla",
+                    "value": "35.52"
+                    }
+                    ]
+                    }
+                    },
+        {
+            "id": "amazon",
+            "name": "Amazon.com, Inc.",
+            "sector": "Retail",
+            "symbol": "AMZN",
+            "stock_price_usd": "3,000",
+            "market_cap_usd": "1.5 trillion",
+            "description": "Engages in the retail sale of consumer products and subscriptions in North America and internationally.",
+            "headquarter": "Seattle, WA, USA",
+            "yearOfCreation": "1994",
+            "ceo": "Jeff Bezos",
+            "founders": "Jeff Bezos, David Smith, Adam Smith, Terry Smith",
+            "website": "https://www.amazon.com",
+            "tags": "@Amazon",
+            "profileIcon": "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
+            "relation": {
+            "name": "Amazon",
+            "value": 15,
+            "type": "black",
+            "level": "grey",
+            "children": [
+            {
+            "name": "AWS",
+            "value": 10,
+            "type": "grey",
+            "level": "grey",
+            "children": [
+            {
+            "name": "EC2",
+            "value": 7.5,
+            "type": "grey",
+            "level": "grey"
+          },
+          {
+            "name": "S3",
+            "value": 7.5,
+            "type": "grey",
+            "level": "grey"
+          }
+        ]
+      },
+            {
+              "name": "Retail",
+              "value": 10,
+              "type": "grey",
+              "level": "grey",
+              "children": [
+                {
+                  "name": "Whole Foods",
+                  "value": 7.5,
+                  "type": "grey",
+                  "level": "grey"
+                },
+                {
+                  "name": "Amazon Fresh",
+                  "value": 7.5,
+                  "type": "grey",
+                  "level": "grey"
+                }
+              ]
+            }
+          ]
+        },
+        "heatmap": {
+          "name": "Retail Sales Data",
+          "children": [
+            {
+              "name": "Electronics",
+              "category": "Amazon",
+              "value": "50.24"
+            },
+            {
+              "name": "Books",
+              "category": "Amazon",
+              "value": "30.26"
+            },
+            {
+              "name": "Groceries",
+              "category": "Amazon",
+              "value": "20.15"
+            }
+          ]
+        }
+      }
+    ]
+  }
+  ]
+  }
+    

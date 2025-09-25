@@ -1,0 +1,51 @@
+{
+  "1": {
+    "id": "1",
+    "from": "1",
+    "to": "2",
+    "message": "Hello, how are you?",
+    "timestamp": "2022-01-01T00:00:00Z",
+    "read": true,
+    "deleted": false,
+    "meta": {
+      "type": "text"
+    },
+    "reactions": [],
+    "attachments": [],
+    "modified": false,
+    "parent": null
+  },
+  "2": {
+    "id": "2",
+    "from": "2",
+    "to": "1",
+    "message": "Hello, I'm fine, thank you!",
+    "timestamp": "2022-01-01T00:01:00Z",
+    "read": true,
+    "deleted": false,
+    "meta": {
+      "type": "text"
+    },
+    "reactions": [],
+    "attachments": [],
+    "modified": false,
+    "parent": null
+  },
+  "3": {
+    "id": "3",
+    "from": "1",
+    "to": "2",
+    "message": "What are you investing one today?",
+    "timestamp": "2022-01-01T01:01:00Z",
+    "read": true,
+    "deleted": false,
+    "meta": {
+      "type": "text"
+    },
+    "reactions": [],
+    "attachments": [],
+    "modified": false,
+    "parent": null
+  }
+}
+

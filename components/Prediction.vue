@@ -1,4 +1,5 @@
 <script setup></script>
+
 <template>
   <div style="background-color: rgb(227, 222, 191)">
     <h1>Prediction</h1>
@@ -16,6 +17,7 @@
     </ul></div>
   </div>
 </template>
+
 <style scoped>
 .button {
     display: inline-block;

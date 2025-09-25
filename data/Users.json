@@ -1,0 +1,32 @@
+{
+  "id": "1",
+  "username": "johndoe",
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "password": "password",
+  "birthday": "1990-01-01",
+  "psychologyType": "INFJ",
+  "role": "admin",
+  "sentiment": "positive",
+  "avatar": "https://i.pravatar.cc/300",
+  "bio": "Admin user",
+  "friendlist": [],
+  "watchlist": [],
+  "notifications": [],
+  "transactions": [],
+  "balance": {
+    "USD": "10000",
+    "BTC": "0",
+    "ETH": "0"
+  },
+  "tradeHistory": [],
+  "preferences": {
+    "theme": "light",
+    "currency": "USD"
+  },
+  "settings": {
+    "notifications": true
+  }
+}
+
+

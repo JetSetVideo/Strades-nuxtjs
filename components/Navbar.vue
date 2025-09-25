@@ -1,67 +1,71 @@
-<script setup lang="ts">
-</script>
-
 <template>
-  <nav class="navbar">
-    <div class="navbar-left">
-      
-      <span class="company-name">Strades</span>
-    </div>
-    <div class="navbar-center">
-      <nuxt-link to="/">Home</nuxt-link>
-      <nuxt-link to="/about">About</nuxt-link>
-      <nuxt-link to="/contact">Contact Us</nuxt-link>
-    </div>
-    <div class="navbar-right">
-      <img src="~/assets/Logo_Black.png" alt="Logo" class="logo">
-    </div>
+  <nav class="nav-bar">
+    <NavBaritem text="Wallet" />
+    <NavBaritem text="Assets" />
+    <NavBarCircle />
+    <NavBaritem text="Strategies" />
+    <NavBaritem text="Informations" />
   </nav>
 </template>
+  
+<script>
+import NavBarCircle from './NavBarCircle.vue'
+import NavBaritem from './NavBarItem.vue'
 
-<style scoped>
-.navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background-color: #333; /* Change this to your desired background color */
-  color: #fff; /* Change this to your desired text color */
+export default {
+  components: {
+    NavBarCircle,
+    NavBaritem
+  }
+}
+</script>
+  
+<style>
+.nav-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Outer shadow */
+  width: 100%;
+  height: 10em;
+  background-color: #202020;
+  border: 2px solid #333;
+  box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.4);
+  border-radius: 5px;
+  padding: 0 10px;
 }
 
-.company-name {
-  font-size: 24px;
-  margin-left: 20px; /* Move the company name to the left */
-}
-
-.navbar-center {
+.nav-bar-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 20px; /* Add space between the links */
-  margin-right: auto; /* Push the links to the left for centering */
+  font-size: 24px;
+  color: #000;
+  cursor: pointer;
 }
 
-.navbar-center nuxt-link {
-  color: #fff; /* Change this to your desired link color */
-  text-decoration: none;
-  font-weight: bold;
-  padding: 10px; /* Add padding around the links */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Inner shadow for the links */
+.nav-bar-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50px;
+  width: 50px;
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  border-radius: 5px;
+  font-size: 16px;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
 }
 
-.navbar-center nuxt-link:hover {
-  text-decoration: underline;
-}
-
-/* Style the logo */
-.logo {
-  max-width: 50px; /* Adjust the logo size as needed */
-  height: auto;
-  margin-right: 20px; /* Add space between the logo and company name */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Inner shadow for the logo */
+.nav-bar-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 10px rgba(0,0,0,0.3);
 }
 </style>
+  

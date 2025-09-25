@@ -1,0 +1,72 @@
+{
+    "wallets": [
+        {
+            "address": "0x123456789abcdef",
+            "id": "123456789",
+            "name": "John Doe",
+            "email": "john@doe.com",
+            "createdAt": "2021-01-01 12:00:00",
+            "updatedAt": "2021-01-01 12:00:00",
+            "portfolios": [
+                {
+                    "name": "Crypto Portfolio",
+                    "transactionHistory": [
+                        {
+                            "asset": "Bitcoin",
+                            "type": "buy",
+                            "amount": 0.5,
+                            "priceAtTransaction": 30000,
+                            "date": "2021-07-01"
+                        },
+                        {
+                            "asset": "Ethereum",
+                            "type": "sell",
+                            "amount": 2,
+                            "priceAtTransaction": 2000,
+                            "date": "2021-08-15"
+                        }
+                    ]
+                },
+                {
+                    "name": "Futures Portfolio",
+                    "transactionHistory": [
+                        {
+                            "asset": "Gold Futures",
+                            "type": "buy",
+                            "amount": 10,
+                            "priceAtTransaction": 1800,
+                            "date": "2021-09-05"
+                        },
+                        {
+                            "asset": "Oil Futures",
+                            "type": "sell",
+                            "amount": 20,
+                            "priceAtTransaction": 65,
+                            "date": "2021-10-22"
+                        }
+                    ]
+                },
+                {
+                    "name": "Stocks Portfolio",
+                    "transactionHistory": [
+                        {
+                            "asset": "AAPL",
+                            "type": "buy",
+                            "amount": 50,
+                            "priceAtTransaction": 150,
+                            "date": "2021-11-10"
+                        },
+                        {
+                            "asset": "TSLA",
+                            "type": "sell",
+                            "amount": 30,
+                            "priceAtTransaction": 700,
+                            "date": "2021-12-01"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
+

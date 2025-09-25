@@ -1,0 +1,27 @@
+[
+    {
+      "id": 1,
+      "name": "Group Chat",
+      "members": [
+        { "id": 1, "username": "@ComradCom", "avatar": "https://avatars.githubusercontent.com/u/739984?v=4" },
+        { "id": 2, "username": "@AnotherFriend", "avatar": "https://example.com/avatar2.png" }
+      ],
+      "lastMessage": {
+        "text": "Last message in the group chat",
+        "timestamp": "2023-06-08T12:00:00Z"
+      },
+      "unreadCount": 2
+    },
+    {
+      "id": 2,
+      "name": "John Doe",
+      "members": [
+        { "id": 3, "username": "@JohnDoe", "avatar": "https://example.com/avatar3.png" }
+      ],
+      "lastMessage": {
+        "text": "Last message from John Doe",
+        "timestamp": "2023-06-07T09:30:00Z"
+      },
+      "unreadCount": 0
+    }
+]
