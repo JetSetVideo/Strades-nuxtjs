@@ -5,9 +5,9 @@ const props = defineProps(['modelValue']);
 const emit = defineEmits(['update:modelValue']);
 
 const dataSources = ref([
-  { id: 1, name: 'Github Commits', image: '/images/github.png' },
-  { id: 2, name: 'Twitter Sentiment', image: '/images/twitter.png' },
-  { id: 3, name: 'Reddit Posts', image: '/images/reddit.png' },
+  { id: 1, name: 'Github Commits', image: '/logos/github.png' },
+  { id: 2, name: 'Twitter Sentiment', image: '/logos/apple.png' },
+  { id: 3, name: 'Reddit Posts', image: '/logos/amazon.png' },
   // Add more data sources as needed
 ]);
 

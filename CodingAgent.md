@@ -2,6 +2,8 @@
 
 Refer to [README.md](./README.md) and [Structure.md](./Structure.md) for project context and architecture. This document provides guidelines for implementing efficient data tracking, backend ingestion, cleaning pipelines, and AI model integration in Strades.
 
+Always follow the data flow from the json files in the data/ directory to the frontend components in both way to insure that everything extracted is shown. In the other way, everything interacted with should be tracked and stored in the json files.
+
 ## Base Concepts in Data Handling
 
 ### Event-Driven Architecture

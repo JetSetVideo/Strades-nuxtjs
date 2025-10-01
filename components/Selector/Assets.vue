@@ -33,7 +33,7 @@ async function fetchPrices() {
       sector: 'Cryptocurrency',
       stock_price_usd: prices[key],
       market_cap_usd: 0, // Assuming market cap is not provided
-      urlIcon: `/images/${key.toLowerCase()}.png`
+      urlIcon: `/logos/${key.toLowerCase() === 'bitcoin' ? 'btc.svg' : key.toLowerCase() === 'ethereum' ? 'eth.png' : key.toLowerCase()}.png`
     }));
   } catch (error) {
     console.error('Failed to fetch prices:', error);

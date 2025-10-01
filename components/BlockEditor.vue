@@ -1,5 +1,4 @@
 <script setup>
-import { defineProps, defineEmits } from 'vue';
 
 const props = defineProps(['blocks']);
 const emit = defineEmits(['update-block', 'remove-block']);
