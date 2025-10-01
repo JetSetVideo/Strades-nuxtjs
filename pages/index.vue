@@ -5,7 +5,7 @@
     <main>
         <h1>Welcome to Strades</h1>
         <div class="board">
-          <ConnectionTest />
+          <!-- <ConnectionTest /> -->
         </div>
     </main>
 </template>

@@ -49,6 +49,7 @@ onBeforeUnmount(() => {
     <NuxtPage />
   </NuxtLayout>
 </template>
+
 <style>
 @font-face {
   font-family: Ethnocentric;

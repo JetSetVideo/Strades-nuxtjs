@@ -7,31 +7,10 @@ const username = ref('')
 const errorMessage = ref('')
 const isRegistering = ref(false)
 
-const login = async () => {
-  try {
-    const response = await fetch('https://strades.app/api/login/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: email.value,
-        password: password.value,
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error('Invalid email or password')
-    }
-
-    const data = await response.json()
-    localStorage.setItem('access_token', data.access_token)
-    // Redirect to a protected page or the main application
-    // You might want to use Nuxt's navigation here
-    window.location.href = '/wallet'
-  } catch (error) {
-    errorMessage.value = 'Invalid email or password'
-  }
+const login = () => {
+  // Simulate successful login for demo
+  localStorage.setItem('access_token', 'fake-demo-token');
+  window.location.href = '/wallet';
 }
 
 const register = async () => {
