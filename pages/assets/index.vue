@@ -5,9 +5,9 @@ const companyName = ref('Tesla');
 </script>
 <template>
     <div class="asset-page" :style="{backgroundColor: backgroundColor}">
-        <img src="assets\DailyPriceChart.png" alt="display-price">
-        <img src="assets\Logo_Color.png" alt="profil-icon">
-        <img src="assets\Tesla-black-logo-bgtransparent-png.png" alt="company-logo">
+        <img src="~/assets/backgrounds/DailyPriceChart.png" alt="display-price">
+        <img src="~/assets/logos/Logo_Color.png" alt="profil-icon">
+        <img src="~/assets/logos/Tesla-black-logo-bgtransparent-png.png" alt="company-logo">
         <h1>Asset Page</h1>
         <p>Asset Name: {{ companyName }}</p>
         <Chart />
@@ -25,7 +25,7 @@ const companyName = ref('Tesla');
         <p>Price Widget</p>
         <p>ToolBar</p>
         <div class="display-map">MAP
-            <img src="assets\modern-world-map-background_1035-7605.jpg.avif" alt="company-map">
+            <img src="~/assets/backgrounds/modern-world-map-background_1035-7605.jpg.avif" alt="company-map">
         </div>
         <p>Hierachy: Vertical VS Horizontal</p>
         <p>Number of employees</p>

@@ -4,7 +4,7 @@ definePageMeta({
     description: "Custom Page",
     layout: "custom",
 });
-import imageUrl from "../assets/icon_help-circle.png"
+import imageUrl from "~/assets/icons/icon_help-circle.png"
 
 </script>
 

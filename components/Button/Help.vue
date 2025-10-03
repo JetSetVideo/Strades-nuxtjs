@@ -1,5 +1,5 @@
 <script setup>
-import imageUrl from "../assets/Logo_Color.png";
+import imageUrl from "~/assets/logos/Logo_Color.png";
 </script>
 <template>
   <NuxtLink to="/help" class="button">

@@ -1,9 +1,9 @@
 <script setup>
-import iconNews from "../assets/icon_News.png"
-import iconChat from "../assets/icon_Chat.png"
-import iconPrice from "../assets/icon_Prices.png"
-import iconStrategies from "../assets/icon_Strategies.png"
-import iconWallet from "../assets/Wallet.png"
+import iconNews from "~/assets/icons/icon_News.png"
+import iconChat from "~/assets/icons/icon_Chat.png"
+import iconPrice from "~/assets/icons/icon_Prices.png"
+import iconStrategies from "~/assets/icons/icon_Strategies.png"
+import iconWallet from "~/assets/icons/Wallet.png"
 </script>
 
 <template>

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useWalletStore } from '@/stores/WalletStore';
+import { useWalletsStore } from '@/stores/wallets';
 import SelectStrats from '@/components/Wallet/SelectStrats.vue';
 
 definePageMeta({
@@ -9,7 +9,7 @@ definePageMeta({
     layout: "wallet",
 });
 
-const walletStore = useWalletStore();
+const walletsStore = useWalletsStore();
 const selectedCurrency = ref('BTC');
 const selectedAsset = ref('All');
 const strategies = ref([

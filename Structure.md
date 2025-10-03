@@ -73,35 +73,79 @@ Adhere to Nuxt 4 directory structure and consistent naming:
 - **File Extensions**: `.vue` for components, `.ts` for TypeScript files.
 - **Imports**: Use absolute paths or aliases (e.g., `~/components/`) for clarity.
 
+## Professional Data Structure
+
+The application uses a database-like structure in the `data/` directory to simulate future backend integration:
+
+### Core Entities
+- **Assets**: Cryptocurrencies (BTC, ETH, ADA), fiat currencies (USD, EUR, CNY), and stocks (AAPL, TSLA, AMZN)
+- **Users**: Comprehensive profiles with trading preferences, risk tolerance, and performance metrics
+- **Strategies**: Automated and manual trading strategies with detailed performance tracking
+- **Wallets**: Portfolio management with asset allocations and transaction history
+
+### Relationships & Analytics
+- **Asset Relationships**: Proximity levels, dependencies, and correlations between assets
+- **User-Asset Links**: Holdings, watchlists, favorites, and performance tracking
+- **Strategy-Asset Allocations**: Entry/exit rules and performance contributions
+- **User Interactions**: Comprehensive behavior tracking for AI training
+- **Component Usage**: Performance monitoring and optimization insights
+- **Chat System**: Direct messaging between users with conversation threading
+
+### Data Flow
+1. **Static Data**: JSON files in `data/` serve as the initial data source
+2. **Pinia Stores**: Centralized state management with TypeScript interfaces
+3. **Relationships**: Intermediary tables link entities for complex queries
+4. **Tracking**: User behavior data feeds into analytics and AI systems
+5. **Future Migration**: Structure designed for seamless transition to actual database
+
 # Files structure of the project:
 
-assets/ - Directory for static assets like images, fonts, and other media files used in the application.
-- Ace_of_spades.svg.png - PNG image of the Ace of Spades card.
-- avatars/ - Subdirectory for user avatar images.
-  - Ellipse5.png - Elliptical avatar image 5.
-  - Ellipse6.png - Elliptical avatar image 6.
-- DailyPriceChart.png - Image of a daily price chart.
-- fonts/ - Subdirectory for custom font files.
-  - ethnocentric-rg.otf - Ethnocentric regular font file.
-  - Kanit-Regular.ttf - Kanit regular font file.
-  - Medium.ttf - Medium weight font file.
-  - Poppins-Regular.ttf - Poppins regular font file.
-  - SemiBoldItalic.ttf - Semi-bold italic font file.
-- Frame1171275146.png - Specific frame image.
-- github-mark-white.png - White GitHub mark logo.
-- icon_Chat.png - Chat icon image.
-- icon_help-circle.png - Help circle icon.
-- icon_News.png - News icon.
-- icon_Prices.png - Prices icon.
-- icon_Strategies.png - Strategies icon.
-- infographic-vector-background-5-polygonal-260nw-1384619417.jpg.webp - Infographic background image.
-- logo_Bitcoin_612x612.jpg - Bitcoin logo image.
-- Logo_Color.png - Colored application logo.
-- logo_Ethereum.jpg - Ethereum logo.
-- logo_Tesla.png - Tesla logo.
-- modern-world-map-background_1035-7605.jpg.avif - Modern world map background.
-- Tesla-black-logo-bgtransparent-png.png - Transparent black Tesla logo.
-- Wallet.png - Wallet image.
+assets/ - Unified directory for all processed assets (images, icons, fonts) following Nuxt 4 best practices.
+- avatars/ - User avatar images.
+  - Ellipse5.png - User avatar 5.
+  - Ellipse6.png - User avatar 6.
+- backgrounds/ - Background images and UI elements.
+  - Ace_of_spades.svg.png - Card game asset.
+  - DailyPriceChart.png - Price chart placeholder.
+  - Frame1171275146.png - UI frame element.
+  - infographic-vector-background-5-polygonal-260nw-1384619417.jpg.webp - Infographic background.
+  - modern-world-map-background_1035-7605.jpg.avif - World map background.
+- fonts/ - Custom font files.
+  - ethnocentric-rg.otf - Ethnocentric regular font.
+  - Kanit-Regular.ttf - Kanit regular font.
+  - Medium.ttf - Medium weight font.
+  - Poppins-Regular.ttf - Poppins regular font.
+  - SemiBoldItalic.ttf - Semi-bold italic font.
+- icons/ - Application icons and UI elements.
+  - add-circle-outline_icon.svg - Add icon.
+  - analytics-outline_icon.svg - Analytics icon.
+  - barcode-outline_icon.svg - Barcode icon.
+  - bookmark-outline_icon.svg - Bookmark icon.
+  - calendar-outline_icon.svg - Calendar icon.
+  - caret-up-circle-outline_icon.svg - Caret up icon.
+  - contract-outline_icon.svg - Contract icon.
+  - earth-outline_Icon.svg - Earth icon.
+  - filter_icon.svg - Filter icon.
+  - github-mark-white.png - GitHub logo.
+  - icon_Chat.png - Chat icon.
+  - icon_help-circle.png - Help icon.
+  - icon_News.png - News icon.
+  - icon_Prices.png - Prices icon.
+  - icon_Strategies.png - Strategies icon.
+  - link-outline_icon.svg - Link icon.
+  - Market_Icon.svg - Market icon.
+  - notifications-circle-outline_icon.svg - Notifications icon.
+  - search-circle-outline_icon.svg - Search icon.
+  - share-social-outline_icon.svg - Share icon.
+  - StradeLogoPrototype_icon.svg - App logo prototype.
+  - Wallet.png - Wallet icon.
+- logos/ - Company and application logos.
+  - logo_Bitcoin_612x612.jpg - Bitcoin logo.
+  - Logo_Black.png - Black app logo.
+  - Logo_Color.png - Colored app logo.
+  - logo_Ethereum.jpg - Ethereum logo.
+  - logo_Tesla.png - Tesla logo.
+  - Tesla-black-logo-bgtransparent-png.png - Transparent Tesla logo.
 components/ - Directory for Vue components used throughout the application.
 - APISynchronisations.vue - Component for handling API synchronizations.
 - Asset/ - Subdirectory for asset-related components.
@@ -232,27 +276,28 @@ components/ - Directory for Vue components used throughout the application.
 composables/ - Directory for composable functions.
 - useAuth.ts - Composable for authentication logic.
 - useStrategies.ts - Composable for strategies management.
-data/ - Directory for static data files like JSON.
-- assets.json - JSON data for assets.
-- Bitcoin.json - Bitcoin specific data.
-- Contacts.json - Contacts data.
-- Datasources.json - Data sources list.
-- Discussions.json - Discussions data.
-- Friends.json - Friends list.
-- logkeeper.csv - CSV for log keeping.
-- Messages.json - Messages data.
-- news.json - News items.
-- strategies/ - Subdirectory for strategy JSON files.
-  - strategy3.json - Third strategy data file.
-  - strategy2.json - Second strategy data file.
-  - strategy1.json - First strategy data file.
-- Strategy.json - General strategy data.
-- Users.json - Users data.
-- wallet/ - Subdirectory for wallet data.
-  - prices.json - Prices data for wallet.
-  - trades.json - Trades data for wallet.
-  - assets.json - Assets data for wallet.
-- Wallet.json - Wallet data.
+data/ - Directory for static data files mimicking future database structure.
+- core/ - Core entity tables.
+  - assets.json - Comprehensive asset data (crypto, forex, stocks) with financial information.
+  - users.json - User profiles with trading preferences and statistics.
+  - strategies.json - Trading strategies with performance metrics and conditions.
+  - wallets.json - User wallet portfolios with asset allocations and transactions.
+- relationships/ - Intermediary tables linking core entities.
+  - asset_relationships.json - Relationships between assets (similar, dependent, competitor).
+  - user_assets.json - User-asset relationships with holdings and performance.
+  - strategy_assets.json - Strategy-asset allocations with entry/exit rules.
+- tracking/ - User interaction and analytics data.
+  - user_interactions.json - Detailed user behavior tracking.
+  - component_usage.json - Component performance and usage analytics.
+  - analytics.json - Business metrics and KPIs.
+- chat/ - Messaging and communication data.
+  - conversations.json - Chat conversations between users.
+  - messages.json - Individual messages with reactions and attachments.
+- prices/ - Historical price data for assets (CSV format).
+  - BTC-USD.csv - Bitcoin price history.
+  - ETH-USD.csv - Ethereum price history.
+  - AAPL.csv - Apple stock price history.
+  - EUR-USD.csv - Euro currency price history.
 layouts/ - Directory for layout templates.
 - candle.vue - Layout for candle charts.
 - creator.vue - Layout for creator pages.
@@ -361,21 +406,16 @@ src/ - Source directory, possibly for additional assets.
   - StradeLogoPrototype_icon.svg - Strade logo prototype icon.
   - Market_Icon.svg - Market icon.
   - Logo_Black.png - Black logo PNG.
-static/ - Directory for static files.
-- a.csv - CSV file A.
-- BTC-USD.csv - Bitcoin USD price CSV.
-stores/ - Directory for Pinia stores.
-- assets.ts - Assets store.
-- assetsStore.ts - Another assets store.
-- BitcoinStore.ts - Bitcoin specific store.
-- DatasourcesStore.ts - Data sources store.
-- DiscussionsStore.ts - Discussions store.
-- FriendsStore.ts - Friends store.
-- MessagesStore.ts - Messages store.
-- newsStore.ts - News store.
-- priceStore.ts - Price store.
-- UsersStore.ts - Users store.
-- WalletStore.ts - Wallet store.
+static/ - Directory for truly static files served directly (no build processing).
+- a.csv - Large dataset file.
+- BTC-USD.csv - Bitcoin USD price data (legacy location).
+stores/ - Directory for Pinia stores managing application state.
+- assets.ts - Comprehensive assets store with relationships and price data.
+- users.ts - User management store with profiles and asset relationships.
+- strategies.ts - Strategy management store with performance tracking.
+- wallets.ts - Portfolio and wallet management store.
+- chat.ts - Messaging and conversation management store.
+- tracking.ts - User interaction and analytics tracking store.
 tsconfig.json - TypeScript configuration file.
 types/ - Directory for type definitions.
 - index.d.ts - TypeScript declaration file.

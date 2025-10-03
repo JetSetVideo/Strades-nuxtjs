@@ -5,7 +5,7 @@
 <script setup>
 import * as d3 from "d3";
 const props = defineProps({ companyId: String });
-import { useAssetsStore } from "@/stores/assetsStore.ts";
+import { useAssetsStore } from "@/stores/assets";
 
 const assetsStore = useAssetsStore();
 const company = ref(null);

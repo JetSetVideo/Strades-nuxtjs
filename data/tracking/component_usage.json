@@ -1,0 +1,180 @@
+[
+  {
+    "id": "comp_usage_001",
+    "component_name": "StrategyCard",
+    "component_type": "card",
+    "user_id": "user_001",
+    "session_id": "session_20240101_001",
+    "page": "/strategies",
+    "action": "render",
+    "timestamp": "2024-01-01T09:00:15Z",
+    "render_time_ms": 45,
+    "interaction_count": 3,
+    "props": {
+      "strategy_id": "strategy_001",
+      "show_actions": true,
+      "compact": false
+    },
+    "metadata": {
+      "component_version": "1.2.0",
+      "data_loaded": true,
+      "cache_hit": false
+    }
+  },
+  {
+    "id": "comp_usage_002",
+    "component_name": "AssetChart",
+    "component_type": "chart",
+    "user_id": "user_001",
+    "session_id": "session_20240101_001",
+    "page": "/assets/btc",
+    "action": "render",
+    "timestamp": "2024-01-01T09:20:15Z",
+    "render_time_ms": 120,
+    "interaction_count": 8,
+    "props": {
+      "asset_id": "btc",
+      "chart_type": "candlestick",
+      "timeframe": "1h",
+      "height": 400
+    },
+    "metadata": {
+      "component_version": "2.1.0",
+      "data_points": 100,
+      "zoom_level": 1,
+      "indicators_applied": ["volume", "moving_average"]
+    }
+  },
+  {
+    "id": "comp_usage_003",
+    "component_name": "NavBar",
+    "component_type": "navigation",
+    "user_id": "user_002",
+    "session_id": "session_20240101_002",
+    "page": "/trading",
+    "action": "render",
+    "timestamp": "2024-01-01T11:30:00Z",
+    "render_time_ms": 25,
+    "interaction_count": 2,
+    "props": {
+      "active_route": "/trading",
+      "notifications_count": 3
+    },
+    "metadata": {
+      "component_version": "1.0.5",
+      "menu_items": 6,
+      "responsive_breakpoint": "desktop"
+    }
+  },
+  {
+    "id": "comp_usage_004",
+    "component_name": "TradingInterface",
+    "component_type": "form",
+    "user_id": "user_002",
+    "session_id": "session_20240101_002",
+    "page": "/trading",
+    "action": "submit",
+    "timestamp": "2024-01-01T11:45:00Z",
+    "render_time_ms": 0,
+    "interaction_count": 1,
+    "props": {
+      "asset_id": "eur",
+      "order_type": "market",
+      "side": "buy"
+    },
+    "metadata": {
+      "component_version": "1.3.2",
+      "validation_errors": 0,
+      "api_response_time": 250,
+      "order_successful": true
+    }
+  },
+  {
+    "id": "comp_usage_005",
+    "component_name": "FilterPanel",
+    "component_type": "filter",
+    "user_id": "user_003",
+    "session_id": "session_20240101_003",
+    "page": "/strategies",
+    "action": "filter_applied",
+    "timestamp": "2024-01-01T08:25:30Z",
+    "render_time_ms": 0,
+    "interaction_count": 1,
+    "props": {
+      "filters": ["category:fundamental", "risk:low"],
+      "sort_by": "performance"
+    },
+    "metadata": {
+      "component_version": "1.1.0",
+      "results_filtered": 45,
+      "filter_combinations": 2
+    }
+  },
+  {
+    "id": "comp_usage_006",
+    "component_name": "ChatInterface",
+    "component_type": "communication",
+    "user_id": "user_004",
+    "session_id": "session_20240101_004",
+    "page": "/messages",
+    "action": "message_sent",
+    "timestamp": "2024-01-01T14:35:15Z",
+    "render_time_ms": 0,
+    "interaction_count": 1,
+    "props": {
+      "recipient_id": "user_001",
+      "message_type": "text"
+    },
+    "metadata": {
+      "component_version": "1.4.0",
+      "message_length": 125,
+      "attachments_count": 0,
+      "delivery_status": "sent"
+    }
+  },
+  {
+    "id": "comp_usage_007",
+    "component_name": "WalletOverview",
+    "component_type": "dashboard",
+    "user_id": "user_001",
+    "session_id": "session_20240101_001",
+    "page": "/wallet",
+    "action": "render",
+    "timestamp": "2024-01-01T09:05:20Z",
+    "render_time_ms": 85,
+    "interaction_count": 5,
+    "props": {
+      "wallet_id": "wallet_001",
+      "show_performance": true,
+      "time_range": "30d"
+    },
+    "metadata": {
+      "component_version": "1.2.5",
+      "assets_displayed": 4,
+      "charts_rendered": 3,
+      "data_refresh_time": 2000
+    }
+  },
+  {
+    "id": "comp_usage_008",
+    "component_name": "SearchBar",
+    "component_type": "input",
+    "user_id": "user_001",
+    "session_id": "session_20240101_001",
+    "page": "/strategies",
+    "action": "search",
+    "timestamp": "2024-01-01T09:10:45Z",
+    "render_time_ms": 0,
+    "interaction_count": 1,
+    "props": {
+      "placeholder": "Search strategies...",
+      "debounce_ms": 300
+    },
+    "metadata": {
+      "component_version": "1.0.8",
+      "query_length": 15,
+      "results_count": 12,
+      "search_time_ms": 150
+    }
+  }
+]

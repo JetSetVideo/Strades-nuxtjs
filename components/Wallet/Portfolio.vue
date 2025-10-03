@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useWalletStore } from '@/stores/WalletStore';
+import { useWalletsStore } from '@/stores/wallets';
 
-const walletStore = useWalletStore();
+const walletsStore = useWalletsStore();
 const portfolioId = ref('Portfolio1');
 
-const portfolioData = computed(() => walletStore.getPortfolioById(portfolioId.value));
+const portfolioData = computed(() => walletsStore.getWalletById(portfolioId.value));
 
 const totalValue = computed(() => {
   return portfolioData.value.allocations.reduce((total, allocation) => total + allocation.value, 0);

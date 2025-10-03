@@ -58,18 +58,29 @@ Refer to [README.md](./README.md) and [Structure.md](./Structure.md) for archite
 - Implement conditional logic to switch between mock and real data sources in production.
 - Validate mock data against schemas to prevent inconsistencies.
 
-## Code Quality and Tools
+# css naming conventions
+- use kebab-case for css classes,ids, variables, functions, mixins, animations, transitions, media queries
 
-### Linting and Formatting
-- Configure ESLint with Vue and TypeScript rules for code quality.
-- Use Prettier for consistent formatting, integrated with ESLint.
+# vue naming conventions
+- use kebab-case for vue components,props,emits,methods,computed,watch,lifecycle hooks,directives,filters,plugins,stores
 
-### Testing
-- Write unit tests with Vitest for composables, stores, and utilities.
-- Use Vue Test Utils for component testing, focusing on props, events, and DOM interactions.
-- Implement integration tests for page-level functionality.
+# Colors and fonts management:
+The colors and fonts are setted in the settings page, in the "Colors" and "Fonts" sections.
+2 types of fonts are used in the application. The Main one is used for all the hardcoded texts in the application. The second font for all the data coming from the data/ directory.
+The text color depends on the theme of the application.
+The text size depends on the size of the screen used by the user (mobile, tablet, desktop).
+The font is bold for the titles and regular for the text.
+The colors code by default is green for the positive values and red for the negative values.
+The 3rd font Ethnocentric is only used for the name of the application: "Strades".
 
-### Build and Deployment
-- Utilize Vite for fast builds and hot module replacement (HMR).
-- Optimize bundles with code splitting and tree shaking.
-- Deploy via Vercel with static generation for public pages and SSR for dynamic content.
+The button inner and outer shadows colors and placement are depending on the state of the button and its position. By default, a button has a lighter color inner shadow and a black outer shadow.
+The dark inner shadow is used to give the button a pressed effect after the user clicks on it.While the outer shadow is used to give a raised effect.
+The filter buttons have 3 states: off, neutral, on. The off state has a darker inner shadow and a lighter outer shadow. The neutral state has a lighter inner shadow and a lighter outer shadow. The on state has a darker inner shadow and a darker outer shadow.
+
+Glassmorphism is used for the background of the components. A blur effect is used to give the components a transparent effect.
+The shadow is used to give the components a raised effect.
+
+The border radius is used to give the components a rounded effect.
+The border is used to give the components a border effect.
+The border color,width,style,radius is used to give the components a border color,width,style,radius effect.
+A ligth source is used to give all the components in a page a light effect.

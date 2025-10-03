@@ -1,5 +1,5 @@
 <script setup>
-import imageUrl from "../assets/Logo_Color.png";
+import imageUrl from "~/assets/logos/Logo_Color.png";
 const color = "rgba(21, 22, 21,0.5)";
 </script>
 <template>

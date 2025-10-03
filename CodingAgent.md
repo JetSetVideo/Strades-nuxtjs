@@ -91,4 +91,20 @@ Create predictive avatars based on behavioral data:
 - **Training Pipeline**:
   - **Base Model**: Train on anonymized global datasets for general market knowledge.
   - **Personalization**: Fine-tune with user-specific aggregates for individualized predictions.
-- **Deployment**: Host as a microservice (Flask/FastAPI) for real-time querying by the application.
+- **Deployment**: Host as a microservice (Django/FastAPI) for real-time querying by the application.
+
+## Code Quality and Tools
+
+### Linting and Formatting
+- Configure ESLint with Vue and TypeScript rules for code quality.
+- Use Prettier for consistent formatting, integrated with ESLint.
+
+### Testing
+- Write unit tests with Vitest for composables, stores, and utilities.
+- Use Vue Test Utils for component testing, focusing on props, events, and DOM interactions.
+- Implement integration tests for page-level functionality.
+
+### Build and Deployment
+- Utilize Vite for fast builds and hot module replacement (HMR).
+- Optimize bundles with code splitting and tree shaking.
+- Deploy via Vercel with static generation for public pages and SSR for dynamic content.

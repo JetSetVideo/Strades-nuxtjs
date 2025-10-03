@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue'
-import { useAssetsStore } from '~/stores/assetsStore'
-import { useAssetEventsStore } from '~/stores/assets'
+import { useAssetsStore } from '~/stores/assets'
+import { useAssetEventsStore } from '~/stores/assetEvents'
 import type { PriceUpdate, Activity, NewsItem } from '#imports'
 
 useHead({

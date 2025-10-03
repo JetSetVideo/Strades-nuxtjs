@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useAssetsStore } from "@/stores/assetsStore.ts";
+import { useAssetsStore } from "@/stores/assets";
 import DisplayAsset from '@/components/Widget/DisplayAsset.vue';
 import Heatmap from '@/components/Asset/Heatmap.vue';
 import AssetsSelector from '@/components/Selector/Assets.vue';

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "rel_001",
+    "asset_id": "btc",
+    "related_asset_id": "eth",
+    "relationship_type": "similar",
+    "strength": 0.85,
+    "description": "Both are leading cryptocurrencies with smart contract capabilities",
+    "correlation_coefficient": 0.72,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "rel_002",
+    "asset_id": "btc",
+    "related_asset_id": "aapl",
+    "relationship_type": "dependency",
+    "strength": 0.65,
+    "description": "Apple's market performance influences Bitcoin adoption",
+    "correlation_coefficient": 0.45,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "rel_003",
+    "asset_id": "eth",
+    "related_asset_id": "ada",
+    "relationship_type": "similar",
+    "strength": 0.78,
+    "description": "Both are proof-of-stake cryptocurrencies with strong developer communities",
+    "correlation_coefficient": 0.68,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "rel_004",
+    "asset_id": "aapl",
+    "related_asset_id": "tsla",
+    "relationship_type": "competitor",
+    "strength": 0.55,
+    "description": "Both are major players in the technology sector",
+    "correlation_coefficient": 0.52,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "rel_005",
+    "asset_id": "usd",
+    "related_asset_id": "eur",
+    "relationship_type": "paired",
+    "strength": 0.95,
+    "description": "Major currency pair in forex trading",
+    "correlation_coefficient": -0.85,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "rel_006",
+    "asset_id": "eur",
+    "related_asset_id": "cny",
+    "relationship_type": "competitor",
+    "strength": 0.60,
+    "description": "Both are major global reserve currencies",
+    "correlation_coefficient": -0.35,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "rel_007",
+    "asset_id": "tsla",
+    "related_asset_id": "nvda",
+    "relationship_type": "dependency",
+    "strength": 0.70,
+    "description": "Tesla relies on NVIDIA for autonomous driving technology",
+    "correlation_coefficient": 0.62,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "rel_008",
+    "asset_id": "amzn",
+    "related_asset_id": "btc",
+    "relationship_type": "supplier",
+    "strength": 0.45,
+    "description": "Amazon is exploring Bitcoin integration for payments",
+    "correlation_coefficient": 0.38,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]

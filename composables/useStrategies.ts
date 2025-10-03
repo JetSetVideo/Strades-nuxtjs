@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-export interface Strategy {
+export interface StrategyComposable {
   id?: string
   name: string
   description: string

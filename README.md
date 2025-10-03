@@ -1,7 +1,7 @@
 # Strades
 
 ## Development Mode
-This project is in development mode. All data is simulated and the application is not officially deployed. The objective is to establish a robust data structure for future database integration. Simulated data resides in the `data/` directory, organized in subdirectories that mirror the anticipated database schema. JSON files contain mock data to facilitate visualization and interaction prototyping within the application.
+This project is in development mode. All data is simulated and the application is not officially deployed. The objective is to establish a robust data structure for future database integration. Simulated data resides in the `data/` directory, organized in subdirectories that mirror the anticipated database schema. JSON files contain mock data to facilitate visualization and interaction prototyping within the application. No API is used in the development mode, all data is loaded from the `data/` directory.
 
 ## Project Description
 Strades is an AI-augmented social trading platform enabling users to create, test, share, and deploy personalized investment strategies through community collaboration.

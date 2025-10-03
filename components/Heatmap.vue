@@ -1,6 +1,6 @@
 <script setup>
 import * as d3 from 'd3';
-import imageUrl from '../assets/Logo_Color.png';
+import imageUrl from '~/assets/logos/Logo_Color.png';
 
 
 const data = [

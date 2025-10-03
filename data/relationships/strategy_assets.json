@@ -1,0 +1,242 @@
+[
+  {
+    "id": "sa_001",
+    "strategy_id": "strategy_001",
+    "asset_id": "btc",
+    "allocation_percentage": 40.0,
+    "weight": 0.4,
+    "entry_rules": [
+      {
+        "indicator": "RSI",
+        "condition": ">",
+        "value": 70,
+        "timeframe": "1h"
+      }
+    ],
+    "exit_rules": [
+      {
+        "indicator": "RSI",
+        "condition": "<",
+        "value": 30,
+        "timeframe": "1h"
+      }
+    ],
+    "stop_loss_percentage": 5.0,
+    "take_profit_percentage": 15.0,
+    "max_position_size": 0.5,
+    "is_active": true,
+    "performance_contribution": 35.2,
+    "created_at": "2023-06-15T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "sa_002",
+    "strategy_id": "strategy_001",
+    "asset_id": "eth",
+    "allocation_percentage": 30.0,
+    "weight": 0.3,
+    "entry_rules": [
+      {
+        "indicator": "MACD",
+        "condition": "crossover",
+        "value": "signal_line",
+        "timeframe": "1h"
+      }
+    ],
+    "exit_rules": [
+      {
+        "indicator": "MACD",
+        "condition": "crossunder",
+        "value": "signal_line",
+        "timeframe": "1h"
+      }
+    ],
+    "stop_loss_percentage": 4.0,
+    "take_profit_percentage": 12.0,
+    "max_position_size": 0.4,
+    "is_active": true,
+    "performance_contribution": 28.7,
+    "created_at": "2023-06-15T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "sa_003",
+    "strategy_id": "strategy_001",
+    "asset_id": "aapl",
+    "allocation_percentage": 20.0,
+    "weight": 0.2,
+    "entry_rules": [
+      {
+        "indicator": "Moving Average",
+        "condition": "crossover",
+        "value": "50_period",
+        "timeframe": "1d"
+      }
+    ],
+    "exit_rules": [
+      {
+        "indicator": "Moving Average",
+        "condition": "crossunder",
+        "value": "50_period",
+        "timeframe": "1d"
+      }
+    ],
+    "stop_loss_percentage": 3.0,
+    "take_profit_percentage": 10.0,
+    "max_position_size": 0.3,
+    "is_active": true,
+    "performance_contribution": 22.1,
+    "created_at": "2023-06-15T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "sa_004",
+    "strategy_id": "strategy_001",
+    "asset_id": "tsla",
+    "allocation_percentage": 10.0,
+    "weight": 0.1,
+    "entry_rules": [
+      {
+        "indicator": "Volume",
+        "condition": ">",
+        "value": "average_volume",
+        "timeframe": "1d"
+      }
+    ],
+    "exit_rules": [
+      {
+        "indicator": "Profit Target",
+        "condition": ">",
+        "value": 8.0,
+        "timeframe": "real-time"
+      }
+    ],
+    "stop_loss_percentage": 6.0,
+    "take_profit_percentage": 18.0,
+    "max_position_size": 0.2,
+    "is_active": true,
+    "performance_contribution": 14.0,
+    "created_at": "2023-06-15T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "sa_005",
+    "strategy_id": "strategy_002",
+    "asset_id": "aapl",
+    "allocation_percentage": 100.0,
+    "weight": 1.0,
+    "entry_rules": [
+      {
+        "indicator": "P/E Ratio",
+        "condition": "<",
+        "value": 15,
+        "timeframe": "quarterly"
+      }
+    ],
+    "exit_rules": [
+      {
+        "indicator": "P/E Ratio",
+        "condition": ">",
+        "value": 25,
+        "timeframe": "quarterly"
+      }
+    ],
+    "stop_loss_percentage": 10.0,
+    "take_profit_percentage": 50.0,
+    "max_position_size": 1.0,
+    "is_active": true,
+    "performance_contribution": 100.0,
+    "created_at": "2023-03-10T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "sa_006",
+    "strategy_id": "strategy_003",
+    "asset_id": "btc",
+    "allocation_percentage": 50.0,
+    "weight": 0.5,
+    "entry_rules": [
+      {
+        "indicator": "Price Spread",
+        "condition": ">",
+        "value": 0.5,
+        "timeframe": "real-time"
+      }
+    ],
+    "exit_rules": [
+      {
+        "indicator": "Price Spread",
+        "condition": "<",
+        "value": 0.1,
+        "timeframe": "real-time"
+      }
+    ],
+    "stop_loss_percentage": 2.0,
+    "take_profit_percentage": 5.0,
+    "max_position_size": 0.8,
+    "is_active": true,
+    "performance_contribution": 65.3,
+    "created_at": "2023-08-20T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "sa_007",
+    "strategy_id": "strategy_003",
+    "asset_id": "eth",
+    "allocation_percentage": 30.0,
+    "weight": 0.3,
+    "entry_rules": [
+      {
+        "indicator": "Volume Ratio",
+        "condition": ">",
+        "value": 1.2,
+        "timeframe": "1m"
+      }
+    ],
+    "exit_rules": [
+      {
+        "indicator": "Profit Target",
+        "condition": ">",
+        "value": 3.0,
+        "timeframe": "real-time"
+      }
+    ],
+    "stop_loss_percentage": 1.5,
+    "take_profit_percentage": 4.0,
+    "max_position_size": 0.6,
+    "is_active": true,
+    "performance_contribution": 28.7,
+    "created_at": "2023-08-20T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "sa_008",
+    "strategy_id": "strategy_003",
+    "asset_id": "ada",
+    "allocation_percentage": 20.0,
+    "weight": 0.2,
+    "entry_rules": [
+      {
+        "indicator": "Exchange Liquidity",
+        "condition": "sufficient",
+        "value": "minimum_threshold",
+        "timeframe": "real-time"
+      }
+    ],
+    "exit_rules": [
+      {
+        "indicator": "Risk Threshold",
+        "condition": ">",
+        "value": 1.0,
+        "timeframe": "real-time"
+      }
+    ],
+    "stop_loss_percentage": 2.5,
+    "take_profit_percentage": 6.0,
+    "max_position_size": 0.4,
+    "is_active": true,
+    "performance_contribution": 6.0,
+    "created_at": "2023-08-20T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]

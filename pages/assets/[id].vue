@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
-import { useAssetsStore } from "@/stores/assetsStore.ts";
+import { useAssetsStore } from "@/stores/assets";
 
 const route = useRoute();
 const assetsStore = useAssetsStore();
@@ -51,7 +51,7 @@ const getTagColor = (tag) => {
     <div class="company-container">
       <img
         class="company-logo"
-        src="assets/Tesla-black-logo-bgtransparent-png.png"
+        src="~/assets/logos/Tesla-black-logo-bgtransparent-png.png"
         alt="company-logo"
       />
       <div class="company-details">
@@ -63,12 +63,12 @@ const getTagColor = (tag) => {
       <p class="asset-name">Asset Name: {{ company.name }}</p>
       <img
         class="price-chart"
-        src="assets/DailyPriceChart.png"
+        src="~/assets/backgrounds/DailyPriceChart.png"
         alt="display-price"
       />
       <img
         class="profile-icon"
-        src="assets/Logo_Color.png"
+        src="~/assets/logos/Logo_Color.png"
         alt="profile-icon"
       />
 
@@ -151,7 +151,7 @@ const getTagColor = (tag) => {
         MAP
         <img
           class="company-map"
-          src="assets/modern-world-map-background_1035-7605.jpg.avif"
+          src="~/assets/backgrounds/modern-world-map-background_1035-7605.jpg.avif"
           alt="company-map"
         />
       </div>

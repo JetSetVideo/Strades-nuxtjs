@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { useUsersStore } from '@/stores/UsersStore.ts';
+import { useUsersStore } from '@/stores/users';
 
 const user = useUsersStore()
 const walletEvolution24h = ref("5.6%")

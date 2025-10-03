@@ -23,7 +23,7 @@ const priceEvolution = {
   percentage: "1,07",
 };
 
-const dailyPriceChartSrc = "assets/DailyPriceChart.png";
+const dailyPriceChartSrc = "~/assets/backgrounds/DailyPriceChart.png";
 
 function formatTimestamp(timestamp) {
   const date = new Date(timestamp);
@@ -85,7 +85,7 @@ const valueColor = (value) => {
         {{ priceEvolution.percentage }} %
       </div>
     </div>
-    <img src="assets/DailyPriceChart.png" alt="daily-price-chart" class="price-chart">
+    <img src="~/assets/backgrounds/DailyPriceChart.png" alt="daily-price-chart" class="price-chart">
   </div>
 
       <div v-if="unreadCount > 0" class="unread-count">{{ unreadCount }}</div>
