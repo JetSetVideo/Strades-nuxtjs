@@ -1,8 +1,17 @@
 {
     "name": "Momentum Trading",
+    "description": "A momentum-based trading strategy that identifies and follows strong market trends",
     "creator": "Alice Johnson",
     "creationDate": "2023-04-15",
     "lastModifiedDate": "2023-05-20",
+    "isRunning": false,
+    "status": "stopped",
+    "dataSources": ["GitHub", "Twitter"],
+    "users": [],
+    "period": { "start": null, "end": null },
+    "blocks": [],
+    "riskRating": 7,
+    "complexityRating": "3/10",
     "numberOfTrades": 5,
     "trades": [
       {

@@ -1,8 +1,17 @@
 {
     "name": "Swing Trading",
+    "description": "A swing trading strategy that capitalizes on short to medium-term price movements",
     "creator": "Charlie Brown",
     "creationDate": "2023-05-01",
     "lastModifiedDate": "2023-05-22",
+    "isRunning": false,
+    "status": "paused",
+    "dataSources": ["Twitter", "Reddit"],
+    "users": [],
+    "period": { "start": null, "end": null },
+    "blocks": [],
+    "riskRating": 6,
+    "complexityRating": "4/10",
     "numberOfTrades": 3,
     "trades": [
       {
@@ -32,4 +41,4 @@
     "totalProfit": 1100.00,
     "winRate": 66.67,
     "averageTradeDuration": 4
-  }
+}

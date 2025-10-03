@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { navigateTo } from '#app';
 
 const props = defineProps({
   selectedStrategies: {
@@ -33,7 +34,7 @@ function handleClick() {
       // Logic for comparison will be handled in the parent component
       break;
     case 'modify':
-      navigateTo(`/strategy/${props.selectedStrategies[0].name}`);
+      navigateTo(`/strategy/${props.selectedStrategies[0].id}`);
       break;
     case 'create':
       navigateTo('/creator');
