@@ -18,13 +18,33 @@ import { ref, onMounted } from 'vue'
 const strategy = ref([
     {
         id: 1,
-        user_id: 1,
+        creator_id: 1,
         name: "Strategy 1",
         description: "Strategy 1 Description",
-        date_start: "2021-01-01", // Corrected property name
-        date_end: "2021-01-01", // Corrected property name
+        backtest_period: {
+          start: "2021-01-01",
+          end: "2021-01-01"
+        },
         status: "active",
-        type: "strategy",
+        category: "technical",
+        type: "automated",
+        target_assets: ["BTC", "ETH"],
+        entry_conditions: [
+          {
+            indicator: "RSI",
+            operator: ">",
+            value: 70,
+            timeframe: "1h"
+          }
+        ],
+        exit_conditions: [
+          {
+            indicator: "RSI",
+            operator: "<",
+            value: 30,
+            timeframe: "1h"
+          }
+        ],
         created_at: "2021-01-01",
         updated_at: "2021-01-01",
         live_trading: true,
@@ -48,7 +68,7 @@ const strategy = ref([
         experience: "beginner",
         expected_return: 100,
         expected_risk: 100,
-        sharp_ratio: 100,
+        sharpe_ratio: 100,
         max_drawdown: 100,
         max_consecutive_losses: 100,
         max_consecutive_wins: 100,

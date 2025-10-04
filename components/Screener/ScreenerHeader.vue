@@ -5,8 +5,8 @@
         <h2>BTC-USD</h2>
       </div>
       <div class="flex gap-2">
-        <img src="~/assets/avatars/Ellipse5.png" alt="Ellipse5" class="w-[3.5rem]">
-        <img src="~/assets/avatars/Ellipse6.png" alt="Ellipse6" class="w-[3.5rem]">
+        <img src="/avatars/Ellipse5.png" alt="Ellipse5" class="w-[3.5rem]">
+        <img src="/avatars/Ellipse6.png" alt="Ellipse6" class="w-[3.5rem]">
       </div>
     </div>
   </template>
