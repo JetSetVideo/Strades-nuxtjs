@@ -1,0 +1,377 @@
+[
+  {
+    "id": "aapl",
+    "symbol": "AAPL",
+    "name": "Apple Inc.",
+    "type": "stock",
+    "category": "technology",
+    "description": "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. Known for innovation in consumer electronics and software.",
+    "location": "Cupertino, CA, USA",
+    "industry": "Technology",
+    "market_cap": 3300000000000,
+    "current_price": 195.89,
+    "currency": "USD",
+    "similar_assets": ["MSFT", "GOOGL", "TSLA"],
+    "depends_on": ["NVDA", "QCOM"],
+    "proximity_level": 1,
+    "tags": ["#Apple", "#iPhone", "#Technology", "#Innovation"],
+    "icon_url": "https://companiesmarketcap.com/img/company-logos/256/AAPL.png",
+    "website": "https://www.apple.com",
+    "launch_date": "1976-04-01",
+    "created_at": "2024-10-06T00:00:00Z",
+    "updated_at": "2024-10-06T00:00:00Z",
+    "ceo": "Tim Cook",
+    "founders": ["Steve Jobs", "Steve Wozniak", "Ronald Wayne"],
+    "headquarter": "Cupertino, California, USA",
+    "stock_price_usd": 195.89,
+    "yearOfCreation": 1976,
+    "psychology_profile": {
+      "risk_tolerance": "low",
+      "market_sentiment": "bullish",
+      "investor_confidence": 0.85,
+      "volatility_index": 0.25
+    },
+    "calendar_events": [
+      {
+        "date": "2024-10-31",
+        "event": "Q4 2024 Earnings Release",
+        "type": "earnings"
+      },
+      {
+        "date": "2024-09-09",
+        "event": "iPhone 16 Launch Event",
+        "type": "product_launch"
+      }
+    ]
+  },
+  {
+    "id": "amzn",
+    "symbol": "AMZN",
+    "name": "Amazon.com, Inc.",
+    "type": "stock",
+    "category": "retail",
+    "description": "Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions in North America and internationally. Also provides advertising and cloud computing services.",
+    "location": "Seattle, WA, USA",
+    "industry": "E-commerce & Cloud Computing",
+    "market_cap": 1900000000000,
+    "current_price": 186.51,
+    "currency": "USD",
+    "similar_assets": ["WMT", "EBAY", "SHOP"],
+    "depends_on": ["BTC", "ETH"],
+    "proximity_level": 2,
+    "tags": ["#Amazon", "#Ecommerce", "#AWS", "#Cloud"],
+    "icon_url": "https://companiesmarketcap.com/img/company-logos/256/AMZN.png",
+    "website": "https://www.amazon.com",
+    "launch_date": "1994-07-05",
+    "created_at": "2024-10-06T00:00:00Z",
+    "updated_at": "2024-10-06T00:00:00Z",
+    "ceo": "Andy Jassy",
+    "founders": ["Jeff Bezos"],
+    "headquarter": "Seattle, Washington, USA",
+    "stock_price_usd": 186.51,
+    "yearOfCreation": 1994,
+    "psychology_profile": {
+      "risk_tolerance": "medium",
+      "market_sentiment": "neutral",
+      "investor_confidence": 0.78,
+      "volatility_index": 0.32
+    },
+    "calendar_events": [
+      {
+        "date": "2024-10-24",
+        "event": "Q3 2024 Earnings Release",
+        "type": "earnings"
+      },
+      {
+        "date": "2024-11-27",
+        "event": "Black Friday Sales Start",
+        "type": "retail_event"
+      }
+    ]
+  },
+  {
+    "id": "tsla",
+    "symbol": "TSLA",
+    "name": "Tesla, Inc.",
+    "type": "stock",
+    "category": "automotive",
+    "description": "Tesla, Inc. designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems.",
+    "location": "Austin, TX, USA",
+    "industry": "Electric Vehicles & Clean Energy",
+    "market_cap": 680000000000,
+    "current_price": 249.85,
+    "currency": "USD",
+    "similar_assets": ["AAPL", "NVDA", "GOOGL"],
+    "depends_on": ["NVDA", "LTHM"],
+    "proximity_level": 1,
+    "tags": ["#Tesla", "#ElectricVehicles", "#EV", "#CleanEnergy"],
+    "icon_url": "https://companiesmarketcap.com/img/company-logos/256/TSLA.png",
+    "website": "https://www.tesla.com",
+    "launch_date": "2003-07-01",
+    "created_at": "2024-10-06T00:00:00Z",
+    "updated_at": "2024-10-06T00:00:00Z",
+    "ceo": "Elon Musk",
+    "founders": ["Elon Musk", "JB Straubel", "Martin Eberhard"],
+    "headquarter": "Austin, Texas, USA",
+    "stock_price_usd": 249.85,
+    "yearOfCreation": 2003,
+    "psychology_profile": {
+      "risk_tolerance": "high",
+      "market_sentiment": "bullish",
+      "investor_confidence": 0.92,
+      "volatility_index": 0.68
+    },
+    "calendar_events": [
+      {
+        "date": "2024-10-23",
+        "event": "Q3 2024 Delivery Numbers",
+        "type": "operational_update"
+      },
+      {
+        "date": "2024-11-05",
+        "event": "AI Day 2024",
+        "type": "product_event"
+      }
+    ]
+  },
+  {
+    "id": "btc",
+    "symbol": "BTC",
+    "name": "Bitcoin",
+    "type": "cryptocurrency",
+    "category": "crypto",
+    "description": "Bitcoin is a decentralized digital currency, without a central bank or single administrator, that can be sent from user to user on the peer-to-peer bitcoin network without the need for intermediaries.",
+    "location": "Decentralized",
+    "industry": "Cryptocurrency",
+    "market_cap": 1280000000000,
+    "current_price": 62875.00,
+    "currency": "USD",
+    "similar_assets": ["ETH", "ADA", "SOL"],
+    "depends_on": ["AMZN", "NVDA"],
+    "proximity_level": 1,
+    "tags": ["#Bitcoin", "#Crypto", "#DigitalGold", "#BTC"],
+    "icon_url": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+    "website": "https://bitcoin.org",
+    "launch_date": "2009-01-03",
+    "created_at": "2024-10-06T00:00:00Z",
+    "updated_at": "2024-10-06T00:00:00Z",
+    "psychology_profile": {
+      "risk_tolerance": "very_high",
+      "market_sentiment": "bullish",
+      "investor_confidence": 0.88,
+      "volatility_index": 0.75
+    },
+    "calendar_events": [
+      {
+        "date": "2024-11-15",
+        "event": "Bitcoin Conference 2024",
+        "type": "conference"
+      },
+      {
+        "date": "2025-04-01",
+        "event": "Bitcoin Halving Event",
+        "type": "blockchain_event"
+      }
+    ]
+  },
+  {
+    "id": "eth",
+    "symbol": "ETH",
+    "name": "Ethereum",
+    "type": "cryptocurrency",
+    "category": "crypto",
+    "description": "Ethereum is a decentralized, open-source blockchain with smart contract functionality. Ether (ETH) is the native cryptocurrency of the platform.",
+    "location": "Decentralized",
+    "industry": "Cryptocurrency",
+    "market_cap": 385000000000,
+    "current_price": 2436.00,
+    "currency": "USD",
+    "similar_assets": ["BTC", "ADA", "DOT"],
+    "depends_on": ["AMZN", "GOOGL"],
+    "proximity_level": 2,
+    "tags": ["#Ethereum", "#SmartContracts", "#DeFi", "#ETH"],
+    "icon_url": "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+    "website": "https://ethereum.org",
+    "launch_date": "2015-07-30",
+    "created_at": "2024-10-06T00:00:00Z",
+    "updated_at": "2024-10-06T00:00:00Z",
+    "psychology_profile": {
+      "risk_tolerance": "high",
+      "market_sentiment": "bullish",
+      "investor_confidence": 0.82,
+      "volatility_index": 0.65
+    },
+    "calendar_events": [
+      {
+        "date": "2024-12-01",
+        "event": "Ethereum Developer Conference",
+        "type": "conference"
+      },
+      {
+        "date": "2024-11-13",
+        "event": "ETH ETF Approval Decision",
+        "type": "regulatory_event"
+      }
+    ]
+  },
+  {
+    "id": "sol",
+    "symbol": "SOL",
+    "name": "Solana",
+    "type": "cryptocurrency",
+    "category": "crypto",
+    "description": "Solana is a high-performance blockchain supporting builders around the world to unlock human potential. Known for fast transactions and low fees.",
+    "location": "Decentralized",
+    "industry": "Cryptocurrency",
+    "market_cap": 71000000000,
+    "current_price": 152.30,
+    "currency": "USD",
+    "similar_assets": ["ETH", "DOT", "ADA"],
+    "depends_on": ["NVDA"],
+    "proximity_level": 3,
+    "tags": ["#Solana", "#ProofOfStake", "#HighPerformance", "#SOL"],
+    "icon_url": "https://assets.coingecko.com/coins/images/4128/large/solana.png",
+    "website": "https://solana.com",
+    "launch_date": "2020-03-16",
+    "created_at": "2024-10-06T00:00:00Z",
+    "updated_at": "2024-10-06T00:00:00Z",
+    "psychology_profile": {
+      "risk_tolerance": "very_high",
+      "market_sentiment": "bullish",
+      "investor_confidence": 0.76,
+      "volatility_index": 0.85
+    },
+    "calendar_events": [
+      {
+        "date": "2024-11-01",
+        "event": "Solana Breakpoint Conference",
+        "type": "conference"
+      },
+      {
+        "date": "2024-10-15",
+        "event": "Solana Foundation Update",
+        "type": "foundation_update"
+      }
+    ]
+  },
+  {
+    "id": "usd",
+    "symbol": "USD",
+    "name": "US Dollar",
+    "type": "fiat_currency",
+    "category": "forex",
+    "description": "The United States Dollar is the official currency of the United States and is the world's primary reserve currency.",
+    "location": "United States",
+    "industry": "Government Currency",
+    "market_cap": null,
+    "current_price": 1.00,
+    "currency": "USD",
+    "similar_assets": ["EUR", "GBP", "JPY"],
+    "depends_on": ["AAPL", "MSFT"],
+    "proximity_level": 4,
+    "tags": ["#USD", "#ReserveCurrency", "#Fiat", "#Dollar"],
+    "icon_url": "https://www.countryflags.io/us/flat/64.png",
+    "website": "https://www.uscurrency.gov",
+    "launch_date": "1792-04-02",
+    "created_at": "2024-10-06T00:00:00Z",
+    "updated_at": "2024-10-06T00:00:00Z",
+    "psychology_profile": {
+      "risk_tolerance": "very_low",
+      "market_sentiment": "stable",
+      "investor_confidence": 0.95,
+      "volatility_index": 0.05
+    },
+    "calendar_events": [
+      {
+        "date": "2024-11-07",
+        "event": "US Federal Reserve Meeting",
+        "type": "central_bank"
+      },
+      {
+        "date": "2024-12-18",
+        "event": "US Treasury Bond Auction",
+        "type": "economic_event"
+      }
+    ]
+  },
+  {
+    "id": "eur",
+    "symbol": "EUR",
+    "name": "Euro",
+    "type": "fiat_currency",
+    "category": "forex",
+    "description": "The Euro is the official currency of the Eurozone, which consists of 20 European countries. It is the second most traded currency in the world.",
+    "location": "Europe",
+    "industry": "Government Currency",
+    "market_cap": null,
+    "current_price": 1.086,
+    "currency": "USD",
+    "similar_assets": ["USD", "GBP", "CHF"],
+    "depends_on": ["TSLA", "ASML"],
+    "proximity_level": 4,
+    "tags": ["#EUR", "#Eurozone", "#EuropeanUnion", "#Euro"],
+    "icon_url": "https://www.countryflags.io/eu/flat/64.png",
+    "website": "https://www.ecb.europa.eu",
+    "launch_date": "1999-01-01",
+    "created_at": "2024-10-06T00:00:00Z",
+    "updated_at": "2024-10-06T00:00:00Z",
+    "psychology_profile": {
+      "risk_tolerance": "low",
+      "market_sentiment": "neutral",
+      "investor_confidence": 0.78,
+      "volatility_index": 0.15
+    },
+    "calendar_events": [
+      {
+        "date": "2024-10-10",
+        "event": "European Central Bank Meeting",
+        "type": "central_bank"
+      },
+      {
+        "date": "2024-10-31",
+        "event": "Eurozone GDP Release",
+        "type": "economic_data"
+      }
+    ]
+  },
+  {
+    "id": "cny",
+    "symbol": "CNY",
+    "name": "Chinese Yuan",
+    "type": "fiat_currency",
+    "category": "forex",
+    "description": "The Chinese Yuan (Renminbi) is the official currency of the People's Republic of China and is issued by the People's Bank of China.",
+    "location": "China",
+    "industry": "Government Currency",
+    "market_cap": null,
+    "current_price": 0.139,
+    "currency": "USD",
+    "similar_assets": ["USD", "JPY", "KRW"],
+    "depends_on": ["BABA", "TCEHY"],
+    "proximity_level": 4,
+    "tags": ["#CNY", "#Yuan", "#China", "#Renminbi"],
+    "icon_url": "https://www.countryflags.io/cn/flat/64.png",
+    "website": "https://www.pbc.gov.cn",
+    "launch_date": "1948-12-01",
+    "created_at": "2024-10-06T00:00:00Z",
+    "updated_at": "2024-10-06T00:00:00Z",
+    "psychology_profile": {
+      "risk_tolerance": "medium",
+      "market_sentiment": "neutral",
+      "investor_confidence": 0.72,
+      "volatility_index": 0.22
+    },
+    "calendar_events": [
+      {
+        "date": "2024-10-18",
+        "event": "China GDP Data Release",
+        "type": "economic_data"
+      },
+      {
+        "date": "2024-11-01",
+        "event": "China National Day",
+        "type": "holiday"
+      }
+    ]
+  }
+]

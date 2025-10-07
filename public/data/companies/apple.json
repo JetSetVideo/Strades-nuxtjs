@@ -1,0 +1,288 @@
+{
+  "id": "apple",
+  "name": "Apple Inc.",
+  "symbol": "AAPL",
+  "type": "company",
+  "category": "technology",
+  "description": "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. Known for innovation in consumer electronics and software.",
+  "location": "Cupertino, CA, USA",
+  "industry": "Technology",
+  "market_cap": 3300000000000,
+  "current_price": 195.89,
+  "currency": "USD",
+  "company_details": {
+    "ceo": "Tim Cook",
+    "founders": ["Steve Jobs", "Steve Wozniak", "Ronald Wayne"],
+    "headquarter": "Cupertino, California, USA",
+    "founded": "1976-04-01",
+    "employees": 164000,
+    "revenue_2023": 383285000000,
+    "net_income_2023": 97000000000,
+    "total_assets": 352755000000,
+    "total_liabilities": 290437000000,
+    "total_equity": 62318000000
+  },
+  "products": {
+    "hardware": [
+      {
+        "name": "iPhone",
+        "category": "Smartphone",
+        "description": "Flagship smartphone with advanced cameras, processors, and ecosystem integration",
+        "launch_year": 2007,
+        "current_models": ["iPhone 15", "iPhone 15 Pro", "iPhone 15 Pro Max"],
+        "market_share": "55%"
+      },
+      {
+        "name": "MacBook",
+        "category": "Laptop",
+        "description": "Premium laptop computers with M-series chips and Retina displays",
+        "launch_year": 2006,
+        "current_models": ["MacBook Air", "MacBook Pro 14\"", "MacBook Pro 16\""],
+        "market_share": "8%"
+      },
+      {
+        "name": "iPad",
+        "category": "Tablet",
+        "description": "Versatile tablet computers with Apple Pencil support",
+        "launch_year": 2010,
+        "current_models": ["iPad", "iPad Air", "iPad Pro"],
+        "market_share": "35%"
+      },
+      {
+        "name": "Apple Watch",
+        "category": "Wearable",
+        "description": "Smartwatch with health monitoring and fitness tracking",
+        "launch_year": 2014,
+        "current_models": ["Apple Watch Series 9", "Apple Watch Ultra 2"],
+        "market_share": "50%"
+      }
+    ],
+    "software": [
+      {
+        "name": "iOS",
+        "description": "Mobile operating system for iPhone and iPad",
+        "version": "17.x",
+        "users": 1400000000
+      },
+      {
+        "name": "macOS",
+        "description": "Desktop operating system for Mac computers",
+        "version": "Sonoma 14.x",
+        "users": 100000000
+      },
+      {
+        "name": "watchOS",
+        "description": "Operating system for Apple Watch",
+        "version": "10.x",
+        "users": 100000000
+      }
+    ],
+    "services": [
+      {
+        "name": "App Store",
+        "description": "Digital marketplace for mobile applications",
+        "revenue_2023": 24000000000,
+        "downloads": 100000000000
+      },
+      {
+        "name": "Apple Music",
+        "description": "Music streaming service",
+        "subscribers": 88000000,
+        "revenue_2023": 6000000000
+      },
+      {
+        "name": "iCloud",
+        "description": "Cloud storage and computing service",
+        "users": 1000000000,
+        "revenue_2023": 8000000000
+      }
+    ]
+  },
+  "supply_chain": {
+    "key_suppliers": [
+      {
+        "name": "Foxconn",
+        "relationship": "Manufacturing partner",
+        "location": "China",
+        "dependency_level": "high",
+        "products": ["iPhone", "iPad", "Mac"]
+      },
+      {
+        "name": "Pegatron",
+        "relationship": "Secondary manufacturer",
+        "location": "Taiwan/China",
+        "dependency_level": "medium",
+        "products": ["iPhone", "iPad"]
+      },
+      {
+        "name": "Samsung",
+        "relationship": "Component supplier",
+        "location": "South Korea",
+        "dependency_level": "high",
+        "products": ["Displays", "Memory chips"]
+      },
+      {
+        "name": "TSMC",
+        "relationship": "Semiconductor manufacturer",
+        "location": "Taiwan",
+        "dependency_level": "critical",
+        "products": ["A-series chips", "M-series chips"]
+      }
+    ],
+    "geographic_distribution": {
+      "China": 45,
+      "Taiwan": 25,
+      "South Korea": 15,
+      "Japan": 8,
+      "United States": 5,
+      "Other": 2
+    }
+  },
+  "competitors": [
+    {
+      "name": "Samsung Electronics",
+      "symbol": "SSNLF",
+      "market_share_overlap": "high",
+      "competitive_advantage": "Ecosystem integration, brand loyalty"
+    },
+    {
+      "name": "Google",
+      "symbol": "GOOGL",
+      "market_share_overlap": "medium",
+      "competitive_advantage": "Software ecosystem, AI integration"
+    },
+    {
+      "name": "Microsoft",
+      "symbol": "MSFT",
+      "market_share_overlap": "medium",
+      "competitive_advantage": "Enterprise software, productivity tools"
+    }
+  ],
+  "financial_reports": {
+    "quarterly": [
+      {
+        "period": "Q4 2024",
+        "revenue": 119575000000,
+        "net_income": 36950000000,
+        "eps": 2.40,
+        "guidance": {
+          "revenue_range": "119000M - 121000M",
+          "eps_range": "2.35 - 2.45"
+        }
+      },
+      {
+        "period": "Q3 2024",
+        "revenue": 94680000000,
+        "net_income": 25031000000,
+        "eps": 1.64,
+        "actual_vs_estimate": {
+          "revenue": "+5.5%",
+          "eps": "+12.3%"
+        }
+      }
+    ],
+    "annual": [
+      {
+        "year": 2023,
+        "revenue": 383285000000,
+        "net_income": 97000000000,
+        "eps": 6.42,
+        "gross_margin": 38.2,
+        "operating_margin": 29.8
+      },
+      {
+        "year": 2022,
+        "revenue": 394328000000,
+        "net_income": 99803000000,
+        "eps": 6.11,
+        "gross_margin": 36.3,
+        "operating_margin": 30.3
+      }
+    ]
+  },
+  "upcoming_events": [
+    {
+      "date": "2024-10-31",
+      "event": "Q4 2024 Earnings Release",
+      "type": "earnings",
+      "importance": "high",
+      "expected_impact": "Services revenue growth, iPhone demand"
+    },
+    {
+      "date": "2024-11-15",
+      "event": "Apple Event - iPhone 16 and more",
+      "type": "product_launch",
+      "importance": "high",
+      "expected_impact": "New product cycle launch"
+    },
+    {
+      "date": "2025-03-01",
+      "event": "Q1 2025 Earnings Release",
+      "type": "earnings",
+      "importance": "medium",
+      "expected_impact": "Holiday season results"
+    }
+  ],
+  "regulatory_matters": [
+    {
+      "issue": "App Store antitrust case",
+      "status": "Ongoing litigation",
+      "potential_impact": "Medium",
+      "timeline": "2024-2025 court proceedings"
+    },
+    {
+      "issue": "DMA compliance in EU",
+      "status": "Implementation phase",
+      "potential_impact": "Medium",
+      "timeline": "2024-2025"
+    },
+    {
+      "issue": "Privacy regulations",
+      "status": "Compliant",
+      "potential_impact": "Low",
+      "timeline": "Ongoing compliance"
+    }
+  ],
+  "innovation_pipeline": {
+    "short_term": [
+      "Vision Pro mass production",
+      "M4 chip improvements",
+      "Apple Intelligence features"
+    ],
+    "medium_term": [
+      "Autonomous vehicle technology",
+      "AR/VR ecosystem expansion",
+      "Healthcare platform integration"
+    ],
+    "long_term": [
+      "Quantum computing research",
+      "Satellite communications",
+      "Sustainable energy solutions"
+    ]
+  },
+  "market_position": {
+    "brand_value": 947000000000,
+    "brand_rank": 1,
+    "customer_loyalty": 0.92,
+    "market_segments": {
+      "premium_smartphones": "market_leader",
+      "wearables": "market_leader",
+      "tablets": "market_leader",
+      "laptops": "strong_contender",
+      "streaming_services": "growing_presence"
+    }
+  },
+  "sustainability": {
+    "carbon_neutral": "2030 target",
+    "renewable_energy": "100% of facilities",
+    "recycling_program": "Active",
+    "supply_chain_transparency": "High",
+    "environmental_score": "A-"
+  },
+  "social_impact": {
+    "diversity_initiatives": "Active",
+    "education_programs": "Apple Developer Academy",
+    "accessibility_features": "Industry leading",
+    "privacy_advocacy": "Strong stance"
+  }
+}

@@ -80,8 +80,8 @@ export const useAssetsStore = defineStore('assets', {
     async fetchAssets() {
       try {
         this.loading = true
-        // In development mode, load from local JSON file
-        const assetsData = await $fetch<Asset[]>('/data/core/assets.json')
+        // Load from public directory
+        const assetsData = await $fetch<Asset[]>('/core/assets.json')
         this.assets = assetsData
         this.lastUpdated = new Date()
       } catch (error) {
@@ -94,7 +94,7 @@ export const useAssetsStore = defineStore('assets', {
 
     async fetchAssetRelationships() {
       try {
-        const relationshipsData = await $fetch<AssetRelationship[]>('/data/relationships/asset_relationships.json')
+        const relationshipsData = await $fetch<AssetRelationship[]>('/relationships/asset_relationships.json')
         this.assetRelationships = relationshipsData
       } catch (error) {
         console.error('Failed to fetch asset relationships:', error)

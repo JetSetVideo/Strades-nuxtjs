@@ -30,7 +30,7 @@ const selectSentiment = (direction) => {
             </div>
             <div class="price-chart">
                 <!-- Replace with actual chart component -->
-                <img src="~/assets/backgrounds/DailyPriceChart.png" alt="price-chart">
+                <img src="/backgrounds/DailyPriceChart.png" alt="price-chart">
             </div>
             <div class="price-info">
                 <p class="current-price">{{ company ? company.stock_price_usd : (crypto ? crypto.price_usd : '0.00') }}</p>

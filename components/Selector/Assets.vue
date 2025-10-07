@@ -1,66 +1,63 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import Asset from '@/components/Card/Asset.vue';
-import axios from 'axios';
+import { computed } from 'vue';
+import { useAssetsStore } from '@/stores/assets';
 
 const props = defineProps({
   assets: {
     type: Array,
-    required: true
+    default: () => []
+  },
+  selectedType: {
+    type: String,
+    default: 'all'
   }
 });
 
-const assets = ref([]);
+const assetsStore = useAssetsStore();
 
-const selectedAssets = ref(new Set());
+defineEmits(['asset-selected']);
 
-function toggleAssetSelection(assetId) {
-  if (selectedAssets.value.has(assetId)) {
-    selectedAssets.value.delete(assetId);
-  } else {
-    selectedAssets.value.add(assetId);
+// Get filtered assets based on selected type
+const filteredAssets = computed(() => {
+  if (!props.assets || props.assets.length === 0) {
+    return assetsStore.assets.filter(asset =>
+      props.selectedType === 'all' || asset.type === props.selectedType
+    ).slice(0, 8); // Show first 8 assets
   }
-}
 
-async function fetchPrices() {
-  try {
-    const response = await axios.get('https://strades.app/api/get_prices/');
-    const prices = response.data;
-    assets.value = Object.keys(prices).map((key, index) => ({
-      id: index + 1,
-      name: key,
-      symbol: key,
-      sector: 'Cryptocurrency',
-      stock_price_usd: prices[key],
-      market_cap_usd: 0, // Assuming market cap is not provided
-      urlIcon: `/logos/${key.toLowerCase() === 'bitcoin' ? 'btc.svg' : key.toLowerCase() === 'ethereum' ? 'eth.png' : key.toLowerCase()}.png`
-    }));
-  } catch (error) {
-    console.error('Failed to fetch prices:', error);
-  }
-}
+  return props.assets.filter(asset =>
+    props.selectedType === 'all' || asset.type === props.selectedType
+  ).slice(0, 8);
+});
 
-onMounted(() => {
-  fetchPrices();
-  setInterval(fetchPrices, 60000); // Update prices every minute
+// Get asset types for filtering
+const assetTypes = computed(() => {
+  const types = new Set(assetsStore.assets.map(asset => asset.type));
+  return ['all', ...Array.from(types)];
 });
 </script>
 
 <template>
-  <div class="carousel-container">
-    <div class="assets-carousel">
-      <div v-for="asset in assets" :key="asset.id" class="asset-card-wrapper">
-        <div 
-          class="asset-card" 
-          :class="{ 'asset-card-selected': selectedAssets.has(asset.id) }" 
-          @click="toggleAssetSelection(asset.id)"
-        >
-          <img :src="asset.urlIcon" alt="asset.name" />
+  <div class="asset-selector">
+    <div class="asset-grid">
+      <div
+        v-for="asset in filteredAssets"
+        :key="asset.id"
+        class="asset-card"
+        @click="$emit('asset-selected', asset)"
+      >
+        <div class="asset-icon">
+          <img :src="asset.icon_url" :alt="`${asset.name} icon`" />
+        </div>
+        <div class="asset-info">
           <div class="asset-name">{{ asset.name }}</div>
-          <div class="asset-details">
-            <p>Symbol: {{ asset.symbol }}</p>
-            <p>Price: ${{ asset.stock_price_usd }}</p>
+          <div class="asset-symbol">{{ asset.symbol }}</div>
+          <div class="asset-price">
+            ${{ asset.current_price.toFixed(asset.current_price < 1 ? 4 : 2) }}
           </div>
+        </div>
+        <div class="asset-type-badge" :class="`type-${asset.type}`">
+          {{ asset.type.replace('_', ' ').toUpperCase() }}
         </div>
       </div>
     </div>
@@ -68,42 +65,131 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.carousel-container {
+.asset-selector {
   width: 100%;
-  padding: 20px;
 }
 
-.assets-carousel {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.asset-card-wrapper {
-  flex: 1 1 calc(33.333% - 20px);
-  box-sizing: border-box;
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
 }
 
 .asset-card {
-  background-color: #333;
-  color: white;
-  padding: 20px;
-  border-radius: 10px;
+  background: linear-gradient(135deg, #1e1e1e 0%, #2e2e2e 100%);
+  border-radius: 12px;
+  padding: 16px;
   cursor: pointer;
-  text-align: center;
+  transition: all 0.3s ease;
+  border: 1px solid #444;
+  position: relative;
+  overflow: hidden;
 }
 
-.asset-card-selected {
-  border: 2px solid #fff;
+.asset-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 255, 136, 0.2);
+  border-color: #00ff88;
+}
+
+.asset-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.asset-icon img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #555;
+}
+
+.asset-info {
+  text-align: center;
+  margin-bottom: 12px;
 }
 
 .asset-name {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.asset-details {
-  font-size: 14px;
+.asset-symbol {
+  font-size: 0.8rem;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 8px;
+  border: 1px solid #00ff88;
+}
+
+.asset-price {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.asset-type-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 8px;
+  color: white;
+}
+
+.type-cryptocurrency {
+  background: linear-gradient(45deg, #f7931a, #ff6b35);
+}
+
+.type-stock {
+  background: linear-gradient(45deg, #00ff88, #00aaff);
+}
+
+.type-fiat_currency {
+  background: linear-gradient(45deg, #ff6b6b, #ffa500);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .asset-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .asset-card {
+    padding: 12px;
+  }
+
+  .asset-icon img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .asset-name {
+    font-size: 0.9rem;
+  }
+
+  .asset-price {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .asset-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>

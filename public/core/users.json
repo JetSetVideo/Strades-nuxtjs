@@ -1,0 +1,275 @@
+[
+  {
+    "id": "user_simon",
+    "username": "simon_trader",
+    "email": "simon.trader@example.com",
+    "first_name": "Simon",
+    "last_name": "Rodriguez",
+    "avatar_url": "https://i.pravatar.cc/300?u=simon",
+    "bio": "Professional trader specializing in cryptocurrency and DeFi protocols. Passionate about blockchain technology and algorithmic trading.",
+    "date_of_birth": "1992-03-15",
+    "country": "Spain",
+    "city": "Barcelona",
+    "timezone": "Europe/Madrid",
+    "language": "en",
+    "risk_tolerance": "high",
+    "trading_experience": "expert",
+    "investment_goals": ["growth", "speculation", "innovation"],
+    "preferred_assets": ["BTC", "ETH", "SOL", "TSLA"],
+    "total_portfolio_value": 250000.00,
+    "account_balance": 50000.00,
+    "total_invested": 200000.00,
+    "total_returns": 45000.00,
+    "win_rate": 0.72,
+    "total_trades": 500,
+    "active_strategies_count": 8,
+    "friends_count": 45,
+    "joined_date": "2020-05-10T00:00:00Z",
+    "last_login": "2024-10-06T14:30:00Z",
+    "is_active": true,
+    "is_verified": true,
+    "two_factor_enabled": true,
+    "notification_preferences": {
+      "email": true,
+      "push": true,
+      "sms": true,
+      "trade_alerts": true,
+      "price_alerts": true
+    },
+    "privacy_settings": {
+      "profile_visibility": "public",
+      "portfolio_visibility": "friends_only",
+      "trading_history_visibility": "private"
+    },
+    "psychology_profile": {
+      "personality_type": "ENTP",
+      "trading_style": "aggressive",
+      "decision_making": "analytical",
+      "risk_perception": "opportunity_seeker",
+      "market_view": "bullish_long_term",
+      "stress_management": "high",
+      "discipline_level": 9.2,
+      "emotional_control": 8.7
+    },
+    "calendar_schedule": [
+      {
+        "date": "2024-10-07",
+        "time": "09:00",
+        "event": "Daily market analysis",
+        "type": "trading_routine"
+      },
+      {
+        "date": "2024-10-08",
+        "time": "14:00",
+        "event": "Crypto conference call",
+        "type": "meeting"
+      },
+      {
+        "date": "2024-10-10",
+        "time": "16:00",
+        "event": "Portfolio rebalancing",
+        "type": "trading_activity"
+      }
+    ],
+    "achievements": [
+      {
+        "id": "crypto_pioneer",
+        "name": "Crypto Pioneer",
+        "description": "Traded 1000+ crypto assets",
+        "unlocked_date": "2023-08-15T00:00:00Z",
+        "icon": "🚀"
+      },
+      {
+        "id": "profit_master",
+        "name": "Profit Master",
+        "description": "Achieved 50% annual returns",
+        "unlocked_date": "2024-02-20T00:00:00Z",
+        "icon": "💰"
+      }
+    ],
+    "created_at": "2020-05-10T00:00:00Z",
+    "updated_at": "2024-10-06T14:30:00Z"
+  },
+  {
+    "id": "user_arthuro",
+    "username": "arthuro_investor",
+    "email": "arthuro.investor@example.com",
+    "first_name": "Arthuro",
+    "last_name": "Mendoza",
+    "avatar_url": "https://i.pravatar.cc/300?u=arthuro",
+    "bio": "Long-term value investor focusing on sustainable companies and emerging markets. Former hedge fund analyst with 15+ years experience.",
+    "date_of_birth": "1985-07-22",
+    "country": "Mexico",
+    "city": "Mexico City",
+    "timezone": "America/Mexico_City",
+    "language": "en",
+    "risk_tolerance": "medium",
+    "trading_experience": "advanced",
+    "investment_goals": ["growth", "income", "sustainability"],
+    "preferred_assets": ["AAPL", "AMZN", "TSLA", "EUR"],
+    "total_portfolio_value": 750000.00,
+    "account_balance": 150000.00,
+    "total_invested": 600000.00,
+    "total_returns": 125000.00,
+    "win_rate": 0.78,
+    "total_trades": 200,
+    "active_strategies_count": 5,
+    "friends_count": 67,
+    "joined_date": "2018-11-15T00:00:00Z",
+    "last_login": "2024-10-06T13:45:00Z",
+    "is_active": true,
+    "is_verified": true,
+    "two_factor_enabled": true,
+    "notification_preferences": {
+      "email": true,
+      "push": true,
+      "sms": false,
+      "trade_alerts": true,
+      "price_alerts": false
+    },
+    "privacy_settings": {
+      "profile_visibility": "friends_only",
+      "portfolio_visibility": "private",
+      "trading_history_visibility": "private"
+    },
+    "psychology_profile": {
+      "personality_type": "INTJ",
+      "trading_style": "conservative",
+      "decision_making": "fundamental",
+      "risk_perception": "calculated_risk",
+      "market_view": "balanced",
+      "stress_management": "very_high",
+      "discipline_level": 9.8,
+      "emotional_control": 9.5
+    },
+    "calendar_schedule": [
+      {
+        "date": "2024-10-07",
+        "time": "08:30",
+        "event": "Fundamental analysis session",
+        "type": "research"
+      },
+      {
+        "date": "2024-10-09",
+        "time": "11:00",
+        "event": "Quarterly earnings review",
+        "type": "analysis"
+      },
+      {
+        "date": "2024-10-12",
+        "time": "15:30",
+        "event": "Sustainable investing webinar",
+        "type": "education"
+      }
+    ],
+    "achievements": [
+      {
+        "id": "value_investor",
+        "name": "Value Investor",
+        "description": "Successfully invested in 50+ undervalued companies",
+        "unlocked_date": "2022-06-10T00:00:00Z",
+        "icon": "📊"
+      },
+      {
+        "id": "sustainability_champion",
+        "name": "Sustainability Champion",
+        "description": "Portfolio with 80% ESG-compliant assets",
+        "unlocked_date": "2024-01-15T00:00:00Z",
+        "icon": "🌱"
+      }
+    ],
+    "created_at": "2018-11-15T00:00:00Z",
+    "updated_at": "2024-10-06T13:45:00Z"
+  },
+  {
+    "id": "user_kevin",
+    "username": "kevin_scalper",
+    "email": "kevin.scalper@example.com",
+    "first_name": "Kevin",
+    "last_name": "Thompson",
+    "avatar_url": "https://i.pravatar.cc/300?u=kevin",
+    "bio": "Day trader and scalper focusing on forex markets and commodities. Specializes in technical analysis and algorithmic trading systems.",
+    "date_of_birth": "1998-12-08",
+    "country": "UK",
+    "city": "London",
+    "timezone": "Europe/London",
+    "language": "en",
+    "risk_tolerance": "very_high",
+    "trading_experience": "intermediate",
+    "investment_goals": ["income", "speculation"],
+    "preferred_assets": ["USD", "EUR", "CNY", "BTC"],
+    "total_portfolio_value": 125000.00,
+    "account_balance": 25000.00,
+    "total_invested": 100000.00,
+    "total_returns": 18000.00,
+    "win_rate": 0.65,
+    "total_trades": 800,
+    "active_strategies_count": 12,
+    "friends_count": 23,
+    "joined_date": "2022-03-20T00:00:00Z",
+    "last_login": "2024-10-06T15:15:00Z",
+    "is_active": true,
+    "is_verified": true,
+    "two_factor_enabled": false,
+    "notification_preferences": {
+      "email": true,
+      "push": true,
+      "sms": true,
+      "trade_alerts": true,
+      "price_alerts": true
+    },
+    "privacy_settings": {
+      "profile_visibility": "public",
+      "portfolio_visibility": "public",
+      "trading_history_visibility": "friends_only"
+    },
+    "psychology_profile": {
+      "personality_type": "ESTP",
+      "trading_style": "aggressive_scalping",
+      "decision_making": "technical",
+      "risk_perception": "high_risk_high_reward",
+      "market_view": "volatile_opportunities",
+      "stress_management": "medium",
+      "discipline_level": 7.8,
+      "emotional_control": 7.2
+    },
+    "calendar_schedule": [
+      {
+        "date": "2024-10-07",
+        "time": "07:00",
+        "event": "Pre-market forex analysis",
+        "type": "trading_routine"
+      },
+      {
+        "date": "2024-10-07",
+        "time": "16:00",
+        "event": "Live trading session",
+        "type": "trading_activity"
+      },
+      {
+        "date": "2024-10-08",
+        "time": "20:00",
+        "event": "Trading strategy review",
+        "type": "analysis"
+      }
+    ],
+    "achievements": [
+      {
+        "id": "scalping_master",
+        "name": "Scalping Master",
+        "description": "Executed 500+ successful scalps",
+        "unlocked_date": "2023-11-05T00:00:00Z",
+        "icon": "⚡"
+      },
+      {
+        "id": "forex_trader",
+        "name": "Forex Expert",
+        "description": "Traded all major currency pairs",
+        "unlocked_date": "2024-05-18T00:00:00Z",
+        "icon": "💱"
+      }
+    ],
+    "created_at": "2022-03-20T00:00:00Z",
+    "updated_at": "2024-10-06T15:15:00Z"
+  }
+]

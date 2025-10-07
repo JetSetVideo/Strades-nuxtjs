@@ -15,6 +15,24 @@ All tracking operations must be asynchronous to maintain UI responsiveness. Use 
 ### Data Lifecycle
 Data flows from raw events → aggregated insights → AI training features. Implement scheduled jobs for cleaning and compression to manage storage efficiently.
 
+## Data Simulation and Prototyping
+
+### Mock Data Handling
+- Simulate data exclusively in `data/` directory JSON files to mirror future database schema.
+- Structure mock data hierarchically (e.g., `data/strategies/`, `data/wallet/`) for easy migration.
+- Use TypeScript interfaces to type mock data, ensuring consistency with real data models.
+
+### Development Workflow
+- Load mock data via composables or stores during development (e.g., `useStrategies()` fetching from JSON).
+- Implement conditional logic to switch between mock and real data sources in production.
+- Validate mock data against schemas to prevent inconsistencies.
+
+# css naming conventions
+- use kebab-case for css classes,ids, variables, functions, mixins, animations, transitions, media queries
+
+# vue naming conventions
+- use kebab-case for vue components,props,emits,methods,computed,watch,lifecycle hooks,directives,filters,plugins,stores
+
 ## Frontend Tracking Implementation
 
 ### Efficient Event Capture

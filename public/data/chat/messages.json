@@ -230,5 +230,104 @@
       "mentions": [],
       "hashtags": []
     }
+  },
+  {
+    "id": "msg_simon_kevin_001",
+    "conversation_id": "conv_simon_kevin",
+    "sender_id": "user_simon",
+    "recipient_ids": ["user_kevin"],
+    "content": "Hey Kevin, I saw your forex strategies in the discussion. Your EUR/USD approach looks solid. Have you tested it in the current market conditions?",
+    "message_type": "text",
+    "timestamp": "2024-08-15T10:30:00Z",
+    "is_read": true,
+    "is_edited": false,
+    "edited_at": null,
+    "attachments": [],
+    "reactions": [
+      {
+        "user_id": "user_kevin",
+        "reaction": "👍",
+        "timestamp": "2024-08-15T10:35:00Z"
+      }
+    ],
+    "reply_to": null,
+    "metadata": {
+      "character_count": 124,
+      "mentions": [],
+      "hashtags": []
+    }
+  },
+  {
+    "id": "msg_kevin_simon_001",
+    "conversation_id": "conv_simon_kevin",
+    "sender_id": "user_kevin",
+    "recipient_ids": ["user_simon"],
+    "content": "Thanks Simon! Yes, I've been refining it. The key is the Bollinger Bands + RSI combo. Currently showing some nice signals on the 4H chart. Want me to share the exact settings?",
+    "message_type": "text",
+    "timestamp": "2024-08-15T10:40:00Z",
+    "is_read": true,
+    "is_edited": false,
+    "edited_at": null,
+    "attachments": [
+      {
+        "type": "image",
+        "url": "/uploads/charts/eur_usd_4h_analysis.png",
+        "filename": "EURUSD_4H_Analysis.png",
+        "size_bytes": 156000
+      }
+    ],
+    "reactions": [],
+    "reply_to": "msg_simon_kevin_001",
+    "metadata": {
+      "character_count": 158,
+      "mentions": [],
+      "hashtags": []
+    }
+  },
+  {
+    "id": "msg_simon_arthuro_001",
+    "conversation_id": "conv_simon_arthuro",
+    "sender_id": "user_simon",
+    "recipient_ids": ["user_arthuro"],
+    "content": "Arthuro, your Tesla investment thesis is really comprehensive. I'm particularly interested in your take on the autonomous driving timeline. When do you think we see full autonomy?",
+    "message_type": "text",
+    "timestamp": "2024-08-22T11:45:00Z",
+    "is_read": true,
+    "is_edited": false,
+    "edited_at": null,
+    "attachments": [],
+    "reactions": [
+      {
+        "user_id": "user_arthuro",
+        "reaction": "🤔",
+        "timestamp": "2024-08-22T12:00:00Z"
+      }
+    ],
+    "reply_to": null,
+    "metadata": {
+      "character_count": 142,
+      "mentions": [],
+      "hashtags": []
+    }
+  },
+  {
+    "id": "msg_arthuro_simon_001",
+    "conversation_id": "conv_simon_arthuro",
+    "sender_id": "user_arthuro",
+    "recipient_ids": ["user_simon"],
+    "content": "Great question Simon! I think we're looking at 2026 for full autonomy in limited areas, but nationwide deployment might take until 2030. The key challenge is regulatory approval and insurance frameworks.",
+    "message_type": "text",
+    "timestamp": "2024-08-22T12:05:00Z",
+    "is_read": false,
+    "is_edited": false,
+    "edited_at": null,
+    "attachments": [],
+    "reactions": [],
+    "reply_to": "msg_simon_arthuro_001",
+    "metadata": {
+      "character_count": 165,
+      "mentions": [],
+      "hashtags": []
+    }
   }
 ]

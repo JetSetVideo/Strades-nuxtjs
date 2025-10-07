@@ -1,0 +1,138 @@
+/* Strades Master CSS Variables */
+
+/* Color Palette */
+:root {
+  /* Primary Colors */
+  --primary-green: #00ff88;
+  --primary-blue: #00aaff;
+  --primary-gradient: linear-gradient(45deg, var(--primary-green), var(--primary-blue));
+
+  /* Secondary Colors */
+  --secondary-dark: #1a1a1a;
+  --secondary-darker: #0a0a0a;
+
+  /* Neutral Colors */
+  --text-white: #ffffff;
+  --text-gray: #888888;
+  --text-light-gray: #cccccc;
+
+  /* Status Colors */
+  --success-green: #00ff88;
+  --error-red: #ff4444;
+  --warning-orange: #ffa500;
+
+  /* Background Colors */
+  --bg-primary: linear-gradient(135deg, var(--secondary-darker) 0%, var(--secondary-dark) 100%);
+  --bg-secondary: #2a2a2a;
+  --bg-tertiary: #1a1a1a;
+  --bg-accent: rgba(0, 255, 136, 0.1);
+
+  /* Border Colors */
+  --border-primary: #333333;
+  --border-secondary: #444444;
+  --border-accent: var(--primary-green);
+
+  /* Shadow Colors */
+  --shadow-primary: rgba(0, 0, 0, 0.3);
+  --shadow-accent: rgba(0, 255, 136, 0.2);
+
+  /* Typography */
+  --font-family-primary: 'Poppins', sans-serif;
+  --font-family-secondary: 'Kanit', sans-serif;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 30px;
+  --spacing-xxl: 60px;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+
+  /* Z-Index */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+
+  /* Component Specific */
+  --card-bg: linear-gradient(135deg, var(--secondary-dark) 0%, var(--bg-secondary) 100%);
+  --button-primary: var(--primary-gradient);
+  --input-bg: var(--bg-secondary);
+  --input-border: var(--border-secondary);
+}
+
+/* Dark Theme Overrides */
+[data-theme="dark"] {
+  --bg-primary: linear-gradient(135deg, var(--secondary-darker) 0%, var(--secondary-dark) 100%);
+  --text-primary: var(--text-white);
+  --text-secondary: var(--text-gray);
+}
+
+/* Light Theme Overrides (if needed) */
+[data-theme="light"] {
+  --bg-primary: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
+  --text-primary: #000000;
+  --text-secondary: #666666;
+  --bg-secondary: #f0f0f0;
+  --border-primary: #e0e0e0;
+}
+
+/* Utility Classes */
+.text-primary { color: var(--text-white); }
+.text-secondary { color: var(--text-gray); }
+.text-accent { color: var(--primary-green); }
+.text-success { color: var(--success-green); }
+.text-error { color: var(--error-red); }
+.text-warning { color: var(--warning-orange); }
+
+.bg-primary { background: var(--bg-primary); }
+.bg-secondary { background-color: var(--bg-secondary); }
+.bg-accent { background-color: var(--bg-accent); }
+
+.border-primary { border-color: var(--border-primary); }
+.border-accent { border-color: var(--border-accent); }
+
+.shadow-primary { box-shadow: 0 4px 12px var(--shadow-primary); }
+.shadow-accent { box-shadow: 0 8px 24px var(--shadow-accent); }
+
+/* Animation Classes */
+.fade-in {
+  animation: fadeIn var(--transition-slow);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-up {
+  animation: slideUp var(--transition-normal);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.pulse-accent {
+  animation: pulseAccent 2s infinite;
+}
+
+@keyframes pulseAccent {
+  0%, 100% { box-shadow: 0 0 0 0 var(--shadow-accent); }
+  50% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+}

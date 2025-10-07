@@ -1,0 +1,353 @@
+{
+  "id": "tesla",
+  "name": "Tesla, Inc.",
+  "symbol": "TSLA",
+  "type": "company",
+  "category": "automotive",
+  "description": "Tesla, Inc. designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems.",
+  "location": "Austin, TX, USA",
+  "industry": "Electric Vehicles & Clean Energy",
+  "market_cap": 680000000000,
+  "current_price": 249.85,
+  "currency": "USD",
+  "company_details": {
+    "ceo": "Elon Musk",
+    "founders": ["Elon Musk", "JB Straubel", "Martin Eberhard"],
+    "headquarter": "Austin, Texas, USA",
+    "founded": "2003-07-01",
+    "employees": 140473,
+    "revenue_2023": 96773000000,
+    "net_income_2023": 14997000000,
+    "total_assets": 106618000000,
+    "total_liabilities": 43009000000,
+    "total_equity": 63609000000
+  },
+  "products": {
+    "vehicles": [
+      {
+        "name": "Model S",
+        "category": "Luxury Sedan",
+        "description": "High-performance luxury electric sedan",
+        "launch_year": 2012,
+        "price_range": "$94,990 - $149,990",
+        "range": "405 miles",
+        "acceleration": "0-60 mph in 3.1s"
+      },
+      {
+        "name": "Model 3",
+        "category": "Mass Market Sedan",
+        "description": "Affordable electric sedan for mainstream adoption",
+        "launch_year": 2017,
+        "price_range": "$39,990 - $63,990",
+        "range": "272 miles",
+        "acceleration": "0-60 mph in 5.8s"
+      },
+      {
+        "name": "Model X",
+        "category": "Luxury SUV",
+        "description": "High-performance luxury electric SUV with falcon wing doors",
+        "launch_year": 2015,
+        "price_range": "$109,990 - $149,990",
+        "range": "348 miles",
+        "acceleration": "0-60 mph in 3.8s"
+      },
+      {
+        "name": "Model Y",
+        "category": "Compact SUV",
+        "description": "Compact crossover SUV with versatile cargo space",
+        "launch_year": 2019,
+        "price_range": "$43,990 - $65,990",
+        "range": "326 miles",
+        "acceleration": "0-60 mph in 5.0s"
+      },
+      {
+        "name": "Cybertruck",
+        "category": "Pickup Truck",
+        "description": "Angular electric pickup truck with stainless steel exoskeleton",
+        "launch_year": 2023,
+        "price_range": "$61,000 - $100,000",
+        "range": "340 miles",
+        "acceleration": "0-60 mph in 2.6s"
+      }
+    ],
+    "energy": [
+      {
+        "name": "Powerwall",
+        "description": "Home battery for energy storage and backup power",
+        "capacity": "13.5 kWh",
+        "price_range": "$7,500 - $9,000"
+      },
+      {
+        "name": "Solar Roof",
+        "description": "Integrated solar tiles that replace traditional roofing",
+        "efficiency": "up to 90%",
+        "warranty": "10 years"
+      },
+      {
+        "name": "Megapack",
+        "description": "Utility-scale energy storage for grid stabilization",
+        "capacity": "3.9 MWh per unit",
+        "power_output": "1.5 MW"
+      }
+    ],
+    "services": [
+      {
+        "name": "Supercharger Network",
+        "description": "Global network of fast-charging stations",
+        "locations": "50000+",
+        "charging_speed": "up to 250 kW"
+      },
+      {
+        "name": "Full Self-Driving",
+        "description": "Advanced driver-assistance system",
+        "status": "Beta testing",
+        "price": "$10,000"
+      }
+    ]
+  },
+  "supply_chain": {
+    "key_suppliers": [
+      {
+        "name": "Panasonic",
+        "relationship": "Battery cell supplier",
+        "location": "Japan",
+        "dependency_level": "high",
+        "products": ["Battery cells for all vehicles"]
+      },
+      {
+        "name": "LG Chem",
+        "relationship": "Battery cell supplier",
+        "location": "South Korea",
+        "dependency_level": "medium",
+        "products": ["Battery cells for Model Y, Model 3"]
+      },
+      {
+        "name": "Samsung SDI",
+        "relationship": "Battery cell supplier",
+        "location": "South Korea",
+        "dependency_level": "medium",
+        "products": ["Battery cells for select models"]
+      },
+      {
+        "name": "CATL",
+        "relationship": "Battery cell supplier",
+        "location": "China",
+        "dependency_level": "medium",
+        "products": ["Battery cells for Chinese market"]
+      },
+      {
+        "name": "BYD",
+        "relationship": "Battery technology partner",
+        "location": "China",
+        "dependency_level": "low",
+        "products": ["Joint battery development"]
+      }
+    ],
+    "geographic_distribution": {
+      "United States": 35,
+      "China": 30,
+      "Germany": 15,
+      "Japan": 8,
+      "South Korea": 7,
+      "Other": 5
+    },
+    "manufacturing_facilities": [
+      {
+        "name": "Gigafactory Texas",
+        "location": "Austin, TX",
+        "products": ["Model Y", "Cybertruck", "Powerwall"],
+        "capacity": "250,000 vehicles/year"
+      },
+      {
+        "name": "Gigafactory Berlin-Brandenburg",
+        "location": "Germany",
+        "products": ["Model Y"],
+        "capacity": "500,000 vehicles/year"
+      },
+      {
+        "name": "Gigafactory Shanghai",
+        "location": "China",
+        "products": ["Model 3", "Model Y"],
+        "capacity": "750,000 vehicles/year"
+      },
+      {
+        "name": "Gigafactory Nevada",
+        "location": "Sparks, NV",
+        "products": ["Battery cells", "Powerwall"],
+        "capacity": "150 GWh/year"
+      }
+    ]
+  },
+  "competitors": [
+    {
+      "name": "Ford Motor Company",
+      "symbol": "F",
+      "market_share_overlap": "high",
+      "competitive_advantage": "Brand heritage, F-150 platform"
+    },
+    {
+      "name": "General Motors",
+      "symbol": "GM",
+      "market_share_overlap": "high",
+      "competitive_advantage": "Multiple brands, global presence"
+    },
+    {
+      "name": "Volkswagen",
+      "symbol": "VWAGY",
+      "market_share_overlap": "medium",
+      "competitive_advantage": "European market leadership"
+    },
+    {
+      "name": "BYD Company",
+      "symbol": "BYDDY",
+      "market_share_overlap": "high",
+      "competitive_advantage": "China market dominance"
+    }
+  ],
+  "financial_reports": {
+    "quarterly": [
+      {
+        "period": "Q2 2024",
+        "revenue": 25585000000,
+        "net_income": 1597000000,
+        "eps": 0.42,
+        "vehicle_deliveries": 443956,
+        "production": 463787
+      },
+      {
+        "period": "Q1 2024",
+        "revenue": 21301000000,
+        "net_income": 1130000000,
+        "eps": 0.24,
+        "vehicle_deliveries": 386810,
+        "production": 439701
+      }
+    ],
+    "annual": [
+      {
+        "year": 2023,
+        "revenue": 96773000000,
+        "net_income": 14997000000,
+        "eps": 3.92,
+        "vehicle_deliveries": 1927722,
+        "gross_margin": 17.9,
+        "operating_margin": 8.8
+      },
+      {
+        "year": 2022,
+        "revenue": 81462000000,
+        "net_income": 12656000000,
+        "eps": 3.62,
+        "vehicle_deliveries": 1313041,
+        "gross_margin": 18.2,
+        "operating_margin": 13.6
+      }
+    ]
+  },
+  "upcoming_events": [
+    {
+      "date": "2024-10-23",
+      "event": "Q3 2024 Delivery Numbers",
+      "type": "operational_update",
+      "importance": "high",
+      "expected_impact": "Production ramp-up visibility"
+    },
+    {
+      "date": "2024-11-05",
+      "event": "AI Day 2024",
+      "type": "product_event",
+      "importance": "high",
+      "expected_impact": "Full Self-Driving progress update"
+    },
+    {
+      "date": "2024-12-01",
+      "event": "Q4 2024 Earnings Release",
+      "type": "earnings",
+      "importance": "high",
+      "expected_impact": "Year-end delivery numbers"
+    },
+    {
+      "date": "2025-01-01",
+      "event": "Cybertruck Production Start",
+      "type": "production_milestone",
+      "importance": "medium",
+      "expected_impact": "Revenue diversification"
+    }
+  ],
+  "regulatory_matters": [
+    {
+      "issue": "Autonomous driving regulations",
+      "status": "Evolving standards",
+      "potential_impact": "High",
+      "timeline": "2024-2026"
+    },
+    {
+      "issue": "EV subsidies and incentives",
+      "status": "Policy dependent",
+      "potential_impact": "High",
+      "timeline": "Ongoing"
+    },
+    {
+      "issue": "Trade tariffs on Chinese imports",
+      "status": "Monitoring",
+      "potential_impact": "Medium",
+      "timeline": "2024-2025"
+    }
+  ],
+  "innovation_pipeline": {
+    "short_term": [
+      "Full Self-Driving v12 release",
+      "Cybertruck production ramp",
+      "Robotaxi service launch",
+      "Energy business expansion"
+    ],
+    "medium_term": [
+      "Next-generation vehicle platform",
+      "Battery technology breakthroughs",
+      "Autonomous trucking solutions",
+      "Integrated solar-storage systems"
+    ],
+    "long_term": [
+      "Sustainable aviation",
+      "Space transportation",
+      "Artificial intelligence applications",
+      "Grid-scale energy storage"
+    ]
+  },
+  "market_position": {
+    "brand_value": 66900000000,
+    "brand_rank": 12,
+    "customer_loyalty": 0.88,
+    "market_segments": {
+      "electric_vehicles": "market_leader",
+      "battery_storage": "strong_position",
+      "solar_energy": "emerging_player",
+      "autonomous_driving": "technology_leader"
+    },
+    "market_share": {
+      "global_ev": 20.1,
+      "us_ev": 60.5,
+      "china_ev": 15.2
+    }
+  },
+  "sustainability": {
+    "carbon_neutral": "Goal by 2030",
+    "renewable_energy": "100% of operations",
+    "recycling_program": "Active",
+    "supply_chain_transparency": "Medium",
+    "environmental_score": "B+"
+  },
+  "social_impact": {
+    "diversity_initiatives": "Active",
+    "education_programs": "Tesla STEM education",
+    "accessibility_features": "Limited",
+    "privacy_advocacy": "Moderate"
+  },
+  "key_metrics": {
+    "vehicle_deliveries_q3_2024": "~500,000 expected",
+    "production_capacity_2024": "2.2 million vehicles",
+    "supercharger_network": "50,000+ stations",
+    "energy_storage_deployed": "25 GWh",
+    "cash_and_equivalents": "$25.9 billion"
+  }
+}

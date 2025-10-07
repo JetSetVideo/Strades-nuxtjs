@@ -1,86 +1,246 @@
 [
   {
     "id": "strategy_001",
-    "name": "Momentum Trading Bot",
-    "description": "Automated strategy that identifies and follows strong market trends using technical indicators",
-    "creator_id": "user_001",
-    "category": "technical",
-    "type": "automated",
+    "name": "BTC Momentum Strategy",
+    "description": "A momentum-based trading strategy that identifies Bitcoin's upward trends and enters positions during pullbacks.",
+    "creator": "simon_trader",
+    "creator_id": "user_simon",
+    "creationDate": "2024-08-15",
     "status": "active",
-    "risk_level": "medium",
-    "target_assets": ["BTC", "ETH", "AAPL", "TSLA"],
-    "indicators": ["RSI", "MACD", "Moving Average"],
-    "entry_conditions": [
-      {
-        "indicator": "RSI",
-        "operator": ">",
-        "value": 70,
-        "timeframe": "1h"
-      },
-      {
-        "indicator": "MACD",
-        "operator": "crossover",
-        "value": "signal_line",
-        "timeframe": "1h"
-      }
-    ],
-    "exit_conditions": [
+    "category": "crypto",
+    "tags": ["#Momentum", "#Bitcoin", "#TechnicalAnalysis"],
+    "numberOfTrades": 45,
+    "monthlyGain": 12.5,
+    "monthlyDrawdown": -3.2,
+    "winRate": 68.5,
+    "targetAssets": ["BTC"],
+    "riskLevel": "medium",
+    "isPublic": true,
+    "followersCount": 23,
+    "performanceMetrics": {
+      "totalReturn": 156.8,
+      "sharpeRatio": 1.85,
+      "maxDrawdown": -8.5,
+      "winRate": 68.5,
+      "avgTradeDuration": "3.2 days"
+    },
+    "entryConditions": [
       {
         "indicator": "RSI",
         "operator": "<",
         "value": 30,
-        "timeframe": "1h"
+        "timeframe": "4h"
       },
       {
         "indicator": "MACD",
-        "operator": "crossunder",
-        "value": "signal_line",
+        "operator": "crossover",
+        "value": "signal",
         "timeframe": "1h"
       }
     ],
-    "initial_capital": 10000.00,
-    "current_capital": 12500.00,
-    "total_return": 2500.00,
-    "total_return_percentage": 25.00,
-    "win_rate": 0.68,
-    "total_trades": 45,
-    "successful_trades": 31,
-    "average_trade_duration": "3.5 days",
-    "max_drawdown": -8.5,
-    "sharpe_ratio": 1.8,
-    "backtest_period": {
-      "start": "2023-01-01",
-      "end": "2023-12-31"
-    },
-    "performance_metrics": {
-      "annual_return": 28.5,
-      "volatility": 15.2,
-      "beta": 1.1,
-      "alpha": 3.2
-    },
-    "is_public": true,
-    "is_premium": false,
-    "price": 0.00,
-    "followers_count": 125,
-    "likes_count": 89,
-    "comments_count": 23,
-    "tags": ["#momentum", "#technical", "#automated"],
-    "created_at": "2023-06-15T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z",
-    "last_run": "2024-01-01T12:00:00Z"
+    "exitConditions": [
+      {
+        "indicator": "RSI",
+        "operator": ">",
+        "value": 70,
+        "timeframe": "4h"
+      },
+      {
+        "indicator": "Profit Target",
+        "operator": ">",
+        "value": 15,
+        "timeframe": "position"
+      }
+    ]
   },
   {
     "id": "strategy_002",
-    "name": "Value Investing Portfolio",
-    "description": "Long-term value investing strategy focusing on fundamentally strong companies trading below intrinsic value",
-    "creator_id": "user_003",
-    "category": "fundamental",
-    "type": "manual",
+    "name": "Tesla Growth Investment",
+    "description": "Long-term investment strategy focused on Tesla's EV market dominance and autonomous driving technology.",
+    "creator": "arthuro_investor",
+    "creator_id": "user_arthuro",
+    "creationDate": "2024-07-20",
     "status": "active",
-    "risk_level": "low",
-    "target_assets": ["AAPL", "MSFT", "JNJ", "PG", "KO"],
-    "indicators": ["P/E Ratio", "P/B Ratio", "ROE", "Debt-to-Equity"],
-    "entry_conditions": [
+    "category": "stocks",
+    "tags": ["#Growth", "#Tesla", "#FundamentalAnalysis"],
+    "numberOfTrades": 12,
+    "monthlyGain": 8.3,
+    "monthlyDrawdown": -5.1,
+    "winRate": 75.0,
+    "targetAssets": ["TSLA"],
+    "riskLevel": "high",
+    "isPublic": true,
+    "followersCount": 156,
+    "performanceMetrics": {
+      "totalReturn": 89.4,
+      "sharpeRatio": 1.42,
+      "maxDrawdown": -12.3,
+      "winRate": 75.0,
+      "avgTradeDuration": "45 days"
+    },
+    "entryConditions": [
+      {
+        "indicator": "Price",
+        "operator": "<",
+        "value": "200 MA",
+        "timeframe": "1D"
+      },
+      {
+        "indicator": "Volume",
+        "operator": ">",
+        "value": "1.5x average",
+        "timeframe": "1D"
+      }
+    ],
+    "exitConditions": [
+      {
+        "indicator": "Price Target",
+        "operator": ">",
+        "value": "15% profit",
+        "timeframe": "position"
+      },
+      {
+        "indicator": "Stop Loss",
+        "operator": "<",
+        "value": "10% loss",
+        "timeframe": "position"
+      }
+    ]
+  },
+  {
+    "id": "strategy_003",
+    "name": "DeFi Yield Farming",
+    "description": "Automated strategy for yield farming across various DeFi protocols with risk management.",
+    "creator": "kevin_scalper",
+    "creator_id": "user_kevin",
+    "creationDate": "2024-06-10",
+    "status": "paused",
+    "category": "crypto",
+    "tags": ["#DeFi", "#YieldFarming", "#Automation"],
+    "numberOfTrades": 89,
+    "monthlyGain": 15.7,
+    "monthlyDrawdown": -7.8,
+    "winRate": 72.3,
+    "targetAssets": ["ETH", "USDC", "WBTC"],
+    "riskLevel": "high",
+    "isPublic": false,
+    "followersCount": 8,
+    "performanceMetrics": {
+      "totalReturn": 234.1,
+      "sharpeRatio": 1.67,
+      "maxDrawdown": -18.5,
+      "winRate": 72.3,
+      "avgTradeDuration": "7.5 days"
+    },
+    "entryConditions": [
+      {
+        "indicator": "APY",
+        "operator": ">",
+        "value": 15,
+        "timeframe": "realtime"
+      },
+      {
+        "indicator": "TVL",
+        "operator": ">",
+        "value": "100M",
+        "timeframe": "realtime"
+      }
+    ],
+    "exitConditions": [
+      {
+        "indicator": "APY",
+        "operator": "<",
+        "value": 8,
+        "timeframe": "realtime"
+      },
+      {
+        "indicator": "Impermanent Loss",
+        "operator": ">",
+        "value": 5,
+        "timeframe": "position"
+      }
+    ]
+  },
+  {
+    "id": "strategy_004",
+    "name": "Forex Carry Trade",
+    "description": "Currency carry trade strategy exploiting interest rate differentials between major economies.",
+    "creator": "simon_trader",
+    "creator_id": "user_simon",
+    "creationDate": "2024-05-05",
+    "status": "active",
+    "category": "forex",
+    "tags": ["#CarryTrade", "#Forex", "#InterestRates"],
+    "numberOfTrades": 23,
+    "monthlyGain": 6.2,
+    "monthlyDrawdown": -2.1,
+    "winRate": 65.2,
+    "targetAssets": ["USD/JPY", "AUD/JPY", "NZD/JPY"],
+    "riskLevel": "medium",
+    "isPublic": true,
+    "followersCount": 67,
+    "performanceMetrics": {
+      "totalReturn": 45.8,
+      "sharpeRatio": 1.23,
+      "maxDrawdown": -6.7,
+      "winRate": 65.2,
+      "avgTradeDuration": "30 days"
+    },
+    "entryConditions": [
+      {
+        "indicator": "Interest Rate Differential",
+        "operator": ">",
+        "value": 2.5,
+        "timeframe": "monthly"
+      },
+      {
+        "indicator": "Currency Strength",
+        "operator": "bullish",
+        "value": "high yield currency",
+        "timeframe": "1D"
+      }
+    ],
+    "exitConditions": [
+      {
+        "indicator": "Interest Rate Change",
+        "operator": "policy shift",
+        "value": "central bank",
+        "timeframe": "event"
+      },
+      {
+        "indicator": "Stop Loss",
+        "operator": "<",
+        "value": "5% loss",
+        "timeframe": "position"
+      }
+    ]
+  },
+  {
+    "id": "strategy_005",
+    "name": "Value Investing Screen",
+    "description": "Fundamental analysis strategy identifying undervalued companies using multiple valuation metrics.",
+    "creator": "arthuro_investor",
+    "creator_id": "user_arthuro",
+    "creationDate": "2024-09-01",
+    "status": "active",
+    "category": "stocks",
+    "tags": ["#ValueInvesting", "#FundamentalAnalysis", "#LongTerm"],
+    "numberOfTrades": 8,
+    "monthlyGain": 4.1,
+    "monthlyDrawdown": -1.8,
+    "winRate": 87.5,
+    "targetAssets": ["AAPL", "MSFT", "GOOGL", "AMZN"],
+    "riskLevel": "low",
+    "isPublic": true,
+    "followersCount": 89,
+    "performanceMetrics": {
+      "totalReturn": 32.4,
+      "sharpeRatio": 1.78,
+      "maxDrawdown": -4.2,
+      "winRate": 87.5,
+      "avgTradeDuration": "90 days"
+    },
+    "entryConditions": [
       {
         "indicator": "P/E Ratio",
         "operator": "<",
@@ -92,179 +252,189 @@
         "operator": "<",
         "value": 1.5,
         "timeframe": "quarterly"
+      },
+      {
+        "indicator": "Dividend Yield",
+        "operator": ">",
+        "value": 2.5,
+        "timeframe": "annual"
       }
     ],
-    "exit_conditions": [
+    "exitConditions": [
       {
         "indicator": "P/E Ratio",
         "operator": ">",
         "value": 25,
         "timeframe": "quarterly"
+      },
+      {
+        "indicator": "Target Price",
+        "operator": "reached",
+        "value": "20% upside",
+        "timeframe": "position"
       }
-    ],
-    "initial_capital": 50000.00,
-    "current_capital": 62000.00,
-    "total_return": 12000.00,
-    "total_return_percentage": 24.00,
-    "win_rate": 0.75,
-    "total_trades": 12,
-    "successful_trades": 9,
-    "average_trade_duration": "180 days",
-    "max_drawdown": -12.3,
-    "sharpe_ratio": 1.2,
-    "backtest_period": {
-      "start": "2022-01-01",
-      "end": "2023-12-31"
-    },
-    "performance_metrics": {
-      "annual_return": 18.5,
-      "volatility": 12.8,
-      "beta": 0.8,
-      "alpha": 2.1
-    },
-    "is_public": true,
-    "is_premium": false,
-    "price": 0.00,
-    "followers_count": 234,
-    "likes_count": 156,
-    "comments_count": 45,
-    "tags": ["#value", "#fundamental", "#longterm"],
-    "created_at": "2023-03-10T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z",
-    "last_run": "2024-01-01T10:00:00Z"
+    ]
   },
   {
-    "id": "strategy_003",
-    "name": "Crypto Arbitrage Hunter",
-    "description": "Identifies and exploits price differences across multiple cryptocurrency exchanges",
-    "creator_id": "user_004",
-    "category": "arbitrage",
-    "type": "automated",
+    "id": "strategy_006",
+    "name": "Options Gamma Scalping",
+    "description": "Advanced options strategy that profits from time decay while maintaining delta neutrality.",
+    "creator": "kevin_scalper",
+    "creator_id": "user_kevin",
+    "creationDate": "2024-08-25",
     "status": "active",
-    "risk_level": "low",
-    "target_assets": ["BTC", "ETH", "ADA", "DOT", "SOL"],
-    "indicators": ["Price Spread", "Volume Ratio", "Exchange Liquidity"],
-    "entry_conditions": [
+    "category": "options",
+    "tags": ["#Options", "#GammaScalping", "#DeltaNeutral"],
+    "numberOfTrades": 156,
+    "monthlyGain": 18.9,
+    "monthlyDrawdown": -9.4,
+    "winRate": 71.8,
+    "targetAssets": ["SPY", "QQQ"],
+    "riskLevel": "high",
+    "isPublic": false,
+    "followersCount": 12,
+    "performanceMetrics": {
+      "totalReturn": 278.6,
+      "sharpeRatio": 1.95,
+      "maxDrawdown": -22.1,
+      "winRate": 71.8,
+      "avgTradeDuration": "1.5 days"
+    },
+    "entryConditions": [
+      {
+        "indicator": "Implied Volatility",
+        "operator": ">",
+        "value": 25,
+        "timeframe": "1D"
+      },
+      {
+        "indicator": "Gamma",
+        "operator": ">",
+        "value": 0.1,
+        "timeframe": "realtime"
+      }
+    ],
+    "exitConditions": [
+      {
+        "indicator": "Delta",
+        "operator": ">",
+        "value": 0.1,
+        "timeframe": "realtime"
+      },
+      {
+        "indicator": "Time to Expiration",
+        "operator": "<",
+        "value": "2 days",
+        "timeframe": "position"
+      }
+    ]
+  },
+  {
+    "id": "strategy_007",
+    "name": "Arbitrage Detection",
+    "description": "Automated arbitrage strategy identifying price inefficiencies across different exchanges and instruments.",
+    "creator": "simon_trader",
+    "creator_id": "user_simon",
+    "creationDate": "2024-07-15",
+    "status": "paused",
+    "category": "arbitrage",
+    "tags": ["#Arbitrage", "#PriceInefficiency", "#Automation"],
+    "numberOfTrades": 234,
+    "monthlyGain": 3.2,
+    "monthlyDrawdown": -0.8,
+    "winRate": 94.2,
+    "targetAssets": ["BTC", "ETH", "USDT"],
+    "riskLevel": "low",
+    "isPublic": true,
+    "followersCount": 45,
+    "performanceMetrics": {
+      "totalReturn": 67.8,
+      "sharpeRatio": 2.34,
+      "maxDrawdown": -2.1,
+      "winRate": 94.2,
+      "avgTradeDuration": "4 hours"
+    },
+    "entryConditions": [
       {
         "indicator": "Price Spread",
         "operator": ">",
         "value": 0.5,
-        "timeframe": "real-time"
+        "timeframe": "realtime"
       },
       {
-        "indicator": "Volume Ratio",
+        "indicator": "Volume",
         "operator": ">",
-        "value": 1.2,
-        "timeframe": "1m"
+        "value": "100K",
+        "timeframe": "realtime"
       }
     ],
-    "exit_conditions": [
+    "exitConditions": [
       {
-        "indicator": "Price Spread",
-        "operator": "<",
+        "indicator": "Price Convergence",
+        "operator": "within",
         "value": 0.1,
-        "timeframe": "real-time"
+        "timeframe": "realtime"
+      },
+      {
+        "indicator": "Timeout",
+        "operator": ">",
+        "value": "30 minutes",
+        "timeframe": "position"
       }
-    ],
-    "initial_capital": 25000.00,
-    "current_capital": 26800.00,
-    "total_return": 1800.00,
-    "total_return_percentage": 7.20,
-    "win_rate": 0.82,
-    "total_trades": 180,
-    "successful_trades": 148,
-    "average_trade_duration": "45 minutes",
-    "max_drawdown": -2.1,
-    "sharpe_ratio": 2.8,
-    "backtest_period": {
-      "start": "2023-06-01",
-      "end": "2023-12-31"
-    },
-    "performance_metrics": {
-      "annual_return": 35.2,
-      "volatility": 8.5,
-      "beta": 0.3,
-      "alpha": 4.8
-    },
-    "is_public": false,
-    "is_premium": true,
-    "price": 99.99,
-    "followers_count": 67,
-    "likes_count": 43,
-    "comments_count": 12,
-    "tags": ["#arbitrage", "#crypto", "#automated"],
-    "created_at": "2023-08-20T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z",
-    "last_run": "2024-01-01T12:30:00Z"
+    ]
   },
   {
-    "id": "strategy_004",
-    "name": "Forex Scalping Pro",
-    "description": "High-frequency scalping strategy for major forex pairs using tight spreads",
-    "creator_id": "user_002",
-    "category": "scalping",
-    "type": "automated",
-    "status": "paused",
-    "risk_level": "high",
-    "target_assets": ["EUR", "USD", "GBP", "JPY"],
-    "indicators": ["Bollinger Bands", "Stochastic", "Tick Volume"],
-    "entry_conditions": [
+    "id": "strategy_008",
+    "name": "AI Sentiment Trading",
+    "description": "Machine learning strategy using news sentiment analysis and social media data for trade signals.",
+    "creator": "arthuro_investor",
+    "creator_id": "user_arthuro",
+    "creationDate": "2024-09-10",
+    "status": "active",
+    "category": "ai",
+    "tags": ["#AI", "#SentimentAnalysis", "#MachineLearning"],
+    "numberOfTrades": 67,
+    "monthlyGain": 22.1,
+    "monthlyDrawdown": -6.7,
+    "winRate": 76.4,
+    "targetAssets": ["TSLA", "NVDA", "AAPL"],
+    "riskLevel": "high",
+    "isPublic": true,
+    "followersCount": 178,
+    "performanceMetrics": {
+      "totalReturn": 145.3,
+      "sharpeRatio": 2.12,
+      "maxDrawdown": -15.8,
+      "winRate": 76.4,
+      "avgTradeDuration": "2.5 days"
+    },
+    "entryConditions": [
       {
-        "indicator": "Bollinger Bands",
-        "operator": "touch",
-        "value": "lower_band",
-        "timeframe": "5m"
+        "indicator": "Sentiment Score",
+        "operator": ">",
+        "value": 0.75,
+        "timeframe": "1h"
       },
       {
-        "indicator": "Stochastic",
-        "operator": "<",
-        "value": 20,
-        "timeframe": "5m"
+        "indicator": "Volume Spike",
+        "operator": ">",
+        "value": "2x average",
+        "timeframe": "1h"
       }
     ],
-    "exit_conditions": [
+    "exitConditions": [
       {
-        "indicator": "Bollinger Bands",
-        "operator": "touch",
-        "value": "upper_band",
-        "timeframe": "5m"
+        "indicator": "Sentiment Score",
+        "operator": "<",
+        "value": -0.25,
+        "timeframe": "1h"
       },
       {
         "indicator": "Profit Target",
-        "operator": ">=",
+        "operator": ">",
         "value": 10,
-        "timeframe": "real-time"
+        "timeframe": "position"
       }
-    ],
-    "initial_capital": 100000.00,
-    "current_capital": 112500.00,
-    "total_return": 12500.00,
-    "total_return_percentage": 12.50,
-    "win_rate": 0.71,
-    "total_trades": 850,
-    "successful_trades": 604,
-    "average_trade_duration": "12 minutes",
-    "max_drawdown": -15.8,
-    "sharpe_ratio": 1.6,
-    "backtest_period": {
-      "start": "2023-04-01",
-      "end": "2023-12-31"
-    },
-    "performance_metrics": {
-      "annual_return": 22.8,
-      "volatility": 18.9,
-      "beta": 1.4,
-      "alpha": 1.9
-    },
-    "is_public": true,
-    "is_premium": false,
-    "price": 0.00,
-    "followers_count": 312,
-    "likes_count": 198,
-    "comments_count": 67,
-    "tags": ["#scalping", "#forex", "#highfrequency"],
-    "created_at": "2023-05-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z",
-    "last_run": "2023-12-15T16:45:00Z"
+    ]
   }
 ]

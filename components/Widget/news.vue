@@ -33,86 +33,168 @@ defineProps({
 
 <style scoped>
 .widget-news {
-    display: flex;
-    background-color: #1a1a1a;
-    position: relative;
-    margin: 0.3rem 0.1rem;
-    width: 100%;
-    padding: 10px;
+  display: flex;
+  background: var(--card-bg);
+  position: relative;
+  width: 100%;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-primary);
+  transition: var(--transition-normal);
+}
+
+.widget-news:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-accent);
+  border-color: var(--border-accent);
 }
 
 .arrow-buttons {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    box-shadow: -5px 0px 10px 0px rgba(0, 0, 0, 0.5), inset 5px 0px 10px 0px rgba(255, 255, 255, 0.5);
-    margin-left: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  margin-left: var(--spacing-sm);
 }
 
 .news-cards {
-    display: flex;
-    width: 100%;
-    padding: 10px 0;
+  display: flex;
+  width: 100%;
+  padding: var(--spacing-sm) 0;
 }
 
-
-.news-card {
-    flex: 1;
-    width: 100%;
-    cursor: pointer;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    background-color: #333;
-    color: #fff;
-    position: relative;
+.link-full-width {
+  width: 100%;
+  text-decoration: none;
+  color: inherit;
 }
 
 .news-card-content {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-    background-size: cover;
-    background-position: center;
-    padding: 10px;
-    text-align: center;
-    position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  width: 100%;
+  min-height: 250px;
+  background-size: cover;
+  background-position: center;
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
 }
 
 .news-card-text {
-    background: rgba(0, 0, 0, 0.5);
-    padding: 1px;
-    border-radius: 10px;
-    /* position: absolute; */
-    bottom: 0;
-    width: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  padding: var(--spacing-md);
+  color: var(--text-white);
 }
 
 .news-title {
-    font-size: 1.5rem;
-    font-weight: bold;
-    margin: 0;
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin: 0 0 var(--spacing-sm) 0;
+  font-family: var(--font-family-primary);
+  color: var(--text-white);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .news-description {
-    font-size: 1rem;
-    margin: 5px 0;
+  font-size: 0.9rem;
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--text-light-gray);
+  font-family: var(--font-family-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
 }
 
 .news-informations {
-    font-size: 0.8rem;
-    font-style: italic;
-    margin-top: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-gray);
+  font-family: var(--font-family-secondary);
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
 }
 
 .news-date,
 .news-author,
 .news-source {
-    margin: 1px;
+  margin: 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+}
+
+.news-date {
+  color: var(--primary-green);
+}
+
+.news-author {
+  color: var(--primary-blue);
+}
+
+.news-source {
+  color: var(--text-white);
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .widget-news {
+    flex-direction: column;
+  }
+
+  .arrow-buttons {
+    flex-direction: row;
+    margin-left: 0;
+    margin-bottom: var(--spacing-sm);
+    justify-content: center;
+  }
+
+  .news-card-content {
+    min-height: 200px;
+  }
+
+  .news-title {
+    font-size: 1.1rem;
+  }
+
+  .news-description {
+    font-size: 0.85rem;
+  }
+
+  .news-informations {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .news-card-content {
+    min-height: 180px;
+  }
+
+  .news-informations {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .news-date,
+  .news-author,
+  .news-source {
+    padding: var(--spacing-xs);
+  }
 }
 </style>
 

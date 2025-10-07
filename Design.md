@@ -14,7 +14,7 @@ Refer to [README.md](./README.md) and [Structure.md](./Structure.md) for archite
 - Utilize semantic elements (`<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<aside>`, `<footer>`) for structure.
 - Employ modern CSS techniques: CSS Grid for layouts, Flexbox for alignment, CSS custom properties for theming.
 - Avoid CSS frameworks; maintain pure CSS for full control and optimization.
-- Centralize design tokens (colors, fonts, spacing) in `assets/css/values.css` for consistency.
+- Centralize design tokens (colors, fonts, shadows, spacing) in `assets/css/values.css` for consistency.
 
 ## Vue.js Development Guidelines
 
@@ -46,23 +46,6 @@ Refer to [README.md](./README.md) and [Structure.md](./Structure.md) for archite
 - Use mapped types for dynamic object transformations.
 - Leverage decorators if using experimental features, but prefer composition over inheritance.
 
-## Data Simulation and Prototyping
-
-### Mock Data Handling
-- Simulate data exclusively in `data/` directory JSON files to mirror future database schema.
-- Structure mock data hierarchically (e.g., `data/strategies/`, `data/wallet/`) for easy migration.
-- Use TypeScript interfaces to type mock data, ensuring consistency with real data models.
-
-### Development Workflow
-- Load mock data via composables or stores during development (e.g., `useStrategies()` fetching from JSON).
-- Implement conditional logic to switch between mock and real data sources in production.
-- Validate mock data against schemas to prevent inconsistencies.
-
-# css naming conventions
-- use kebab-case for css classes,ids, variables, functions, mixins, animations, transitions, media queries
-
-# vue naming conventions
-- use kebab-case for vue components,props,emits,methods,computed,watch,lifecycle hooks,directives,filters,plugins,stores
 
 # Colors and fonts management:
 The colors and fonts are setted in the settings page, in the "Colors" and "Fonts" sections.
@@ -73,8 +56,9 @@ The font is bold for the titles and regular for the text.
 The colors code by default is green for the positive values and red for the negative values.
 The 3rd font Ethnocentric is only used for the name of the application: "Strades".
 
+Create a sense of depth by using shades of background values that increases by a value of 0.1 (oklch) for each layer.
 The button inner and outer shadows colors and placement are depending on the state of the button and its position. By default, a button has a lighter color inner shadow and a black outer shadow.
-The dark inner shadow is used to give the button a pressed effect after the user clicks on it.While the outer shadow is used to give a raised effect.
+The dark inner shadow is used to give the button a pressed effect after the user clicks on it. While the outer shadow is used to give a raised effect.
 The filter buttons have 3 states: off, neutral, on. The off state has a darker inner shadow and a lighter outer shadow. The neutral state has a lighter inner shadow and a lighter outer shadow. The on state has a darker inner shadow and a darker outer shadow.
 
 Glassmorphism is used for the background of the components. A blur effect is used to give the components a transparent effect.

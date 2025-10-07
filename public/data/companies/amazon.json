@@ -1,0 +1,354 @@
+{
+  "id": "amazon",
+  "name": "Amazon.com, Inc.",
+  "symbol": "AMZN",
+  "type": "company",
+  "category": "retail",
+  "description": "Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions in North America and internationally. Also provides advertising and cloud computing services.",
+  "location": "Seattle, WA, USA",
+  "industry": "E-commerce & Cloud Computing",
+  "market_cap": 1900000000000,
+  "current_price": 186.51,
+  "currency": "USD",
+  "company_details": {
+    "ceo": "Andy Jassy",
+    "founders": ["Jeff Bezos"],
+    "headquarter": "Seattle, Washington, USA",
+    "founded": "1994-07-05",
+    "employees": 1550000,
+    "revenue_2023": 574785000000,
+    "net_income_2023": 30425000000,
+    "total_assets": 527854000000,
+    "total_liabilities": 324229000000,
+    "total_equity": 203625000000
+  },
+  "products": {
+    "ecommerce": [
+      {
+        "name": "Amazon.com",
+        "description": "Primary e-commerce platform",
+        "users": 200000000,
+        "revenue_2023": 200000000000
+      },
+      {
+        "name": "Amazon Prime",
+        "description": "Subscription service with free shipping and streaming",
+        "subscribers": 200000000,
+        "price": "$14.99/month",
+        "benefits": ["Free 2-day shipping", "Prime Video", "Prime Music"]
+      },
+      {
+        "name": "Whole Foods Market",
+        "description": "Organic and natural foods grocery chain",
+        "stores": 500,
+        "revenue_2023": 20000000000
+      },
+      {
+        "name": "Amazon Fresh",
+        "description": "Grocery delivery service",
+        "markets": 20,
+        "delivery_zones": 1000
+      }
+    ],
+    "cloud_computing": [
+      {
+        "name": "Amazon Web Services (AWS)",
+        "description": "Cloud computing platform",
+        "services": 200,
+        "regions": 32,
+        "revenue_2023": 90978000000,
+        "market_share": "31%"
+      },
+      {
+        "name": "Amazon S3",
+        "description": "Object storage service",
+        "data_stored": "100+ PB",
+        "users": 100000000
+      },
+      {
+        "name": "Amazon EC2",
+        "description": "Elastic compute cloud",
+        "instances_running": 10000000,
+        "market_share": "45%"
+      },
+      {
+        "name": "Amazon Lambda",
+        "description": "Serverless computing",
+        "requests_per_month": "1000000000000+"
+      }
+    ],
+    "advertising": [
+      {
+        "name": "Amazon Advertising",
+        "description": "Digital advertising platform",
+        "revenue_2023": 46000000000,
+        "growth_rate": "25%"
+      }
+    ],
+    "devices": [
+      {
+        "name": "Echo",
+        "description": "Smart speaker with Alexa",
+        "units_sold": 500000000,
+        "price_range": "$39.99 - $249.99"
+      },
+      {
+        "name": "Fire TV",
+        "description": "Streaming media player",
+        "units_sold": 100000000,
+        "price_range": "$39.99 - $139.99"
+      },
+      {
+        "name": "Kindle",
+        "description": "E-reader device",
+        "units_sold": 200000000,
+        "price_range": "$79.99 - $249.99"
+      }
+    ],
+    "entertainment": [
+      {
+        "name": "Prime Video",
+        "description": "Video streaming service",
+        "subscribers": 200000000,
+        "content_titles": 25000
+      },
+      {
+        "name": "Amazon Music",
+        "description": "Music streaming service",
+        "subscribers": 88000000,
+        "catalog_size": 100000000
+      },
+      {
+        "name": "Twitch",
+        "description": "Live streaming platform",
+        "monthly_users": 140000000,
+        "revenue_2023": 3000000000
+      }
+    ]
+  },
+  "supply_chain": {
+    "key_suppliers": [
+      {
+        "name": "Foxconn",
+        "relationship": "Device manufacturing",
+        "location": "China/Taiwan",
+        "dependency_level": "high",
+        "products": ["Echo", "Fire TV", "Kindle"]
+      },
+      {
+        "name": "Intel",
+        "relationship": "Chip supplier",
+        "location": "United States",
+        "dependency_level": "medium",
+        "products": ["Custom chips"]
+      },
+      {
+        "name": "Samsung",
+        "relationship": "Display supplier",
+        "location": "South Korea",
+        "dependency_level": "medium",
+        "products": ["Displays for devices"]
+      }
+    ],
+    "fulfillment_network": {
+      "fulfillment_centers": 175,
+      "sortation_centers": 75,
+      "delivery_stations": 500,
+      "air_cargo_network": "Prime Air",
+      "ground_delivery": "Multiple carriers"
+    },
+    "geographic_distribution": {
+      "United States": 40,
+      "China": 25,
+      "India": 10,
+      "Japan": 8,
+      "Germany": 7,
+      "Other": 10
+    }
+  },
+  "competitors": [
+    {
+      "name": "Walmart",
+      "symbol": "WMT",
+      "market_share_overlap": "high",
+      "competitive_advantage": "Physical retail presence, price leadership"
+    },
+    {
+      "name": "Alibaba",
+      "symbol": "BABA",
+      "market_share_overlap": "high",
+      "competitive_advantage": "China market dominance"
+    },
+    {
+      "name": "Microsoft",
+      "symbol": "MSFT",
+      "market_share_overlap": "high",
+      "competitive_advantage": "Azure cloud platform, enterprise software"
+    },
+    {
+      "name": "Alphabet",
+      "symbol": "GOOGL",
+      "market_share_overlap": "medium",
+      "competitive_advantage": "Search advertising, YouTube"
+    }
+  ],
+  "financial_reports": {
+    "quarterly": [
+      {
+        "period": "Q2 2024",
+        "revenue": 148407000000,
+        "net_income": 14532000000,
+        "eps": 1.00,
+        "operating_income": 16450000000,
+        "guidance": {
+          "revenue_range": "147000M - 151000M",
+          "operating_income_range": "15000M - 17000M"
+        }
+      },
+      {
+        "period": "Q1 2024",
+        "revenue": 143313000000,
+        "net_income": 10415000000,
+        "eps": 0.82,
+        "operating_income": 13225000000
+      }
+    ],
+    "annual": [
+      {
+        "year": 2023,
+        "revenue": 574785000000,
+        "net_income": 30425000000,
+        "eps": 2.16,
+        "gross_margin": 46.9,
+        "operating_margin": 7.8,
+        "free_cash_flow": 73000000000
+      },
+      {
+        "year": 2022,
+        "revenue": 513983000000,
+        "net_income": -2722000000,
+        "eps": -0.27,
+        "gross_margin": 43.7,
+        "operating_margin": -0.6
+      }
+    ],
+    "segment_breakdown": {
+      "north_america": {
+        "revenue_2023": 231000000000,
+        "growth": "13%"
+      },
+      "international": {
+        "revenue_2023": 133000000000,
+        "growth": "18%"
+      },
+      "aws": {
+        "revenue_2023": 90978000000,
+        "growth": "13%"
+      },
+      "advertising": {
+        "revenue_2023": 46000000000,
+        "growth": "25%"
+      }
+    }
+  },
+  "upcoming_events": [
+    {
+      "date": "2024-10-24",
+      "event": "Q3 2024 Earnings Release",
+      "type": "earnings",
+      "importance": "high",
+      "expected_impact": "AWS growth, advertising revenue"
+    },
+    {
+      "date": "2024-11-27",
+      "event": "Black Friday/Cyber Monday",
+      "type": "retail_event",
+      "importance": "high",
+      "expected_impact": "Holiday season revenue boost"
+    },
+    {
+      "date": "2024-12-01",
+      "event": "AWS re:Invent Conference",
+      "type": "conference",
+      "importance": "medium",
+      "expected_impact": "New service announcements"
+    }
+  ],
+  "regulatory_matters": [
+    {
+      "issue": "Antitrust investigations",
+      "status": "Multiple ongoing cases",
+      "potential_impact": "High",
+      "timeline": "2024-2026"
+    },
+    {
+      "issue": "Data privacy regulations",
+      "status": "GDPR compliance",
+      "potential_impact": "Medium",
+      "timeline": "Ongoing"
+    },
+    {
+      "issue": "Content moderation",
+      "status": "Active compliance",
+      "potential_impact": "Medium",
+      "timeline": "Ongoing"
+    }
+  ],
+  "innovation_pipeline": {
+    "short_term": [
+      "AI/ML service expansion",
+      "One Medical integration",
+      "Project Kuiper satellite deployment",
+      "Autonomous delivery solutions"
+    ],
+    "medium_term": [
+      "Healthcare platform expansion",
+      "Satellite internet service",
+      "Quantum computing research",
+      "Advanced robotics"
+    ],
+    "long_term": [
+      "Sustainable aviation",
+      "Space tourism",
+      "Metaverse applications",
+      "Climate change solutions"
+    ]
+  },
+  "market_position": {
+    "brand_value": 300000000000,
+    "brand_rank": 3,
+    "customer_loyalty": 0.85,
+    "market_segments": {
+      "ecommerce": "market_leader",
+      "cloud_computing": "market_leader",
+      "digital_advertising": "strong_contender",
+      "streaming_entertainment": "strong_contender"
+    },
+    "market_share": {
+      "us_ecommerce": 40,
+      "global_cloud": 31,
+      "us_digital_ad": 8
+    }
+  },
+  "sustainability": {
+    "carbon_neutral": "Goal by 2040",
+    "renewable_energy": "80% of operations",
+    "recycling_program": "Active",
+    "supply_chain_transparency": "High",
+    "environmental_score": "B"
+  },
+  "social_impact": {
+    "diversity_initiatives": "Active",
+    "education_programs": "Amazon Future Engineer",
+    "accessibility_features": "Moderate",
+    "privacy_advocacy": "Moderate"
+  },
+  "key_metrics": {
+    "active_customer_accounts": "200M+",
+    "prime_members": "200M",
+    "aws_customers": "1M+",
+    "fulfillment_centers": "175",
+    "marketplaces": "19",
+    "patents_2023": "8000+"
+  }
+}

@@ -1,219 +1,407 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import newsData from '@/data/news.json'; // Assuming the JSON data is imported directly for simplicity
+import { useNewsStore } from '@/stores/newsStore';
 
 const route = useRoute();
 const articleId = route.params.id;
 
-const article = ref(null);
-// Dummy example: Fetch the company's name based on companyId.
-// Replace this with your actual logic to fetch company data.
-// const companyName = ref('');
-// const company = assetsStore.assets.categories.flatMap(category => category.companies).find(c => c.id === companyId);
-// if (company) {
-// companyName.value = company.name;
-// }
+const newsStore = useNewsStore();
+const loading = ref(false);
 
-// Find the article by ID across all categories
-for (const category of newsData.categories) {
+// Find the article by ID across all articles
+const article = computed(() => {
+  if (!newsStore.news) return null;
+  for (const category of newsStore.news.categories) {
     const foundArticle = category.articles.find(a => a.id === articleId);
     if (foundArticle) {
-        article.value = foundArticle;
-        break;
+      return foundArticle;
     }
-}
-const imageUrl = "https://img.freepik.com/free-photo/3d-rendering-cute-girl-with-glasses-working-her-laptop_1057-45909.jpg?t=st=1716381309~exp=1716384909~hmac=9c99dd039cad41bbd7f9c701e338644c6467b8e24b469c7fa1b5dcfe34d30f78&w=1380";
+  }
+  return null;
+});
+
+// Initialize store on mount
+onMounted(async () => {
+  loading.value = true;
+  await newsStore.initializeStore();
+  loading.value = false;
+});
+
+// Format date for display
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
 </script>
 
 <template>
-<div class="article-container">
-    <div class="tags-list-container">
-        <div class="tag-item">
-            <span>Test tag</span>
-        </div>
-        <!-- <div class="tag-item" v-for="tag in article.tags">
-            <span>{{ tag }}</span>
-        </div> -->
+  <div class="article-page">
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>Loading article...</p>
     </div>
-    <div class="article-source-info">
-        <div class="article-source-info-item">
-            <div class="article-source-info-item-text">
-                <p>Publish by: </p>
-            </div>
-            <div class="article-source-info-item-icon">
-                <img :src=imageUrl alt="source-icon" width="16" height="16" />
-            </div>
-            <div class="article-source-info-item-data">
-                <span>publisher</span>
-            </div>
+
+    <!-- Article Content -->
+    <div v-else-if="article" class="article-content">
+      <!-- Article Header -->
+      <div class="article-header">
+        <div class="article-image">
+          <img :src="article.imageUrl" :alt="article.title" />
         </div>
-        <div class="article-source-info-item">
-            <div class="article-source-info-item-text">
-                <p>Posted/Updated: </p>
+        <div class="article-meta">
+          <div class="article-category">
+            <span class="category-badge">{{ article.category }}</span>
+          </div>
+          <h1 class="article-title">{{ article.title }}</h1>
+          <div class="article-info">
+            <div class="info-item">
+              <span class="info-label">By:</span>
+              <span class="info-value">{{ article.author }}</span>
             </div>
-            <div class="article-source-info-item-data">
-                <span>3 hours ago</span>
+            <div class="info-item">
+              <span class="info-label">Published:</span>
+              <span class="info-value">{{ formatDate(article.publishing_date) }}</span>
             </div>
+            <div class="info-item">
+              <span class="info-label">Source:</span>
+              <span class="info-value">{{ article.source }}</span>
+            </div>
+          </div>
         </div>
-        <div class="article-source-info-item">
-            <div class="article-source-info-item-text">
-                <p>Source: </p>
-            </div>
-            <div class="article-source-info-item-data">
-                <span>News'source</span>
-            </div>
-        </div>
-    </div>
-    <div class="assets-list-container">
-        <div class="assets-list-container-item">
-            <div class="assets-list-container-item-title">
-                <span>Asset 1</span>
-            </div>
-            <div class="assets-list-container-item-logo">
-                <img :src="imageUrl" alt="asset-logo" width="16" height="16" />
-            </div>
-        </div>
-    </div>
-</div>
-    <div v-if="article">      
-        <div class="article-title">
-            <h1>{{ article.title }}</h1>
-        <img :src="imageUrl" alt="article logo" width="120" height="120" />
       </div>
-      <div class="article-content">
-        <p>{{ article.content }}</p>
+
+      <!-- Article Body -->
+      <div class="article-body">
+        <div class="article-text">
+          <p>{{ article.content }}</p>
+        </div>
+
+        <!-- Tags -->
+        <div v-if="article.tags && article.tags.length > 0" class="tags-section">
+          <h3>Tags:</h3>
+          <div class="tags-list">
+            <span v-for="tag in article.tags" :key="tag" class="tag-item">{{ tag }}</span>
+          </div>
+        </div>
+
+        <!-- Related Asset -->
+        <div v-if="article.data_affiliated" class="asset-section">
+          <h3>Related Asset:</h3>
+          <div class="asset-info">
+            <span class="asset-symbol">{{ article.data_affiliated }}</span>
+            <span class="asset-label">Related Financial Data</span>
+          </div>
+        </div>
+
+        <!-- Sentiment Analysis -->
+        <div class="sentiment-section">
+          <h3>Community Sentiment</h3>
+          <WidgetSentiment />
+        </div>
       </div>
-    <WidgetSentiment />
     </div>
-    <div v-else>
-        <p>Article not found.</p>
+
+    <!-- Article Not Found -->
+    <div v-else class="article-not-found">
+      <h2>Article Not Found</h2>
+      <p>The article with ID "{{ articleId }}" could not be found.</p>
+      <NuxtLink to="/news" class="back-link">← Back to News</NuxtLink>
     </div>
+  </div>
 </template>
 
 <style scoped>
-.article-source-info {
-    display: flex;
-    padding: 3px;
-    justify-content: center;
-    align-items: center;
-    gap: 16px;
-    align-self: stretch;
-    border-radius: 5px;
-    background-color: rgba(33, 33, 33, 1);
-    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25) inset;
+.article-page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-white);
+  padding: var(--spacing-lg);
 }
-.article-source-info-item{
-    display: flex;
-    padding: 1px;
-    justify-content: center;
-    align-items: center;
-    gap: 4px;
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xxl);
+  color: var(--text-gray);
 }
-.article-source-info-item-text {
-    color: #FFF;
-    text-align: center;
-    font-family: "Open Sans";
-    font-size: 8px;
-    font-style: italic;
-    font-weight: 400;
-    line-height: normal;
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-primary);
+  border-top: 3px solid var(--primary-green);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--spacing-lg);
 }
-.article-source-info-item-icon {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 12px;
-    height: 12px;
-    border-radius: 12px;
-    background: url(imageUrl) lightgray 50% / cover no-repeat;
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
-.article-source-info-item-data {
-    color: #FFF;
-    text-align: center;
-    font-family: "Open Sans";
-    font-size: 8px;
-    font-style: italic;
-    font-weight: 400;
-    line-height: normal;
+
+.article-content {
+  max-width: 1200px;
+  margin: 0 auto;
 }
-.assets-list-container {
-    display: flex;
-    padding: 1px 10px;
-    align-items: center;
-    gap: 10px;
-    align-self: stretch;
-    border-radius: 6px;
-    background: rgba(34, 34, 34, 0.50);
-    box-shadow: 0px -3px 4px 0px rgba(0, 0, 0, 0.25) inset, 0px 3px 4px 0px rgba(0, 0, 0, 0.25) inset;
+
+.article-header {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--spacing-xl);
+  margin-bottom: var(--spacing-xl);
+  align-items: start;
 }
-.assets-list-container-item {
-    display: flex;
-    padding: 1px;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background: rgba(34, 34, 34, 0.50);
-    box-shadow: 0px 0.5px 3px 0px rgba(255, 255, 255, 0.20) inset, 0px 0.5px 3px 0px rgba(0, 0, 0, 0.20);
+
+.article-image {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-primary);
 }
-.assets-list-container-item-title {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #FFF;
-    text-align: center;
-    font-family: "Open Sans";
-    font-size: 10px;
-    font-style: italic;
-    font-weight: 600;
-    line-height: normal;
+
+.article-image img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  display: block;
 }
-.assets-list-container-item-logo {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 2px;
-    padding: 1.151px;
-    flex-direction: column;
-    border-radius: 3px 0px;
-    background: rgba(34, 34, 34, 0.50);
-    box-shadow: 0px 1px 3px 0px rgba(0, 0, 0, 0.20) inset, 0px 1px 3px 0px rgba(255, 255, 255, 0.20);
+
+.article-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
 }
-.assets-list-container-item-logo img {
-    width: 16px;
-    height: 16px;
-    border-radius: 20px;
-    background: url(imageUrl) lightgray 50% / cover no-repeat;
+
+.article-category {
+  margin-bottom: var(--spacing-sm);
 }
-.container-assetwidgets {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem;
+
+.category-badge {
+  background: var(--primary-gradient);
+  color: var(--secondary-darker);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: var(--font-family-secondary);
+  text-transform: uppercase;
 }
-.tags-list-container {
-    display: flex;
-    padding: 0.3rem 0.5rem;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem;
-    border-radius: 0px 4px;
-    background: rgba(34, 34, 34, 0.50);
-    box-shadow: 0px 3px 3px 0px rgba(0, 0, 0, 0.25) inset, 0px 1.5px 8px 0px rgba(255, 255, 255, 0.20);
+
+.article-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: var(--text-white);
+  font-family: var(--font-family-primary);
+  line-height: 1.2;
+  margin: 0;
 }
+
+.article-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.info-label {
+  color: var(--text-gray);
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: var(--font-family-secondary);
+  min-width: 80px;
+}
+
+.info-value {
+  color: var(--text-white);
+  font-size: 0.9rem;
+  font-family: var(--font-family-primary);
+}
+
+.article-body {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.article-text {
+  margin-bottom: var(--spacing-xl);
+}
+
+.article-text p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--text-white);
+  font-family: var(--font-family-primary);
+  margin: 0;
+}
+
+.tags-section,
+.asset-section,
+.sentiment-section {
+  margin-bottom: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-primary);
+}
+
+.tags-section h3,
+.asset-section h3,
+.sentiment-section h3 {
+  color: var(--text-white);
+  font-size: 1.2rem;
+  font-weight: 600;
+  font-family: var(--font-family-primary);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
 .tag-item {
-    color: #FFF;
-    text-align: center;
-    font-family: "Open Sans";
-    font-size: 10px;
-    font-style: italic;
-    font-weight: 400;
-    line-height: normal;
-    background-color: #b63535;
-    padding: 4px 8px;
-    border-radius: 4px;
-    display: flex;
+  background: var(--bg-accent);
+  color: var(--primary-green);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: var(--font-family-secondary);
+  border: 1px solid var(--primary-green);
+}
+
+.asset-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  background: var(--bg-secondary);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+}
+
+.asset-symbol {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--primary-green);
+  font-family: var(--font-family-secondary);
+}
+
+.asset-label {
+  color: var(--text-gray);
+  font-size: 0.9rem;
+  font-family: var(--font-family-primary);
+}
+
+.article-not-found {
+  text-align: center;
+  padding: var(--spacing-xxl);
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-primary);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.article-not-found h2 {
+  color: var(--text-white);
+  font-size: 2rem;
+  font-weight: bold;
+  font-family: var(--font-family-primary);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+.article-not-found p {
+  color: var(--text-gray);
+  font-size: 1rem;
+  font-family: var(--font-family-primary);
+  margin: 0 0 var(--spacing-lg) 0;
+}
+
+.back-link {
+  display: inline-block;
+  color: var(--primary-green);
+  text-decoration: none;
+  font-weight: 600;
+  font-family: var(--font-family-secondary);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--primary-green);
+  border-radius: var(--radius-md);
+  transition: var(--transition-normal);
+}
+
+.back-link:hover {
+  background: var(--bg-accent);
+  color: var(--text-white);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .article-page {
+    padding: var(--spacing-md);
+  }
+
+  .article-header {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+
+  .article-image img {
+    height: 200px;
+  }
+
+  .article-title {
+    font-size: 2rem;
+  }
+
+  .article-body {
+    padding: var(--spacing-lg);
+  }
+
+  .article-text p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .article-title {
+    font-size: 1.5rem;
+  }
+
+  .article-header {
+    gap: var(--spacing-md);
+  }
+
+  .article-body {
+    padding: var(--spacing-md);
+  }
+
+  .tags-list {
     justify-content: center;
-    align-items: center;
+  }
+
+  .asset-info {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-sm);
+  }
 }
 </style>
 

@@ -56,5 +56,43 @@
       "frequent_assets": ["BTC", "ETH", "ADA"],
       "ai_discussions": 12
     }
+  },
+  {
+    "id": "conv_simon_kevin",
+    "participants": ["user_simon", "user_kevin"],
+    "type": "direct",
+    "title": null,
+    "description": "Direct conversation between Simon and Kevin about trading strategies",
+    "created_by": "user_simon",
+    "created_at": "2024-08-15T10:30:00Z",
+    "last_message_at": "2024-10-06T09:15:00Z",
+    "is_active": true,
+    "message_count": 45,
+    "unread_count_user_simon": 0,
+    "unread_count_user_kevin": 2,
+    "metadata": {
+      "topic": "trading_strategies",
+      "shared_strategies": ["strategy_001", "strategy_004", "strategy_008"],
+      "meeting_scheduled": "2024-10-10T14:00:00Z"
+    }
+  },
+  {
+    "id": "conv_simon_arthuro",
+    "participants": ["user_simon", "user_arthuro"],
+    "type": "direct",
+    "title": null,
+    "description": "Discussion about Tesla investment thesis and long-term growth",
+    "created_by": "user_arthuro",
+    "created_at": "2024-08-22T11:45:00Z",
+    "last_message_at": "2024-10-05T16:30:00Z",
+    "is_active": true,
+    "message_count": 67,
+    "unread_count_user_simon": 1,
+    "unread_count_user_arthuro": 0,
+    "metadata": {
+      "topic": "tesla_investment",
+      "shared_strategies": ["strategy_002", "strategy_005"],
+      "meeting_scheduled": null
+    }
   }
 ]

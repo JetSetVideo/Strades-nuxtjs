@@ -1,6 +1,6 @@
 <script setup>
 
-import imageUrl from "~/assets/logos/Logo_Color.png";
+import imageUrl from "/logos/Logo_Color.png";
 </script>
 <template>
   <div class="about-container">

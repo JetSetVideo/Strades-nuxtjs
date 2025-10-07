@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { navigateTo } from '#app';
 import { useAssetsStore } from "@/stores/assets";
 import DisplayAsset from '@/components/Widget/DisplayAsset.vue';
 import Heatmap from '@/components/Asset/Heatmap.vue';
@@ -12,90 +13,346 @@ definePageMeta({
 });
 
 const assetsStore = useAssetsStore();
-const selectedCategory = ref(assetsStore.assets.categories[0]?.name);
-const selectedCompanyId = ref(null);
+const selectedType = ref('all');
+const selectedAssetId = ref(null);
 const showMoreAssets = ref(false);
+const loading = ref(false);
 
-const filteredAssets = computed(() => {
-  const category = assetsStore.assets.categories.find(c => c.name === selectedCategory.value);
-  return category ? category.companies : [];
+// Real-time price simulation
+let priceInterval
+
+function startRealTimeUpdates() {
+  priceInterval = setInterval(() => {
+    // Simulate random price changes for displayed assets
+    displayedAssets.value.forEach(asset => {
+      const change = getRandomChange();
+      asset.current_price += asset.current_price * (change / 100);
+      asset.current_price = Math.max(0.01, asset.current_price); // Prevent negative prices
+    });
+  }, 5000); // Update every 5 seconds
+}
+
+function stopRealTimeUpdates() {
+  if (priceInterval) {
+    clearInterval(priceInterval);
+  }
+}
+
+// Initialize store on mount
+onMounted(async () => {
+  loading.value = true;
+  await assetsStore.initializeStore();
+  loading.value = false;
+
+  // Start real-time price updates
+  startRealTimeUpdates();
 });
 
+// Cleanup on unmount
+onUnmounted(() => {
+  stopRealTimeUpdates();
+});
+
+// Get unique asset types for filtering
+const availableTypes = computed(() => {
+  const types = new Set(assetsStore.assets.map(asset => asset.type));
+  return ['all', ...Array.from(types)];
+});
+
+// Get unique categories for advanced filtering
+const availableCategories = computed(() => {
+  const categories = new Set(assetsStore.assets.map(asset => asset.category));
+  return Array.from(categories);
+});
+
+// Filter assets based on selected type
+const filteredAssets = computed(() => {
+  if (selectedType.value === 'all') {
+    return assetsStore.assets;
+  }
+  return assetsStore.assets.filter(asset => asset.type === selectedType.value);
+});
+
+// Display first 6 assets, with option to show more
 const displayedAssets = computed(() => {
-  return filteredAssets.value.slice(0, 5);
+  return filteredAssets.value.slice(0, 6);
 });
 
 const remainingAssets = computed(() => {
-  return filteredAssets.value.slice(5);
+  return filteredAssets.value.slice(6);
 });
+
+// Generate random price change for demo purposes
+function getRandomChange() {
+  return (Math.random() - 0.5) * 10; // Between -5% and +5%
+}
+
+function selectAsset(id) {
+  selectedAssetId.value = id;
+}
 
 function toggleShowMoreAssets() {
   showMoreAssets.value = !showMoreAssets.value;
 }
 
-function selectCompany(id) {
-  selectedCompanyId.value = id;
+function navigateToAsset(assetId) {
+  navigateTo(`/assets/${assetId}`);
 }
 </script>
 
 <template>
   <div class="prices-page">
-    <h1>Market Prices</h1>
-    <AssetsSelector :assets="assetsStore.assets.categories" @select="selectedCategory = $event" />
-    <Heatmap :companyId="selectedCompanyId" v-if="selectedCompanyId" />
-    <div class="asset-list">
-      <DisplayAsset
-        v-for="asset in displayedAssets"
-        :key="asset.id"
-        :assetName="asset.name"
-        :tagName="asset.symbol"
-        :nominalPrice="asset.stock_price_usd"
-        :percentagePrice="asset.change_percent"
-        :profileIcon="asset.profileIcon"
-        :dailyChart="asset.dailyChart"
-        @click="selectCompany(asset.id)"
-      />
+    <!-- Header -->
+    <div class="page-header">
+      <h1 class="page-title">Market Prices</h1>
+      <div class="last-updated" v-if="assetsStore.lastUpdated">
+        Last updated: {{ new Date(assetsStore.lastUpdated).toLocaleTimeString() }}
+      </div>
     </div>
-    <button @click="toggleShowMoreAssets" v-if="remainingAssets.length > 0">
-      {{ showMoreAssets ? 'Show Less' : 'Show More' }}
-    </button>
-    <div v-if="showMoreAssets" class="asset-list">
-      <DisplayAsset
-        v-for="asset in remainingAssets"
-        :key="asset.id"
-        :assetName="asset.name"
-        :tagName="asset.symbol"
-        :nominalPrice="asset.stock_price_usd"
-        :percentagePrice="asset.change_percent"
-        :profileIcon="asset.profileIcon"
-        :dailyChart="asset.dailyChart"
-        @click="selectCompany(asset.id)"
-      />
+
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>Loading market data...</p>
+    </div>
+
+    <!-- Type Filters -->
+    <div v-else class="filters-section">
+      <div class="type-filters">
+        <button
+          v-for="type in availableTypes"
+          :key="type"
+          @click="selectedType = type"
+          :class="['filter-btn', { active: selectedType === type }]"
+        >
+          {{ type === 'all' ? 'All Assets' : type.replace('_', ' ').toUpperCase() }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Asset Display -->
+    <div v-if="!loading" class="assets-section">
+      <!-- Heatmap for selected asset -->
+      <Heatmap :companyId="selectedAssetId" v-if="selectedAssetId" />
+
+      <!-- Primary Assets Grid -->
+      <div class="asset-grid">
+        <DisplayAsset
+          v-for="asset in displayedAssets"
+          :key="asset.id"
+          :assetName="asset.name"
+          :tagName="asset.symbol"
+          :nominalPrice="`$${asset.current_price.toFixed(asset.current_price < 1 ? 4 : 2)}`"
+          :percentagePrice="`${getRandomChange().toFixed(2)}%`"
+          :profileIcon="asset.icon_url"
+          :dailyChart="'/backgrounds/DailyPriceChart.png'"
+          :assetId="asset.id"
+          @click="navigateToAsset"
+        />
+      </div>
+
+      <!-- Show More Button -->
+      <div class="show-more-section" v-if="remainingAssets.length > 0">
+        <button @click="toggleShowMoreAssets" class="show-more-btn">
+          {{ showMoreAssets ? 'Show Less' : `Show ${remainingAssets.length} More Assets` }}
+        </button>
+      </div>
+
+      <!-- Additional Assets -->
+      <div v-if="showMoreAssets" class="asset-grid additional-assets">
+        <DisplayAsset
+          v-for="asset in remainingAssets"
+          :key="asset.id"
+          :assetName="asset.name"
+          :tagName="asset.symbol"
+          :nominalPrice="`$${asset.current_price.toFixed(asset.current_price < 1 ? 4 : 2)}`"
+          :percentagePrice="`${getRandomChange().toFixed(2)}%`"
+          :profileIcon="asset.icon_url"
+          :dailyChart="'/backgrounds/DailyPriceChart.png'"
+          :assetId="asset.id"
+          @click="navigateToAsset"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .prices-page {
-  padding: 20px;
-  background-color: rgba(18, 18, 18, 0.9);
-  color: white;
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-white);
+  padding: var(--spacing-lg);
 }
 
-.asset-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
-  margin-top: 20px;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-primary);
 }
 
-button {
-  margin-top: 20px;
-  padding: 10px 20px;
-  background-color: #333;
-  color: white;
-  border: none;
-  border-radius: 5px;
+.page-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+  font-family: var(--font-family-primary);
+}
+
+.last-updated {
+  color: var(--text-gray);
+  font-size: 0.9rem;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xxl);
+  color: var(--text-gray);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-primary);
+  border-top: 3px solid var(--primary-green);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--spacing-lg);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.filters-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.type-filters {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  color: var(--text-white);
   cursor: pointer;
+  transition: var(--transition-normal);
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: var(--font-family-secondary);
+}
+
+.filter-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+}
+
+.filter-btn.active {
+  background: var(--primary-gradient);
+  border-color: var(--primary-green);
+  color: var(--secondary-darker);
+}
+
+.assets-section {
+  width: 100%;
+}
+
+.asset-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.additional-assets {
+  opacity: 0.8;
+  animation: fadeIn var(--transition-slow);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(var(--spacing-lg));
+  }
+  to {
+    opacity: 0.8;
+    transform: translateY(0);
+  }
+}
+
+.show-more-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.show-more-btn {
+  padding: var(--spacing-sm) var(--spacing-xl);
+  background: var(--primary-gradient);
+  border: none;
+  border-radius: var(--radius-lg);
+  color: var(--secondary-darker);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-normal);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  font-family: var(--font-family-secondary);
+}
+
+.show-more-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px var(--shadow-accent);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .prices-page {
+    padding: var(--spacing-md);
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+  }
+
+  .page-title {
+    font-size: 2rem;
+  }
+
+  .asset-grid {
+    gap: var(--spacing-sm);
+  }
+
+  .type-filters {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .asset-grid {
+    gap: var(--spacing-xs);
+  }
+
+  .filter-btn {
+    flex: 1;
+    min-width: 100px;
+  }
 }
 </style>

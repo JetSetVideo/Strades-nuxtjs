@@ -1,9 +1,6 @@
 <template>
-<header>
-</header>
-<div class="layout-news">
-    <NavigationTopNews />
+  <div class="layout-news">
     <slot />
-<NavigationBar />
-</div>
+    <NavigationBar />
+  </div>
 </template>

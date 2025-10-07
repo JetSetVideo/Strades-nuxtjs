@@ -1,0 +1,73 @@
+{
+  "name": "newsfeed",
+  "categories": [
+    {
+      "name": "Market News",
+      "articles": [
+        {
+          "id": "news_good_001",
+          "title": "Tesla Surpasses Q3 Delivery Expectations with Record 479,000 Vehicles",
+          "content": "Tesla has exceeded Wall Street expectations by delivering 479,000 vehicles in Q3 2024, marking a 4% increase from the previous quarter and setting a new company record. The strong performance was driven by robust demand for Model Y and improved production efficiency at the Shanghai Gigafactory. Analysts predict this momentum will continue into Q4, potentially pushing TSLA stock above $300 by year-end.",
+          "source": "CNBC Business News",
+          "imageUrl": "https://img.freepik.com/free-photo/electric-car-charging-station-with-sunset-background-generative-ai_188544-9074.jpg",
+          "author": "Michael Sheetz",
+          "publishing_date": "2024-10-02",
+          "category": "Market News",
+          "data_affiliated": "TSLA",
+          "tags": ["Tesla", "EV", "Deliveries", "Bullish"],
+          "sentiment": "positive",
+          "impact_score": 8.7,
+          "financial_impact": {
+            "asset": "TSLA",
+            "price_change_percent": 5.2,
+            "volume_spike": true
+          }
+        },
+        {
+          "id": "news_bad_001",
+          "title": "Apple Faces Supply Chain Disruptions Due to Taiwan Semiconductor Issues",
+          "content": "Apple Inc. has warned of potential supply constraints for iPhone 16 models due to ongoing issues at Taiwan Semiconductor Manufacturing Company (TSMC). The chipmaker has experienced production delays caused by earthquakes and power outages, potentially reducing iPhone shipments by 5-10 million units in Q4. This could impact Apple's revenue guidance and put pressure on AAPL stock in the coming weeks.",
+          "source": "Bloomberg Technology",
+          "imageUrl": "https://img.freepik.com/free-photo/smartphone-with-blank-screen_144627-24377.jpg",
+          "author": "Mark Gurman",
+          "publishing_date": "2024-09-28",
+          "category": "Market News",
+          "data_affiliated": "AAPL",
+          "tags": ["Apple", "Supply Chain", "TSMC", "Bearish"],
+          "sentiment": "negative",
+          "impact_score": -7.3,
+          "financial_impact": {
+            "asset": "AAPL",
+            "price_change_percent": -3.1,
+            "volume_spike": true
+          }
+        },
+        {
+          "id": "news_event_001",
+          "title": "Federal Reserve Signals Potential Rate Cuts in December FOMC Meeting",
+          "content": "Federal Reserve Chair Jerome Powell indicated during yesterday's press conference that the central bank is prepared to cut interest rates in December if economic data continues to show cooling inflation. This marks a significant shift from previous guidance and has sent ripples through global markets. The USD Index fell 0.8% following the announcement, while risk assets like stocks and cryptocurrencies rallied sharply.",
+          "source": "Reuters Financial",
+          "imageUrl": "https://img.freepik.com/free-photo/federal-reserve-building-washington-dc_649448-3383.jpg",
+          "author": "Howard Schneider",
+          "publishing_date": "2024-10-04",
+          "category": "Market News",
+          "data_affiliated": "USD",
+          "tags": ["Fed", "Interest Rates", "USD", "Monetary Policy"],
+          "sentiment": "neutral",
+          "impact_score": 6.2,
+          "financial_impact": {
+            "asset": "USD",
+            "price_change_percent": -0.8,
+            "volume_spike": true
+          },
+          "event_details": {
+            "event_type": "central_bank_decision",
+            "next_meeting": "2024-11-07",
+            "expected_outcome": "rate_cut",
+            "probability": 0.75
+          }
+        }
+      ]
+    }
+  ]
+}

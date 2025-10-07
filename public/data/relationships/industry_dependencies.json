@@ -1,0 +1,176 @@
+{
+  "technology_supply_chain": {
+    "description": "Technology companies and their manufacturing/supply chain dependencies",
+    "companies": ["apple", "samsung", "tsmc", "foxconn", "pegatron"],
+    "key_dependencies": [
+      {
+        "component": "Semiconductor Manufacturing",
+        "critical_suppliers": ["tsmc", "samsung"],
+        "dependent_companies": ["apple", "samsung"],
+        "risk_level": "high",
+        "geographic_concentration": "Taiwan (60%), South Korea (30%)"
+      },
+      {
+        "component": "Device Assembly",
+        "critical_suppliers": ["foxconn", "pegatron"],
+        "dependent_companies": ["apple", "samsung"],
+        "risk_level": "high",
+        "geographic_concentration": "China (80%)"
+      },
+      {
+        "component": "Display Technology",
+        "critical_suppliers": ["samsung", "lg_display"],
+        "dependent_companies": ["apple", "samsung"],
+        "risk_level": "medium",
+        "geographic_concentration": "South Korea (70%)"
+      }
+    ]
+  },
+  "automotive_supply_chain": {
+    "description": "Electric vehicle manufacturers and their battery/component dependencies",
+    "companies": ["tesla", "panasonic", "lg_chem", "samsung_sdi", "catl"],
+    "key_dependencies": [
+      {
+        "component": "Lithium-ion Batteries",
+        "critical_suppliers": ["panasonic", "lg_chem", "samsung_sdi", "catl"],
+        "dependent_companies": ["tesla"],
+        "risk_level": "high",
+        "geographic_concentration": "Japan (25%), South Korea (35%), China (30%)"
+      },
+      {
+        "component": "AI/Autonomous Tech",
+        "critical_suppliers": ["nvidia", "mobileye"],
+        "dependent_companies": ["tesla"],
+        "risk_level": "medium",
+        "geographic_concentration": "Israel (30%), USA (40%), Taiwan (20%)"
+      },
+      {
+        "component": "Rare Earth Materials",
+        "critical_suppliers": ["china_mines"],
+        "dependent_companies": ["tesla", "panasonic", "lg_chem"],
+        "risk_level": "high",
+        "geographic_concentration": "China (60%)"
+      }
+    ]
+  },
+  "cloud_computing_ecosystem": {
+    "description": "Cloud service providers and their hardware/infrastructure dependencies",
+    "companies": ["amazon", "microsoft", "google", "nvidia", "intel"],
+    "key_dependencies": [
+      {
+        "component": "GPU/Accelerator Chips",
+        "critical_suppliers": ["nvidia", "amd"],
+        "dependent_companies": ["amazon", "microsoft", "google"],
+        "risk_level": "medium",
+        "geographic_concentration": "Taiwan (60%), USA (30%)"
+      },
+      {
+        "component": "CPU Chips",
+        "critical_suppliers": ["intel", "amd"],
+        "dependent_companies": ["amazon", "microsoft", "google"],
+        "risk_level": "medium",
+        "geographic_concentration": "USA (50%), Taiwan (40%)"
+      },
+      {
+        "component": "Data Center Construction",
+        "critical_suppliers": ["various_construction"],
+        "dependent_companies": ["amazon", "microsoft", "google"],
+        "risk_level": "low",
+        "geographic_concentration": "Global distribution"
+      }
+    ]
+  },
+  "retail_ecommerce": {
+    "description": "E-commerce platforms and their logistics/technology dependencies",
+    "companies": ["amazon", "alibaba", "walmart"],
+    "key_dependencies": [
+      {
+        "component": "Logistics & Fulfillment",
+        "critical_suppliers": ["various_carriers", "fulfillment_centers"],
+        "dependent_companies": ["amazon"],
+        "risk_level": "medium",
+        "geographic_concentration": "USA (40%), China (30%)"
+      },
+      {
+        "component": "Payment Processing",
+        "critical_suppliers": ["visa", "mastercard", "paypal"],
+        "dependent_companies": ["amazon", "alibaba"],
+        "risk_level": "low",
+        "geographic_concentration": "USA (60%)"
+      },
+      {
+        "component": "Cloud Infrastructure",
+        "critical_suppliers": ["amazon_aws", "alibaba_cloud"],
+        "dependent_companies": ["amazon", "alibaba"],
+        "risk_level": "low",
+        "geographic_concentration": "Self-sufficient"
+      }
+    ]
+  },
+  "cross_industry_dependencies": {
+    "description": "Dependencies that span multiple industries",
+    "companies": ["all_companies"],
+    "key_dependencies": [
+      {
+        "component": "Global Trade Routes",
+        "critical_suppliers": ["shipping_companies", "ports"],
+        "dependent_companies": ["apple", "tesla", "amazon"],
+        "risk_level": "high",
+        "geographic_concentration": "China (40%), Singapore (15%)"
+      },
+      {
+        "component": "Financial Services",
+        "critical_suppliers": ["banks", "payment_processors"],
+        "dependent_companies": ["all_companies"],
+        "risk_level": "medium",
+        "geographic_concentration": "USA (40%), Europe (30%)"
+      },
+      {
+        "component": "Cybersecurity",
+        "critical_suppliers": ["security_companies", "governments"],
+        "dependent_companies": ["all_companies"],
+        "risk_level": "high",
+        "geographic_concentration": "USA (50%), Israel (20%)"
+      }
+    ]
+  },
+  "geopolitical_risks": {
+    "china_dependencies": {
+      "affected_companies": ["apple", "tesla", "amazon"],
+      "risk_factors": ["Trade tariffs", "Technology transfer policies", "Supply chain disruptions"],
+      "potential_impact": "high",
+      "mitigation_strategies": ["Diversification", "Local manufacturing", "Inventory buffers"]
+    },
+    "taiwan_dependencies": {
+      "affected_companies": ["apple", "samsung", "nvidia"],
+      "risk_factors": ["Geopolitical tensions", "Natural disasters", "Trade restrictions"],
+      "potential_impact": "critical",
+      "mitigation_strategies": ["Multiple foundries", "Geographic diversification", "Advanced inventory"]
+    },
+    "us_policy_risks": {
+      "affected_companies": ["all_companies"],
+      "risk_factors": ["Export controls", "Tariffs", "Data privacy regulations"],
+      "potential_impact": "medium",
+      "mitigation_strategies": ["Compliance programs", "Legal expertise", "Policy advocacy"]
+    }
+  },
+  "market_interdependencies": {
+    "commodity_prices": {
+      "affected_sectors": ["technology", "automotive", "energy"],
+      "key_commodities": ["Lithium", "Cobalt", "Nickel", "Copper", "Rare earth metals"],
+      "price_volatility": "high",
+      "supply_concentration": "China (60% of rare earths)"
+    },
+    "currency_fluctuations": {
+      "affected_companies": ["apple", "amazon", "tesla"],
+      "key_currencies": ["USD", "EUR", "CNY", "JPY"],
+      "impact_level": "medium",
+      "hedging_strategies": ["Currency forwards", "Natural hedges", "Local currency operations"]
+    },
+    "interest_rates": {
+      "affected_sectors": ["all_sectors"],
+      "transmission_mechanism": ["Cost of capital", "Consumer spending", "Investment decisions"],
+      "current_sensitivity": "moderate"
+    }
+  }
+}

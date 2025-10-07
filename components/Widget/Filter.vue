@@ -42,31 +42,68 @@ function toggleState(option) {
 
 </template>
 
-<style>
-.container-filter{
-    color: rgba(255, 255, 255,1);
-    min-width: none;
-    min-height: auto;
-    background-color: rgba(11,11,11,05);
+<style scoped>
+.container-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  color: var(--text-white);
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-primary);
 }
 
 .filter-option {
-  transition: all 0.3s ease;
+  transition: var(--transition-normal);
   border: 2px solid transparent;
-  padding: 8px 16px;
-  margin: 4px;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
   cursor: pointer;
+  background: var(--bg-tertiary);
+  color: var(--text-white);
+  font-family: var(--font-family-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  min-width: 80px;
+  text-align: center;
+}
+
+.filter-option:hover {
+  border-color: var(--border-accent);
 }
 
 .on {
-  box-shadow: 0 0 8px 0 rgba(0, 255, 0, 0.5);
+  background: var(--bg-accent);
+  border-color: var(--success-green);
+  color: var(--success-green);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
 }
 
 .off {
-  box-shadow: inset 0 0 8px 0 rgba(255, 0, 0, 0.5);
+  background: rgba(255, 68, 68, 0.1);
+  border-color: var(--error-red);
+  color: var(--error-red);
+  box-shadow: inset 0 0 8px rgba(255, 0, 0, 0.3);
 }
 
 .neutral {
-  /* No additional styling needed */
+  border-color: var(--border-secondary);
+  color: var(--text-gray);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .container-filter {
+    padding: var(--spacing-sm);
+  }
+
+  .filter-option {
+    flex: 1;
+    min-width: 70px;
+    padding: var(--spacing-xs);
+    font-size: 0.8rem;
+  }
 }
 </style>
