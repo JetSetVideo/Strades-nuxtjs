@@ -21,6 +21,17 @@
   --error-red: #ff4444;
   --warning-orange: #ffa500;
 
+  /* Asset Colors */
+  --asset-btc: #f7931a;
+  --asset-eth: #627eea;
+  --asset-aapl: #000000;
+  --asset-tsla: #cc0000;
+  --asset-sol: #9945ff;
+  --asset-ada: #0033ad;
+  --asset-dot: #e6007a;
+  --asset-link: #2a5ada;
+  --asset-default: #666666;
+
   /* Background Colors */
   --bg-primary: linear-gradient(135deg, var(--secondary-darker) 0%, var(--secondary-dark) 100%);
   --bg-secondary: #2a2a2a;

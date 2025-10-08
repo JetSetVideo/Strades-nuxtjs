@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useWalletsStore } from '@/stores/wallets';
 import * as d3 from 'd3';
 
 const props = defineProps({
@@ -14,12 +15,18 @@ const props = defineProps({
   selectedPeriod: {
     type: String,
     default: '30d'
+  },
+  walletId: {
+    type: String,
+    default: 'wallet_001'
   }
 });
 
 const emit = defineEmits(['update-period', 'select-asset']);
 
+const walletsStore = useWalletsStore();
 const chartContainer = ref(null);
+const timelineContainer = ref(null);
 const tooltip = ref(null);
 const tooltipData = ref({
   visible: false,
@@ -27,48 +34,180 @@ const tooltipData = ref({
   value: 0,
   percentage: 0
 });
-const selectedAsset = ref('');
+const selectedDate = ref('');
+const hoveredDate = ref('');
 
 const totalValue = computed(() => {
   return props.assets.reduce((total, asset) => total + (asset.current_value || 0), 0);
 });
 
+// Get historical data for the current wallet
+const walletHistory = computed(() => {
+  return walletsStore.getWalletHistory(props.walletId);
+});
+
+// Get available dates for timeline
+const availableDates = computed(() => {
+  const history = walletHistory.value;
+  return Object.keys(history).sort();
+});
+
+// Get asset composition for selected date or current
 const assetComposition = computed(() => {
-  const total = totalValue.value;
-  return props.assets.map(asset => ({
-    name: asset.symbol,
-    value: (asset.current_value || 0) / total,
-    color: getAssetColor(asset.symbol)
-  }));
+  let data;
+  if (selectedDate.value && walletHistory.value[selectedDate.value]) {
+    data = walletHistory.value[selectedDate.value];
+  } else {
+    // Use current data
+    const total = totalValue.value;
+    data = {
+      total_value: total,
+      assets: props.assets.reduce((acc, asset) => {
+        acc[asset.symbol] = {
+          amount: asset.amount,
+          value: asset.current_value || 0,
+          allocation: ((asset.current_value || 0) / total) * 100
+        };
+        return acc;
+      }, {})
+    };
+  }
+
+  const result = [];
+  Object.entries(data.assets).forEach(([symbol, info]) => {
+    result.push({
+      name: symbol,
+      value: info.allocation / 100,
+      color: getAssetColor(symbol)
+    });
+  });
+  return result;
 });
 
 const percentageChange = computed(() => {
   if (!props.transactions || props.transactions.length < 2) return 0;
-  // Calculate percentage change based on transaction history
-  // This is a simplified calculation - you might want to calculate based on portfolio value over time
   return 5.2; // Placeholder value
 });
 
 const selectAsset = (assetName) => {
-  selectedAsset.value = assetName;
   emit('select-asset', assetName);
 };
 
+const selectDate = (date) => {
+  selectedDate.value = date;
+  drawChart();
+};
+
+const getDisplayValue = () => {
+  if (selectedDate.value && walletHistory.value[selectedDate.value]) {
+    return walletHistory.value[selectedDate.value].total_value;
+  }
+  return totalValue.value;
+};
+
 onMounted(() => {
+  drawTimeline();
   drawChart();
 });
 
-watch(() => props.selectedPeriod, drawChart);
+watch(() => props.selectedPeriod, () => {
+  drawTimeline();
+  drawChart();
+});
 
 function getAssetColor(symbol) {
-  const colors = {
-    'BTC': '#f7931a',
-    'ETH': '#627eea',
-    'AAPL': '#000000',
-    'TSLA': '#cc0000',
-    'ADA': '#0033ad'
+  const colorMap = {
+    'BTC': 'var(--asset-btc)',
+    'ETH': 'var(--asset-eth)',
+    'AAPL': 'var(--asset-aapl)',
+    'TSLA': 'var(--asset-tsla)',
+    'ADA': 'var(--asset-ada)',
+    'SOL': 'var(--asset-sol)',
+    'DOT': 'var(--asset-dot)',
+    'LINK': 'var(--asset-link)'
   };
-  return colors[symbol] || '#666666';
+  return colorMap[symbol] || 'var(--asset-default)';
+}
+
+function drawTimeline() {
+  if (!timelineContainer.value || availableDates.value.length === 0) return;
+
+  d3.select(timelineContainer.value).selectAll('*').remove();
+
+  const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+  const width = 400 - margin.left - margin.right;
+  const height = 100 - margin.top - margin.bottom;
+
+  const svg = d3.select(timelineContainer.value)
+    .append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom)
+    .append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Parse dates and get values
+  const data = availableDates.value.map(date => ({
+    date: new Date(date),
+    value: walletHistory.value[date].total_value
+  }));
+
+  // Create scales
+  const xScale = d3.scaleTime()
+    .domain(d3.extent(data, d => d.date))
+    .range([0, width]);
+
+  const yScale = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.value)])
+    .range([height, 0]);
+
+  // Create line
+  const line = d3.line()
+    .x(d => xScale(d.date))
+    .y(d => yScale(d.value))
+    .curve(d3.curveMonotoneX);
+
+  // Add line
+  svg.append('path')
+    .datum(data)
+    .attr('fill', 'none')
+    .attr('stroke', 'var(--primary-blue)')
+    .attr('stroke-width', 2)
+    .attr('d', line);
+
+  // Add points
+  svg.selectAll('circle')
+    .data(data)
+    .enter()
+    .append('circle')
+    .attr('cx', d => xScale(d.date))
+    .attr('cy', d => yScale(d.value))
+    .attr('r', 4)
+    .attr('fill', d => selectedDate.value === d.date.toISOString().split('T')[0] ? 'var(--primary-green)' : 'var(--primary-blue)')
+    .attr('stroke', 'white')
+    .attr('stroke-width', 2)
+    .style('cursor', 'pointer')
+    .on('click', function(event, d) {
+      selectDate(d.date.toISOString().split('T')[0]);
+    })
+    .on('mouseover', function(event, d) {
+      d3.select(this)
+        .transition()
+        .duration(200)
+        .attr('r', 6);
+    })
+    .on('mouseout', function() {
+      d3.select(this)
+        .transition()
+        .duration(200)
+        .attr('r', 4);
+    });
+
+  // Add axes
+  svg.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(xScale).ticks(4).tickFormat(d3.timeFormat('%b %Y')))
+    .style('color', 'rgba(255, 255, 255, 0.7)')
+    .style('font-size', '10px');
 }
 
 function drawChart() {
@@ -95,10 +234,6 @@ function drawChart() {
     .innerRadius(radius * 0.5)
     .outerRadius(radius * 0.9);
 
-  const outerArc = d3.arc()
-    .innerRadius(radius * 0.95)
-    .outerRadius(radius * 0.95);
-
   // Create arcs
   const arcs = svg.selectAll('path')
     .data(pie(assetComposition.value))
@@ -119,18 +254,12 @@ function drawChart() {
         .attr('stroke-width', 3);
 
       // Update tooltip data
-      const asset = props.assets.find(a => a.symbol === d.data.name);
       tooltipData.value = {
         visible: true,
         symbol: d.data.name,
-        value: asset?.current_value || 0,
+        value: d.data.value * (selectedDate.value ? walletHistory.value[selectedDate.value]?.total_value || totalValue.value : totalValue.value),
         percentage: (d.data.value * 100).toFixed(1)
       };
-
-      // Change background color to match the hovered segment
-      d3.select(chartContainer.value)
-        .style('background-color', d.data.color)
-        .style('transition', 'background-color 0.3s ease');
     })
     .on('mouseout', function() {
       // Reset the segment
@@ -142,10 +271,6 @@ function drawChart() {
 
       // Hide tooltip
       tooltipData.value.visible = false;
-
-      // Reset background color
-      d3.select(chartContainer.value)
-        .style('background-color', 'transparent');
     })
     .on('click', function(event, d) {
       selectAsset(d.data.name);
@@ -164,13 +289,17 @@ function drawChart() {
   const centerGroup = svg.append('g')
     .attr('text-anchor', 'middle');
 
+  const displayValue = selectedDate.value && walletHistory.value[selectedDate.value]
+    ? walletHistory.value[selectedDate.value].total_value
+    : totalValue.value;
+
   centerGroup.append('text')
     .attr('dy', '-0.5em')
     .style('font-family', 'Poppins, sans-serif')
     .style('font-size', '14px')
     .style('font-weight', '600')
     .style('fill', 'rgba(255, 255, 255, 0.7)')
-    .text('Total Value');
+    .text(selectedDate.value ? 'Historical Value' : 'Total Value');
 
   centerGroup.append('text')
     .attr('dy', '0.5em')
@@ -178,7 +307,7 @@ function drawChart() {
     .style('font-size', '20px')
     .style('font-weight', '700')
     .style('fill', 'white')
-    .text(`$${totalValue.value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
+    .text(`$${displayValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
 }
 
 </script>
@@ -186,18 +315,34 @@ function drawChart() {
 <template>
   <div class="wallet-evolution">
     <div class="evolution-header">
-      <h3>Portfolio Composition</h3>
+      <h3>Portfolio Evolution</h3>
       <div class="evolution-stats">
         <div class="stat">
-          <span class="stat-label">Total Value</span>
-          <span class="stat-value">${{ totalValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
+          <span class="stat-label">{{ selectedDate ? 'Historical Value' : 'Current Value' }}</span>
+          <span class="stat-value">${{ getDisplayValue().toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</span>
         </div>
         <div class="stat">
-          <span class="stat-label">Change</span>
-          <span class="stat-value" :class="{ 'positive': percentageChange >= 0, 'negative': percentageChange < 0 }">
-            {{ percentageChange >= 0 ? '+' : '' }}{{ percentageChange.toFixed(2) }}%
-          </span>
+          <span class="stat-label">Period</span>
+          <span class="stat-value">{{ selectedDate || 'Current' }}</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Interactive Timeline -->
+    <div class="timeline-section">
+      <h4>Portfolio Value Over Time</h4>
+      <div ref="timelineContainer" class="timeline-wrapper"></div>
+      <div class="timeline-controls">
+        <button
+          v-if="selectedDate"
+          @click="selectedDate = ''"
+          class="reset-button"
+        >
+          Show Current
+        </button>
+        <p class="timeline-info">
+          Click on any point to see portfolio composition at that time
+        </p>
       </div>
     </div>
 
@@ -306,6 +451,66 @@ function drawChart() {
 
 .stat-value.negative {
   color: #f44336;
+}
+
+.timeline-section {
+  margin-bottom: 25px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.timeline-section h4 {
+  font-family: "Poppins", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: white;
+  margin: 0 0 15px 0;
+  text-align: center;
+}
+
+.timeline-wrapper {
+  width: 100%;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 10px;
+}
+
+.timeline-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.reset-button {
+  background: var(--primary-blue);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: "Poppins", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.reset-button:hover {
+  background: var(--primary-green);
+  transform: translateY(-1px);
+}
+
+.timeline-info {
+  font-family: "Poppins", sans-serif;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  flex: 1;
+  text-align: right;
 }
 
 .chart-container {

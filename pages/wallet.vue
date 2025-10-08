@@ -2,6 +2,13 @@
 import { ref, computed, onMounted } from 'vue';
 import { useWalletsStore } from '@/stores/wallets';
 import SelectStrats from '@/components/Wallet/SelectStrats.vue';
+import WalletCapitalCounter from '@/components/Wallet/CapitalCounter.vue';
+import WalletPortfolio from '@/components/Wallet/Portfolio.vue';
+import WalletEvolution from '@/components/Wallet/Evolution.vue';
+import WalletPositionTracker from '@/components/Wallet/PositionTracker.vue';
+import TradesHistory from '@/components/Transactions/History.vue';
+import Chart from '@/components/Chart.vue';
+import WalletEvolutionAllocation from '@/components/Wallet/EvolutionAllocation.vue';
 
 definePageMeta({
     title: "wallet",
@@ -99,6 +106,17 @@ const selectAsset = (asset) => {
   selectedAsset.value = asset;
 };
 
+// Computed properties for classes
+const totalReturnClass = computed(() => ({
+  'positive': (walletSummary.value?.totalReturn || 0) >= 0,
+  'negative': (walletSummary.value?.totalReturn || 0) < 0
+}));
+
+const dailyChangeClass = computed(() => ({
+  'positive': (walletSummary.value?.dailyChangePercentage || 0) >= 0,
+  'negative': (walletSummary.value?.dailyChangePercentage || 0) < 0
+}));
+
 // Switch to next wallet
 const switchWallet = () => {
   const currentIndex = walletsStore.wallets.findIndex(w => w.id === selectedWalletId.value);
@@ -108,109 +126,110 @@ const switchWallet = () => {
 </script>
 
 <template>
-    <div class="body-wallet">
-      <!-- Wallet Header with Summary -->
-      <div class="wallet-header">
-        <div class="wallet-info">
-          <h2>{{ currentWallet?.name || 'Portfolio' }}</h2>
-          <div class="wallet-metrics">
-            <span class="metric">
-              <span class="metric-label">Total Return:</span>
-              <span class="metric-value" :class="{ 'positive': walletSummary?.totalReturn >= 0, 'negative': walletSummary?.totalReturn < 0 }">
-                {{ walletSummary?.totalReturn >= 0 ? '+' : '' }}{{ walletSummary?.totalReturn?.toFixed(2) || '0.00' }} {{ walletSummary?.currency }}
-              </span>
+  <div class="body-wallet">
+    <!-- Wallet Header with Summary -->
+    <div class="wallet-header">
+      <div class="wallet-info">
+        <h2>{{ currentWallet?.name || 'Portfolio' }}</h2>
+        <div class="wallet-metrics">
+          <span class="metric">
+            <span class="metric-label">Total Return:</span>
+            <span class="metric-value" :class="totalReturnClass">
+              {{ walletSummary?.totalReturn >= 0 ? '+' : '' }}{{ walletSummary?.totalReturn?.toFixed(2) || '0.00' }} {{ walletSummary?.currency }}
             </span>
-            <span class="metric">
-              <span class="metric-label">Daily Change:</span>
-              <span class="metric-value" :class="{ 'positive': walletSummary?.dailyChangePercentage >= 0, 'negative': walletSummary?.dailyChangePercentage < 0 }">
-                {{ walletSummary?.dailyChangePercentage >= 0 ? '+' : '' }}{{ walletSummary?.dailyChangePercentage?.toFixed(2) || '0.00' }}%
-              </span>
+          </span>
+          <span class="metric">
+            <span class="metric-label">Daily Change:</span>
+            <span class="metric-value" :class="dailyChangeClass">
+              {{ walletSummary?.dailyChangePercentage >= 0 ? '+' : '' }}{{ walletSummary?.dailyChangePercentage?.toFixed(2) || '0.00' }}%
             </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Strategy Selection -->
-      <div class="strategy-selection">
-        <SelectStrats
-          :strategies="strategies"
-          v-model:selectedStrategies="selectedStrategies"
-        />
-      </div>
-
-      <!-- Asset Filter -->
-      <div class="asset-filter">
-        <select v-model="selectedAsset" @change="selectAsset(selectedAsset)">
-          <option v-for="asset in availableAssets" :key="asset" :value="asset">
-            {{ asset }}
-          </option>
-        </select>
-      </div>
-
-      <!-- Main Content -->
-      <div class="wallet-content">
-        <!-- Row 1: Capital Counter (Full Width) -->
-        <div class="wallet-row single">
-          <div class="wallet-component">
-            <WalletCapitalCounter
-              :total-value="walletSummary?.totalValue"
-              :currency="walletSummary?.currency"
-              :return-percentage="walletSummary?.totalReturnPercentage"
-              @switch-wallet="switchWallet"
-            />
-          </div>
-        </div>
-
-        <!-- Row 2: Portfolio and Evolution -->
-        <div class="wallet-row double">
-          <div class="wallet-component">
-            <WalletPortfolio
-              :assets="filteredAssets"
-              :total-value="walletSummary?.totalValue"
-              @select-asset="selectAsset"
-            />
-          </div>
-          <div class="wallet-component">
-            <WalletEvolution
-              :assets="filteredAssets"
-              :transactions="walletTransactions"
-              :selected-period="selectedPeriod"
-              @update-period="updatePeriod"
-              @select-asset="selectAsset"
-            />
-          </div>
-        </div>
-
-        <!-- Row 3: Position Tracker and Trades History -->
-        <div class="wallet-row double">
-          <div class="wallet-component">
-            <WalletPositionTracker :assets="filteredAssets" />
-          </div>
-          <div class="wallet-component">
-            <TradesHistory :trades="walletTransactions" />
-          </div>
-        </div>
-
-        <!-- Row 4: Charts and Allocation -->
-        <div class="wallet-row double">
-          <div class="wallet-component">
-            <Chart
-              :assets="filteredAssets"
-              :transactions="walletTransactions"
-              :selected-period="selectedPeriod"
-            />
-          </div>
-          <div class="wallet-component">
-            <WalletEvolutionAllocation
-              :assets="filteredAssets"
-              :transactions="walletTransactions"
-              :selected-period="selectedPeriod"
-            />
-          </div>
+          </span>
         </div>
       </div>
     </div>
-  </template>
+
+    <!-- Strategy Selection -->
+    <div class="strategy-selection">
+      <SelectStrats
+        :strategies="strategies"
+        v-model:selectedStrategies="selectedStrategies"
+      />
+    </div>
+
+    <!-- Asset Filter -->
+    <div class="asset-filter">
+      <select v-model="selectedAsset" @change="selectAsset(selectedAsset)">
+        <option v-for="asset in availableAssets" :key="asset" :value="asset">
+          {{ asset }}
+        </option>
+      </select>
+    </div>
+
+    <!-- Main Content -->
+    <div class="wallet-content">
+      <!-- Row 1: Capital Counter (Full Width) -->
+      <div class="wallet-row single">
+        <div class="wallet-component">
+          <WalletCapitalCounter
+            :total-value="walletSummary?.totalValue"
+            :currency="walletSummary?.currency"
+            :return-percentage="walletSummary?.totalReturnPercentage"
+            @switch-wallet="switchWallet"
+          />
+        </div>
+      </div>
+
+      <!-- Row 2: Portfolio and Evolution -->
+      <div class="wallet-row double">
+        <div class="wallet-component">
+          <WalletPortfolio
+            :assets="filteredAssets"
+            :total-value="walletSummary?.totalValue"
+            @select-asset="selectAsset"
+          />
+        </div>
+        <div class="wallet-component">
+          <WalletEvolution
+            :assets="filteredAssets"
+            :transactions="walletTransactions"
+            :selected-period="selectedPeriod"
+            :wallet-id="selectedWalletId"
+            @update-period="updatePeriod"
+            @select-asset="selectAsset"
+          />
+        </div>
+      </div>
+
+      <!-- Row 3: Position Tracker and Trades History -->
+      <div class="wallet-row double">
+        <div class="wallet-component">
+          <WalletPositionTracker :assets="filteredAssets" />
+        </div>
+        <div class="wallet-component">
+          <TradesHistory :trades="walletTransactions" />
+        </div>
+      </div>
+
+      <!-- Row 4: Charts and Allocation -->
+      <div class="wallet-row double">
+        <div class="wallet-component">
+          <Chart
+            :assets="filteredAssets"
+            :transactions="walletTransactions"
+            :selected-period="selectedPeriod"
+          />
+        </div>
+        <div class="wallet-component">
+          <WalletEvolutionAllocation
+            :assets="filteredAssets"
+            :transactions="walletTransactions"
+            :selected-period="selectedPeriod"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .body-wallet {

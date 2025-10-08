@@ -54,6 +54,7 @@ export interface Wallet {
 export const useWalletsStore = defineStore('wallets', {
   state: () => ({
     wallets: [] as Wallet[],
+    walletHistory: {} as Record<string, any>,
     loading: false,
     error: null as Error | null
   }),
@@ -90,6 +91,15 @@ export const useWalletsStore = defineStore('wallets', {
     getWalletPerformance: (state) => (walletId: string, period: '1d' | '7d' | '30d' | '90d' | '1y') => {
       const wallet = state.wallets.find(w => w.id === walletId)
       return wallet?.performance_history[period] || null
+    },
+
+    getWalletHistory: (state) => (walletId: string) => {
+      return state.walletHistory[walletId] || {}
+    },
+
+    getWalletHistoryAtDate: (state) => (walletId: string, date: string) => {
+      const history = state.walletHistory[walletId]
+      return history?.[date] || null
     }
   },
 
@@ -97,8 +107,12 @@ export const useWalletsStore = defineStore('wallets', {
     async fetchWallets() {
       try {
         this.loading = true
-        const walletsData = await $fetch<Wallet[]>('/data/core/wallets.json')
+        const [walletsData, historyData] = await Promise.all([
+          $fetch<Wallet[]>('/data/core/wallets.json'),
+          $fetch<Record<string, any>>('/data/core/wallet_history.json')
+        ])
         this.wallets = walletsData
+        this.walletHistory = historyData
       } catch (error) {
         this.error = error as Error
         console.error('Failed to fetch wallets:', error)

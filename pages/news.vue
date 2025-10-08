@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useNewsStore } from "@/stores/newsStore";
+import NewsListItem from "@/components/Widget/NewsListItem.vue";
 
 definePageMeta({
   title: 'News',
@@ -37,14 +38,16 @@ onMounted(async () => {
 
     <!-- Main Content -->
     <div v-else class="news-content">
+      <!-- Filters Section at Top -->
+      <div class="filters-section">
+        <WidgetFilter />
+      </div>
+
       <!-- Calendar Section -->
       <div class="news-alt-options">
         <div class="calendar-section">
           <h3>Calendar</h3>
           <h4>Upcoming Events</h4>
-        </div>
-        <div class="filter-section">
-          <WidgetFilter />
         </div>
       </div>
 
@@ -62,15 +65,13 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- News Articles -->
-        <div v-if="selectedCategoryName" class="news">
-          <div
+        <!-- News Articles List -->
+        <div v-if="selectedCategoryName" class="news-list">
+          <NewsListItem
             v-for="article in newsStore.news?.categories?.find(category => category.name === selectedCategoryName)?.articles || []"
             :key="article.id"
-            class="article"
-          >
-            <news :article="article" />
-          </div>
+            :article="article"
+          />
         </div>
 
         <!-- Selection Ranking -->
@@ -102,6 +103,7 @@ onMounted(async () => {
   font-size: 2.5rem;
   font-weight: bold;
   background: var(--primary-gradient);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0 0 var(--spacing-sm) 0;
@@ -141,6 +143,10 @@ onMounted(async () => {
 
 .news-content {
   width: 100%;
+}
+
+.filters-section {
+  margin-bottom: var(--spacing-lg);
 }
 
 .news-alt-options {
@@ -210,26 +216,11 @@ onMounted(async () => {
   color: var(--secondary-darker);
 }
 
-.news {
+.news-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
   margin-bottom: var(--spacing-xl);
-}
-
-.article {
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-md);
-  border: 1px solid var(--border-primary);
-  box-shadow: var(--shadow-primary);
-  transition: var(--transition-normal);
-}
-
-.article:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-accent);
-  border-color: var(--border-accent);
 }
 
 .selection-ranking {

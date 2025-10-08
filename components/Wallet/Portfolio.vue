@@ -26,14 +26,18 @@ const remainingPercentage = computed(() => {
 });
 
 const getAssetColor = (symbol) => {
-  // Simple color mapping based on symbol
-  const colors = {
-    'BTC': '#f7931a',
-    'ETH': '#627eea',
-    'AAPL': '#000000',
-    'TSLA': '#cc0000'
+  // Use CSS variables for consistent coloring
+  const colorMap = {
+    'BTC': 'var(--asset-btc)',
+    'ETH': 'var(--asset-eth)',
+    'AAPL': 'var(--asset-aapl)',
+    'TSLA': 'var(--asset-tsla)',
+    'ADA': 'var(--asset-ada)',
+    'SOL': 'var(--asset-sol)',
+    'DOT': 'var(--asset-dot)',
+    'LINK': 'var(--asset-link)'
   };
-  return colors[symbol] || '#666666';
+  return colorMap[symbol] || 'var(--asset-default)';
 };
 
 const getAssetIcon = (symbol) => {
