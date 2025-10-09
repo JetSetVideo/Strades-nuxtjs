@@ -81,7 +81,6 @@ function handleToggleStatus(strategyId) {
 
 onMounted(async () => {
   await fetchStrategies()
-  console.log('Fetched strategies:', strategies.value)
 })
 </script>
 

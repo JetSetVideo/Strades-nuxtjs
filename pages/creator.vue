@@ -10,6 +10,9 @@ import SelectorAsset from '@/components/Selector/Asset.vue';
 import BuilderCondition from '@/components/Builder/Condition.vue';
 import BuilderAction from '@/components/Builder/Action.vue';
 import StrategyVisualizer from '@/components/StrategyVisualizer.vue';
+import StrategyCodeView from '@/components/StrategyCodeView.vue';
+import StrategyRating from '@/components/StrategyRating.vue';
+import CountdownModal from '@/components/CountdownModal.vue';
 
 definePageMeta({
   title: "Strategy Creator",
@@ -17,7 +20,7 @@ definePageMeta({
   layout: "default",
 });
 
-const { createStrategy } = useStrategies();
+const { createStrategy, backtestStrategy } = useStrategies();
 
 const strategy = ref({
   name: '',
@@ -69,8 +72,24 @@ const removeBlock = (blockId) => {
 async function analyseStrategy() {
   if (hasEnoughCredit.value && isStrategyValid.value) {
     try {
-      const newStrategy = await createStrategy(strategy.value);
-      navigateTo(`/summarizer/${newStrategy.id}`);
+      const code = {
+        assets: { entry: (strategy.value.blocks.find(b => b.type === 'asset')?.data || 'BTC-USD'), exit: 'USD' },
+        period: { start: strategy.value.period.start || new Date().toISOString().slice(0,10), end: strategy.value.period.end || new Date().toISOString().slice(0,10) },
+        frequency: '1D',
+        conditions: strategy.value.blocks.filter(b => b.type === 'condition').map(b => b.data),
+        profiles: strategy.value.users || [],
+        parameters: {},
+        rights: { owners: ['current_user'], editors: [], viewers: [], is_public: false }
+      }
+      const newStrategy = await createStrategy({
+        name: strategy.value.name,
+        description: strategy.value.description,
+        category: 'technical',
+        targetAssets: [code.assets.entry],
+        code
+      });
+      showCountdown.value = true;
+      pendingId.value = newStrategy.id;
     } catch (error) {
       console.error('Failed to create strategy:', error);
       alert('Failed to create strategy. Please try again.');
@@ -79,6 +98,15 @@ async function analyseStrategy() {
     alert('Please fill in all required fields and select at least one data source and one asset');
   } else {
     alert('Not enough credits to analyse strategy');
+  }
+}
+
+const showCountdown = ref(false);
+const pendingId = ref<string | null>(null);
+async function onCountdownFinish() {
+  if (pendingId.value) {
+    await backtestStrategy(pendingId.value);
+    navigateTo(`/strategy/${pendingId.value}`);
   }
 }
 </script>
@@ -125,6 +153,19 @@ async function analyseStrategy() {
       </div>
       
       <StrategyVisualizer :blocks="strategy.blocks" />
+
+      <div class="preview-section">
+        <h2>Source Code</h2>
+        <StrategyCodeView :code="{
+          name: strategy.name,
+          description: strategy.description,
+          period: strategy.period,
+          blocks: strategy.blocks,
+          profiles: strategy.users
+        }" />
+      </div>
+
+      <StrategyRating :risk="Math.min(10, Math.max(0, strategy.blocks.length + (strategy.users?.length||0)))" :complexity="complexityRating" :computationalCost="neededCredit" />
       
       <SelectorUsers v-model="strategy.users" />
       <DateRangePicker v-model="strategy.period" />
@@ -140,6 +181,7 @@ async function analyseStrategy() {
         Analyse Strategy
       </NavigationAnalyse>
     </div>
+    <CountdownModal :open="showCountdown" @finish="onCountdownFinish" @close="showCountdown = false" />
   </div>
 </template>
 
@@ -186,6 +228,8 @@ input:focus, textarea:focus {
   border-radius: 5px;
   margin-top: 20px;
 }
+
+.preview-section { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: var(--spacing-md); }
 
 .block-actions {
   display: flex;

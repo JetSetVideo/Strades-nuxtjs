@@ -1,0 +1,58 @@
+[
+  {
+    "id": "strategy_001",
+    "name": "BTC Momentum Strategy",
+    "description": "A momentum-based trading strategy that identifies Bitcoin's upward trends and enters positions during pullbacks.",
+    "creator": "simon_trader",
+    "creationDate": "2024-08-15",
+    "status": "active",
+    "category": "crypto",
+    "tags": ["#Momentum", "#Bitcoin", "#TechnicalAnalysis"],
+    "numberOfTrades": 45,
+    "monthlyGain": 12.5,
+    "monthlyDrawdown": -3.2,
+    "winRate": 68.5,
+    "totalProfit": 156.8,
+    "averageTradeDuration": 3.2,
+    "targetAssets": ["BTC"],
+    "trades": [ { "asset": "BTC" } ]
+  },
+  {
+    "id": "strategy_002",
+    "name": "Tesla Growth Investment",
+    "description": "Long-term investment strategy focused on Tesla's EV market dominance and autonomous driving technology.",
+    "creator": "arthuro_investor",
+    "creationDate": "2024-07-20",
+    "status": "active",
+    "category": "stocks",
+    "tags": ["#Growth", "#Tesla", "#FundamentalAnalysis"],
+    "numberOfTrades": 12,
+    "monthlyGain": 8.3,
+    "monthlyDrawdown": -5.1,
+    "winRate": 75.0,
+    "totalProfit": 89.4,
+    "averageTradeDuration": 45,
+    "targetAssets": ["TSLA"],
+    "trades": [ { "asset": "TSLA" } ]
+  },
+  {
+    "id": "strategy_003",
+    "name": "DeFi Yield Farming",
+    "description": "Automated strategy for yield farming across various DeFi protocols with risk management.",
+    "creator": "kevin_scalper",
+    "creationDate": "2024-06-10",
+    "status": "paused",
+    "category": "crypto",
+    "tags": ["#DeFi", "#YieldFarming", "#Automation"],
+    "numberOfTrades": 89,
+    "monthlyGain": 15.7,
+    "monthlyDrawdown": -7.8,
+    "winRate": 72.3,
+    "totalProfit": 234.1,
+    "averageTradeDuration": 7.5,
+    "targetAssets": ["ETH", "USDC", "WBTC"],
+    "trades": [ { "asset": "ETH" }, { "asset": "USDC" }, { "asset": "BTC" } ]
+  }
+]
+
+

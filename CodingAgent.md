@@ -27,7 +27,9 @@ Data flows from raw events → aggregated insights → AI training features. Imp
 - Implement conditional logic to switch between mock and real data sources in production.
 - Validate mock data against schemas to prevent inconsistencies.
 
-# css naming conventions
+# css naming conventions 
+Preferred convention for naming in CSS, especially for larger, more maintainable projects, is BEM (Block–Element–Modifier).
+
 - use kebab-case for css classes,ids, variables, functions, mixins, animations, transitions, media queries
 
 # vue naming conventions

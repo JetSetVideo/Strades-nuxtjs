@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useStrategies, type Strategy } from '@/composables/useStrategies'
+import { useStrategies, type StrategySummary } from '@/composables/useStrategies'
 import StrategyVisualizer from '@/components/StrategyVisualizer.vue'
+import StrategyCodeView from '@/components/StrategyCodeView.vue'
+import StrategyRating from '@/components/StrategyRating.vue'
+import StrategyPnlChart from '@/components/StrategyPnlChart.vue'
 
 // Get the strategy ID from the route
 const route = useRoute()
 const strategyId = route.params.id as string
 
-const { strategies, updateStrategy, fetchStrategies } = useStrategies()
+const { strategies, updateStrategy, fetchStrategies, fetchStrategyDetail, backtestStrategy, generateComplementary, generateOpposite } = useStrategies()
 const isEditing = ref(false)
-const editedStrategy = ref<Strategy | null>(null)
+const editedStrategy = ref<StrategySummary | null>(null)
+const details = ref<{ code: any; rating: any; history: any[]; trades: any[] } | null>(null)
 
 // Find the current strategy
 const currentStrategy = computed(() => {
@@ -115,6 +119,9 @@ function handleImageError(event: Event) {
 
 onMounted(async () => {
   await fetchStrategies()
+  try {
+    details.value = await fetchStrategyDetail(strategyId)
+  } catch {}
 })
 </script>
 <template>
@@ -431,9 +438,29 @@ onMounted(async () => {
       </div>
 
       <!-- Strategy Visualization (if not editing) -->
-      <div v-if="!isEditing && currentStrategy?.blocks && currentStrategy.blocks.length > 0" class="section visualization-section">
-        <h2 class="section-title">Strategy Visualization</h2>
-        <StrategyVisualizer :blocks="currentStrategy.blocks" />
+      <div v-if="!isEditing && details?.code" class="section visualization-section">
+        <h2 class="section-title">Strategy Code</h2>
+        <StrategyCodeView :code="details!.code" />
+      </div>
+
+      <div v-if="details" class="section">
+        <h2 class="section-title">Ratings</h2>
+        <StrategyRating :risk="details!.rating.risk" :complexity="details!.rating.complexity" :computationalCost="details!.rating.computationalCost" />
+      </div>
+
+      <div v-if="details?.history?.length" class="section">
+        <h2 class="section-title">P&L</h2>
+        <StrategyPnlChart :history="details!.history" />
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2 class="section-title">Derived Strategies</h2>
+          <div class="add-block-buttons">
+            <button @click="() => generateComplementary(strategyId).then(s => navigateTo(`/strategy/${s.id}`))" class="add-block-btn">Create complementary strategy</button>
+            <button @click="() => generateOpposite(strategyId).then(s => navigateTo(`/strategy/${s.id}`))" class="add-block-btn">Create opposite strategy</button>
+          </div>
+        </div>
       </div>
     </div>
 

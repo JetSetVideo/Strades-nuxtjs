@@ -1,0 +1,16 @@
+{
+  "id": "strategy_002",
+  "name": "Tesla Growth Investment",
+  "assets": { "entry": "TSLA", "exit": "USD" },
+  "period": { "start": "2023-10-01", "end": "2024-09-30" },
+  "frequency": "1D",
+  "conditions": [
+    { "datasource": "price", "asset": "TSLA", "operator": "<", "value": "MA200", "timeframe": "1D" },
+    { "datasource": "volume", "asset": "TSLA", "operator": ">", "value": "1.5x_avg", "timeframe": "1D" }
+  ],
+  "profiles": ["profile_value_investor"],
+  "parameters": { "stop_loss": 0.1, "take_profit": 0.5, "position_size": "5%" },
+  "rights": { "owners": ["user_arthuro"], "editors": [], "viewers": ["user_simon"], "is_public": true }
+}
+
+

@@ -1,0 +1,16 @@
+{
+  "id": "strategy_003",
+  "name": "DeFi Yield Farming",
+  "assets": { "entry": "ETH", "exit": "USDC" },
+  "period": { "start": "2024-02-01", "end": "2024-09-01" },
+  "frequency": "1D",
+  "conditions": [
+    { "datasource": "apy", "protocol": "Aave", "operator": ">", "value": 15, "timeframe": "realtime" },
+    { "datasource": "tvl", "protocol": "Aave", "operator": ">", "value": "100M", "timeframe": "realtime" }
+  ],
+  "profiles": ["profile_yield_farmer"],
+  "parameters": { "stop_loss": 0.08, "take_profit": 0.2, "position_size": "20%" },
+  "rights": { "owners": ["user_kevin"], "editors": [], "viewers": [], "is_public": false }
+}
+
+

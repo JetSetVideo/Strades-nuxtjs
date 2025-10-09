@@ -1,0 +1,16 @@
+{
+  "id": "strategy_001",
+  "name": "BTC Momentum Strategy",
+  "assets": { "entry": "BTC-USD", "exit": "USD" },
+  "period": { "start": "2024-01-01", "end": "2024-06-01" },
+  "frequency": "1D",
+  "conditions": [
+    { "datasource": "price", "asset": "BTC-USD", "operator": "cross_over", "value": "MA200", "timeframe": "1D" },
+    { "datasource": "github_pushes", "repo": "bitcoin/bitcoin", "operator": ">", "value": 50, "timeframe": "1D" }
+  ],
+  "profiles": ["profile_risk_taker", "profile_quant_growth"],
+  "parameters": { "stop_loss": 0.05, "take_profit": 0.15, "position_size": "10%" },
+  "rights": { "owners": ["user_simon"], "editors": ["user_kevin"], "viewers": ["user_arthuro"], "is_public": true }
+}
+
+

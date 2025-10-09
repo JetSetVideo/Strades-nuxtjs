@@ -1,0 +1,6 @@
+date,asset,side,quantity,entry,exit,pnl
+2024-03-05,ETH,BUY,5,1800,1900,500
+2024-04-11,USDC,SELL,5000,1,1,0
+2024-05-30,ETH,BUY,2,2000,2300,600
+
+
