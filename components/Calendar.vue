@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useWalletsStore } from '@/stores/wallets';
 import {
   eachDayOfInterval,
   endOfMonth,
@@ -19,6 +20,7 @@ import {
   endOfDay
 } from 'date-fns';
 
+const walletsStore = useWalletsStore();
 const viewMode = ref('weekly'); // 'daily', 'weekly', 'monthly'
 const currentDate = ref(new Date());
 const walletData = ref(null);
@@ -27,7 +29,8 @@ const dailyPerformance = ref([]);
 // Load wallet data on mount
 onMounted(async () => {
   try {
-    walletData.value = await $fetch('/core/wallets.json');
+    await walletsStore.initializeStore();
+    walletData.value = walletsStore.wallets;
     generateDailyPerformance();
   } catch (error) {
     console.error('Failed to load wallet data:', error);

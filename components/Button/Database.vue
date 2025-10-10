@@ -3,6 +3,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Strategy from '@/components/Card/Strategy.vue'
 import SharedData from '@/components/Card/SharedData.vue'
+import { useStrategiesStore } from '@/stores/strategies'
+import { useChatStore } from '@/stores/chat'
+import { useUsersStore } from '@/stores/users'
+
+// Store instances
+const strategiesStore = useStrategiesStore()
+const chatStore = useChatStore()
+const usersStore = useUsersStore()
 
 // Data stores
 const strategies = ref([])
@@ -21,20 +29,26 @@ const selectedUser = ref(null)
 // Load data on mount
 onMounted(async () => {
   try {
-    // Load all data from JSON files
-    const [strategiesRes, sharedDataRes, conversationsRes, usersRes] = await Promise.all([
-      fetch('/data/core/strategies.json'),
-      fetch('/data/shared_data.json'),
-      fetch('/data/chat/conversations.json'),
-      fetch('/data/Users.json')
+    // Initialize stores
+    await Promise.all([
+      strategiesStore.initializeStore(),
+      chatStore.initializeStore(),
+      usersStore.initializeStore()
     ])
 
-    strategies.value = await strategiesRes.json()
-    sharedData.value = await sharedDataRes.json()
-    conversations.value = await conversationsRes.json()
+    // Get data from stores
+    strategies.value = strategiesStore.strategies
+    conversations.value = chatStore.conversations
+    users.value = usersStore.users
 
-    const usersData = await usersRes.json()
-    users.value = usersData ? [usersData] : []
+    // Load shared data (this might need a separate store or API call)
+    try {
+      const sharedDataRes = await fetch('/data/shared_data.json')
+      sharedData.value = await sharedDataRes.json()
+    } catch (error) {
+      console.warn('Shared data not available:', error)
+      sharedData.value = []
+    }
 
     // Filter data for this discussion
     const currentConversation = conversations.value.find(conv => conv.id === discussionId)

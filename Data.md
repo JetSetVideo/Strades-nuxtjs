@@ -1,6 +1,20 @@
 # Data Structure Documentation
 
-This document contains all the keys found in JSON files within the `/data` directory.
+This document contains all the keys found in JSON files within the `/data` directory and identifies which Vue components consume each data source.
+
+## Component Data Usage Summary
+
+### Core Stores
+- **Strategies Store**: Used by Database.vue, OverallStratstats.vue, Strategy.vue, Strategies.vue
+- **Wallets Store**: Used by Calendar.vue
+- **Users Store**: Used by Database.vue, user profile components
+- **Chat Store**: Used by Database.vue, messaging components
+- **Assets Store**: Used by Asset/Heatmap.vue, Asset/Relation.vue
+- **Bitcoin Store**: Used by Chart/CandleChart.vue
+
+### Direct File Access (Needs Migration)
+- **shared_data.json**: Used by Database.vue for shared articles
+- **user_assets.json**: Used by wallet and portfolio components
 
 ## Root Data Files
 
@@ -147,6 +161,7 @@ This document contains all the keys found in JSON files within the `/data` direc
 | `[n].name` | |
 
 ### Bitcoin.json
+**Components using this data**: Chart/CandleChart.vue (candlestick price visualization)
 
 | Key | Description |
 |-----|-------------|
@@ -159,6 +174,7 @@ This document contains all the keys found in JSON files within the `/data` direc
 | `[n].volume` | |
 
 ### assets.json
+**Components using this data**: Asset/Heatmap.vue (heatmap visualization), Asset/Relation.vue (relationship trees)
 
 | Key | Description |
 |-----|-------------|
@@ -257,6 +273,7 @@ This document contains all the keys found in JSON files within the `/data` direc
 ## chat
 
 ### conversations.json
+**Components using this data**: Database.vue (discussion context filtering), chat and messaging components
 
 | Key | Description |
 |-----|-------------|
@@ -278,6 +295,7 @@ This document contains all the keys found in JSON files within the `/data` direc
 | `[n].unread_count_user_002` | |
 
 ### messages.json
+**Components using this data**: Database.vue (message threading), chat and messaging components
 
 | Key | Description |
 |-----|-------------|
@@ -305,6 +323,7 @@ This document contains all the keys found in JSON files within the `/data` direc
 ## core
 
 ### users.json
+**Components using this data**: Database.vue (user filtering and display), various profile and user management components
 
 | Key | Description |
 |-----|-------------|
@@ -357,6 +376,7 @@ This document contains all the keys found in JSON files within the `/data` direc
 | `[n].win_rate` | |
 
 ### strategies.json
+**Components using this data**: Database.vue (shared strategies panel), OverallStratstats.vue (performance calculations), Strategy.vue (individual strategy display), Strategies.vue (strategy listings)
 
 | Key | Description |
 |-----|-------------|
@@ -435,6 +455,7 @@ This document contains all the keys found in JSON files within the `/data` direc
 | `[n].website` | |
 
 ### wallets.json
+**Components using this data**: Calendar.vue (transaction history for calendar visualization)
 
 | Key | Description |
 |-----|-------------|

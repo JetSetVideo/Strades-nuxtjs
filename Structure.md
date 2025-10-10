@@ -98,6 +98,61 @@ The application uses a database-like structure in the `data/` directory to simul
 4. **Tracking**: User behavior data feeds into analytics and AI systems
 5. **Future Migration**: Structure designed for seamless transition to actual database
 
+# Component Data Usage Documentation
+
+This section documents all Vue components and the data sources they consume from the application's data layer (stores and JSON files).
+
+## Core Data Stores and Their Usage
+
+### Strategies Store (`stores/strategies.ts`)
+**Data Source**: `/data/core/strategies.json`, `/data/relationships/strategy_assets.json`
+**Components Using This Store**:
+- `components/Button/Database.vue` - Displays strategies in shared data panel
+- `components/Wallet/OverallStratstats.vue` - Calculates strategy performance statistics
+- `components/Card/Strategy.vue` - Displays individual strategy information
+- `components/Strategies.vue` - Lists all available strategies
+
+### Wallets Store (`stores/wallets.ts`)
+**Data Source**: `/data/core/wallets.json`
+**Components Using This Store**:
+- `components/Calendar.vue` - Uses wallet transaction data for calendar visualization
+
+### Users Store (`stores/users.ts`)
+**Data Source**: `/data/core/users.json`, `/data/relationships/user_assets.json`
+**Components Using This Store**:
+- `components/Button/Database.vue` - Displays user information in shared data panel
+
+### Chat Store (`stores/chat.ts`)
+**Data Source**: `/data/chat/conversations.json`, `/data/chat/messages.json`
+**Components Using This Store**:
+- `components/Button/Database.vue` - Filters data by conversation/discussion context
+
+### Assets Store (`stores/assets.ts`)
+**Data Source**: `/data/core/assets.json`
+**Components Using This Store**:
+- `components/Asset/Heatmap.vue` - Visualizes company asset relationships as heatmap
+- `components/Asset/Relation.vue` - Displays hierarchical asset relationships
+
+### Bitcoin Store (`stores/BitcoinStore.ts`)
+**Data Source**: `/data/Bitcoin.json`
+**Components Using This Store**:
+- `components/Chart/CandleChart.vue` - Renders candlestick charts for Bitcoin price data
+
+## Direct Data File Access (Should be migrated to stores)
+
+### Shared Data (`/data/shared_data.json`)
+**Components Using This File**:
+- `components/Button/Database.vue` - Displays shared articles and analysis
+
+### User Assets Relationships (`/data/relationships/user_assets.json`)
+**Components Using This File**:
+- Various wallet and portfolio components
+
+### Strategy Performance Data
+**Files**: `/data/strategies/history/strategy_*-pnl.csv`, `/data/strategies/trades/strategy_*.csv`
+**Components Using These Files**:
+- Strategy performance visualization components
+
 # Files structure of the project:
 
 assets/ - Unified directory for all processed assets (images, icons, fonts) following Nuxt 4 best practices.

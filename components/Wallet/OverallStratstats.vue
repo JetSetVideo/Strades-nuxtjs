@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { useStrategiesStore } from '@/stores/strategies';
 
 const props = defineProps({
   selectedCurrency: {
@@ -8,17 +9,18 @@ const props = defineProps({
   }
 });
 
+const strategiesStore = useStrategiesStore();
 const strategies = ref([]);
 const stats = ref({});
 
 onMounted(async () => {
-  const strategyFiles = ['strategy1.json', 'strategy2.json', 'strategy3.json'];
-  for (const file of strategyFiles) {
-    const response = await fetch(`/data/strategies/${file}`);
-    const data = await response.json();
-    strategies.value.push(data);
+  try {
+    await strategiesStore.initializeStore();
+    strategies.value = strategiesStore.strategies.slice(0, 3); // Get first 3 strategies
+    calculateStats();
+  } catch (error) {
+    console.error('Failed to load strategies:', error);
   }
-  calculateStats();
 });
 
 const calculateStats = () => {

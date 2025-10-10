@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-export interface Message {
+export interface LegacyMessage {
   id: string
   attachments: any[]
   deleted: boolean
@@ -18,7 +18,7 @@ export interface Message {
 }
 
 export interface MessagesData {
-  [key: string]: Message
+  [key: string]: LegacyMessage
 }
 
 export const useMessagesStore = defineStore('messagesStore', {
