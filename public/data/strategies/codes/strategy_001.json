@@ -8,6 +8,15 @@
     { "datasource": "price", "asset": "BTC-USD", "operator": "cross_over", "value": "MA200", "timeframe": "1D" },
     { "datasource": "github_pushes", "repo": "bitcoin/bitcoin", "operator": ">", "value": 50, "timeframe": "1D" }
   ],
+  "variables": {
+    "stop_loss_percent": 5,
+    "take_profit_percent": 15,
+    "position_size": 10
+  },
+  "statements": [
+    "Buy BTC when price crosses above 200-day MA",
+    "Exit when profit target reached or stop loss triggered"
+  ],
   "profiles": ["profile_risk_taker", "profile_quant_growth"],
   "parameters": { "stop_loss": 0.05, "take_profit": 0.15, "position_size": "10%" },
   "rights": { "owners": ["user_simon"], "editors": ["user_kevin"], "viewers": ["user_arthuro"], "is_public": true }

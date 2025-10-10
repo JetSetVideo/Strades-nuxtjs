@@ -8,6 +8,14 @@
     { "datasource": "apy", "protocol": "Aave", "operator": ">", "value": 15, "timeframe": "realtime" },
     { "datasource": "tvl", "protocol": "Aave", "operator": ">", "value": "100M", "timeframe": "realtime" }
   ],
+  "variables": {
+    "min_apy": 15,
+    "min_tvl": 100000000
+  },
+  "statements": [
+    "Enter ETH position when Aave APY > 15%",
+    "Exit to USDC when APY drops below 8%"
+  ],
   "profiles": ["profile_yield_farmer"],
   "parameters": { "stop_loss": 0.08, "take_profit": 0.2, "position_size": "20%" },
   "rights": { "owners": ["user_kevin"], "editors": [], "viewers": [], "is_public": false }

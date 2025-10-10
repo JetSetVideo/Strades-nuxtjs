@@ -134,7 +134,7 @@ export const useStrategiesStore = defineStore('strategies', {
     async fetchStrategies() {
       try {
         this.loading = true
-        const strategiesData = await $fetch<Strategy[]>('/data/core/strategies.json')
+        const strategiesData = await $fetch<Strategy[]>('/data/strategies/index.json')
         this.strategies = strategiesData
       } catch (error) {
         this.error = error as Error

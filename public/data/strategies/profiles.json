@@ -3,25 +3,33 @@
     "id": "profile_risk_taker",
     "name": "Risk Taker",
     "traits": ["high_volatility_tolerance", "momentum_bias"],
-    "description": "Prefers high-risk, high-reward strategies"
+    "description": "Prefers high-risk, high-reward strategies",
+    "avatar_url": "/avatars/Ellipse5.png",
+    "pnl": 12.5
   },
   {
     "id": "profile_value_investor",
     "name": "Value Investor",
     "traits": ["long_horizon", "fundamental_bias"],
-    "description": "Seeks undervalued assets"
+    "description": "Seeks undervalued assets",
+    "avatar_url": "/avatars/Ellipse6.png",
+    "pnl": 8.3
   },
   {
     "id": "profile_yield_farmer",
     "name": "Yield Farmer",
     "traits": ["defi_expert", "apy_sensitive"],
-    "description": "Optimizes DeFi yields"
+    "description": "Optimizes DeFi yields",
+    "avatar_url": "/avatars/Ellipse5.png",
+    "pnl": 15.7
   },
   {
     "id": "profile_quant_growth",
     "name": "Quant Growth",
     "traits": ["ml_signals", "growth_bias"],
-    "description": "Quant model with growth bias"
+    "description": "Quant model with growth bias",
+    "avatar_url": "/avatars/Ellipse6.png",
+    "pnl": 22.1
   }
 ]
 

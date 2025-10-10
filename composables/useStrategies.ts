@@ -261,6 +261,15 @@ export function useStrategies() {
     return summary
   }
 
+  async function deployStrategy(id: string) {
+    await updateStrategy(id, { status: 'active' })
+  }
+
+  async function backtestAndDeploy(id: string) {
+    await backtestStrategy(id)
+    await updateStrategy(id, { status: 'active' })
+  }
+
   return {
     strategies,
     fetchStrategies,
@@ -270,6 +279,8 @@ export function useStrategies() {
     deleteStrategy,
     toggleStrategyStatus,
     backtestStrategy,
+    deployStrategy,
+    backtestAndDeploy,
     generateComplementary,
     generateOpposite
   }

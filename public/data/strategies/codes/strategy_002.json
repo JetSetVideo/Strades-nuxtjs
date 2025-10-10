@@ -8,6 +8,14 @@
     { "datasource": "price", "asset": "TSLA", "operator": "<", "value": "MA200", "timeframe": "1D" },
     { "datasource": "volume", "asset": "TSLA", "operator": ">", "value": "1.5x_avg", "timeframe": "1D" }
   ],
+  "variables": {
+    "entry_threshold": 200,
+    "volume_multiplier": 1.5
+  },
+  "statements": [
+    "Buy TSLA when price is below 200-day MA with high volume",
+    "Hold for long term growth potential"
+  ],
   "profiles": ["profile_value_investor"],
   "parameters": { "stop_loss": 0.1, "take_profit": 0.5, "position_size": "5%" },
   "rights": { "owners": ["user_arthuro"], "editors": [], "viewers": ["user_simon"], "is_public": true }

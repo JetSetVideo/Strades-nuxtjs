@@ -5,6 +5,7 @@ import StrategyVisualizer from '@/components/StrategyVisualizer.vue'
 import StrategyCodeView from '@/components/StrategyCodeView.vue'
 import StrategyRating from '@/components/StrategyRating.vue'
 import StrategyPnlChart from '@/components/StrategyPnlChart.vue'
+import AvatarCard from '@/components/Card/Avatar.vue'
 
 // Get the strategy ID from the route
 const route = useRoute()
@@ -14,6 +15,17 @@ const { strategies, updateStrategy, fetchStrategies, fetchStrategyDetail, backte
 const isEditing = ref(false)
 const editedStrategy = ref<StrategySummary | null>(null)
 const details = ref<{ code: any; rating: any; history: any[]; trades: any[] } | null>(null)
+const profileObjects = ref<Array<{ id: string; name: string; avatar_url?: string; pnl?: number; traits?: string[] }>>([])
+
+async function loadProfiles(profileIds: string[]) {
+  if (!profileIds || profileIds.length === 0) return
+  try {
+    const allProfiles = await $fetch<Array<{ id: string; name: string; avatar_url?: string; pnl?: number; traits?: string[] }>>('/data/strategies/profiles.json')
+    profileObjects.value = allProfiles.filter(p => profileIds.includes(p.id))
+  } catch {
+    profileObjects.value = profileIds.map(id => ({ id, name: id }))
+  }
+}
 
 // Find the current strategy
 const currentStrategy = computed(() => {
@@ -121,6 +133,9 @@ onMounted(async () => {
   await fetchStrategies()
   try {
     details.value = await fetchStrategyDetail(strategyId)
+    if (details.value?.code?.profiles) {
+      await loadProfiles(details.value.code.profiles)
+    }
   } catch {}
 })
 </script>
@@ -437,22 +452,49 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Strategy Visualization (if not editing) -->
+      <!-- Asset Flow -->
+      <div v-if="details?.code" class="section asset-flow-section">
+        <h2 class="section-title">Asset Flow</h2>
+        <div class="asset-flow">
+          <div class="flow-item">
+            <span class="flow-label">From</span>
+            <span class="flow-asset">{{ details!.code.assets?.entry || 'N/A' }}</span>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-item">
+            <span class="flow-label">To</span>
+            <span class="flow-asset">{{ details!.code.assets?.exit || 'N/A' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users Involved (Avatars) -->
+      <div v-if="profileObjects.length" class="section avatars-section">
+        <h2 class="section-title">Users Involved</h2>
+        <div class="avatars-grid">
+          <AvatarCard v-for="profile in profileObjects" :key="profile.id" :profile="profile" />
+        </div>
+      </div>
+
+      <!-- Strategy Code -->
       <div v-if="!isEditing && details?.code" class="section visualization-section">
         <h2 class="section-title">Strategy Code</h2>
         <StrategyCodeView :code="details!.code" />
       </div>
 
+      <!-- Ratings -->
       <div v-if="details" class="section">
         <h2 class="section-title">Ratings</h2>
         <StrategyRating :risk="details!.rating.risk" :complexity="details!.rating.complexity" :computationalCost="details!.rating.computationalCost" />
       </div>
 
+      <!-- P&L Chart -->
       <div v-if="details?.history?.length" class="section">
-        <h2 class="section-title">P&L</h2>
+        <h2 class="section-title">P&L History</h2>
         <StrategyPnlChart :history="details!.history" />
       </div>
 
+      <!-- Derived Strategies -->
       <div class="section">
         <div class="section-header">
           <h2 class="section-title">Derived Strategies</h2>
@@ -1055,5 +1097,43 @@ onMounted(async () => {
   .trade-card {
     padding: 15px;
   }
+}
+
+.asset-flow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.flow-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.flow-label {
+  font-size: 12px;
+  color: var(--text-light-gray);
+  text-transform: uppercase;
+}
+
+.flow-asset {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-white);
+}
+
+.flow-arrow {
+  font-size: 32px;
+  color: var(--primary-green);
+}
+
+.avatars-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--spacing-md);
 }
 </style>
