@@ -105,7 +105,7 @@ const navigateToConversation = (conversationId) => {
         >
           <div class="conversation-avatar">
             <img
-              :src="getUserInfo(getOtherParticipant(conversation))?.avatar_url || '/avatars/default.png'"
+              :src="getUserInfo(getOtherParticipant(conversation))?.avatar_url || '/avatars/Ellipse5.png'"
               :alt="getUserInfo(getOtherParticipant(conversation))?.username || 'User'"
             />
           </div>

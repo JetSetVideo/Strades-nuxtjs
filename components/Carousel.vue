@@ -5,11 +5,13 @@ import StrategyCard from '@/components/Card/Strategy.vue'
 const props = defineProps({
   strategies: {
     type: Array,
-    required: true,
+    required: false,
+    default: () => [],
   },
   selectedStrategies: {
     type: Array,
-    required: true,
+    required: false,
+    default: () => [],
   },
 })
 
@@ -23,11 +25,12 @@ const visibleStrategies = ref(3)
 const currentIndex = ref(0)
 
 const displayedStrategies = computed(() => {
-  return props.strategies.slice(currentIndex.value, currentIndex.value + visibleStrategies.value)
+  const list = Array.isArray(props.strategies) ? props.strategies : []
+  return list.slice(currentIndex.value, currentIndex.value + visibleStrategies.value)
 })
 
 const showLeftArrow = computed(() => currentIndex.value > 0)
-const showRightArrow = computed(() => currentIndex.value + visibleStrategies.value < props.strategies.length)
+const showRightArrow = computed(() => currentIndex.value + visibleStrategies.value < (Array.isArray(props.strategies) ? props.strategies.length : 0))
 
 function moveLeft() {
   if (currentIndex.value > 0) {
@@ -36,7 +39,7 @@ function moveLeft() {
 }
 
 function moveRight() {
-  if (currentIndex.value + visibleStrategies.value < props.strategies.length) {
+  if (currentIndex.value + visibleStrategies.value < (Array.isArray(props.strategies) ? props.strategies.length : 0)) {
     currentIndex.value++
   }
 }

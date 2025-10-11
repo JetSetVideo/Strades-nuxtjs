@@ -81,7 +81,7 @@ const getCreatorInfo = computed(() => {
             class="profile-link"
           >
             <img
-              :src="getCreatorInfo.avatar_url || '/avatars/default.png'"
+              :src="getCreatorInfo.avatar_url || '/avatars/Ellipse5.png'"
               :alt="getCreatorInfo.username || 'Creator'"
               class="creator-avatar"
             />

@@ -5,7 +5,7 @@
     @click="isActive = !isActive"
   >
     <img
-      :src="'/logos/' + props.imgUri"
+      :src="props.imgUri ? '/logos/' + props.imgUri : '/logos/Logo_Color.png'"
       class="w-[30px] h-[30px]"
       alt="google trends"
     />

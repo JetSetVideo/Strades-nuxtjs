@@ -181,7 +181,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     addReaction(messageId: string, userId: string, reaction: string) {
-      const message = this.messages.find(m => m.id === messageId)
+      const message = this.messages.find(m => String(m.id) === String(messageId))
       if (message) {
         // Remove existing reaction from this user
         message.reactions = message.reactions.filter(r => r.user_id !== userId)

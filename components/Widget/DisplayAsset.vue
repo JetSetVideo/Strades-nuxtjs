@@ -1,15 +1,58 @@
 <script setup>
-defineProps({
+import { ref, onMounted, computed } from 'vue'
+
+const props = defineProps({
   assetName: String,
   tagName: String,
-  nominalPrice: String,
-  percentagePrice: String,
+  nominalPrice: [String, Number],
+  percentagePrice: [String, Number],
   profileIcon: String,
   dailyChart: String,
   assetId: String,
-});
+})
 
-defineEmits(['click']);
+defineEmits(['click'])
+
+const sparkValues = ref<number[]>([])
+
+onMounted(async () => {
+  try {
+    const wallets = await $fetch('/data/core/wallets.json')
+    const w = Array.isArray(wallets) && wallets.length ? wallets[0] : null
+    if (w && w.performance_history) {
+      const order = ['1d', '7d', '30d', '90d', '1y']
+      sparkValues.value = order
+        .filter(k => w.performance_history[k])
+        .map(k => Number(w.performance_history[k].change_percentage))
+        .filter(v => Number.isFinite(v))
+    }
+  } catch (e) {
+    sparkValues.value = []
+  }
+})
+
+const sparkPoints = computed(() => {
+  const width = 120
+  const height = 40
+  if (!sparkValues.value.length) return { points: '', width, height }
+  const min = Math.min(...sparkValues.value)
+  const max = Math.max(...sparkValues.value)
+  const range = max - min || 1
+  const stepX = width / (sparkValues.value.length - 1)
+  const pts = sparkValues.value.map((v, i) => {
+    const x = Math.round(i * stepX)
+    const y = Math.round(height - ((v - min) / range) * height)
+    return `${x},${y}`
+  }).join(' ')
+  return { points: pts, width, height }
+})
+
+const isPositive = computed(() => {
+  const p = String(props.percentagePrice ?? '')
+  const num = parseFloat(p)
+  if (!Number.isNaN(num)) return num > 0
+  return p.includes('+') && !p.includes('-')
+})
 </script>
 
 <template>
@@ -20,17 +63,23 @@ defineEmits(['click']);
     </div>
     <div class="tags-names">
       <p class="full-name">{{ assetName }}</p>
-      <p class="tag-name">{{ tagName }}</p>
       <div class="toolbar">
         <span class="price-display">{{ nominalPrice }}</span>
-        <span :class="['change-display', { 'positive': percentagePrice.includes('+') || (!percentagePrice.includes('-') && parseFloat(percentagePrice) > 0), 'negative': percentagePrice.includes('-') || parseFloat(percentagePrice) < 0 }]">
+        <span :class="['change-display', { 'positive': isPositive, 'negative': !isPositive }]">
           {{ percentagePrice }}
         </span>
       </div>
     </div>
     <div class="display-prices">
       <div class="daily-price-chart">
-        <img :src="dailyChart" :alt="`${assetName} price chart`">
+        <svg :width="sparkPoints.width" :height="sparkPoints.height">
+          <polyline
+            :points="sparkPoints.points"
+            fill="none"
+            :stroke="isPositive ? 'var(--success-green)' : 'var(--error-red)'"
+            stroke-width="2"
+          />
+        </svg>
       </div>
     </div>
   </div>
@@ -100,17 +149,7 @@ defineEmits(['click']);
   font-family: var(--font-family-primary);
 }
 
-.tag-name {
-  font-size: 0.8rem;
-  color: var(--primary-green);
-  background: var(--bg-accent);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  display: inline-block;
-  margin-bottom: var(--spacing-sm);
-  border: 1px solid var(--primary-green);
-  font-family: var(--font-family-secondary);
-}
+/* tag-name removed to keep a single tag (overlay) */
 
 .toolbar {
   display: flex;

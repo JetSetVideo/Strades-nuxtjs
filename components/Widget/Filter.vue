@@ -71,7 +71,9 @@ function toggleState(option) {
 }
 
 .filter-option:hover {
-  border-color: var(--border-accent);
+  background: var(--text-white);
+  color: var(--secondary-darker);
+  border-color: var(--text-white);
 }
 
 .on {

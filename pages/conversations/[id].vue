@@ -126,7 +126,7 @@ const addReaction = (messageId, reaction) => {
       <div class="conversation-header">
         <div class="participant-info">
           <img
-            :src="getOtherParticipantInfo?.avatar_url || '/avatars/default.png'"
+            :src="getOtherParticipantInfo?.avatar_url || '/avatars/Ellipse5.png'"
             :alt="getOtherParticipantInfo?.username || 'User'"
             class="participant-avatar clickable-avatar"
             @click="$router.push(`/profile/${getOtherParticipant?.value}`)"
