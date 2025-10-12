@@ -24,7 +24,7 @@ const sortedNotifications = computed(() => {
   })
 })
 
-function formatTime(ts: string | number) {
+function formatTime(ts) {
   const d = new Date(ts)
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleString()
@@ -40,7 +40,7 @@ function formatTime(ts: string | number) {
 
     <div v-if="loading" class="loading">Loading...</div>
 
-    <div v-else class="list" v-if="sortedNotifications.length">
+    <div v-else-if="sortedNotifications.length" class="list">
       <div
         v-for="(n, idx) in sortedNotifications"
         :key="idx"

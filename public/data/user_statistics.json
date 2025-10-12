@@ -1,0 +1,49 @@
+[
+  {
+    "user_id": "user_001",
+    "performance": {
+      "total_trades": 150,
+      "win_rate": 65.3,
+      "average_profit_per_trade": 250.75,
+      "average_loss_per_trade": -180.50,
+      "total_profit": 15000,
+      "total_loss": -5000,
+      "net_profit": 10000
+    },
+    "achievements": [
+      {
+        "id": "ach_001",
+        "name": "First Trade",
+        "unlocked": "2023-01-15"
+      }
+    ],
+    "psychology": {
+      "risk_tolerance": "moderate",
+      "trading_style": "day_trader",
+      "emotional_control_score": 8.5
+    },
+    "historics": {
+      "success_periods": ["2023-Q1", "2023-Q3"],
+      "failure_periods": ["2023-Q2"]
+    },
+    "preferences": {
+      "favorite_assets": ["BTC", "ETH"],
+      "notification_types": ["email", "push"]
+    },
+    "trading_platforms": ["Binance", "Coinbase"],
+    "bank_accounts": [
+      {
+        "bank": "Chase",
+        "account_number": "****1234"
+      }
+    ],
+    "trades": [
+      {
+        "id": "trade_001",
+        "asset": "BTC",
+        "profit_loss": 500,
+        "date": "2023-01-20"
+      }
+    ]
+  }
+]

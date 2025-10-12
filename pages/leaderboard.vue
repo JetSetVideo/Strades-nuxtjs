@@ -1,123 +1,194 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue'
+import { useUsersStore } from '@/stores/users'
+import { useStrategiesStore } from '@/stores/strategies'
+import { useWalletsStore } from '@/stores/wallets'
 
-const tabs = ['Most Profitable', 'Most Diverse Wallet'];
-const selectedTab = ref(tabs[0]);
+const usersStore = useUsersStore()
+const strategiesStore = useStrategiesStore()
+const walletsStore = useWalletsStore()
 
-const traders = ref([
-  { name: 'Agathe', profit: 1500000, walletDiversity: 2 },
-  { name: 'Agatha', profit: 15000, walletDiversity: 5 },
-  { name: 'Frank', profit: 15000, walletDiversity: 5 },
-  { name: 'Alice', profit: 1000, walletDiversity: 7 },
-  { name: 'Bob', profit: 20000, walletDiversity: 3 },
-  { name: 'Charlie', profit: 12000, walletDiversity: 8 },
-  // Add more traders as needed
-]);
+const entityType = ref('users') // or 'strategies'
+const selectedCategory = ref('')
 
-const sortedByProfit = computed(() => {
-  return [...traders.value].sort((a, b) => b.profit - a.profit);
-});
+const categories = computed(() => {
+  if (entityType.value === 'users') {
+    return ['Most Profitable', 'Most Diverse Wallet', 'Most Consistent', 'Most Trades']
+  } else {
+    return ['Most Profitable', 'Most Followed', 'Highest Sharpe', 'Best Win Rate']
+  }
+})
 
-const sortedByDiversity = computed(() => {
-  return [...traders.value].sort((a, b) => b.walletDiversity - a.walletDiversity);
-});
+onMounted(async () => {
+  await Promise.all([
+    usersStore.fetchUsers(),
+    strategiesStore.fetchStrategies(),
+    walletsStore.fetchWallets()
+  ])
+  selectedCategory.value = categories.value[0]
+})
+
+const rankedList = computed(() => {
+  let list = []
+  if (entityType.value === 'users') {
+    switch (selectedCategory.value) {
+      case 'Most Profitable':
+        list = usersStore.users.sort((a, b) => (b.total_returns || 0) - (a.total_returns || 0))
+        break
+      case 'Most Diverse Wallet':
+        list = walletsStore.wallets.map(w => {
+          const user = usersStore.getUserById(w.user_id)
+          return { ...user, diversity: w.assets?.length || 0 }
+        }).sort((a, b) => b.diversity - a.diversity)
+        break
+      case 'Most Consistent':
+        list = usersStore.users.sort((a, b) => (b.win_rate || 0) - (a.win_rate || 0))
+        break
+      case 'Most Trades':
+        list = usersStore.users.sort((a, b) => (b.total_trades || 0) - (a.total_trades || 0))
+        break
+    }
+  } else {
+    switch (selectedCategory.value) {
+      case 'Most Profitable':
+        list = strategiesStore.strategies.sort((a, b) => (b.total_return_percentage || 0) - (a.total_return_percentage || 0))
+        break
+      case 'Most Followed':
+        list = strategiesStore.strategies.sort((a, b) => (b.followers_count || 0) - (a.followers_count || 0))
+        break
+      case 'Highest Sharpe':
+        list = strategiesStore.strategies.sort((a, b) => (b.sharpe_ratio || 0) - (a.sharpe_ratio || 0))
+        break
+      case 'Best Win Rate':
+        list = strategiesStore.strategies.sort((a, b) => (b.win_rate || 0) - (a.win_rate || 0))
+        break
+    }
+  }
+  return list.slice(0, 10) // top 10
+})
+
+const getValue = (item, category) => {
+  if (entityType.value === 'users') {
+    switch (category) {
+      case 'Most Profitable': return `${(item.total_returns || 0).toFixed(2)}`
+      case 'Most Diverse Wallet': return `${item.diversity} assets`
+      case 'Most Consistent': return `${(item.win_rate || 0).toFixed(1)}%`
+      case 'Most Trades': return `${item.total_trades || 0} trades`
+    }
+  } else {
+    switch (category) {
+      case 'Most Profitable': return `${(item.total_return_percentage || 0).toFixed(1)}%`
+      case 'Most Followed': return `${item.followers_count || 0} followers`
+      case 'Highest Sharpe': return (item.sharpe_ratio || 0).toFixed(2)
+      case 'Best Win Rate': return `${(item.win_rate || 0).toFixed(1)}%`
+    }
+  }
+  return ''
+}
+
+const getMedalClass = (index) => {
+  if (index === 0) return 'gold'
+  if (index === 1) return 'silver'
+  if (index === 2) return 'bronze'
+  return ''
+}
 </script>
+
 <template>
-  <div>
-    <h1>Trader Leaderboard</h1>
-    <div class="tabs">
-      <button
-        v-for="tab in tabs"
-        :key="tab"
-        @click="selectedTab = tab"
-        :class="{ active: selectedTab === tab }"
+  <div class="leaderboard-page">
+    <h1>Leaderboard</h1>
+    
+    <div class="entity-tabs">
+      <button 
+        :class="{ active: entityType === 'users' }"
+        @click="entityType = 'users'; selectedCategory = categories[0]"
       >
-        {{ tab }}
+        Users
+      </button>
+      <button 
+        :class="{ active: entityType === 'strategies' }"
+        @click="entityType = 'strategies'; selectedCategory = categories[0]"
+      >
+        Strategies
       </button>
     </div>
-    <div class="leaderboard">
-      <ul v-if="selectedTab === 'Most Profitable'">
-        <li v-for="(trader, index) in sortedByProfit" :key="index">
-          {{ index + 1 }}. {{ trader.name }} - ${{ trader.profit }}
-        </li>
-      </ul>
-      <ul v-else-if="selectedTab === 'Most Diverse Wallet'">
-        <li v-for="(trader, index) in sortedByDiversity" :key="index">
-          {{ index + 1 }}. {{ trader.name }} - {{ trader.walletDiversity }} assets
-        </li>
-      </ul>
-      <!-- Add more criteria as needed -->
+
+    <div class="category-tabs">
+      <button
+        v-for="cat in categories"
+        :key="cat"
+        @click="selectedCategory = cat"
+        :class="{ active: selectedCategory === cat }"
+      >
+        {{ cat }}
+      </button>
+    </div>
+
+    <div class="ranked-list">
+      <div 
+        v-for="(item, index) in rankedList" 
+        :key="index"
+        :class="['rank-item', getMedalClass(index)]"
+      >
+        <span class="position">{{ index + 1 }}</span>
+        <span class="name">{{ item.username || item.name }}</span>
+        <span class="value">
+          {{ getValue(item, selectedCategory) }}
+        </span>
+      </div>
     </div>
   </div>
 </template>
-<style>
-/* General Styles */
-body {
-  background-color: rgba(18, 18, 18, 1);
-  color: rgba(255, 255, 255, 0.87);
-  font-family: 'Roboto', sans-serif;
+
+<style scoped>
+/* Add styles for .leaderboard-page, tabs, ranked-list, rank-item, .gold (background gold gradient light to dark), .silver, .bronze, etc. */
+.leaderboard-page {
+  padding: var(--spacing-lg);
 }
 
-/* Leaderboard Page Styles */
-.leaderboard-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: rgba(33, 33, 33, 1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-h1 {
-  color: rgba(255, 255, 255, 0.87);
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.tabs {
+.entity-tabs, .category-tabs {
   display: flex;
   justify-content: center;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
 }
 
-.tabs button {
-  background-color: rgba(97, 97, 97, 1);
-  color: rgba(255, 255, 255, 0.87);
+button {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
   border: none;
-  padding: 10px 20px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background-color 0.3s ease;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.tabs button.active {
-  font-weight: bold;
-  background-color: rgba(63, 81, 181, 1);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+button.active {
+  background: var(--primary-gradient);
+  color: var(--text-white);
 }
 
-.leaderboard ul {
-  list-style-type: none;
-  padding: 0;
+.ranked-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
 }
 
-.leaderboard li {
-  background-color: rgba(50, 50, 50, 1);
-  color: rgba(255, 255, 255, 0.87);
-  padding: 10px;
-  margin-bottom: 5px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+.rank-item {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
 }
 
-/* Responsive Styles */
-@media (max-width: 600px) {
-  .leaderboard-container {
-    padding: 10px;
-  }
+.gold {
+  background: linear-gradient(to right, #ffd700, #b8860b);
+}
 
-  .tabs button {
-    padding: 5px 10px;
-  }
+.silver {
+  background: linear-gradient(to right, #c0c0c0, #808080);
+}
+
+.bronze {
+  background: linear-gradient(to right, #cd7f32, #8b4513);
 }
 </style>

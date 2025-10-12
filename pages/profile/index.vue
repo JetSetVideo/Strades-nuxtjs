@@ -1,70 +1,109 @@
 <script setup>
-import { ref } from 'vue'
-import { useUsersStore } from '@/stores/users';
+import { ref, onMounted, computed } from 'vue'
+import { useUsersStore } from '@/stores/users'
+import { useWalletsStore } from '@/stores/wallets'
+import { useRoute } from 'vue-router'
 
-const user = useUsersStore()
-const walletEvolution24h = ref("5.6%")
+const route = useRoute()
+const usersStore = useUsersStore()
+const walletsStore = useWalletsStore()
+
+const userId = computed(() => route.params.id || usersStore.currentUser?.id)
+const user = computed(() => usersStore.getUserById(userId.value))
+const wallet = computed(() => walletsStore.getWalletByUserId(userId.value))
+const statistics = ref(null)
+
+onMounted(async () => {
+  await Promise.all([
+    usersStore.fetchUsers(),
+    walletsStore.fetchWallets()
+  ])
+  try {
+    const statsData = await $fetch('/data/user_statistics.json')
+    statistics.value = statsData.find(s => s.user_id === userId.value) || {}
+  } catch (e) {
+    statistics.value = {}
+  }
+})
+
+const evolution24h = computed(() => {
+  return wallet.value?.performance_history?.['1d']?.change_percentage?.toFixed(1) + '%' || '0%'
+})
 </script>
 
 <template>
-<div class="section">
-        <h1>User's profil {{ user.users.username }}</h1>
-    <div class="container-header">
-        <UAvatar chip-color="green" chip-text="" chip-position="top-right" size="lg" src="{{user.users.avatar}}" alt="Avatar"/>
-        <p>Profil Picture</p>
-        <div class="price-evolution">
-            {{walletEvolution24h}}/d
-        </div>
+  <div class="profile-page" v-if="user">
+    <div class="header">
+      <UAvatar :src="user.avatar_url" size="xl" />
+      <h1>{{ user.username }}</h1>
+      <p>{{ user.bio }}</p>
+      <div class="evolution">{{ evolution24h }} (24h)</div>
     </div>
-        <p>Pseudonyme {{ user.users.pseudonyme }}</p>
-        <div class="trust-level">
-            <!-- the sercurity level that proves that it is a honest human -->
-            <p>Trust Level: </p>
-        </div>
-        <div>
-            <p>Avatars</p>
-        </div>
-        <p>Performances</p>
-        <Chart />
-        <p>Achievements</p>
-        <p>Psychology</p>
-        <p>Historics / Logs</p>
-        <p>Preferences</p>
-        <p>My Trading Platforms / Bank Accounts</p>
-    </div>
+
+    <section class="achievements">
+      <h2>Achievements</h2>
+      <div v-for="ach in statistics.achievements" :key="ach.id">
+        {{ ach.name }} - Unlocked: {{ ach.unlocked }}
+      </div>
+    </section>
+
+    <section class="performance">
+      <h2>Performance</h2>
+      <p>Total Trades: {{ statistics.performance?.total_trades }}</p>
+      <p>Win Rate: {{ statistics.performance?.win_rate }}%</p>
+      <!-- Add more metrics -->
+    </section>
+
+    <section class="psychology">
+      <h2>Psychology</h2>
+      <p>Risk Tolerance: {{ statistics.psychology?.risk_tolerance }}</p>
+      <!-- etc -->
+    </section>
+
+    <section class="historics">
+      <h2>Historics</h2>
+      <p>Success Periods: {{ statistics.historics?.success_periods?.join(', ') }}</p>
+    </section>
+
+    <section class="preferences">
+      <h2>Preferences</h2>
+      <p>Favorite Assets: {{ statistics.preferences?.favorite_assets?.join(', ') }}</p>
+    </section>
+
+    <section class="platforms">
+      <h2>Trading Platforms</h2>
+      <ul>
+        <li v-for="plat in statistics.trading_platforms" :key="plat">{{ plat }}</li>
+      </ul>
+    </section>
+
+    <section class="banks">
+      <h2>Bank Accounts</h2>
+      <div v-for="bank in statistics.bank_accounts" :key="bank.account_number">
+        {{ bank.bank }} - {{ bank.account_number }}
+      </div>
+    </section>
+
+    <!-- Add real-time update logic if needed, but since mock, reactivity is via computed -->
+  </div>
+  <div v-else>Loading profile...</div>
 </template>
 
-<style>
-.container-header{
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.1rem 0.5rem;
-    margin: 0.5rem;
-    background-color: rgba(51, 51, 51, 0.5);
-    border: 3px solid rgba(34, 48, 68, 0.5);
-    border-radius: 5px;
-    color:#ffffff;
+<style scoped>
+/* Add appropriate styles for sections */
+.profile-page {
+  padding: var(--spacing-lg);
 }
-.price-evolution{
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.1rem 0.5rem;
-    margin: 0.5rem;
-    background-color: rgba(29, 190, 42, 0.5);
-    border: 3px solid rgba(18, 65, 32, 0.5);
-    border-radius: 5px;
-    color:#ffffff;
+
+.header {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
 }
-.section {
-    flex-direction: column;
-    margin: 20px;
-    padding: 20px;
-    border: 1px solid #333;
+
+section {
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-md);
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
 }
 </style>

@@ -13,7 +13,7 @@ const props = defineProps({
 
 defineEmits(['click'])
 
-const sparkValues = ref<number[]>([])
+const sparkValues = ref([])
 
 onMounted(async () => {
   try {

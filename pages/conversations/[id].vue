@@ -14,6 +14,8 @@ const conversation = ref(null);
 const messages = ref([]);
 const newMessage = ref('');
 const isLoading = ref(true);
+const editingMessage = ref(null)
+const fileAttachment = ref(null)
 
 // Assuming current user is user_001
 const currentUserId = 'user_001';
@@ -99,6 +101,34 @@ const scrollToBottom = () => {
 const addReaction = (messageId, reaction) => {
   chatStore.addReaction(messageId, currentUserId, reaction);
 };
+
+const startReply = (messageId) => {
+  // Set replying to messageId
+}
+
+const editMessage = (message) => {
+  editingMessage.value = message.id
+  newMessage.value = message.content
+}
+
+const saveEdit = () => {
+  if (editingMessage.value) {
+    chatStore.editMessage(editingMessage.value, newMessage.value)
+    editingMessage.value = null
+    newMessage.value = ''
+  }
+}
+
+const deleteMessage = (messageId) => {
+  if (confirm('Delete message?')) {
+    chatStore.deleteMessage(messageId)
+  }
+}
+
+const handleFile = (e) => {
+  fileAttachment.value = e.target.files[0]
+  // Upload logic placeholder
+}
 </script>
 
 <template>

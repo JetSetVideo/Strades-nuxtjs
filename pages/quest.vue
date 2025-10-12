@@ -1,43 +1,66 @@
 <script setup>
-</script>
-<template>
-<div class="quest-page">
-    <WidgetExperience />
-    <h1>Quest</h1>
-    <div class="card-quest">
-        <h1>Daily</h1>
-    </div>
-    <div class="card-quest">
-        <h1>Challenges</h1>
-    </div>
-    <div class="card-quest">
-        <h1>Season Pass</h1>
-    </div>
-    <div class="card-quest">
-        <h1>Success</h1>
-    </div>
-    <div class="card-quest">
-        <h1>Streaks</h1>
-    </div>
-    <div class="card-quest">
-        <h1>Tournament</h1>
-    </div>
-</div>
-</template>
-<style>
-.card-quest{
-    display: inline-flex;
-    padding: 8px 14px;
-    justify-content: center;
-    align-items: center;
-    gap: 18px;
-    border-radius: 0px 8px;
-    background: linear-gradient(180deg, rgba(148, 115, 31, 0.50) 0%, rgba(203, 172, 92, 0.75) 51.04%, rgba(142, 112, 35, 0.50) 100%);
-    box-shadow: 0px 2px 10px 0px rgba(0, 0, 0, 0.20), 0px 3px 10px 0px rgba(255, 255, 255, 0.25) inset;
+import { ref, onMounted, computed } from 'vue'
+import { useUsersStore } from '@/stores/users'
+import { useTrackingStore } from '@/stores/tracking' // Assuming tracking store exists
+
+const usersStore = useUsersStore()
+const trackingStore = useTrackingStore()
+
+const currentUser = computed(() => usersStore.currentUser)
+const achievements = computed(() => currentUser.value?.achievements || [])
+const interactions = ref([])
+
+onMounted(async () => {
+  await trackingStore.fetchUserInteractions(currentUser.value?.id)
+  interactions.value = trackingStore.getInteractionsByUser(currentUser.value?.id) || []
+})
+
+const getProgress = (achievement) => {
+  // Example logic: count specific interactions for progress
+  // Assume each achievement has a 'required_count' and 'type'
+  const type = achievement.type || 'general' // placeholder
+  const required = achievement.required_count || 10
+  const count = interactions.value.filter(i => i.event_type === type).length
+  return Math.min(100, (count / required) * 100)
 }
-.quest-page{
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+
+const isUnlocked = (achievement) => !!achievement.unlocked_date
+</script>
+
+<template>
+  <div class="quest-page">
+    <h1>Quests and Achievements</h1>
+    
+    <div v-for="ach in achievements" :key="ach.id" class="achievement-card">
+      <h3>{{ ach.name }}</h3>
+      <p>{{ ach.description }}</p>
+      <div class="progress-bar">
+        <div :style="{ width: `${getProgress(ach)}%` }"></div>
+      </div>
+      <p v-if="isUnlocked(ach)">Unlocked on {{ ach.unlocked_date }}</p>
+      <p v-else>Progress: {{ getProgress(ach).toFixed(0) }}%</p>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.achievement-card {
+  background: var(--card-bg);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.progress-bar {
+  height: 10px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.progress-bar > div {
+  height: 100%;
+  background: var(--primary-gradient);
+  transition: width 0.3s;
 }
 </style>
