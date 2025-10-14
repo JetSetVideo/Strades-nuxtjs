@@ -1,5 +1,5 @@
 <script setup>
-
+import { ref } from 'vue'
 </script>
 <template>
     <div class="section">
@@ -12,7 +12,6 @@
   </div>
   <div style="background-color: rgb(159, 178, 194)">
     <h1>Chart Analysis</h1>
-    <img :src="imageUrl" alt="article logo" width="120" height="120" />
     <ul>
         <li class="button">Asset1/Asset2</li>
         <li class="button">Tools</li>

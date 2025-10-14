@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useUsersStore } from '@/stores/users'
-import { useTrackingStore } from '@/stores/tracking' // Assuming tracking store exists
+import { useTrackingStore } from '@/stores/tracking'
 
 const usersStore = useUsersStore()
 const trackingStore = useTrackingStore()
@@ -11,8 +11,12 @@ const achievements = computed(() => currentUser.value?.achievements || [])
 const interactions = ref([])
 
 onMounted(async () => {
-  await trackingStore.fetchUserInteractions(currentUser.value?.id)
-  interactions.value = trackingStore.getInteractionsByUser(currentUser.value?.id) || []
+  await trackingStore.initializeStore()
+  if (currentUser.value?.id) {
+    interactions.value = trackingStore.getUserInteractions(currentUser.value.id) || []
+  } else {
+    interactions.value = []
+  }
 })
 
 const getProgress = (achievement) => {

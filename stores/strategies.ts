@@ -140,6 +140,7 @@ export const useStrategiesStore = defineStore('strategies', {
         } catch {
           strategiesData = await $fetch<Strategy[]>('/data/strategies/index.json')
         }
+        // Filter to only public when used by listings like Shop
         this.strategies = strategiesData
       } catch (error) {
         this.error = error as Error

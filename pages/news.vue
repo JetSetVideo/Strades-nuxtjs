@@ -27,7 +27,6 @@ onMounted(async () => {
   <div class="news-page">
     <div class="page-header">
       <h1 class="page-title">News & Events</h1>
-      <p class="page-description">Stay updated with the latest financial news and market insights</p>
     </div>
 
     <!-- Loading State -->

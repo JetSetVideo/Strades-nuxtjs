@@ -10,17 +10,17 @@ const filter = ref({
 
 onMounted(async () => {
   try {
-    // Prefer core path if present in future; fallback to strategies index
-    strategies.value = await $fetch('/data/strategies/index.json')
+    // Prefer core path where available
+    strategies.value = await $fetch('/data/core/strategies.json')
   } catch (e) {
-    strategies.value = []
-  } finally {
-    loading.value = false
+    // Fallback to legacy
+    strategies.value = await $fetch('/data/strategies/index.json')
   }
+  loading.value = false
 })
 
 const categories = computed(() => {
-  const set = new Set<string>(['all'])
+  const set = new Set(['all'])
   strategies.value.forEach(s => set.add(s.category))
   return Array.from(set)
 })

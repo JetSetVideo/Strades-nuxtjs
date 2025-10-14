@@ -1,0 +1,49 @@
+[
+  {
+    "id": "user_001",
+    "username": "Alice",
+    "avatar_url": "/avatars/Ellipse5.png",
+    "bio": "Active swing trader",
+    "total_portfolio_value": 100000,
+    "total_returns": 15000,
+    "win_rate": 62.5,
+    "total_trades": 250,
+    "notification_preferences": {
+      "email": true,
+      "push": true,
+      "sms": false,
+      "trade_alerts": true,
+      "price_alerts": true
+    },
+    "privacy_settings": {
+      "profile_visibility": "public",
+      "portfolio_visibility": "public",
+      "trading_history_visibility": "public"
+    },
+    "achievements": []
+  },
+  {
+    "id": "user_002",
+    "username": "Bob",
+    "avatar_url": "/avatars/Ellipse6.png",
+    "bio": "Long-term investor",
+    "total_portfolio_value": 80000,
+    "total_returns": 8000,
+    "win_rate": 58.0,
+    "total_trades": 180,
+    "notification_preferences": {
+      "email": true,
+      "push": false,
+      "sms": false,
+      "trade_alerts": true,
+      "price_alerts": false
+    },
+    "privacy_settings": {
+      "profile_visibility": "public",
+      "portfolio_visibility": "friends_only",
+      "trading_history_visibility": "friends_only"
+    },
+    "achievements": []
+  }
+]
+

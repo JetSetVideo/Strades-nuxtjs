@@ -4,15 +4,8 @@ import { useStrategies } from '@/composables/useStrategies';
 import SelectorAssets from '@/components/Selector/Assets.vue';
 import SelectorDatasources from '@/components/Selector/Datasources.vue';
 import SelectorConditions from '@/components/Selector/Conditions.vue';
-import SelectorUsers from '@/components/Selector/Users.vue';
 import DateRangePicker from '@/components/DateRangePicker.vue';
 import NavigationAnalyse from '@/components/Navigation/Analyse.vue';
-
-definePageMeta({
-  title: "Strategy Creator",
-  description: "Create your custom investment strategy",
-  layout: "default",
-});
 
 const { createStrategy } = useStrategies();
 

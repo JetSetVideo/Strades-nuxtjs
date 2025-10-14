@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { navigateTo } from '#app';
 import { useChatStore } from '@/stores/chat';
 import { useUsersStore } from '@/stores/users';

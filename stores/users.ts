@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useFetch } from 'nuxt/app'
 
 // Types for user management
 export interface User {
@@ -117,7 +118,13 @@ export const useUsersStore = defineStore('users', {
     async fetchUsers() {
       try {
         this.loading = true
-        const usersData = await $fetch<User[]>('/data/core/users.json')
+        let usersData: User[] = []
+        try {
+          usersData = await $fetch<User[]>('/data/core/users.json')
+        } catch (e) {
+          // Fallback to legacy Users.json (capitalized) at data root
+          usersData = await $fetch<User[]>('/data/Users.json')
+        }
         this.users = usersData
       } catch (error) {
         this.error = error as Error

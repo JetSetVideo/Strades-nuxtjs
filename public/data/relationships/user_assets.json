@@ -1,0 +1,41 @@
+[
+  {
+    "id": "ua_001",
+    "user_id": "user_001",
+    "asset_id": "BTC",
+    "relationship_type": "owned",
+    "quantity": 1.5,
+    "average_purchase_price": 30000,
+    "current_value": 75000,
+    "total_invested": 45000,
+    "total_return": 30000,
+    "return_percentage": 66.67,
+    "is_watchlisted": false,
+    "is_favorite": true,
+    "first_purchase_date": "2023-01-10",
+    "last_transaction_date": "2024-12-01",
+    "notes": "Core position",
+    "created_at": "2023-01-10",
+    "updated_at": "2024-12-01"
+  },
+  {
+    "id": "ua_002",
+    "user_id": "user_002",
+    "asset_id": "ETH",
+    "relationship_type": "owned",
+    "quantity": 10,
+    "average_purchase_price": 1500,
+    "current_value": 25000,
+    "total_invested": 15000,
+    "total_return": 10000,
+    "return_percentage": 66.67,
+    "is_watchlisted": true,
+    "is_favorite": false,
+    "first_purchase_date": "2023-03-05",
+    "last_transaction_date": "2024-11-20",
+    "notes": "",
+    "created_at": "2023-03-05",
+    "updated_at": "2024-11-20"
+  }
+]
+
