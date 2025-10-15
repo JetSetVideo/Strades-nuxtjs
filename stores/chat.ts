@@ -183,15 +183,19 @@ export const useChatStore = defineStore('chat', {
     addReaction(messageId: string, userId: string, reaction: string) {
       const message = this.messages.find(m => String(m.id) === String(messageId))
       if (message) {
-        // Remove existing reaction from this user
-        message.reactions = message.reactions.filter(r => r.user_id !== userId)
+        const existingReaction = message.reactions.find(r => r.user_id === userId && r.reaction === reaction);
 
-        // Add new reaction
-        message.reactions.push({
-          user_id: userId,
-          reaction: reaction,
-          timestamp: new Date().toISOString()
-        })
+        if (existingReaction) {
+          // If the user has already reacted with the same emoji, remove it (toggle off)
+          message.reactions = message.reactions.filter(r => r.user_id !== userId || r.reaction !== reaction);
+        } else {
+          // If it's a new reaction, add it
+          message.reactions.push({
+            user_id: userId,
+            reaction: reaction,
+            timestamp: new Date().toISOString()
+          });
+        }
       }
     },
 

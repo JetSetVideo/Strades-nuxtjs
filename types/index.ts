@@ -13,4 +13,6 @@ export interface Strategy {
   description: string
   creator: string
   performance: number
-} 
+}
+
+export * from './quests'; 

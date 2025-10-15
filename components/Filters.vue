@@ -1,10 +1,17 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { useStrategiesStore } from '@/stores/strategies';
+
+const strategiesStore = useStrategiesStore();
+
+const profitRange = computed(() => strategiesStore.getRange('total_return_percentage'));
+const drawdownRange = computed(() => strategiesStore.getRange('max_drawdown'));
 
 const filters = ref({
-  profitRange: [0, 100],
-  drawdownRange: [0, 100],
+  profitRange: [profitRange.value.min, profitRange.value.max],
+  drawdownRange: [drawdownRange.value.min, drawdownRange.value.max],
   assets: [],
+  status: 'all',
 });
 
 const emit = defineEmits(['filter-changed']);
@@ -44,6 +51,16 @@ function resetFilters() {
       <button @click="resetFilters" class="reset-btn">Reset</button>
     </div>
 
+    <!-- Status Filter -->
+    <div class="filter-group">
+      <label>Status:</label>
+      <div class="status-options">
+        <button :class="{ active: filters.status === 'all' }" @click="filters.status = 'all'; updateFilters()">All</button>
+        <button :class="{ active: filters.status === 'active' }" @click="filters.status = 'active'; updateFilters()">Active</button>
+        <!-- other statuses -->
+      </div>
+    </div>
+    
     <div class="filter-group">
       <label>Profit Range:</label>
       <div class="range-inputs">
@@ -169,5 +186,31 @@ input[type="range"] {
   background-color: rgba(0, 123, 255, 0.8);
   border-color: rgba(0, 123, 255, 1);
   box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
+}
+
+.status-options {
+  display: flex;
+  gap: 8px;
+}
+
+.status-options button {
+  background-color: rgba(60, 60, 60, 0.8);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.8em;
+  transition: all 0.3s ease;
+}
+
+.status-options button:hover {
+  background-color: rgba(80, 80, 80, 0.8);
+}
+
+.status-options button.active {
+  background-color: blue; /* As per request */
+  border-color: blue;
+  box-shadow: 0 0 8px rgba(0, 0, 255, 0.4);
 }
 </style>

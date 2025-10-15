@@ -127,6 +127,18 @@ export const useStrategiesStore = defineStore('strategies', {
       return [...state.strategies]
         .sort((a, b) => b.followers_count - a.followers_count)
         .slice(0, 10)
+    },
+
+    getRange: (state) => (key: keyof Strategy) => {
+      if (state.strategies.length === 0) return { min: 0, max: 0 };
+      
+      const values = state.strategies.map(s => s[key]).filter(v => typeof v === 'number') as number[];
+      if (values.length === 0) return { min: 0, max: 0 };
+
+      return {
+        min: Math.min(...values),
+        max: Math.max(...values),
+      };
     }
   },
 

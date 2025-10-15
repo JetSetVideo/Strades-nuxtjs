@@ -6,11 +6,13 @@ import SharedData from '@/components/Card/SharedData.vue'
 import { useStrategiesStore } from '@/stores/strategies'
 import { useChatStore } from '@/stores/chat'
 import { useUsersStore } from '@/stores/users'
+import { useSharedDataStore } from '@/stores/sharedData'
 
 // Store instances
 const strategiesStore = useStrategiesStore()
 const chatStore = useChatStore()
 const usersStore = useUsersStore()
+const sharedDataStore = useSharedDataStore()
 
 // Data stores
 const strategies = ref([])
@@ -33,30 +35,22 @@ onMounted(async () => {
     await Promise.all([
       strategiesStore.initializeStore(),
       chatStore.initializeStore(),
-      usersStore.initializeStore()
+      usersStore.initializeStore(),
+      sharedDataStore.initializeStore()
     ])
 
     // Get data from stores
     strategies.value = strategiesStore.strategies
     conversations.value = chatStore.conversations
     users.value = usersStore.users
-
-    // Load shared data (this might need a separate store or API call)
-    try {
-      const sharedDataRes = await fetch('/data/shared_data.json')
-      sharedData.value = await sharedDataRes.json()
-    } catch (error) {
-      console.warn('Shared data not available:', error)
-      sharedData.value = []
-    }
+    sharedData.value = sharedDataStore.sharedData
 
     // Filter data for this discussion
     const currentConversation = conversations.value.find(conv => conv.id === discussionId)
 
     if (currentConversation) {
       // Filter shared data by discussion ID
-      const discussionSharedData = sharedData.value.filter(item => item.discussionId === discussionId)
-      sharedData.value = discussionSharedData
+      sharedData.value = sharedDataStore.getSharedDataByDiscussion(discussionId)
 
       // Filter strategies by shared strategies in conversation metadata
       if (currentConversation.metadata?.shared_strategies) {

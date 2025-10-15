@@ -1,70 +1,44 @@
-<script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useUsersStore } from '@/stores/users'
-import { useTrackingStore } from '@/stores/tracking'
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import type { Quest, QuestCategory } from '@/types';
+import { useLocalJson } from '@/composables/useLocalJson';
+import QuestFilter from '@/components/Quest/Filter.vue';
+import QuestWidget from '@/components/Widget/Quest.vue';
 
-const usersStore = useUsersStore()
-const trackingStore = useTrackingStore()
+const { data: quests, pending: questsPending } = await useLocalJson<Quest[]>('quests/quests.json');
+const { data: categories, pending: categoriesPending } = await useLocalJson<QuestCategory[]>('quests/categories.json');
 
-const currentUser = computed(() => usersStore.currentUser)
-const achievements = computed(() => currentUser.value?.achievements || [])
-const interactions = ref([])
+const selectedCategory = ref('all');
 
-onMounted(async () => {
-  await trackingStore.initializeStore()
-  if (currentUser.value?.id) {
-    interactions.value = trackingStore.getUserInteractions(currentUser.value.id) || []
-  } else {
-    interactions.value = []
+const filteredQuests = computed(() => {
+  if (!quests.value) return [];
+  if (selectedCategory.value === 'all') {
+    return quests.value;
   }
-})
-
-const getProgress = (achievement) => {
-  // Example logic: count specific interactions for progress
-  // Assume each achievement has a 'required_count' and 'type'
-  const type = achievement.type || 'general' // placeholder
-  const required = achievement.required_count || 10
-  const count = interactions.value.filter(i => i.event_type === type).length
-  return Math.min(100, (count / required) * 100)
-}
-
-const isUnlocked = (achievement) => !!achievement.unlocked_date
+  return quests.value.filter((quest) => quest.category === selectedCategory.value);
+});
 </script>
 
 <template>
-  <div class="quest-page">
-    <h1>Quests and Achievements</h1>
-    
-    <div v-for="ach in achievements" :key="ach.id" class="achievement-card">
-      <h3>{{ ach.name }}</h3>
-      <p>{{ ach.description }}</p>
-      <div class="progress-bar">
-        <div :style="{ width: `${getProgress(ach)}%` }"></div>
-      </div>
-      <p v-if="isUnlocked(ach)">Unlocked on {{ ach.unlocked_date }}</p>
-      <p v-else>Progress: {{ getProgress(ach).toFixed(0) }}%</p>
+  <div>
+    <h1>Quests</h1>
+    <div v-if="!categoriesPending && categories">
+      <QuestFilter
+        :categories="categories"
+        :selected-category="selectedCategory"
+        @update:selected-category="selectedCategory = $event"
+      />
+    </div>
+    <div v-if="!questsPending && filteredQuests">
+      <QuestWidget
+        v-for="quest in filteredQuests"
+        :key="quest.id"
+        :quest="quest"
+        :is-completed="quest.progress === 100"
+      />
+    </div>
+    <div v-else>
+      <p>Loading quests...</p>
     </div>
   </div>
 </template>
-
-<style scoped>
-.achievement-card {
-  background: var(--card-bg);
-  padding: var(--spacing-md);
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--spacing-lg);
-}
-
-.progress-bar {
-  height: 10px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.progress-bar > div {
-  height: 100%;
-  background: var(--primary-gradient);
-  transition: width 0.3s;
-}
-</style>

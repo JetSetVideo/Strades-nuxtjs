@@ -1,10 +1,16 @@
 <script setup>
-defineProps({
+import { useNewsStore } from '@/stores/newsStore';
+
+const props = defineProps({
     article: {
         type: Object,
         required: true,
     },
 });
+
+const newsStore = useNewsStore();
+
+const isBookmarked = newsStore.isBookmarked(props.article.id);
 </script>
 
 <template>
@@ -28,6 +34,7 @@ defineProps({
         </div>
         </NuxtLink>
     </div>
+    <ButtonBookmark :initial-state="isBookmarked" @toggle="newsStore.toggleBookmark(article.id)" />
 </div>
 </template>
 
@@ -42,6 +49,8 @@ defineProps({
   border: 1px solid var(--border-primary);
   box-shadow: var(--shadow-primary);
   transition: var(--transition-normal);
+  display: flex; /* Ensure flexbox is enabled */
+  align-items: center; /* Vertically align items */
 }
 
 .widget-news:hover {
@@ -62,6 +71,7 @@ defineProps({
   display: flex;
   width: 100%;
   padding: var(--spacing-sm) 0;
+  flex-grow: 1; /* Allow news cards to take up available space */
 }
 
 .link-full-width {
@@ -147,6 +157,12 @@ defineProps({
   background: var(--primary-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* Add styles for the bookmark button */
+.bookmark-button {
+  margin-left: auto; /* Push the button to the far right */
+  padding: 0.5rem;
 }
 
 /* Responsive adjustments */

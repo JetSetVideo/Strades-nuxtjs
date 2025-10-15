@@ -8,6 +8,8 @@ const props = defineProps({
   },
 });
 
+const emit = defineEmits(['buy', 'rent', 'share']);
+
 function getAssetIcon(asset) {
   const assetMap = {
     'BTC': 'btc.svg',
@@ -97,6 +99,12 @@ const drawdownColor = computed(() => {
           <span class="label">Win Rate:</span>
           <span class="value">{{ strategy.winRate }}%</span>
         </div>
+      </div>
+
+      <div class="card-actions">
+        <button @click.stop="emit('buy')">Buy</button>
+        <button @click.stop="emit('rent')">Rent</button>
+        <button @click.stop="emit('share')">Share</button>
       </div>
     </div>
 </template>
@@ -244,5 +252,28 @@ const drawdownColor = computed(() => {
 .metric .value {
   font-weight: bold;
   text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.card-actions {
+  display: flex;
+  justify-content: space-around;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 15px;
+}
+
+.card-actions button {
+  background: var(--primary-gradient);
+  color: var(--secondary-darker);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.card-actions button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-accent);
 }
 </style>

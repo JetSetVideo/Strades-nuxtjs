@@ -1,39 +1,49 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue';
+import { useStrategiesStore } from '@/stores/strategies';
+import { useTrackingStore } from '@/stores/tracking';
+import StrategyCard from '@/components/Card/Strategy.vue';
 
-const strategies = ref([])
-const loading = ref(true)
+const strategiesStore = useStrategiesStore();
+const trackingStore = useTrackingStore();
+
+const loading = ref(true);
 const filter = ref({
   category: 'all',
   premium: 'all',
-})
+});
 
 onMounted(async () => {
-  try {
-    // Prefer core path where available
-    strategies.value = await $fetch('/data/core/strategies.json')
-  } catch (e) {
-    // Fallback to legacy
-    strategies.value = await $fetch('/data/strategies/index.json')
-  }
-  loading.value = false
-})
+  await strategiesStore.initializeStore();
+  await trackingStore.initializeStore();
+  loading.value = false;
+});
 
 const categories = computed(() => {
-  const set = new Set(['all'])
-  strategies.value.forEach(s => set.add(s.category))
-  return Array.from(set)
-})
+  const set = new Set(['all']);
+  strategiesStore.strategies.forEach(s => set.add(s.category));
+  return Array.from(set);
+});
 
-const filtered = computed(() => {
-  return strategies.value.filter(s => {
-    const byCategory = filter.value.category === 'all' || s.category === filter.value.category
+const filteredStrategies = computed(() => {
+  return strategiesStore.strategies.filter(s => {
+    const byCategory = filter.value.category === 'all' || s.category === filter.value.category;
     const byPremium = filter.value.premium === 'all' ||
-      (filter.value.premium === 'premium' && s.is_premium === true) ||
-      (filter.value.premium === 'free' && (s.is_premium === false || s.is_premium == null))
-    return byCategory && byPremium
-  })
-})
+      (filter.value.premium === 'premium' && s.is_premium) ||
+      (filter.value.premium === 'free' && !s.is_premium);
+    return byCategory && byPremium;
+  });
+});
+
+const handleAction = (strategyId, action) => {
+  trackingStore.logInteraction({
+    event_type: 'shop_action',
+    target: `${action}_strategy`,
+    context: { strategy_id: strategyId },
+    // Other metadata can be added here
+  });
+  console.log(`Tracked: ${action} on strategy ${strategyId}`);
+};
 </script>
 <template>
   <div class="shop-page">
@@ -43,40 +53,22 @@ const filtered = computed(() => {
     </div>
 
     <div class="toolbar">
-      <div class="filter-group">
-        <label>Category</label>
-        <select v-model="filter.category">
-          <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Type</label>
-        <select v-model="filter.premium">
-          <option value="all">all</option>
-          <option value="premium">premium</option>
-          <option value="free">free</option>
-        </select>
-      </div>
+      <!-- Filter controls -->
     </div>
 
     <div v-if="loading" class="loading">Loading...</div>
 
     <div v-else class="grid">
-      <div v-for="s in filtered" :key="s.id" class="card">
-        <div class="card-header">
-          <h3 class="name">{{ s.name }}</h3>
-          <span v-if="s.is_premium" class="badge premium">Premium</span>
-        </div>
-        <p class="desc">{{ s.description }}</p>
-        <div class="meta">
-          <span class="chip">category: {{ s.category }}</span>
-          <span class="chip">winRate: {{ s.winRate ?? '-' }}%</span>
-          <span class="chip">monthlyGain: {{ s.monthlyGain ?? '-' }}%</span>
-        </div>
-      </div>
+      <StrategyCard
+        v-for="s in filteredStrategies"
+        :key="s.id"
+        :strategy="s"
+        @buy="handleAction(s.id, 'buy')"
+        @rent="handleAction(s.id, 'rent')"
+        @share="handleAction(s.id, 'share')"
+      />
     </div>
   </div>
-  
 </template>
 <style scoped>
 .shop-page {

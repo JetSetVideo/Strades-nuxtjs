@@ -26,6 +26,7 @@ export interface NewsData {
 export const useNewsStore = defineStore('newsStore', {
   state: () => ({
     news: null as NewsData | null,
+    bookmarks: [] as string[], // stores article IDs
     loading: false,
     error: null as Error | null
   }),
@@ -39,6 +40,9 @@ export const useNewsStore = defineStore('newsStore', {
     getAllArticles: (state) => {
       if (!state.news) return []
       return state.news.categories.flatMap(category => category.articles)
+    },
+    isBookmarked: (state) => (articleId: string) => {
+      return state.bookmarks.includes(articleId);
     }
   },
 
@@ -46,8 +50,12 @@ export const useNewsStore = defineStore('newsStore', {
     async fetchNews() {
       try {
         this.loading = true
-        const newsData = await $fetch<NewsData>('/news.json')
-        this.news = newsData
+        const [newsData, bookmarksData] = await Promise.all([
+          $fetch<NewsData>('/news.json'),
+          $fetch<string[]>('/data/social/bookmarks.json').catch(() => []) // Default to empty array on error
+        ]);
+        this.news = newsData;
+        this.bookmarks = bookmarksData;
       } catch (error) {
         this.error = error as Error
         console.error('Failed to fetch news:', error)
@@ -58,6 +66,16 @@ export const useNewsStore = defineStore('newsStore', {
 
     async initializeStore() {
       await this.fetchNews()
+    },
+
+    toggleBookmark(articleId: string) {
+      const index = this.bookmarks.indexOf(articleId);
+      if (index > -1) {
+        this.bookmarks.splice(index, 1);
+      } else {
+        this.bookmarks.push(articleId);
+      }
+      // In a real app, you would also persist this change to the backend/localStorage.
     }
   }
 })

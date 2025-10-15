@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useNewsStore } from "@/stores/newsStore";
-import NewsListItem from "@/components/Widget/NewsListItem.vue";
+import NewsListItem from "@/components/Widget/news.vue";
 
 definePageMeta({
   title: 'News',

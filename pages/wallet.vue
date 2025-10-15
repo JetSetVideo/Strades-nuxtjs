@@ -20,183 +20,99 @@ const walletsStore = useWalletsStore();
 const selectedCurrency = ref('USD');
 const selectedAsset = ref('All');
 const selectedWalletId = ref('wallet_001');
-
-// Strategies for filtering (placeholder - would come from strategies store)
-const strategies = ref([
-  { name: 'All Assets', id: 'all' },
-  { name: 'High Value', id: 'high_value' },
-  { name: 'Crypto Only', id: 'crypto' }
-]);
-const selectedStrategies = ref(['all']);
+const selectedPeriod = ref('30d');
+const selectedStrategies = ref(['all']); // This can be removed if not used, or managed in the page
 
 // Initialize store data
 onMounted(async () => {
   await walletsStore.initializeStore();
-});
-
-// Get the current wallet data
-const currentWallet = computed(() => {
-  return walletsStore.getWalletById(selectedWalletId.value) ||
-         walletsStore.getDefaultWallet('user_001') ||
-         walletsStore.wallets[0];
-});
-
-// Filter assets based on selected strategy
-const filteredAssets = computed(() => {
-  if (!currentWallet.value?.assets) return [];
-
-  let assets = currentWallet.value.assets;
-
-  // Filter by strategy selection
-  if (!selectedStrategies.value.includes('all')) {
-    if (selectedStrategies.value.includes('crypto')) {
-      assets = assets.filter(asset => asset.symbol === 'BTC' || asset.symbol === 'ETH' || asset.symbol === 'ADA');
-    }
-    if (selectedStrategies.value.includes('high_value')) {
-      assets = assets.filter(asset => asset.current_value > 10000);
+  // Set default wallet if none is selected
+  if (!selectedWalletId.value) {
+    const defaultWallet = walletsStore.getDefaultWallet('user_001');
+    if (defaultWallet) {
+      selectedWalletId.value = defaultWallet.id;
+    } else if (walletsStore.wallets.length > 0) {
+      selectedWalletId.value = walletsStore.wallets[0].id;
     }
   }
-
-  // Filter by selected asset
-  if (selectedAsset.value !== 'All') {
-    assets = assets.filter(asset => asset.symbol === selectedAsset.value);
-  }
-
-  return assets;
 });
 
-// Get transactions for the current wallet
-const walletTransactions = computed(() => {
-  return currentWallet.value?.transactions || [];
-});
+const currentWallet = computed(() => walletsStore.getWalletById(selectedWalletId.value));
 
-// Available assets for filtering
-const availableAssets = computed(() => {
-  if (!currentWallet.value?.assets) return ['All'];
-  return ['All', ...currentWallet.value.assets.map(asset => asset.symbol)];
-});
-
-// Wallet summary data
 const walletSummary = computed(() => {
   if (!currentWallet.value) return null;
-
   return {
     totalValue: currentWallet.value.total_value,
-    availableBalance: currentWallet.value.available_balance,
-    investedAmount: currentWallet.value.invested_amount,
-    totalReturn: currentWallet.value.total_return,
+    currency: currentWallet.value.currency,
     totalReturnPercentage: currentWallet.value.total_return_percentage,
-    dailyChange: currentWallet.value.daily_change,
-    dailyChangePercentage: currentWallet.value.daily_change_percentage,
-    currency: currentWallet.value.currency
   };
 });
 
-const selectedPeriod = ref('30d');
+const filteredAssets = computed(() => {
+    if (!currentWallet.value) return [];
+    if (selectedAsset.value === 'All') return currentWallet.value.assets;
+    return currentWallet.value.assets.filter(asset => asset.symbol === selectedAsset.value);
+});
 
-const updatePeriod = (period) => {
-  selectedPeriod.value = period;
+const walletTransactions = computed(() => currentWallet.value?.transactions || []);
+
+const availableAssets = computed(() => {
+    if (!currentWallet.value) return ['All'];
+    return ['All', ...currentWallet.value.assets.map(a => a.symbol)];
+});
+
+const handleAllocationUpdate = (payload) => {
+    selectedAsset.value = payload.asset;
+    selectedPeriod.value = payload.period;
 };
 
-const updateCurrency = (newCurrency) => {
-  selectedCurrency.value = newCurrency;
-};
-
-const selectAsset = (asset) => {
-  selectedAsset.value = asset;
-};
-
-// Computed properties for classes
-const totalReturnClass = computed(() => ({
-  'positive': (walletSummary.value?.totalReturn || 0) >= 0,
-  'negative': (walletSummary.value?.totalReturn || 0) < 0
-}));
-
-const dailyChangeClass = computed(() => ({
-  'positive': (walletSummary.value?.dailyChangePercentage || 0) >= 0,
-  'negative': (walletSummary.value?.dailyChangePercentage || 0) < 0
-}));
-
-// Switch to next wallet
 const switchWallet = () => {
   const currentIndex = walletsStore.wallets.findIndex(w => w.id === selectedWalletId.value);
   const nextIndex = (currentIndex + 1) % walletsStore.wallets.length;
   selectedWalletId.value = walletsStore.wallets[nextIndex].id;
 };
 </script>
-
 <template>
   <div class="body-wallet">
     <!-- Wallet Header with Summary -->
     <div class="wallet-header">
-      <div class="wallet-info">
-        <h2>{{ currentWallet?.name || 'Portfolio' }}</h2>
-        <div class="wallet-metrics">
-          <span class="metric">
-            <span class="metric-label">Total Return:</span>
-            <span class="metric-value" :class="totalReturnClass">
-              {{ walletSummary?.totalReturn >= 0 ? '+' : '' }}{{ walletSummary?.totalReturn?.toFixed(2) || '0.00' }} {{ walletSummary?.currency }}
-            </span>
-          </span>
-          <span class="metric">
-            <span class="metric-label">Daily Change:</span>
-            <span class="metric-value" :class="dailyChangeClass">
-              {{ walletSummary?.dailyChangePercentage >= 0 ? '+' : '' }}{{ walletSummary?.dailyChangePercentage?.toFixed(2) || '0.00' }}%
-            </span>
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Strategy Selection -->
-    <div class="strategy-selection">
-      <SelectStrats
-        :strategies="strategies"
-        v-model:selectedStrategies="selectedStrategies"
-      />
-    </div>
-
-    <!-- Asset Filter -->
-    <div class="asset-filter">
-      <select v-model="selectedAsset" @change="selectAsset(selectedAsset)">
-        <option v-for="asset in availableAssets" :key="asset" :value="asset">
-          {{ asset }}
-        </option>
-      </select>
+        <WalletCapitalCounter
+            :total-value="walletSummary?.totalValue"
+            :currency="walletSummary?.currency"
+            :return-percentage="walletSummary?.totalReturnPercentage"
+            :wallet-name="currentWallet?.name"
+            @switch-wallet="switchWallet"
+          />
     </div>
 
     <!-- Main Content -->
     <div class="wallet-content">
-      <!-- Row 1: Capital Counter (Full Width) -->
-      <div class="wallet-row single">
-        <div class="wallet-component">
-          <WalletCapitalCounter
-            :total-value="walletSummary?.totalValue"
-            :currency="walletSummary?.currency"
-            :return-percentage="walletSummary?.totalReturnPercentage"
-            @switch-wallet="switchWallet"
-          />
-        </div>
-      </div>
-
       <!-- Row 2: Portfolio and Evolution -->
       <div class="wallet-row double">
         <div class="wallet-component">
           <WalletPortfolio
             :assets="filteredAssets"
             :total-value="walletSummary?.totalValue"
-            @select-asset="selectAsset"
+            @select-asset="selectedAsset = $event"
           />
         </div>
         <div class="wallet-component">
-          <WalletEvolution
-            :assets="filteredAssets"
-            :transactions="walletTransactions"
-            :selected-period="selectedPeriod"
-            :wallet-id="selectedWalletId"
-            @update-period="updatePeriod"
-            @select-asset="selectAsset"
-          />
+            <div class="evolution-allocation-container">
+              <WalletEvolution
+                :assets="filteredAssets"
+                :transactions="walletTransactions"
+                :selected-period="selectedPeriod"
+                :wallet-id="selectedWalletId"
+                @update-period="selectedPeriod = $event"
+                @select-asset="selectedAsset = $event"
+              />
+              <WalletEvolutionAllocation
+                :assets="filteredAssets"
+                :transactions="walletTransactions"
+                :selected-period="selectedPeriod"
+                @update-selection="handleAllocationUpdate"
+              />
+            </div>
         </div>
       </div>
 
@@ -220,14 +136,11 @@ const switchWallet = () => {
           />
         </div>
         <div class="wallet-component">
-          <WalletEvolutionAllocation
-            :assets="filteredAssets"
-            :transactions="walletTransactions"
-            :selected-period="selectedPeriod"
-          />
+          <!-- This might be redundant now -->
         </div>
       </div>
     </div>
+    <div style="height: 100px;"></div> <!-- Spacer -->
   </div>
 </template>
 
@@ -242,12 +155,10 @@ const switchWallet = () => {
     padding: 4rem 1rem 2rem 1rem; /* Account for fixed topbar */
     background: linear-gradient(135deg, rgba(15, 15, 15, 0.98) 0%, rgba(20, 20, 20, 0.98) 100%);
     gap: 1.5rem;
+    padding-bottom: 100px;
 }
 
 .wallet-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   width: 100%;
   margin-bottom: 1rem;
 }
@@ -373,6 +284,12 @@ const switchWallet = () => {
 
 .wallet-component {
   width: 100%;
+}
+
+.evolution-allocation-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
 /* Compact spacing adjustments */

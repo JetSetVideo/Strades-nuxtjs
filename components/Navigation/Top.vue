@@ -1,12 +1,25 @@
-<script setup>
+<script setup lang="ts">
+import type { PropType } from 'vue';
+import type { SearchHistory, SearchSuggestion } from '@/types';
+import SearchBar from '~/components/SearchBar.vue';
 
+defineProps({
+  searchHistory: {
+    type: Array as PropType<SearchHistory[]>,
+    default: () => [],
+  },
+  searchSuggestions: {
+    type: Array as PropType<SearchSuggestion[]>,
+    default: () => [],
+  },
+});
 </script>
 <template>
  <header>
     <h1>NavigationTop</h1>
-    <SearchBar />
+    <SearchBar :search-history="searchHistory" :search-suggestions="searchSuggestions" />
     <p>NavigationTop</p>
-    <ButtonNotification />
+    <slot></slot>
   </header>
 </template>
 

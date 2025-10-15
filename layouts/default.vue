@@ -1,5 +1,25 @@
+<script setup lang="ts">
+import { ref } from 'vue';
+import type { SearchHistory, SearchSuggestion, Notification } from '@/types';
+import { useLocalJson } from '@/composables/useLocalJson';
+import NavigationTop from '~/components/Navigation/Top.vue';
+import NavigationBar from '~/components/Navigation/Bar.vue';
+import NotificationButton from '~/components/Button/Notification.vue';
+
+const { data: searchHistory } = useLocalJson<SearchHistory[]>('search/history.json');
+const { data: searchSuggestions } = useLocalJson<SearchSuggestion[]>('search/suggestions.json');
+const { data: notifications } = useLocalJson<Notification[]>('social/notifications.json');
+
+const unreadCount = ref(0);
+if (notifications.value) {
+  unreadCount.value = notifications.value.filter(n => !n.read).length;
+}
+</script>
+
 <template>
-  <NavigationTop />
+  <NavigationTop :search-history="searchHistory" :search-suggestions="searchSuggestions">
+    <NotificationButton :unread-count="unreadCount" />
+  </NavigationTop>
   <div class="bg-[#0e0e0f]">
     <div class="defaultLayout font-[kanit]">
       <slot />

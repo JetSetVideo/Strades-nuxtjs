@@ -94,5 +94,23 @@
       "shared_strategies": ["strategy_002", "strategy_005"],
       "meeting_scheduled": null
     }
+  },
+  {
+    "id": "conv_group_001",
+    "participants": ["user_001", "user_002", "user_003"],
+    "type": "group",
+    "title": "Crypto Trading Group",
+    "description": "A group for discussing crypto trading strategies.",
+    "created_by": "user_001",
+    "created_at": "2024-01-01T12:00:00Z",
+    "last_message_at": "2024-01-01T18:00:00Z",
+    "is_active": true,
+    "message_count": 12,
+    "unread_count_user_001": 0,
+    "unread_count_user_002": 3,
+    "unread_count_user_003": 1,
+    "metadata": {
+      "topic": "crypto_trading"
+    }
   }
 ]

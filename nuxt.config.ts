@@ -10,4 +10,7 @@ export default defineNuxtConfig({
     preset: 'vercel-edge',
   },
   css: ['~/assets/css/variables.css'],
+  alias: {
+    '@public/data': '/public/data'
+  }
 })

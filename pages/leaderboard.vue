@@ -3,10 +3,15 @@ import { ref, onMounted, computed } from 'vue'
 import { useUsersStore } from '@/stores/users'
 import { useStrategiesStore } from '@/stores/strategies'
 import { useWalletsStore } from '@/stores/wallets'
+import Competition from '@/components/Leaderboard/Competition.vue';
+import { useLocalJson } from '@/composables/useLocalJson';
 
 const usersStore = useUsersStore()
 const strategiesStore = useStrategiesStore()
 const walletsStore = useWalletsStore()
+
+const { data: competitions } = useLocalJson('competitions/competitions.json');
+const { data: contributions, refresh: refreshContributions } = useLocalJson('competitions/contributions.json');
 
 const entityType = ref('users') // or 'strategies'
 const selectedCategory = ref('')
@@ -92,11 +97,29 @@ const getMedalClass = (index) => {
   if (index === 2) return 'bronze'
   return ''
 }
+
+const handleAddContribution = (newContribution) => {
+  // This is a local simulation. In a real app, this would be an API call.
+  if (contributions.value) {
+      contributions.value.push({
+          id: `contrib_${Date.now()}`,
+          userId: 'user_001', // Mocked user
+          ...newContribution
+      });
+  }
+};
 </script>
 
 <template>
   <div class="leaderboard-page">
     <h1>Leaderboard</h1>
+
+    <Competition
+        v-if="competitions && contributions"
+        :competitions="competitions"
+        :contributions="contributions"
+        @add:contribution="handleAddContribution"
+    />
     
     <div class="entity-tabs">
       <button 

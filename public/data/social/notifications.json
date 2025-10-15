@@ -1,0 +1,21 @@
+[
+  {
+    "id": "notif_001",
+    "message": "Your strategy 'High_Risk_Crypto' has been activated.",
+    "timestamp": "2024-10-15T10:00:00Z",
+    "read": false
+  },
+  {
+    "id": "notif_002",
+    "message": "John Doe started following you.",
+    "timestamp": "2024-10-15T09:30:00Z",
+    "read": false
+  },
+  {
+    "id": "notif_003",
+    "message": "A new article on 'Market Trends' was published.",
+    "timestamp": "2024-10-14T15:00:00Z",
+    "read": true
+  }
+]
+
