@@ -27,8 +27,8 @@ export const usePriceStore = defineStore('price', {
     },
   }),
   getters: {
-    getPriceData: (state) => (currency) => {
-      return Object.entries(state.priceHistory).reduce((acc, [asset, prices]) => {
+    getPriceData: (state) => (currency: 'BTC' | 'USD' | 'EUR') => {
+      return Object.entries(state.priceHistory).reduce((acc: Record<string, any[]>, [asset, prices]) => {
         acc[asset] = prices.map(price => ({
           ...price,
           price: price.price / usePriceStore().getExchangeRate(currency)
@@ -36,13 +36,15 @@ export const usePriceStore = defineStore('price', {
         return acc;
       }, {});
     },
-    getExchangeRate: () => (currency) => {
+    getExchangeRate: () => {
       const rates = {
         BTC: 1,
         USD: 30000,
         EUR: 25000,
       };
-      return rates[currency];
+      return (currency: 'BTC' | 'USD' | 'EUR') => {
+        return rates[currency] ?? 1;
+      };
     },
   },
 });

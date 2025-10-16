@@ -2,11 +2,22 @@ export const useAuth = () => {
   const token = useCookie('access_token')
   const user = ref<User | null>(null)
   
+  interface LoginCredentials {
+    username: string;
+    password: string;
+  }
+  interface User {
+    // Define user properties based on your schema
+    id: string;
+    username: string;
+    // Add other fields as needed
+  }
+  
   const login = async (credentials: LoginCredentials) => {
     const { data } = await useFetch<{ access_token: string }>('/auth/login', {
       method: 'POST',
       body: credentials,
-      baseURL: useRuntimeConfig().public.apiUrl
+      baseURL: useRuntimeConfig().public.apiUrl as string
     })
     
     if (data.value) {
@@ -20,7 +31,7 @@ export const useAuth = () => {
       headers: {
         Authorization: `Bearer ${token.value}`
       },
-      baseURL: useRuntimeConfig().public.apiUrl
+      baseURL: useRuntimeConfig().public.apiUrl as string
     })
     
     if (data.value) {

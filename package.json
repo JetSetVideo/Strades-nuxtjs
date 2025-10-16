@@ -11,18 +11,21 @@
     "node": "22.x"
   },
   "devDependencies": {
-    "nuxt": "^4.1.2",
-    "sass": "^1.77.8",
-    "pinia": "^2.2.4",
+    "@nuxt/ui": "^2.18.4",
     "@pinia/nuxt": "^0.5.5",
-    "@nuxt/ui": "^2.18.4"
+    "@types/node": "^24.7.2",
+    "nuxt": "^4.1.2",
+    "pinia": "^2.2.4",
+    "sass": "^1.77.8"
   },
   "dependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/socket.io-client": "^1.4.36",
+    "axios": "^1.7.7",
+    "d3": "^7.9.0",
+    "date-fns": "^4.1.0",
     "mitt": "^3.0.1",
     "socket.io-client": "^4.7.5",
-    "d3": "^7.9.0",
-    "axios": "^1.7.7",
-    "topojson-client": "^3.1.0",
-    "date-fns": "^4.1.0"
+    "topojson-client": "^3.1.0"
   }
 }

@@ -27,57 +27,43 @@ interface ApiResponse<T> {
   _data: T
 }
 
-interface ApiClient {
-  get<T>(url: string): Promise<ApiResponse<T>>
-  post<T>(url: string, data?: unknown): Promise<ApiResponse<T>>
-  put<T>(url: string, data?: unknown): Promise<ApiResponse<T>>
-  delete<T>(url: string): Promise<ApiResponse<T>>
-}
-
-export class SocialService {
-  private api: ApiClient
+// Remove interface ApiClient if not needed, or adjust
+class SocialService {
+  private api: any; // Temporary any to avoid error
 
   constructor(nuxtApp: ReturnType<typeof useNuxtApp>) {
     if (!nuxtApp.$api) {
       throw new Error('API client not initialized')
     }
-    this.api = nuxtApp.$api as ApiClient
+    this.api = nuxtApp.$api;
   }
 
   async searchUsers(query: string): Promise<User[]> {
-    const response = await this.api.get<User[]>(`/users/search?q=${encodeURIComponent(query)}`)
-    if (!response._data) {
-      return []
-    }
-    return response._data
+    const response: User[] = await this.api(`/users/search?q=${encodeURIComponent(query)}`);
+    return response || [];
   }
 
+  // Similar for other methods, using this.api(url, { method: 'POST', body: data })
+  // For example:
   async sendMessage(content: string, recipientId: string): Promise<Message> {
-    const response = await this.api.post<Message>('/messages', { content, recipientId })
-    if (!response._data) {
-      throw new Error('Failed to send message')
-    }
-    return response._data
+    const response: Message = await this.api('/messages', { method: 'POST', body: { content, recipientId } });
+    if (!response) throw new Error('Failed to send message');
+    return response;
   }
 
   async shareArticle(article: Omit<Article, 'id' | 'author' | 'timestamp'>): Promise<Article> {
-    const response = await this.api.post<Article>('/articles', article)
-    if (!response._data) {
-      throw new Error('Failed to share article')
-    }
-    return response._data
+    const response: Article = await this.api('/articles', { method: 'POST', body: article });
+    if (!response) throw new Error('Failed to share article');
+    return response;
   }
 
   async getFriendsList(): Promise<User[]> {
-    const response = await this.api.get<User[]>('/users/friends')
-    if (!response._data) {
-      return []
-    }
-    return response._data
+    const response: User[] = await this.api('/users/friends');
+    return response || [];
   }
 
   async addFriend(userId: string): Promise<void> {
-    await this.api.post<void>('/users/friends', { userId })
+    await this.api('/users/friends', { method: 'POST', body: { userId } });
   }
 }
 

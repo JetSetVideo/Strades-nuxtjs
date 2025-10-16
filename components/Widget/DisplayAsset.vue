@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 
 const props = defineProps({
@@ -13,7 +13,9 @@ const props = defineProps({
 
 defineEmits(['click'])
 
-const sparkValues = ref([])
+const sparkValues = ref<number[]>([])
+const tradeAmount = ref(0)
+const tradePrice = ref(0)
 
 onMounted(async () => {
   try {

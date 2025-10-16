@@ -4,13 +4,13 @@ export interface NewsArticle {
   id: string
   title: string
   content: string
-  source: string
-  imageUrl: string
-  author: string
-  publishing_date: string
+  source?: string
+  imageUrl?: string
+  author?: string
+  publishing_date?: string
   category: string
-  data_affiliated: string
-  tags: string[]
+  data_affiliated?: string
+  tags?: string[]
 }
 
 export interface NewsCategory {

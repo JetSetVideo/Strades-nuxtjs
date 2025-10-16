@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useStrategiesStore } from '@/stores/strategies';
 import { useTrackingStore } from '@/stores/tracking';
@@ -7,8 +7,19 @@ import StrategyCard from '@/components/Card/Strategy.vue';
 const strategiesStore = useStrategiesStore();
 const trackingStore = useTrackingStore();
 
-const loading = ref(true);
-const filter = ref({
+interface Strategy {
+  id: string;
+  name: string;
+  category: string;
+  is_premium: boolean;
+  description: string;
+  price?: number;
+  is_public?: boolean;
+  // Add other fields as per data
+}
+
+const loading = ref<boolean>(true);
+const filter = ref<{ category: string; premium: string }>({
   category: 'all',
   premium: 'all',
 });
@@ -20,13 +31,13 @@ onMounted(async () => {
 });
 
 const categories = computed(() => {
-  const set = new Set(['all']);
-  strategiesStore.strategies.forEach(s => set.add(s.category));
+  const set = new Set<string>(['all']);
+  strategiesStore.strategies.forEach((s: Strategy) => set.add(s.category));
   return Array.from(set);
 });
 
 const filteredStrategies = computed(() => {
-  return strategiesStore.strategies.filter(s => {
+  return strategiesStore.strategies.filter((s: Strategy) => {
     const byCategory = filter.value.category === 'all' || s.category === filter.value.category;
     const byPremium = filter.value.premium === 'all' ||
       (filter.value.premium === 'premium' && s.is_premium) ||
@@ -35,12 +46,17 @@ const filteredStrategies = computed(() => {
   });
 });
 
-const handleAction = (strategyId, action) => {
-  trackingStore.logInteraction({
-    event_type: 'shop_action',
+const handleAction = (strategyId: string, action: string) => {
+  trackingStore.trackUserInteraction({
+    user_id: 'user_001', // Example user ID
+    session_id: 'session_123', // Example session ID
+    event_type: 'component_interaction',
+    component: 'shop_card',
+    action: action,
     target: `${action}_strategy`,
     context: { strategy_id: strategyId },
-    // Other metadata can be added here
+    duration_ms: 0,
+    metadata: {}
   });
   console.log(`Tracked: ${action} on strategy ${strategyId}`);
 };

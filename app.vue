@@ -3,6 +3,7 @@ import { onMounted, onBeforeUnmount } from 'vue'
 import { useAssetsStore } from '~/stores/assets'
 import { useAssetEventsStore } from '~/stores/assetEvents'
 import type { PriceUpdate, Activity, NewsItem } from '#imports'
+import { Socket } from 'socket.io-client';
 
 useHead({
   titleTemplate: (titleChunk) => {
@@ -42,6 +43,12 @@ onMounted(() => {
 onBeforeUnmount(() => {
   $socket.disconnect()
 })
+
+declare module '#app' {
+  interface NuxtApp {
+    $socket: Socket;
+  }
+}
 </script>
 
 <template>

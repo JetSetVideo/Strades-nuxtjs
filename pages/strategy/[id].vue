@@ -13,7 +13,32 @@ const strategyId = route.params.id as string
 
 const { strategies, updateStrategy, fetchStrategies, fetchStrategyDetail, backtestStrategy, generateComplementary, generateOpposite } = useStrategies()
 const isEditing = ref(false)
-const editedStrategy = ref<StrategySummary | null>(null)
+interface Block {
+  type: string;
+  id: number;
+  data: any;
+}
+
+interface Trade {
+  asset: string;
+  entryPrice: number;
+  exitPrice: number;
+  duration: number;
+  date: string;
+}
+
+interface StrategySummaryExtended extends StrategySummary {
+  blocks?: Block[];
+  lastModifiedDate?: string;
+  riskRating?: number;
+  complexityRating?: string;
+  dataSources?: string[];
+  trades?: Trade[];
+  isRunning?: boolean;
+}
+
+// Use StrategySummaryExtended for refs
+const editedStrategy = ref<StrategySummaryExtended | null>(null)
 const details = ref<{ code: any; rating: any; history: any[]; trades: any[] } | null>(null)
 const profileObjects = ref<Array<{ id: string; name: string; avatar_url?: string; pnl?: number; traits?: string[] }>>([])
 
@@ -28,8 +53,8 @@ async function loadProfiles(profileIds: string[]) {
 }
 
 // Find the current strategy
-const currentStrategy = computed(() => {
-  return strategies.value.find(s => s.id === strategyId) || null
+const currentStrategy = computed<StrategySummaryExtended | null>(() => {
+  return strategies.value.find(s => s.id === strategyId) as StrategySummaryExtended | null || null
 })
 
 // Asset icon mapping for display
@@ -55,8 +80,7 @@ function toggleStrategyStatus() {
   if (currentStrategy.value) {
     const newStatus = currentStrategy.value.status === 'active' ? 'paused' : 'active'
     updateStrategy(currentStrategy.value.id!, {
-      status: newStatus,
-      isRunning: newStatus === 'active'
+      status: newStatus
     })
   }
 }
@@ -89,7 +113,7 @@ function addTrade() {
       entryPrice: 0,
       exitPrice: 0,
       duration: 1,
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0] as string
     }
     editedStrategy.value.trades = [...(editedStrategy.value.trades || []), newTrade]
   }
@@ -499,8 +523,8 @@ onMounted(async () => {
         <div class="section-header">
           <h2 class="section-title">Derived Strategies</h2>
           <div class="add-block-buttons">
-            <button @click="() => generateComplementary(strategyId).then(s => navigateTo(`/strategy/${s.id}`))" class="add-block-btn">Create complementary strategy</button>
-            <button @click="() => generateOpposite(strategyId).then(s => navigateTo(`/strategy/${s.id}`))" class="add-block-btn">Create opposite strategy</button>
+            <button @click="async () => { const s = await generateComplementary(strategyId); await navigateTo(`/strategy/${s.id}`) }" class="add-block-btn">Create complementary strategy</button>
+            <button @click="async () => { const s = await generateOpposite(strategyId); await navigateTo(`/strategy/${s.id}`) }" class="add-block-btn">Create opposite strategy</button>
           </div>
         </div>
       </div>

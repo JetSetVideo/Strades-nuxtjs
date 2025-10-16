@@ -8,7 +8,7 @@ export const createApiClient = () => {
       'Content-Type': 'application/json'
     },
     // Add interceptors for auth tokens
-    onRequest: (config) => {
+    onRequest: (config: any) => {
       const token = localStorage.getItem('access_token')
       if (token) {
         config.headers.Authorization = `Bearer ${token}`
@@ -18,22 +18,22 @@ export const createApiClient = () => {
   }
 }
 
+import type { FetchContext } from 'ofetch';
+
 export default defineNuxtPlugin(() => {
   const { $api } = useNuxtApp()
   const runtimeConfig = useRuntimeConfig()
   const auth = useAuth()
   
   const api = $fetch.create({
-    baseURL: runtimeConfig.public.apiUrl,
+    baseURL: runtimeConfig.public.apiUrl as string,
     headers: {
       'Content-Type': 'application/json',
     },
-    onRequest({ options }) {
+    onRequest(ctx: FetchContext) {
       if (auth.token.value) {
-        options.headers = {
-          ...options.headers,
-          Authorization: `Bearer ${auth.token.value}`
-        }
+        ctx.options.headers = ctx.options.headers || new Headers();
+        (ctx.options.headers as Headers).set('Authorization', `Bearer ${auth.token.value}`);
       }
     }
   })
