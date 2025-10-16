@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import type { Notification } from '@/types';
 import { useLocalJson } from '@/composables/useLocalJson';
 
-const { data: notifications, pending } = useLocalJson<Notification[]>('social/notifications.json');
+const { data: notifications, pending } = await useFetch<Notification[]>('/data/social/notifications.json');
 const unreadCount = ref(0);
 
 onMounted(() => {

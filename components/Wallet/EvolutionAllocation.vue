@@ -118,7 +118,7 @@ function setupChart() {
         visible: true,
         symbol: d.data.name,
         value: asset?.current_value || 0,
-        percentage: (d.data.value * 100).toFixed(1)
+        percentage: Number(d.data.value * 100 || 0).toFixed(1)
       };
 
       // Change background color to match the hovered segment
@@ -179,7 +179,7 @@ function setupChart() {
       </div>
     </div>
 
-    <div class="chart-container">
+    <div v-if="items.length > 0" class="chart-container">
       <div ref="chartContainer" class="chart-wrapper"></div>
       <div ref="tooltip" class="tooltip" :style="{ opacity: tooltipData.visible ? 1 : 0 }">
         <div class="tooltip-content">
@@ -189,6 +189,7 @@ function setupChart() {
         </div>
       </div>
     </div>
+    <div v-else class="loading">Loading allocation...</div>
 
     <div class="legend">
       <div
@@ -201,7 +202,8 @@ function setupChart() {
         <div class="legend-color" :style="{ backgroundColor: asset.color }"></div>
         <div class="legend-info">
           <span class="legend-name">{{ asset.name }}</span>
-          <span class="legend-percentage">{{ (asset.value * 100).toFixed(1) }}%</span>
+          <span v-if="Number.isFinite(asset.value)" class="legend-percentage">{{ (asset.value * 100).toFixed(1) }}%</span>
+          <span v-else class="legend-percentage">0.0%</span>
         </div>
       </div>
     </div>
