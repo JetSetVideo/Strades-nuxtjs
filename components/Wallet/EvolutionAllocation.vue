@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import * as d3 from 'd3';
 import { ref, computed, onMounted, watch } from 'vue';
 
@@ -33,9 +33,14 @@ const items = computed(() => {
   const total = props.assets.reduce((sum, asset) => sum + (asset.current_value || 0), 0);
   return props.assets.map(asset => ({
     name: asset.symbol,
-    value: (asset.current_value || 0) / total,
+    value: total > 0 ? (asset.current_value || 0) / total : 0,
     color: getAssetColor(asset.symbol)
   }));
+});
+
+const percentageChange = computed(() => {
+  // Placeholder: calculate percentage change from data
+  return 0; // e.g., from transactions or props
 });
 
 function getAssetColor(symbol) {

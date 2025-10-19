@@ -1,19 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import type { SearchHistory, SearchSuggestion, Notification } from '@/types';
-import { useLocalJson } from '@/composables/useLocalJson';
 import NavigationTop from '~/components/Navigation/Top.vue';
 import NavigationBar from '~/components/Navigation/Bar.vue';
 import NotificationButton from '~/components/Button/Notification.vue';
 
-const { data: searchHistory } = useLocalJson<SearchHistory[]>('search/history.json');
-const { data: searchSuggestions } = useLocalJson<SearchSuggestion[]>('search/suggestions.json');
-const { data: notifications } = useLocalJson<Notification[]>('social/notifications.json');
+const { data: searchHistory } = await useAsyncData<SearchHistory[]>('searchHistory', () => useLocalJson<SearchHistory[]>('search/history.json'), { default: () => [] });
+const { data: searchSuggestions } = await useAsyncData<SearchSuggestion[]>('searchSuggestions', () => useLocalJson<SearchSuggestion[]>('search/suggestions.json'), { default: () => [] });
+const { data: notifications } = await useAsyncData<Notification[]>('notifications', () => useLocalJson<Notification[]>('social/notifications.json'), { default: () => [] });
 
-const unreadCount = ref(0);
-if (notifications.value) {
-  unreadCount.value = notifications.value.filter(n => !n.read).length;
-}
+const unreadCount = computed(() => {
+  if (!notifications.value) return 0;
+  return notifications.value.filter(n => !n.read_at).length;
+});
 </script>
 
 <template>

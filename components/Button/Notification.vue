@@ -2,7 +2,7 @@
 const props = defineProps({
   unreadCount: {
     type: Number,
-    required: true,
+    default: 0,
   },
 });
 </script>

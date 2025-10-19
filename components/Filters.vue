@@ -36,9 +36,10 @@ function toggleAsset(asset) {
 
 function resetFilters() {
   filters.value = {
-    profitRange: [0, 100],
-    drawdownRange: [0, 100],
+    profitRange: [profitRange.value.min, profitRange.value.max],
+    drawdownRange: [drawdownRange.value.min, drawdownRange.value.max],
     assets: [],
+    status: 'all',
   };
   updateFilters();
 }
@@ -64,19 +65,19 @@ function resetFilters() {
     <div class="filter-group">
       <label>Profit Range:</label>
       <div class="range-inputs">
-        <input type="range" v-model="filters.profitRange[0]" min="0" max="100" @input="updateFilters">
-        <input type="range" v-model="filters.profitRange[1]" min="0" max="100" @input="updateFilters">
+        <input type="range" v-model.number="filters.profitRange[0]" :min="profitRange.min" :max="profitRange.max" @input="updateFilters">
+        <input type="range" v-model.number="filters.profitRange[1]" :min="profitRange.min" :max="profitRange.max" @input="updateFilters">
       </div>
-      <span class="range-display">{{ filters.profitRange[0] }}% - {{ filters.profitRange[1] }}%</span>
+      <span class="range-display">{{ filters.profitRange[0].toFixed(1) }}% - {{ filters.profitRange[1].toFixed(1) }}%</span>
     </div>
 
     <div class="filter-group">
       <label>Drawdown Range:</label>
       <div class="range-inputs">
-        <input type="range" v-model="filters.drawdownRange[0]" min="0" max="100" @input="updateFilters">
-        <input type="range" v-model="filters.drawdownRange[1]" min="0" max="100" @input="updateFilters">
+        <input type="range" v-model.number="filters.drawdownRange[0]" :min="drawdownRange.min" :max="drawdownRange.max" @input="updateFilters">
+        <input type="range" v-model.number="filters.drawdownRange[1]" :min="drawdownRange.min" :max="drawdownRange.max" @input="updateFilters">
       </div>
-      <span class="range-display">{{ filters.drawdownRange[0] }}% - {{ filters.drawdownRange[1] }}%</span>
+      <span class="range-display">{{ filters.drawdownRange[0].toFixed(1) }}% - {{ filters.drawdownRange[1].toFixed(1) }}%</span>
     </div>
 
     <div class="filter-group">

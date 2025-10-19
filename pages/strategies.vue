@@ -5,8 +5,10 @@ import Filters from '@/components/Filters.vue'
 import NavigationCreator from '@/components/Navigation/Creator.vue'
 import Comparator from '@/components/Comparator.vue'
 import { useStrategies } from '@/composables/useStrategies'
+import { useStrategiesStore } from '@/stores/strategies'
 
 const { strategies, fetchStrategies, updateStrategy, deleteStrategy, toggleStrategyStatus } = useStrategies()
+const strategiesStore = useStrategiesStore()
 
 const selectedStrategies = ref([])
 const showComparator = ref(false)
@@ -20,15 +22,14 @@ const currentFilters = ref({
 const filteredStrategies = computed(() => {
   return strategies.value.filter(strategy => {
     // Profit range filter
-    if (strategy.monthlyGain < currentFilters.value.profitRange[0] ||
-        strategy.monthlyGain > currentFilters.value.profitRange[1]) {
+    if (strategy.total_return_percentage < currentFilters.value.profitRange[0] ||
+        strategy.total_return_percentage > currentFilters.value.profitRange[1]) {
       return false
     }
 
-    // Drawdown range filter (convert negative values to positive for filtering)
-    const drawdownValue = Math.abs(strategy.monthlyDrawdown)
-    if (drawdownValue < currentFilters.value.drawdownRange[0] ||
-        drawdownValue > currentFilters.value.drawdownRange[1]) {
+    // Drawdown range filter
+    if (strategy.max_drawdown < currentFilters.value.drawdownRange[0] ||
+        strategy.max_drawdown > currentFilters.value.drawdownRange[1]) {
       return false
     }
 
@@ -39,7 +40,7 @@ const filteredStrategies = computed(() => {
 
     // Asset filter (if assets are specified)
     if (currentFilters.value.assets.length > 0) {
-      const strategyAssets = strategy.trades?.map(trade => trade.asset) || []
+      const strategyAssets = strategy.target_assets || []
       const hasMatchingAsset = currentFilters.value.assets.some(asset =>
         strategyAssets.includes(asset)
       )
@@ -81,6 +82,11 @@ function handleToggleStatus(strategyId) {
 
 onMounted(async () => {
   await fetchStrategies()
+  // Set data-driven ranges
+  const profitRange = strategiesStore.getRange('total_return_percentage')
+  const drawdownRange = strategiesStore.getRange('max_drawdown')
+  currentFilters.value.profitRange = [profitRange.min, profitRange.max]
+  currentFilters.value.drawdownRange = [drawdownRange.min, drawdownRange.max]
 })
 </script>
 

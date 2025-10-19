@@ -1,3 +1,3 @@
-export function useLocalJson<T>(path: string) {
-  return useAsyncData<T>(path, () => $fetch(`/data/${path}`));
+export async function useLocalJson<T>(path: string): Promise<T> {
+  return $fetch<T>(`/data/${path}`);
 }
