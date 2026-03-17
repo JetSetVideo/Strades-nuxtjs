@@ -39,16 +39,18 @@ const pulseDuration = computed(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: inherit;
+  width: 100%;
+  height: 100%;
   /* Bind the duration inline */
   animation: pulse-vibrate infinite ease-in-out;
 }
 
 @keyframes pulse-vibrate {
-  0% { transform: scale(1) translateY(0); color: #fff; }
-  25% { transform: scale(1.05) translateY(-1px); color: #31d0aa; /* flash green */ }
-  50% { transform: scale(1) translateY(0); color: #fff; }
-  75% { transform: scale(1.05) translateY(1px); color: #ed4b9e; /* flash red */ }
-  100% { transform: scale(1) translateY(0); color: #fff; }
+  0% { transform: scale(1) translateY(0); color: inherit; }
+  25% { transform: scale(1.05) translateY(-1px); color: var(--success-green, #31d0aa); /* flash green */ }
+  50% { transform: scale(1) translateY(0); color: inherit; }
+  75% { transform: scale(1.05) translateY(1px); color: var(--error-red, #ed4b9e); /* flash red */ }
+  100% { transform: scale(1) translateY(0); color: inherit; }
 }
 </style>

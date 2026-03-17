@@ -59,17 +59,16 @@ const returnColor = computed(() => {
 </template>
 <style scoped>
 .capital-counter-box {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(15, 15, 15, 0.95) 0%, rgba(5, 5, 5, 0.95) 100%);
   backdrop-filter: blur(20px);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--app-border-radius, 20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
-  padding: 30px;
-  min-width: 400px;
-  max-width: 500px;
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 100%;
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -81,10 +80,10 @@ const returnColor = computed(() => {
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #00aaff, #00ccff, #00aaff);
+  height: 2px;
+  background: linear-gradient(90deg, #31d0aa, #00aaff, #31d0aa);
   background-size: 200% 100%;
-  animation: shimmer 3s ease-in-out infinite;
+  animation: shimmer var(--app-animation-speed, 2s) ease-in-out infinite;
 }
 
 @keyframes shimmer {
@@ -93,23 +92,22 @@ const returnColor = computed(() => {
 }
 
 .capital-counter-box:hover {
-  transform: translateY(-5px);
+  transform: translateY(-2px);
   box-shadow:
-    0 15px 45px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+    0 12px 40px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .capital-header {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
 }
 
 .capital-header h3 {
   font-family: "Poppins", sans-serif;
-  font-size: 1.2rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.6);
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -117,17 +115,17 @@ const returnColor = computed(() => {
 
 .capital-main {
   text-align: center;
-  margin-bottom: 25px;
+  margin-bottom: 1.5rem;
 }
 
 .capital-counter {
   font-family: "Poppins", sans-serif;
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 700;
   color: white;
-  margin-bottom: 10px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.9) 100%);
+  margin-bottom: 0.25rem;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.8) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -135,10 +133,9 @@ const returnColor = computed(() => {
 
 .capital-return {
   font-family: "Poppins", sans-serif;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 .capital-actions {
@@ -147,26 +144,24 @@ const returnColor = computed(() => {
 }
 
 .switch-wallet-btn {
-  background: linear-gradient(135deg, rgba(0, 170, 255, 0.8) 0%, rgba(0, 204, 255, 0.8) 100%);
-  border: 1px solid rgba(0, 170, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
-  padding: 12px 24px;
-  border-radius: 12px;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--app-border-radius, 8px);
   cursor: pointer;
   font-family: "Poppins", sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 170, 255, 0.2);
 }
 
 .switch-wallet-btn:hover {
-  background: linear-gradient(135deg, rgba(0, 170, 255, 1) 0%, rgba(0, 204, 255, 1) 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 170, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
 }
 
 .switch-wallet-btn svg {
@@ -177,19 +172,20 @@ const returnColor = computed(() => {
   transform: rotate(45deg);
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
+@media (min-width: 768px) {
   .capital-counter-box {
-    min-width: 320px;
-    padding: 25px;
+    padding: 2rem;
+    max-width: 500px;
+    margin: 0 auto;
   }
-
   .capital-counter {
-    font-size: 2rem;
+    font-size: 2.5rem;
   }
-
   .capital-return {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
+  }
+  .capital-header h3 {
+    font-size: 1rem;
   }
 }
 </style>

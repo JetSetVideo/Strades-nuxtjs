@@ -32,18 +32,6 @@ const handleHover = (route: string) => {
     
     <SearchBar class="search-bar" :search-history="searchHistory" :search-suggestions="searchSuggestions" />
     
-    <nav class="living-icons">
-      <NuxtLink to="/prices" class="nav-item" @mouseenter="handleHover('prices')">
-        <PricesIcon :size="24" />
-      </NuxtLink>
-      <NuxtLink to="/news" class="nav-item" @mouseenter="handleHover('news')">
-        <NewsGlobeIcon :size="24" />
-      </NuxtLink>
-      <NuxtLink to="/wallet" class="nav-item" @mouseenter="handleHover('wallet')">
-        <WalletIcon :size="24" />
-      </NuxtLink>
-    </nav>
-    
     <slot></slot>
   </header>
 </template>

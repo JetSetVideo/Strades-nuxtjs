@@ -43,7 +43,9 @@ const coords = computed(() => {
   justify-content: center;
   transition: transform 1.5s cubic-bezier(0.25, 0.8, 0.25, 1);
   transform-style: preserve-3d;
-  color: #fff;
+  color: inherit;
+  width: 100%;
+  height: 100%;
 }
 .globe-svg {
   /* give it a slight global pulse or glow based on general styling */

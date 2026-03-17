@@ -87,10 +87,12 @@
 }
 
 /* Dark Theme Overrides */
-[data-theme="dark"] {
+[data-theme="dark"], html.dark, html.dark body {
   --bg-primary: linear-gradient(135deg, var(--secondary-darker) 0%, var(--secondary-dark) 100%);
   --text-primary: var(--text-white);
   --text-secondary: var(--text-gray);
+  background-color: #000000 !important;
+  color: var(--text-white);
 }
 
 /* Light Theme Overrides (if needed) */

@@ -3,29 +3,46 @@
 </script>
 <template>
  <header>
-    <h1>NavigationTop</h1>
+    <span class="nav-title">NavigationTop</span>
     <SearchBar />
-    <p>Prices</p>
+    <span class="nav-title">Prices</span>
     <ButtonLeaderboard />
   </header>
 </template>
 
-
-
 <style scoped>
 header {
   display: flex;
-  position: fixed; /* Fix the navbar to the top of the viewport */
-  top: 0; /* Position the navbar at the top of the viewport */
+  position: fixed;
+  top: 0;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  width: 100%; /* Make the navbar full-width */
-  height: 2rem;
-  padding: 1rem 5rem;
-  background: linear-gradient(270deg, #111 0%, rgba(33, 33, 33, 0.5) 50.06%, #111 100%);
-  box-shadow: 1rem 0px 0.5rem 0px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  height: 3.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(270deg, #111 0%, rgba(33, 33, 33, 0.5) 50%, #111 100%);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
   color: #ffffff;
+  z-index: 50;
+}
+
+.nav-title {
+  font-size: 1.2rem;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  header {
+    height: 4.5rem;
+    padding: 1rem 3rem;
+  }
+  .nav-title {
+    display: block;
+  }
 }
 </style>
   

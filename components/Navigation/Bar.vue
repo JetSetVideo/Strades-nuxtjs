@@ -1,70 +1,98 @@
 <script setup>
-import iconNews from "/icons/icon_News.png"
-import iconChat from "/icons/icon_Chat.png"
-import iconPrice from "/icons/icon_Prices.png"
-import iconStrategies from "/icons/icon_Strategies.png"
-import iconWallet from "/icons/Wallet.png"
+import { useMacroStore } from '~/stores/macro'
+import WalletIcon from '~/components/Navigation/Icons/WalletIcon.vue'
+import PricesIcon from '~/components/Navigation/Icons/PricesIcon.vue'
+import NewsGlobeIcon from '~/components/Navigation/Icons/NewsGlobeIcon.vue'
+import ChatBadgeIcon from '~/components/Navigation/Icons/ChatBadgeIcon.vue'
+import StrategyOrbitIcon from '~/components/Navigation/Icons/StrategyOrbitIcon.vue'
 </script>
 
 <template>
     <div class="">
         <div class="NavigationBar">
             <NuxtLink to="/prices" class="NavigationButton">
-                <img :src="iconPrice" alt="iconPrice" />
+                <PricesIcon :size="28" />
                 <p>Prices</p>
             </NuxtLink>
             <NuxtLink to="/news" class="NavigationButton">
-                <img :src="iconNews" alt="iconNews" />
+                <NewsGlobeIcon :size="28" />
                 <p>News</p>
             </NuxtLink>
             <NuxtLink to="/wallet" class="NavigationButton">
-                <img :src="iconWallet" alt="iconWallet" />
+                <WalletIcon :size="28" />
                 <p>Wallet</p>
             </NuxtLink>
             <NuxtLink to="/strategies" class="NavigationButton">
-                <img :src="iconStrategies" alt="iconStrategies"/>
+                <StrategyOrbitIcon :size="28" />
                 <p>Strategies</p>
             </NuxtLink>
             <NuxtLink to="/chat" class="NavigationButton">
-                <img :src="iconChat" alt="iconChat"/>
+                <ChatBadgeIcon :size="28" />
                 <p>Chat</p>
             </NuxtLink>
         </div>
     </div>
 </template>
 
-<style>
+<style scoped>
 .NavigationBar {
     display: flex;
-    position: fixed; /* Fix the navbar to the bottom of the viewport */
-    bottom: 0; /* Position the navbar at the bottom of the viewport */
+    position: fixed;
+    bottom: 0;
+    left: 0;
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: space-around; /* Distribute evenly on mobile */
     align-items: center;
-    width: 100%; /* Make the navbar full-width */
-    height: 4rem;
-    padding: 3.5rem 7rem;
-    background: linear-gradient(270deg, #111 -0.15%, rgba(68, 68, 68, 0.50) 50.06%, #111 99.96%);
-    box-shadow: 1rem 0px 8.089px 0px rgba(0, 0, 0, 0.25);
+    width: 100%;
+    height: 4.5rem; /* rem sizing */
+    padding: 0.5rem; /* smaller padding for mobile */
+    background: linear-gradient(270deg, #111 -0.15%, rgba(40, 40, 40, 0.90) 50%, #111 99.96%);
+    backdrop-filter: blur(10px);
+    box-shadow: 0px -4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 50; /* Add z-index */
 }
+
 .NavigationButton {
     display: flex;
-    padding: -1rem 0;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 0rem;
-    align-self: stretch;
-    color:#111111
+    gap: 0.2rem;
+    flex: 1; /* allow spreading */
+    color: rgba(255, 255, 255, 0.6);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border-radius: var(--app-border-radius, 8px);
+    padding: 0.4rem 0;
 }
+
+.NavigationButton p {
+    margin: 0;
+    font-size: 0.65rem;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 500;
+}
+
+/* Hover and Active states - No more stark white background */
 .NavigationButton:hover {
-    background-color: #ffffff;
-    box-shadow: 1rem 1rem 1rem #ffffff;
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.05);
+    transform: translateY(-2px);
 }
-img{
-    margin: 0.3rem;
-    width:5rem;
-    height:5rem;
-    filter: drop-shadow(0px 1.429px 3.571px rgba(0, 0, 0, 0.65)) drop-shadow(-1.429px -1.429px 4.643px rgba(0, 0, 0, 0.50));
+
+.router-link-exact-active {
+    color: var(--primary-green, #31d0aa);
+    background-color: rgba(49, 208, 170, 0.1);
+}
+
+/* Tablet/Desktop overrides */
+@media (min-width: 768px) {
+    .NavigationBar {
+        padding: 0 4rem;
+        height: 5rem;
+    }
+    .NavigationButton p {
+        font-size: 0.8rem;
+    }
 }
 </style>

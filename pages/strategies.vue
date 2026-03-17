@@ -158,23 +158,41 @@ onMounted(async () => {
 
 <style scoped>
 .strategies-page {
-  padding: 20px;
-  background-color: rgba(30, 30, 30, 0.8);
-  border-radius: 10px;
+  padding: 1rem;
+  background-color: var(--bg-primary, rgba(14, 14, 15, 1));
+  border-radius: var(--app-border-radius, 12px);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  min-height: 100vh;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .header h1 {
+  font-size: 1.5rem;
+  margin: 0;
   text-shadow:
     0 1px 3px rgba(255, 255, 255, 0.9),
     inset 0 1px 2px rgba(255, 255, 255, 0.4);
+}
+
+@media (min-width: 768px) {
+  .strategies-page {
+    padding: 2rem;
+  }
+  .header {
+    flex-direction: row;
+    margin-bottom: 1.5rem;
+  }
+  .header h1 {
+    font-size: 2.2rem;
+  }
 }
 
 .strategy-count {

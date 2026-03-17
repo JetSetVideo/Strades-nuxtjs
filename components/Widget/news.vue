@@ -172,9 +172,9 @@ const isBookmarked = newsStore.isBookmarked(props.article.id);
   }
 
   .arrow-buttons {
-    flex-direction: row;
-    margin-left: 0;
-    margin-bottom: var(--spacing-sm);
+    flex-direction: column;
+    margin-left: var(--spacing-sm);
+    margin-bottom: 0;
     justify-content: center;
   }
 

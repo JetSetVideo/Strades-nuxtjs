@@ -143,10 +143,10 @@ const navigateToConversation = (conversationId) => {
   min-height: 100vh;
   background: var(--bg-primary);
   color: var(--text-white);
-  padding: var(--spacing-lg);
+  padding: 5rem 1rem 6rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
+  gap: 1.5rem;
 }
 
 .loading-state {
@@ -176,44 +176,46 @@ const navigateToConversation = (conversationId) => {
 .chatbot {
   background: var(--card-bg);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
+  padding: 1.5rem;
   border: 1px solid var(--border-primary);
   box-shadow: var(--shadow-primary);
 }
 
 .chatbot-header {
   text-align: center;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: 1rem;
 }
 
 .chatbot-header h3 {
   color: var(--primary-green);
-  margin: 0 0 var(--spacing-sm) 0;
+  margin: 0 0 0.5rem 0;
   font-family: var(--font-family-primary);
-  font-size: 1.4rem;
+  font-size: 1.2rem;
 }
 
 .chatbot-header p {
   color: var(--text-gray);
   margin: 0;
   font-family: var(--font-family-secondary);
+  font-size: 0.9rem;
 }
 
 .chatbot-actions {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 0.8rem;
 }
 
 .chatbot-btn {
   background: var(--primary-gradient);
   color: var(--secondary-darker);
   border: none;
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: 0.75rem 1rem;
   border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 600;
   font-family: var(--font-family-secondary);
+  font-size: 0.95rem;
   transition: var(--transition-normal);
   text-align: center;
 }
@@ -229,47 +231,51 @@ const navigateToConversation = (conversationId) => {
 
 .section-header {
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-lg);
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 0.5rem;
 }
 
 .section-header h2 {
   color: var(--primary-green);
   margin: 0;
   font-family: var(--font-family-primary);
-  font-size: 1.8rem;
+  font-size: 1.4rem;
 }
 
 .conversation-count {
   color: var(--text-gray);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-family: var(--font-family-secondary);
 }
 
 .empty-state {
   text-align: center;
-  padding: var(--spacing-xxl);
+  padding: 2rem 1rem;
   background: var(--card-bg);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-primary);
 }
 
 .empty-icon {
-  font-size: 3rem;
-  margin-bottom: var(--spacing-md);
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
 }
 
 .empty-state h3 {
   color: var(--text-white);
-  margin: 0 0 var(--spacing-sm) 0;
+  margin: 0 0 0.5rem 0;
   font-family: var(--font-family-primary);
+  font-size: 1.1rem;
 }
 
 .empty-state p {
   color: var(--text-gray);
   margin: 0;
   font-family: var(--font-family-secondary);
+  font-size: 0.9rem;
   max-width: 400px;
   margin: 0 auto;
 }
@@ -277,14 +283,14 @@ const navigateToConversation = (conversationId) => {
 .conversations-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 0.8rem;
 }
 
 .conversation-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-lg);
+  gap: 1rem;
+  padding: 1rem;
   background: var(--card-bg);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-primary);
@@ -304,8 +310,8 @@ const navigateToConversation = (conversationId) => {
 }
 
 .conversation-avatar img {
-  width: 60px;
-  height: 60px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--border-secondary);
@@ -318,52 +324,55 @@ const navigateToConversation = (conversationId) => {
 
 .conversation-header {
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-sm);
+  align-items: flex-start;
+  margin-bottom: 0.25rem;
 }
 
 .conversation-name {
   color: var(--text-white);
   margin: 0;
   font-family: var(--font-family-primary);
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .conversation-time {
   color: var(--text-gray);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-family: var(--font-family-secondary);
 }
 
 .conversation-preview {
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 0.25rem;
 }
 
 .conversation-topic {
   color: var(--text-gray);
   margin: 0;
   font-family: var(--font-family-secondary);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
-  margin-right: var(--spacing-md);
+  width: 100%;
 }
 
 .conversation-meta {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 0.5rem;
 }
 
 .message-count {
   color: var(--text-gray);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-family: var(--font-family-secondary);
 }
 
@@ -379,64 +388,33 @@ const navigateToConversation = (conversationId) => {
   text-align: center;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
+/* Responsive Design Overrides for larger screens */
+@media (min-width: 768px) {
   .chat-page {
-    padding: var(--spacing-md);
+    padding: 6rem 2rem;
   }
-
-  .chatbot {
-    padding: var(--spacing-lg);
-  }
-
+  
   .section-header {
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
   }
-
-  .conversation-item {
-    padding: var(--spacing-md);
+  
+  .section-header h2 {
+    font-size: 1.8rem;
   }
-
+  
   .conversation-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-xs);
+    flex-direction: row;
+    align-items: center;
   }
-
+  
   .conversation-preview {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-xs);
+    flex-direction: row;
+    align-items: center;
   }
-
+  
   .conversation-topic {
-    margin-right: 0;
-  }
-}
-
-@media (max-width: 480px) {
-  .chatbot-actions {
-    gap: var(--spacing-sm);
-  }
-
-  .chatbot-btn {
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: 0.9rem;
-  }
-
-  .conversations-list {
-    gap: var(--spacing-sm);
-  }
-
-  .conversation-item {
-    gap: var(--spacing-md);
-  }
-
-  .conversation-avatar img {
-    width: 50px;
-    height: 50px;
+    width: auto;
   }
 }
 </style>

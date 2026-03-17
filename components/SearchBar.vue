@@ -41,6 +41,9 @@ const closePanel = () => {
       icon="i-heroicons-magnifying-glass-20-solid"
       @click="openPanel"
       :class="{ 'rotate-icon': isPanelOpen }"
+      class="search-trigger"
+      color="white"
+      variant="ghost"
     />
     <div v-if="isPanelOpen" class="search-panel">
       <UInput
@@ -49,7 +52,8 @@ const closePanel = () => {
         placeholder="Search..."
         icon="i-heroicons-magnifying-glass-20-solid"
         autocomplete="off"
-        :ui="{ icon: { trailing: { pointer: '' } } }"
+        class="search-input"
+        :ui="{ icon: { trailing: { pointer: '' }, base: 'text-white' } }"
       >
         <template #trailing>
           <UButton
