@@ -9,6 +9,10 @@ const props = defineProps({
   profileIcon: String,
   dailyChart: String,
   assetId: String,
+  liquidityDepth: { // Phase 5.2 Asset Liquidity Glow
+    type: Number,
+    default: 0.5 // 0.0 to 1.0
+  }
 })
 
 defineEmits(['click'])
@@ -55,10 +59,24 @@ const isPositive = computed(() => {
   if (!Number.isNaN(num)) return num > 0
   return p.includes('+') && !p.includes('-')
 })
+
+// Phase 5.2 Dynamic glow based on liquidity
+const dynamicGlow = computed(() => {
+  const glowRadius = props.liquidityDepth * 30
+  const color = isPositive.value ? 'rgba(0, 255, 136, 0.4)' : 'rgba(255, 68, 68, 0.4)'
+  return `0 0 ${glowRadius}px ${color}`
+})
+
+// Adaptive Border Radius
+const adaptiveRadius = `var(--app-border-radius, 12px)`
 </script>
 
 <template>
-  <div class="widget-asset" @click="$emit('click', assetId)">
+  <div 
+    class="widget-asset" 
+    @click="$emit('click', assetId)"
+    :style="{ borderRadius: adaptiveRadius, boxShadow: dynamicGlow }"
+  >
     <div class="profil-icon">
       <img :src="profileIcon" :alt="`${assetName} icon`">
       <div class="icon-overlay">{{ tagName }}</div>

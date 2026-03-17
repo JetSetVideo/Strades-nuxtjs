@@ -182,20 +182,22 @@ function navigateToAsset(assetId) {
   min-height: 100vh;
   background: var(--bg-primary);
   color: var(--text-white);
-  padding: var(--spacing-lg);
+  padding: 5rem 1rem 6rem 1rem; /* Added top padding to account for Top Nav and bottom for Bottom Nav */
 }
 
 .page-header {
   display: flex;
+  flex-direction: column; /* Better for mobile by default */
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-xl);
-  padding-bottom: var(--spacing-lg);
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-primary);
+  gap: 0.5rem;
 }
 
 .page-title {
-  font-size: 2.5rem;
+  font-size: 1.75rem; /* Smaller for mobile */
   font-weight: bold;
   background: var(--primary-gradient);
   -webkit-background-clip: text;
@@ -206,7 +208,28 @@ function navigateToAsset(assetId) {
 
 .last-updated {
   color: var(--text-gray);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+}
+
+/* Responsive Design */
+@media (min-width: 768px) {
+  .prices-page {
+    padding: 6rem 2rem 6rem 2rem;
+  }
+
+  .page-header {
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+  }
+
+  .page-title {
+    font-size: 2.5rem;
+  }
+  
+  .last-updated {
+    font-size: 0.9rem;
+  }
 }
 
 .loading-state {

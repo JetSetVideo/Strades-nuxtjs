@@ -52,13 +52,15 @@ declare module '#app' {
 </script>
 
 <template>
-  <NuxtLayout>
-    <NuxtPage />
-  </NuxtLayout>
+  <AppDynamicThemeController>
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
+  </AppDynamicThemeController>
 </template>
 
 <style>
-@font-face {
+/* @font-face {
   font-family: Ethnocentric;
   src: url("@/assets/fonts/ethnocentric-rg.otf") format("opentype");
 }
@@ -81,7 +83,7 @@ declare module '#app' {
 @font-face {
   font-family: SemiBoldItalic;
   src: url("@/assets/fonts/SemiBoldItalic.ttf");
-}
+} */
 
 .stroke-shadow {
   box-shadow: rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset,
