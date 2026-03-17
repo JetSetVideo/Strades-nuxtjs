@@ -1,69 +1,94 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useUsersStore } from '~/stores/users'
+import OverlaySlideover from '~/components/Overlay/Slideover.vue'
 
 const usersStore = useUsersStore()
-const currentUser = computed(() => usersStore.users?.[0] || usersStore.users)
+const currentUser = computed(() => usersStore.currentUser || usersStore.users?.[0] || null)
 const isOpen = ref(false)
 
 // Use local avatar from data/avatars folder
 const avatarSrc = computed(() => {
-  // Try to use the first available avatar or fallback to user avatar_url
-  return `/avatars/Ellipse5.png`
+  return currentUser.value?.avatar_url || `/avatars/Ellipse5.png`
+})
+
+onMounted(async () => {
+  // ensure placeholder "DB" is loaded, like a remote fetch would do
+  if (!usersStore.users.length && !usersStore.currentUser) {
+    await usersStore.initializeStore()
+  }
 })
 </script>
 
 <template>
 <div>
-    <UButton label="Open" @click="isOpen = true" class="avatar-button">
-        <div class="avatar-image-wrapper">
-            <img :src="avatarSrc" :alt="`${currentUser.first_name} ${currentUser.last_name} Avatar`" />
-        </div>
-    </UButton>
-    
-    <USlideover v-model="isOpen" side="left">
-        <div class="header">
-            <div class="avatar-image-wrapper">
-                <img :src="avatarSrc" :alt="`${currentUser.first_name} ${currentUser.last_name} Avatar`" />
+    <!-- Trigger (avatar icon) -->
+    <div
+      class="avatar-button"
+      role="button"
+      tabindex="0"
+      :class="{ 'is-open': isOpen }"
+      @click="isOpen = !isOpen"
+    >
+      <div class="avatar-image-wrapper">
+        <img :src="avatarSrc" :alt="`${currentUser?.first_name} ${currentUser?.last_name} Avatar`" />
+      </div>
+    </div>
+
+    <!-- Content (overlayed left drawer) -->
+    <OverlaySlideover v-model="isOpen" side="left" :overlay="true" width="clamp(18rem, 50vw, 32rem)">
+        <div class="profile-panel" @click.stop>
+          <div class="profile-hero">
+            <UButton
+              icon="i-heroicons-x-mark-20-solid"
+              color="gray"
+              variant="ghost"
+              size="sm"
+              class="absolute top-2 right-2 z-10 close-btn"
+              @click="isOpen = false"
+            />
+            <div class="profile-avatar">
+              <img :src="avatarSrc" :alt="`${currentUser?.first_name} ${currentUser?.last_name} Avatar`" />
             </div>
-            <span class="tag-name">{{ currentUser.first_name }} {{ currentUser.last_name }}</span>
-            <div class="user-info">
-                <div class="info-item">
-                    <span class="info-label">Username:</span>
-                    <span class="info-value">{{ currentUser.username }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Email:</span>
-                    <span class="info-value">{{ currentUser.email }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Date of Birth:</span>
-                    <span class="info-value">{{ new Date(currentUser.date_of_birth).toLocaleDateString() }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Country:</span>
-                    <span class="info-value">{{ currentUser.country }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Risk Tolerance:</span>
-                    <span class="info-value">{{ currentUser.risk_tolerance }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Trading Experience:</span>
-                    <span class="info-value">{{ currentUser.trading_experience }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Bio:</span>
-                    <span class="info-value">{{ currentUser.bio }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Total Portfolio:</span>
-                    <span class="info-value">${{ currentUser.total_portfolio_value?.toLocaleString() }}</span>
-                </div>
+            <div class="profile-title">
+              <span class="tag-name">{{ currentUser?.first_name }} {{ currentUser?.last_name }}</span>
             </div>
-            <ButtonSettings />
+          </div>
+
+          <div class="user-info" v-if="currentUser">
+            <div class="info-item">
+              <span class="info-label">Email:</span>
+              <span class="info-value">{{ currentUser.email || 'alice@example.com' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Date of Birth:</span>
+              <span class="info-value">{{ currentUser.date_of_birth ? new Date(currentUser.date_of_birth).toLocaleDateString() : 'Jan 1, 1990' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Country:</span>
+              <span class="info-value">{{ currentUser.country || 'USA' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Risk Tolerance:</span>
+              <span class="info-value">{{ currentUser.risk_tolerance || 'High' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Trading Experience:</span>
+              <span class="info-value">{{ currentUser.trading_experience || 'Expert' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Bio:</span>
+              <span class="info-value">{{ currentUser.bio || 'Active swing trader' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Total Portfolio:</span>
+              <span class="info-value">${{ currentUser.total_portfolio_value ? currentUser.total_portfolio_value.toLocaleString() : '100,000' }}</span>
+            </div>
+          </div>
+
+          <ButtonSettings />
         </div>
-    </USlideover>
+    </OverlaySlideover>
 </div>
 </template>
 
@@ -73,41 +98,45 @@ const avatarSrc = computed(() => {
   flex-direction: column;
   align-items: center;
   text-decoration: none;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: var(--app-border-radius, 15px);
-  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  padding: 0.25rem;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
   cursor: pointer;
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 .avatar-button:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .avatar-image-wrapper {
   border-radius: 50%;
-  border: 2px solid #00aaff;
+  border: 2px solid var(--primary-blue, #00aaff);
   display: flex;
   justify-content: center;
   align-items: center;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 170, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 170, 255, 0.2);
   transition: all 0.3s ease;
+  width: 100%;
+  height: 100%;
 }
 
 .avatar-image-wrapper:hover {
   border-color: #00ccff;
-  box-shadow: 0 6px 20px rgba(0, 204, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 204, 255, 0.4);
 }
 
 .avatar-image-wrapper img {
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   transition: transform 0.3s ease;
 }
@@ -118,53 +147,98 @@ const avatarSrc = computed(() => {
 
 .tag-name {
   font-family: "Poppins", sans-serif;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: white;
-  margin-top: 0.5rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  margin-top: 0.25rem;
+  display: none; /* Hide under normal circumstances, show only in slideover */
 }
 
-.header {
+/* Slideover layout is handled by components/Overlay/Slideover.vue */
+
+.avatar-button.is-open {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.profile-panel {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  align-items: center;
-  gap: 1rem;
-  background: var(--bg-primary, #000);
-  padding: 1.5rem;
+  align-items: stretch;
+  gap: 0.65rem;
+  background: transparent;
+  padding: 0.75rem;
   color: white;
   width: 100%;
   height: 100%;
   overflow-y: auto;
+  position: relative;
 }
 
-.header .avatar-image-wrapper {
-  border-width: 3px;
-  width: 5rem;
-  height: 5rem;
+.profile-hero {
+  position: relative;
+  min-height: 3.25rem;
+  padding: 0.25rem 0.25rem 0.25rem 3.75rem; /* leave room for avatar */
+  border-radius: calc(var(--app-border-radius, 12px) - 2px);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-.header .avatar-image-wrapper img {
-  width: 4.8rem;
-  height: 4.8rem;
+.profile-avatar {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 2px solid var(--primary-blue, #00aaff);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+  z-index: 30; /* stays above hero chrome */
+  background: rgba(0, 0, 0, 0.35);
 }
 
-.header .tag-name {
-  font-size: 1.4rem;
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-title {
+  display: flex;
+  align-items: center;
+  min-height: 3rem;
+  padding-right: 2.25rem; /* keep away from close button */
+}
+
+.close-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+}
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tag-name {
+  display: block;
+  font-size: 1rem;
   font-weight: 700;
-  background: linear-gradient(45deg, #00aaff, #00ccff);
+  background: linear-gradient(45deg, var(--primary-blue, #00aaff), #00ccff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   text-shadow: none;
+  margin-top: 0;
 }
 
 .user-info {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
-  padding: 1rem;
+  gap: 0.4rem;
+  padding: 0.6rem;
   width: 100%;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 12px;
@@ -173,48 +247,67 @@ const avatarSrc = computed(() => {
 
 .info-item {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-  padding: 0.5rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.35rem 0.5rem;
   background: rgba(255, 255, 255, 0.02);
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .info-label {
   font-family: "Poppins", sans-serif;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  color: #00aaff;
-  width: 100%;
+  color: var(--primary-blue, #00aaff);
+  width: auto;
   text-align: left;
 }
 
 .info-value {
   font-family: "Poppins", sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   font-weight: 500;
-  color: white;
-  width: 100%;
-  text-align: left;
+  color: var(--text-white, #fff);
+  width: auto;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
 }
 
 @media (min-width: 768px) {
-  .info-item {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem;
+  :deep([data-slot="content"]) {
+    width: 20rem !important;
   }
+
+  .profile-panel {
+    padding: 0.9rem;
+    gap: 0.75rem;
+  }
+
+  .profile-avatar {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+
+  .profile-hero {
+    padding-left: 4.1rem;
+    min-height: 3.6rem;
+  }
+
+  .tag-name {
+    font-size: 1.1rem;
+  }
+
   .info-label {
-    width: auto;
-    flex: 1;
+    font-size: 0.75rem;
   }
   .info-value {
-    width: auto;
-    flex: 2;
-    text-align: right;
+    font-size: 0.85rem;
   }
 }
 </style>

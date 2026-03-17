@@ -3,9 +3,9 @@
 </script>
 <template>
  <header>
-    <span class="nav-title">NavigationTop</span>
-    <SearchBar />
-    <span class="nav-title">Prices</span>
+    <div class="center-title">
+      <h1 class="header-title">Market Prices</h1>
+    </div>
     <ButtonLeaderboard />
   </header>
 </template>
@@ -21,27 +21,44 @@ header {
   width: 100%;
   height: 3.5rem;
   padding: 0.5rem 1rem;
-  background: linear-gradient(270deg, #111 0%, rgba(33, 33, 33, 0.5) 50%, #111 100%);
+  background: linear-gradient(135deg, rgba(15, 15, 15, 0.95) 0%, rgba(25, 25, 25, 0.95) 50%, rgba(15, 15, 15, 0.95) 100%);
   backdrop-filter: blur(10px);
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
   color: #ffffff;
-  z-index: 50;
 }
 
-.nav-title {
+header > * {
+  flex-shrink: 0;
+}
+
+.center-title {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.header-title {
   font-size: 1.2rem;
+  font-weight: 700;
+  background: linear-gradient(45deg, #fff, var(--primary-blue, #00aaff));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
   font-family: 'Poppins', sans-serif;
-  font-weight: 600;
-  display: none;
+  letter-spacing: 0.5px;
 }
 
 @media (min-width: 768px) {
   header {
-    height: 4.5rem;
-    padding: 1rem 3rem;
+    height: 4rem;
+    padding: 0.75rem 2rem;
   }
-  .nav-title {
-    display: block;
+  .header-title {
+    font-size: 1.5rem;
   }
 }
 </style>

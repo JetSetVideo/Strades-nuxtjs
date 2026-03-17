@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { useFetch } from 'nuxt/app'
 
 // Types for user management
 export interface User {
@@ -120,10 +119,16 @@ export const useUsersStore = defineStore('users', {
         this.loading = true
         let usersData: User[] = []
         try {
-          usersData = await $fetch<User[]>('/data/core/users.json')
+          // "Mock DB" path (preferred)
+          usersData = await $fetch<User[]>('/data/user/users.json')
         } catch (e) {
-          // Fallback to legacy Users.json (capitalized) at data root
-          usersData = await $fetch<User[]>('/data/Users.json')
+          try {
+            // Fallback to core users
+            usersData = await $fetch<User[]>('/data/core/users.json')
+          } catch (e2) {
+            // Fallback to legacy Users.json (capitalized) at data root
+            usersData = await $fetch<User[]>('/data/Users.json')
+          }
         }
         this.users = usersData
       } catch (error) {
@@ -152,11 +157,30 @@ export const useUsersStore = defineStore('users', {
       }
     },
 
+    async initializeCurrentUser() {
+      // Try to load session-like pointer (mock server behavior)
+      try {
+        const session = await $fetch<{ current_user_id?: string }>('/data/user/session.json')
+        if (session?.current_user_id) {
+          await this.setCurrentUser(session.current_user_id)
+          return
+        }
+      } catch {
+        // ignore and fallback below
+      }
+
+      if (!this.currentUser && this.users.length > 0) {
+        await this.setCurrentUser(this.users[0].id)
+      }
+    },
+
     async initializeStore() {
       await Promise.all([
         this.fetchUsers(),
         this.fetchUserAssets()
       ])
+
+      await this.initializeCurrentUser()
     },
 
     updateUserProfile(userId: string, updates: Partial<User>) {

@@ -1,0 +1,103 @@
+[
+  {
+    "id": "user_001",
+    "username": "Alice",
+    "email": "alice@example.com",
+    "first_name": "Alice",
+    "last_name": "Morgan",
+    "avatar_url": "/avatars/Ellipse5.png",
+    "bio": "Active swing trader",
+    "date_of_birth": "1990-01-01",
+    "country": "USA",
+    "city": "New York",
+    "timezone": "America/New_York",
+    "language": "en",
+    "risk_tolerance": "high",
+    "trading_experience": "advanced",
+    "investment_goals": ["growth", "alpha", "income"],
+    "preferred_assets": ["BTC", "ETH", "AAPL", "XAU"],
+    "total_portfolio_value": 100000,
+    "account_balance": 1250,
+    "total_invested": 85000,
+    "total_returns": 15000,
+    "win_rate": 62.5,
+    "total_trades": 250,
+    "active_strategies_count": 3,
+    "friends_count": 42,
+    "joined_date": "2025-06-01T12:00:00Z",
+    "last_login": "2026-03-17T10:00:00Z",
+    "is_active": true,
+    "is_verified": true,
+    "two_factor_enabled": false,
+    "notification_preferences": {
+      "email": true,
+      "push": true,
+      "sms": false,
+      "trade_alerts": true,
+      "price_alerts": true
+    },
+    "privacy_settings": {
+      "profile_visibility": "public",
+      "portfolio_visibility": "friends_only",
+      "trading_history_visibility": "friends_only"
+    },
+    "achievements": [
+      {
+        "id": "ach_001",
+        "name": "First Strategy",
+        "description": "Deployed your first strategy",
+        "unlocked_date": "2025-07-12T09:00:00Z",
+        "icon": "spark"
+      }
+    ],
+    "created_at": "2025-06-01T12:00:00Z",
+    "updated_at": "2026-03-17T10:00:00Z"
+  },
+  {
+    "id": "user_002",
+    "username": "Bob",
+    "email": "bob@example.com",
+    "first_name": "Bob",
+    "last_name": "Chen",
+    "avatar_url": "/avatars/Ellipse6.png",
+    "bio": "Long-term investor",
+    "date_of_birth": "1987-10-18",
+    "country": "Canada",
+    "city": "Toronto",
+    "timezone": "America/Toronto",
+    "language": "en",
+    "risk_tolerance": "moderate",
+    "trading_experience": "intermediate",
+    "investment_goals": ["wealth", "stability"],
+    "preferred_assets": ["SPY", "AAPL", "MSFT"],
+    "total_portfolio_value": 80000,
+    "account_balance": 980,
+    "total_invested": 72000,
+    "total_returns": 8000,
+    "win_rate": 58,
+    "total_trades": 180,
+    "active_strategies_count": 1,
+    "friends_count": 18,
+    "joined_date": "2025-09-20T12:00:00Z",
+    "last_login": "2026-03-16T18:10:00Z",
+    "is_active": true,
+    "is_verified": true,
+    "two_factor_enabled": true,
+    "notification_preferences": {
+      "email": true,
+      "push": false,
+      "sms": false,
+      "trade_alerts": true,
+      "price_alerts": false
+    },
+    "privacy_settings": {
+      "profile_visibility": "public",
+      "portfolio_visibility": "private",
+      "trading_history_visibility": "private"
+    },
+    "achievements": [],
+    "created_at": "2025-09-20T12:00:00Z",
+    "updated_at": "2026-03-16T18:10:00Z"
+  }
+]
+

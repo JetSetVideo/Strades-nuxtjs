@@ -1,20 +1,30 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps({
+  trades: {
+    type: Array,
+    default: () => []
+  },
   strategies: {
     type: Array,
-    required: true
+    default: () => []
   }
 });
 
 const allTransactions = computed(() => {
-  return props.strategies.flatMap(strategy => 
-    strategy.trades.map(trade => ({
-      ...trade,
-      strategyName: strategy.name
-    }))
-  );
+  if (props.trades && props.trades.length > 0) {
+    return props.trades;
+  }
+  if (props.strategies && props.strategies.length > 0) {
+    return props.strategies.flatMap(strategy => 
+      (strategy.trades || []).map(trade => ({
+        ...trade,
+        strategyName: strategy.name
+      }))
+    );
+  }
+  return [];
 });
 </script>
 
@@ -23,10 +33,10 @@ const allTransactions = computed(() => {
       <p>Transaction History</p>
       <ul>
         <li v-for="(transaction, index) in allTransactions" :key="index">
-          {{ transaction.strategyName }} - {{ transaction.asset }}: 
-          Entry: {{ transaction.entryPrice }}, 
-          Exit: {{ transaction.exitPrice }}, 
-          Date: {{ transaction.date }}
+          {{ transaction.strategyName || 'Trade' }} - {{ transaction.asset || 'Asset' }}: 
+          Entry: {{ transaction.entryPrice || '-' }}, 
+          Exit: {{ transaction.exitPrice || '-' }}, 
+          Date: {{ transaction.date || '-' }}
         </li>
       </ul>
     </div>

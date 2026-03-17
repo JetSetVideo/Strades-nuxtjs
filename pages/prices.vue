@@ -104,7 +104,6 @@ function navigateToAsset(assetId) {
   <div class="prices-page">
     <!-- Header -->
     <div class="page-header">
-      <h1 class="page-title">Market Prices</h1>
       <div class="last-updated" v-if="assetsStore.lastUpdated">
         Last updated: {{ new Date(assetsStore.lastUpdated).toLocaleTimeString() }}
       </div>
@@ -187,28 +186,18 @@ function navigateToAsset(assetId) {
 
 .page-header {
   display: flex;
-  flex-direction: column; /* Better for mobile by default */
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-primary);
-  gap: 0.5rem;
-}
-
-.page-title {
-  font-size: 1.75rem; /* Smaller for mobile */
-  font-weight: bold;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0;
-  font-family: var(--font-family-primary);
+  flex-direction: row;
+  justify-content: flex-end; /* Align last-updated to the right */
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .last-updated {
-  color: var(--text-gray);
-  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  font-family: 'Poppins', sans-serif;
 }
 
 /* Responsive Design */
@@ -217,18 +206,8 @@ function navigateToAsset(assetId) {
     padding: 6rem 2rem 6rem 2rem;
   }
 
-  .page-header {
-    flex-direction: row;
-    align-items: center;
-    gap: 0;
-  }
-
-  .page-title {
-    font-size: 2.5rem;
-  }
-  
   .last-updated {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 }
 

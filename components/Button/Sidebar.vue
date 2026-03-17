@@ -3,9 +3,10 @@
 const isOpen = ref(false);
 </script>
 <template>
-<UButton label="Open" @click="isOpen = true" />
+<USlideover>
+  <UButton label="Open" />
 
-    <USlideover v-model="isOpen" prevent-close>
+  <template #content="{ close }">
       <UCard
         class="flex flex-col flex-1"
         :ui="{
@@ -26,7 +27,7 @@ const isOpen = ref(false);
               variant="ghost"
               icon="i-heroicons-x-mark-20-solid"
               class="-my-1"
-              @click="isOpen = false"
+              @click="close"
             />
           </div>
         </template>
@@ -37,7 +38,8 @@ const isOpen = ref(false);
               <NuxtLink to="/community" class="nav-button">Community</NuxtLink>
         </div>
       </UCard>
-    </USlideover>
+  </template>
+</USlideover>
 </template>
 <style scoped>
 .menuLinks{
