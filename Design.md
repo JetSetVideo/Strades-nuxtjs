@@ -1,70 +1,48 @@
-# Design and Coding Standards
+# Design & User Experience Guidelines
 
-Refer to [README.md](./README.md) and [Structure.md](./Structure.md) for architectural overview and organization principles. This document outlines UI/UX design guidelines, coding standards, and best practices for development.
+This document explains the designer's perspective on how the user interacts with Strades. It dictates how data, time, and space interact to form a living, breathing UI where every data point visibly influences the aspect (form, size, color, animation) of the application.
 
-## Base Design Principles
+## The User Journey: A Living Financial Organism
 
-### UI/UX Foundations
-- **Responsive Design**: Ensure adaptability across devices (mobile, tablet, desktop) using CSS Grid, Flexbox, and media queries.
-- **Accessibility (a11y)**: Implement WCAG guidelines with semantic HTML5, ARIA attributes, keyboard navigation, and sufficient color contrast.
-- **Theme Customization**: Support light/dark modes and internationalization (i18n) via CSS custom properties and Vue i18n.
-- **Performance**: Optimize for fast rendering, lazy loading images, and minimal CSS/JS bundles.
+### 1. Opening the App (Global Glance)
+When the user opens Strades, they shouldn't need to click anything to understand the state of their finances and the world. 
+- The background depth and lighting (`oklch` shifts) immediately communicate market sentiment (bright/cool for bull markets, dim/warm for bear markets).
+- The **Top Navigation Menu Icons** are not static; they are animated micro-dashboards providing immediate feedback.
 
-### Semantic HTML5 and CSS
-- Utilize semantic elements (`<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<aside>`, `<footer>`) for structure.
-- Employ modern CSS techniques: CSS Grid for layouts, Flexbox for alignment, CSS custom properties for theming.
-- Avoid CSS frameworks; maintain pure CSS for full control and optimization.
-- Centralize design tokens (colors, fonts, shadows, spacing) in `assets/css/values.css` for consistency.
+### 2. The Living Navigation Icons (Micro-Dashboards)
+The menu icons reflect the perpetual financial fluctuations and the state of the pages they link to:
+- **Prices Icon**: Acts as a mini-sparkline or ticker. If global volatility is high, the icon vibrates or pulses. Colors trend red or green based on the daily delta.
+- **News Icon**: A globe that actively rotates to point towards the geographic origin of the latest breaking news or highest geopolitical stress zone.
+- **Wallet Icon**: A live, miniature pie-chart representing the user's exact 100% allocation across fiat, crypto, stocks, and commodities. As the strategy code rebalances the wallet, this icon visibly morphs.
+- **Messages Icon**: Pulses based on the `emotional_urgency` of unread messages. High urgency = faster, sharper pulsing.
+- **Creator (Strategy) Icon**: Nodes orbit the icon. The speed of the orbit reflects the `execution_frequency` of the user's active strategies.
 
-## Vue.js Development Guidelines
+### 3. The 100% Allocation Paradigm (Space & Interaction)
+The concept of betting the wallet as a full percentage dominates the UX.
+- **Interaction**: Sliders and drag-and-drop mechanics are used instead of text inputs for capital allocation. Increasing the Crypto allocation visually squeezes the Fiat, Stocks, and Commodities allocations, enforcing the 100% limit in real-time.
+- **Space**: The screen real estate dedicated to an asset class in the Wallet view is proportional to its percentage in the portfolio. A 80% Crypto allocation means crypto UI cards dominate the screen layout visually.
 
-### Component Composition
-- Leverage Vue 3 Composition API for reactive logic in `<script setup>`.
-- Use single-file components (SFCs) with scoped styles to prevent style leakage.
-- Implement props with TypeScript interfaces for type safety (e.g., `defineProps<{ title: string; }>()`).
-- Emit events descriptively (e.g., `emit('update:modelValue', value)`).
+## Mapping Secondary Data to Visual Aspects
 
-### Reactive Programming
-- Utilize `ref()`, `reactive()`, and `computed()` for state management within components.
-- Prefer composables for shared logic to maintain reactivity and reusability.
+Every piece of secondary data translates to a CSS custom property (variable) that influences the component's geometry.
 
-### Lifecycle and Performance
-- Optimize with `onMounted()`, `onUnmounted()` for side effects.
-- Use `v-memo` for conditional rendering and `keep-alive` for component caching.
-- Implement virtual scrolling for large lists using libraries like vue-virtual-scroller.
+### Form (Border Radius, Sharpness, Compactness)
+- **User Risk Tolerance**: Conservative users get softer, rounded UI elements (e.g., `--base-radius: 16px`). Aggressive, high-frequency traders get sharp, highly compact interfaces (`--base-radius: 0px`, reduced padding) to fit more data on screen.
+- **Asset Dominance**: If Crypto dominates the 100% allocation, the entire app adopts a more "cyber/sharp" motif. If Fiat dominates, it adopts a "traditional banking/soft" motif.
 
-## TypeScript Integration
+### Size (Scale, DOM Footprint)
+- **Market Cap / Liquidity**: In lists and heatmaps, asset cards scale slightly based on their relative liquidity depth. Highly liquid assets have a larger click target and a subtle spatial glow.
+- **Confidence Scores**: Inside the Strategy Creator, nodes with a low `confidence_score` shrink and become translucent, allowing the user to visually identify weak links in their logic tree.
 
-### Type Safety
-- Define interfaces and types for all data structures, props, and API responses.
-- Use generics for reusable types (e.g., `ApiResponse<T>`).
-- Enable strict mode in `tsconfig.json` for comprehensive type checking.
-- Avoid `any`; prefer union types or optional properties.
+### Color (Oklch, Hues, Lighting)
+- **Geopolitical Stress / Sentiment**: Affects the global background lighting. A high stress index shifts the environmental shadows to a warmer, tense hue.
+- **Political Leaning (News)**: Article cards subtly tint their background `oklch` value based on the NLP-derived political leaning of the text, allowing users to gauge bias at a glance.
+- **Profit/Loss (PnL)**: Naturally uses green/red, but the *saturation* of the color correlates with the *percentage magnitude* of the gain/loss.
 
-### Advanced Features
-- Implement utility types like `Pick<>` and `Omit<>` for selective interfaces.
-- Use mapped types for dynamic object transformations.
-- Leverage decorators if using experimental features, but prefer composition over inheritance.
+### Animation (Speed, Frequency, Rhythm)
+- **Fluctuation Velocity**: The rate of price change directly drives CSS `--animation-duration`. High volatility means the UI breathes, pulses, and transitions rapidly. Low volatility results in slow, calm transitions.
+- **Flow Velocity**: The speed at which capital automatically flows between asset classes (driven by the user's strategy code) is visualized as animated border-trails or particle flows connecting the UI components on the Wallet page.
 
-
-# Colors and fonts management:
-The colors and fonts are setted in the settings page, in the "Colors" and "Fonts" sections.
-2 types of fonts are used in the application. The Main one is used for all the hardcoded texts in the application. The second font for all the data coming from the data/ directory.
-The text color depends on the theme of the application.
-The text size depends on the size of the screen used by the user (mobile, tablet, desktop).
-The font is bold for the titles and regular for the text.
-The colors code by default is green for the positive values and red for the negative values.
-The 3rd font Ethnocentric is only used for the name of the application: "Strades".
-
-Create a sense of depth by using shades of background values that increases by a value of 0.1 (oklch) for each layer.
-The button inner and outer shadows colors and placement are depending on the state of the button and its position. By default, a button has a lighter color inner shadow and a black outer shadow.
-The dark inner shadow is used to give the button a pressed effect after the user clicks on it. While the outer shadow is used to give a raised effect.
-The filter buttons have 3 states: off, neutral, on. The off state has a darker inner shadow and a lighter outer shadow. The neutral state has a lighter inner shadow and a lighter outer shadow. The on state has a darker inner shadow and a darker outer shadow.
-
-Glassmorphism is used for the background of the components. A blur effect is used to give the components a transparent effect.
-The shadow is used to give the components a raised effect.
-
-The border radius is used to give the components a rounded effect.
-The border is used to give the components a border effect.
-The border color,width,style,radius is used to give the components a border color,width,style,radius effect.
-A ligth source is used to give all the components in a page a light effect.
+## UX Loading & Predictive Rendering
+- **No Spinners**: Avoid generic loading spinners. Use skeleton layouts that instantly inherit the user's specific geometric forms (sharp vs rounded).
+- **Hover Predictions**: Hovering over a Living Icon for >200ms begins pre-fetching the target page's JSON data, ensuring that when the click occurs, the spatial transition is immediate and seamless.

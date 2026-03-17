@@ -1,130 +1,41 @@
-# Data Tracking, Ingestion, and AI Integration Guidelines
+# Coding Agent & AI Implementation Schema
 
-Refer to [README.md](./README.md) and [Structure.md](./Structure.md) for project context and architecture. This document provides guidelines for implementing efficient data tracking, backend ingestion, cleaning pipelines, and AI model integration in Strades.
+This document details the Machine Learning pipelines, the 100% Allocation Enforcer, and the Predictive Pre-fetching engines that power Strades.
 
-Always follow the data flow from the json files in the data/ directory to the frontend components in both way to insure that everything extracted is shown. In the other way, everything interacted with should be tracked and stored in the json files.
+## 1. The 100% Allocation Mathematical Enforcer
 
-## Base Concepts in Data Handling
+The core philosophy of the application is that capital is never idle; it is a 100% pie chart constantly shifting based on the user's opinions and strategy code.
 
-### Event-Driven Architecture
-Strades employs an event-driven approach for capturing user interactions, ensuring non-blocking data collection. Events are standardized JSON objects with fields like `userId`, `timestamp`, `eventType`, `target`, and `dataPayload`.
+### Logic Implementation (`stores/wallet.ts`)
+- **Constraint Solver**: When an AI Avatar node or a user action dictates an increase in Crypto allocation by +10%, the Enforcer algorithm must automatically determine where that 10% is withdrawn from (Fiat, Stocks, or Commodities).
+- **Proportional Reduction**: By default, reductions are taken proportionally across the other classes based on user-defined risk hierarchies, unless strictly specified by a node in the Strategy Creator.
 
-### Asynchronous Data Processing
-All tracking operations must be asynchronous to maintain UI responsiveness. Use WebSockets for real-time streaming and client-side queuing for reliability.
+## 2. Predictive Pre-fetching Engine
 
-### Data Lifecycle
-Data flows from raw events → aggregated insights → AI training features. Implement scheduled jobs for cleaning and compression to manage storage efficiently.
+To achieve a "zero-latency, living UI", the application uses a lightweight Markov Chain model running in a WebWorker to predict the user's next click.
 
-## Data Simulation and Prototyping
+### Implementation (`stores/prefetch.ts`)
+- **Input Features**: Mouse coordinates, hover duration on the Living Icons, current time of day, and the user's historical `behavioral_history` (e.g., "User always checks Prices after reading a News alert").
+- **Action**: If probability of clicking the 'Wallet' icon exceeds 65% (triggered by hovering for >200ms), the system silently dispatches the Fetch API calls for `core/wallets.json` and loads the data into the Pinia store. When the click occurs, the spatial transition is instant.
 
-### Mock Data Handling
-- Simulate data exclusively in `data/` directory JSON files to mirror future database schema.
-- Structure mock data hierarchically (e.g., `data/strategies/`, `data/wallet/`) for easy migration.
-- Use TypeScript interfaces to type mock data, ensuring consistency with real data models.
+## 3. The Opinion Engine & Avatar ML Pipeline
 
-### Development Workflow
-- Load mock data via composables or stores during development (e.g., `useStrategies()` fetching from JSON).
-- Implement conditional logic to switch between mock and real data sources in production.
-- Validate mock data against schemas to prevent inconsistencies.
+The Swarm Intelligence Avatar acts as a proxy for the user's "Opinion" on perpetual financial fluctuations.
 
-# css naming conventions 
-Preferred convention for naming in CSS, especially for larger, more maintainable projects, is BEM (Block–Element–Modifier).
+### Feature Engineering (Tracking to Tensors)
+- The tracking payload (`tracking/user_interactions.json`) captures every nuanced interaction: the time spent reading an article with a specific `political_leaning`, the manual adjustment of the `AllocationSlider`, and the exact market state during those actions.
+- These vectors are compressed via PCA into the `avatar.personality_matrix` (Risk, Aggression, Reaction Speed).
 
-- use kebab-case for css classes,ids, variables, functions, mixins, animations, transitions, media queries
+### Reinforcement Learning (RL) for Financial Code
+- **Reward Function**: The AI is trained using the user's historical PnL as the reward. 
+- **Output**: The Avatar outputs an Opinion Vector, e.g., `[Fiat: 20%, Crypto: 50%, Stocks: 30%, Commodities: 0%]`.
+- **Execution**: When dropped into the `Builder/NodeCanvas.vue` by another user, this Opinion Vector acts as a live data source, overriding the host user's allocation if given sufficient weight.
 
-# vue naming conventions
-- use kebab-case for vue components,props,emits,methods,computed,watch,lifecycle hooks,directives,filters,plugins,stores
+## 4. Real-time Rendering Performance (D3 & Vue)
 
-## Frontend Tracking Implementation
+To prevent the dynamic forms, colors, and sizes from crashing the browser:
+- **Throttling**: The `fluctuation_velocity` data stream from WebSockets is throttled using `requestAnimationFrame`. CSS variable updates are batched.
+- **Off-Main-Thread Physics**: The forces for the `Corporate/NetworkGraph.vue` and the Strategy node layout must be computed in a WebWorker and passed back as an array of exact X/Y coordinates to the Vue template.
 
-### Efficient Event Capture
-Prioritize performance to avoid impacting user experience:
-
-- **Macro Activities (Session/Page Level)**: Capture session start/end via Nuxt middleware/plugins, using `navigator.sendBeacon()` for reliable unload logging. Track page views with Nuxt Router hooks, logging path, component, and timestamp.
-- **Micro Activities (Interactions)**: Implement custom composables (e.g., `useTracker()`) or Vue directives (e.g., `v-track:click`) for easy event binding.
-- **High-Frequency Events**: For chart interactions, throttle updates (e.g., 100ms intervals) and batch data client-side before transmission.
-- **Data Payload Logging**: Include dataset IDs, types, and actions in events for comprehensive tracking.
-
-### Data Transmission Strategy
-Ensure high-volume, low-latency handling:
-
-- **WebSockets**: Use Socket.io for real-time event streaming to the backend.
-- **Client-Side Queuing**: Implement IndexedDB-based queues for offline resilience, batching events during connection issues.
-
-## Backend Data Ingestion
-
-### Scalable Ingestion Architecture
-Design for high-throughput writes:
-
-- **Server-Side Handling**: Utilize Nuxt server API routes or separate Node.js/Express microservices for WebSocket management.
-- **Event Schema Standardization**: Maintain lightweight JSON structure for all events (see example below) to ensure consistency and parsing efficiency.
-
-```json
-{
-  "userId": "uuid",
-  "timestamp": 1678886400000,
-  "eventType": "click",
-  "target": "chart_button_buy",
-  "dataPayload": {
-    "instrumentId": "BTC-USD",
-    "value": 1.0,
-    "coords": []
-  }
-}
-```
-
-### High-Volume Storage Solutions
-Select databases optimized for time-series and document data:
-
-- **Time-Series Databases (TSDB)**: Use InfluxDB or TimescaleDB for fast ingestion of timestamped events and efficient querying.
-- **Document Databases**: Employ MongoDB for flexible schemas accommodating varied `dataPayload` structures.
-
-## Data Cleaning and Compression Pipeline
-
-### Asynchronous Processing Workflow
-Implement scheduled, non-blocking jobs for data management:
-
-- **Scheduling**: Use Cron or BullMQ for periodic execution (e.g., daily at 3:00 AM local time).
-- **Aggregation Logic**: Transform raw events into summarized insights. Example: Convert 1000 hourly clicks into aggregated metrics like interaction counts, time ranges, and max values per instrument.
-
-### Data Bucketing and Storage Strategy
-Organize data hierarchically:
-
-- **Bucketing**: Aggregate into time-based buckets (e.g., hourly, daily, weekly) for efficient querying.
-- **Tiered Storage**:
-  - **Short-Term Analytical DB**: Store compressed aggregates in PostgreSQL/TimescaleDB for real-time user reporting.
-  - **Long-Term Archival**: Compress raw logs with Gzip/Snappy and archive to S3, GCS, or data lakes for future re-analysis.
-
-## Behavioral Reporting and AI Training
-
-### User Dashboard Integration
-Leverage aggregated data for personalized insights:
-
-- **Visualization Techniques**: Implement heatmaps for trading time distributions and bar charts for data preference metrics.
-- **Real-Time Updates**: Query analytical DB for dynamic dashboard population.
-
-### AI Model Development
-Create predictive avatars based on behavioral data:
-
-- **Feature Engineering**: Extract features from aggregated data, including market context (price, volume) and behavioral patterns (trade frequency, profitability).
-- **Model Architecture**: Use RNNs (e.g., LSTM) or Transformers for sequence modeling of time-series behaviors.
-- **Training Pipeline**:
-  - **Base Model**: Train on anonymized global datasets for general market knowledge.
-  - **Personalization**: Fine-tune with user-specific aggregates for individualized predictions.
-- **Deployment**: Host as a microservice (Django/FastAPI) for real-time querying by the application.
-
-## Code Quality and Tools
-
-### Linting and Formatting
-- Configure ESLint with Vue and TypeScript rules for code quality.
-- Use Prettier for consistent formatting, integrated with ESLint.
-
-### Testing
-- Write unit tests with Vitest for composables, stores, and utilities.
-- Use Vue Test Utils for component testing, focusing on props, events, and DOM interactions.
-- Implement integration tests for page-level functionality.
-
-### Build and Deployment
-- Utilize Vite for fast builds and hot module replacement (HMR).
-- Optimize bundles with code splitting and tree shaking.
-- Deploy via Vercel with static generation for public pages and SSR for dynamic content.
+## 5. Development Pipeline Notes
+- All machine learning scripts simulating the Avatar generation (for development mock data) should output strictly to `data/core/users.json` within the `avatar.ml_features` block to ensure the frontend can parse it predictably.
