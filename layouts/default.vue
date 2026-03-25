@@ -10,7 +10,7 @@ const { data: searchSuggestions } = await useAsyncData<SearchSuggestion[]>('sear
 const { data: notifications } = await useAsyncData<Notification[]>('notifications', () => useLocalJson<Notification[]>('social/notifications.json'), { default: () => [] });
 
 const unreadCount = computed(() => {
-  if (!notifications.value) return 0;
+  if (!Array.isArray(notifications.value)) return 0;
   return notifications.value.filter(n => !n.read_at).length;
 });
 </script>
