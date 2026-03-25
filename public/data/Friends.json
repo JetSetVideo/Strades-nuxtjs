@@ -1,72 +1,86 @@
 [
   {
-    "id": 1,
-    "name": "Ben Stiller",
-    "username": "benstiller",
-    "image": "https://i.pinimg.com/originals/28/d2/e6/28d2e684e7859a0dd17fbd0cea00f8a9.jpg",
-    "value": 100,
-    "value-evolution-percent": 4.5,
+    "id": "user_003",
+    "name": "Kevin Okafor",
+    "username": "kevin_scalper",
+    "image": "https://i.pravatar.cc/300?u=kevin",
+    "value": 58000,
+    "value_evolution_percent": 22.5,
     "online": true,
+    "performance_30d": 22.5,
+    "win_rate": 71.4,
+    "total_trades": 4820,
+    "trading_style": "scalper",
+    "risk_tolerance": "very_high",
     "messages": [
       {
-        "id": 1,
-        "senderId": 1,
-        "text": "Hey, how's it going?",
-        "timestamp": "2023-06-10T10:00:00Z"
+        "id": "msg_k1",
+        "senderId": "user_003",
+        "text": "EUR/USD breaking above 1.085. Scalping the move, you in?",
+        "timestamp": "2026-03-24T09:10:00Z"
       },
       {
-        "id": 2,
-        "senderId": 0,
-        "text": "I'm doing great, thanks for asking!",
-        "timestamp": "2023-06-10T10:05:00Z"
+        "id": "msg_k2",
+        "senderId": "user_001",
+        "text": "Already positioned! BTC following nicely too.",
+        "timestamp": "2026-03-24T09:12:00Z"
       }
     ]
   },
   {
-    "id": 2,
-    "name": "Patrick Stewart",
-    "username": "patrickstewart",
-    "image": "https://i.pinimg.com/originals/ee/85/08/ee850842e68cfcf6e3943c048f45c6d1.jpg",
-    "value": 110,
-    "value-evolution-percent": 8.5,
+    "id": "user_004",
+    "name": "Simon Nakamura",
+    "username": "simon_trader",
+    "image": "https://i.pravatar.cc/300?u=simon",
+    "value": 210000,
+    "value_evolution_percent": 28.9,
     "online": true,
+    "performance_30d": 28.9,
+    "win_rate": 67.8,
+    "total_trades": 890,
+    "trading_style": "swing_trader",
+    "risk_tolerance": "high",
     "messages": [
       {
-        "id": 1,
-        "senderId": 1,
-        "text": "Hey, how's it going?",
-        "timestamp": "2023-06-10T10:00:00Z"
+        "id": "msg_s1",
+        "senderId": "user_004",
+        "text": "BTC showing strong momentum above $62K. What's your target?",
+        "timestamp": "2026-03-23T16:45:00Z"
       },
       {
-        "id": 2,
-        "senderId": 0,
-        "text": "I'm doing great, thanks for asking!",
-        "timestamp": "2023-06-10T10:05:00Z"
+        "id": "msg_s2",
+        "senderId": "user_001",
+        "text": "I'm watching $65K resistance. Loaded at $61.2K.",
+        "timestamp": "2026-03-23T16:50:00Z"
       }
     ]
   },
   {
-    "id": 3,
-    "name": "Al Pacino",
-    "username": "alpacino",
-    "image": "https://i.pinimg.com/736x/8f/a0/51/8fa051251f5ac2d0b756027089fbffde--terry-o-neill-al-pacino.jpg",
-    "value": 121,
-    "value-evolution-percent": 3.9,
-    "online": true,
+    "id": "user_005",
+    "name": "Arthuro Benali",
+    "username": "arthuro_investor",
+    "image": "https://i.pravatar.cc/300?u=arthuro",
+    "value": 340000,
+    "value_evolution_percent": 15.8,
+    "online": false,
+    "performance_30d": 15.8,
+    "win_rate": 73.2,
+    "total_trades": 410,
+    "trading_style": "position_trader",
+    "risk_tolerance": "moderate",
     "messages": [
       {
-        "id": 1,
-        "senderId": 1,
-        "text": "Hey, how's it going?",
-        "timestamp": "2023-06-10T10:00:00Z"
+        "id": "msg_a1",
+        "senderId": "user_005",
+        "text": "TSLA Q3 delivery numbers were solid. Adding to my position.",
+        "timestamp": "2026-03-22T12:20:00Z"
       },
       {
-        "id": 2,
-        "senderId": 0,
-        "text": "I'm doing great, thanks for asking!",
-        "timestamp": "2023-06-10T10:05:00Z"
+        "id": "msg_a2",
+        "senderId": "user_001",
+        "text": "Agreed, fundamentals look strong. NVDA also breaking out.",
+        "timestamp": "2026-03-22T12:25:00Z"
       }
     ]
   }
 ]
-

@@ -155,14 +155,32 @@ const handleFile = (e) => {
       <!-- Conversation Header -->
       <div class="conversation-header">
         <div class="participant-info">
+          <NuxtLink
+            v-if="getOtherParticipant"
+            :to="`/profile/${getOtherParticipant}`"
+            class="participant-avatar-link"
+          >
+            <img
+              :src="getOtherParticipantInfo?.avatar_url || '/avatars/Ellipse5.png'"
+              :alt="getOtherParticipantInfo?.username || 'User'"
+              class="participant-avatar clickable-avatar"
+            />
+          </NuxtLink>
           <img
+            v-else
             :src="getOtherParticipantInfo?.avatar_url || '/avatars/Ellipse5.png'"
             :alt="getOtherParticipantInfo?.username || 'User'"
-            class="participant-avatar clickable-avatar"
-            @click="$router.push(`/profile/${getOtherParticipant?.value}`)"
+            class="participant-avatar"
           />
           <div class="participant-details">
-            <h2 class="participant-name">{{ getOtherParticipantInfo?.username || 'Unknown User' }}</h2>
+            <NuxtLink
+              v-if="getOtherParticipant"
+              :to="`/profile/${getOtherParticipant}`"
+              class="participant-name-link"
+            >
+              <h2 class="participant-name">{{ getOtherParticipantInfo?.username || 'Unknown User' }}</h2>
+            </NuxtLink>
+            <h2 v-else class="participant-name">{{ getOtherParticipantInfo?.username || 'Unknown User' }}</h2>
             <p class="conversation-topic">{{ conversation.metadata?.topic || 'General discussion' }}</p>
           </div>
         </div>
@@ -357,6 +375,20 @@ const handleFile = (e) => {
   object-fit: cover;
   border: 2px solid var(--border-secondary);
   transition: var(--transition-normal);
+}
+
+.participant-avatar-link {
+  display: block;
+  flex-shrink: 0;
+}
+
+.participant-name-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.participant-name-link:hover .participant-name {
+  color: var(--primary-green);
 }
 
 .clickable-avatar {

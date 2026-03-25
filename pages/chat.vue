@@ -104,10 +104,16 @@ const navigateToConversation = (conversationId) => {
           @click="navigateToConversation(conversation.id)"
         >
           <div class="conversation-avatar">
-            <img
-              :src="getUserInfo(getOtherParticipant(conversation))?.avatar_url || '/avatars/Ellipse5.png'"
-              :alt="getUserInfo(getOtherParticipant(conversation))?.username || 'User'"
-            />
+            <NuxtLink
+              :to="`/profile/${getOtherParticipant(conversation)}`"
+              @click.stop
+            >
+              <img
+                :src="getUserInfo(getOtherParticipant(conversation))?.avatar_url || '/avatars/Ellipse5.png'"
+                :alt="getUserInfo(getOtherParticipant(conversation))?.username || 'User'"
+                class="avatar-link-img"
+              />
+            </NuxtLink>
           </div>
 
           <div class="conversation-content">
@@ -309,12 +315,24 @@ const navigateToConversation = (conversationId) => {
   flex-shrink: 0;
 }
 
-.conversation-avatar img {
+.conversation-avatar a {
+  display: block;
+}
+
+.conversation-avatar img,
+.avatar-link-img {
   width: 48px;
   height: 48px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--border-secondary);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+  display: block;
+}
+
+.avatar-link-img:hover {
+  border-color: var(--primary-green);
+  transform: scale(1.05);
 }
 
 .conversation-content {

@@ -1,109 +1,47 @@
-<script setup>
-import { ref, onMounted, computed } from 'vue'
+<script setup lang="ts">
 import { useUsersStore } from '@/stores/users'
-import { useWalletsStore } from '@/stores/wallets'
-import { useRoute } from 'vue-router'
 
-const route = useRoute()
 const usersStore = useUsersStore()
-const walletsStore = useWalletsStore()
 
-const userId = computed(() => route.params.id || usersStore.currentUser?.id)
-const user = computed(() => usersStore.getUserById(userId.value))
-const wallet = computed(() => walletsStore.getWalletByUserId(userId.value))
-const statistics = ref(null)
-
+// Wait for the store to hydrate then redirect to the current user's profile
 onMounted(async () => {
-  await Promise.all([
-    usersStore.fetchUsers(),
-    walletsStore.fetchWallets()
-  ])
-  try {
-    const statsData = await $fetch('/data/user_statistics.json')
-    statistics.value = statsData.find(s => s.user_id === userId.value) || {}
-  } catch (e) {
-    statistics.value = {}
+  await usersStore.initializeStore()
+  const id = usersStore.currentUser?.id
+  if (id) {
+    await navigateTo(`/profile/${id}`, { replace: true })
   }
-})
-
-const evolution24h = computed(() => {
-  return wallet.value?.performance_history?.['1d']?.change_percentage?.toFixed(1) + '%' || '0%'
 })
 </script>
 
 <template>
-  <div class="profile-page" v-if="user">
-    <div class="header">
-      <UAvatar :src="user.avatar_url" size="xl" />
-      <h1>{{ user.username }}</h1>
-      <p>{{ user.bio }}</p>
-      <div class="evolution">{{ evolution24h }} (24h)</div>
-    </div>
-
-    <section class="achievements">
-      <h2>Achievements</h2>
-      <div v-for="ach in statistics.achievements" :key="ach.id">
-        {{ ach.name }} - Unlocked: {{ ach.unlocked }}
-      </div>
-    </section>
-
-    <section class="performance">
-      <h2>Performance</h2>
-      <p>Total Trades: {{ statistics.performance?.total_trades }}</p>
-      <p>Win Rate: {{ statistics.performance?.win_rate }}%</p>
-      <!-- Add more metrics -->
-    </section>
-
-    <section class="psychology">
-      <h2>Psychology</h2>
-      <p>Risk Tolerance: {{ statistics.psychology?.risk_tolerance }}</p>
-      <!-- etc -->
-    </section>
-
-    <section class="historics">
-      <h2>Historics</h2>
-      <p>Success Periods: {{ statistics.historics?.success_periods?.join(', ') }}</p>
-    </section>
-
-    <section class="preferences">
-      <h2>Preferences</h2>
-      <p>Favorite Assets: {{ statistics.preferences?.favorite_assets?.join(', ') }}</p>
-    </section>
-
-    <section class="platforms">
-      <h2>Trading Platforms</h2>
-      <ul>
-        <li v-for="plat in statistics.trading_platforms" :key="plat">{{ plat }}</li>
-      </ul>
-    </section>
-
-    <section class="banks">
-      <h2>Bank Accounts</h2>
-      <div v-for="bank in statistics.bank_accounts" :key="bank.account_number">
-        {{ bank.bank }} - {{ bank.account_number }}
-      </div>
-    </section>
-
-    <!-- Add real-time update logic if needed, but since mock, reactivity is via computed -->
+  <div class="redirect-loader">
+    <div class="spinner" />
+    <p>Loading your profile…</p>
   </div>
-  <div v-else>Loading profile...</div>
 </template>
 
 <style scoped>
-/* Add appropriate styles for sections */
-.profile-page {
-  padding: var(--spacing-lg);
+.redirect-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 1rem;
+  color: var(--text-gray);
+  font-size: 0.9rem;
 }
 
-.header {
-  text-align: center;
-  margin-bottom: var(--spacing-lg);
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-secondary);
+  border-top-color: var(--primary-green);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
-section {
-  margin-bottom: var(--spacing-xl);
-  padding: var(--spacing-md);
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

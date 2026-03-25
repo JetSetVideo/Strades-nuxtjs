@@ -148,17 +148,23 @@ const handleAddContribution = (newContribution) => {
     </div>
 
     <div class="ranked-list">
-      <div 
-        v-for="(item, index) in rankedList" 
+      <component
+        v-for="(item, index) in rankedList"
         :key="index"
+        :is="entityType === 'users' && item.id ? 'NuxtLink' : 'div'"
+        :to="entityType === 'users' && item.id ? `/profile/${item.id}` : undefined"
         :class="['rank-item', getMedalClass(index)]"
       >
         <span class="position">{{ index + 1 }}</span>
+        <img
+          v-if="entityType === 'users' && item.avatar_url"
+          :src="item.avatar_url"
+          :alt="item.username"
+          class="rank-avatar"
+        />
         <span class="name">{{ item.username || item.name }}</span>
-        <span class="value">
-          {{ getValue(item, selectedCategory) }}
-        </span>
-      </div>
+        <span class="value">{{ getValue(item, selectedCategory) }}</span>
+      </component>
     </div>
   </div>
 </template>
@@ -197,10 +203,26 @@ button.active {
 
 .rank-item {
   display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
   justify-content: space-between;
   padding: var(--spacing-md);
   border-radius: var(--radius-md);
   background: var(--card-bg);
+  text-decoration: none;
+  color: inherit;
+  transition: filter 0.2s ease;
+}
+
+a.rank-item:hover { filter: brightness(1.15); }
+
+.rank-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  flex-shrink: 0;
 }
 
 .gold {

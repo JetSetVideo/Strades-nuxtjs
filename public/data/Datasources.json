@@ -1,18 +1,146 @@
-[{
-    "id":"0101",
-    "name":"Github Commits",
-    "image_url":"https//www.source.com",
-    "description":"number of commits on Github for the selected project"
-},
-{
-    "id":"0102",
-    "name":"CryptoWallet",
-    "image_url":"https//www.source.com",
-    "description":"Evolution of the trades in a cryptowallet"
-},
-{
-    "id":"0103",
-    "name":"Stock Market Trends",
-    "image_url":"https://www.source.com",
-    "description":"Analysis of current trends in the stock market"
-}]
+[
+  {
+    "id": "ds_price_ohlcv",
+    "name": "Price OHLCV",
+    "category": "market",
+    "icon": "📈",
+    "description": "Open, High, Low, Close & Volume data from exchanges. The baseline of any technical strategy.",
+    "latency": "real-time",
+    "cost": 0,
+    "reliability": 0.99,
+    "supported_assets": ["crypto", "stocks", "forex", "commodities"],
+    "tags": ["price", "volume", "technical"]
+  },
+  {
+    "id": "ds_order_flow",
+    "name": "Order Book & Flow",
+    "category": "market",
+    "icon": "📊",
+    "description": "Real-time order book depth, bid/ask imbalance, and large order detection.",
+    "latency": "real-time",
+    "cost": 20,
+    "reliability": 0.97,
+    "supported_assets": ["crypto", "stocks", "forex"],
+    "tags": ["order_flow", "depth", "market_microstructure"]
+  },
+  {
+    "id": "ds_onchain",
+    "name": "On-Chain Analytics",
+    "category": "blockchain",
+    "icon": "⛓",
+    "description": "Blockchain data: wallet flows, exchange inflows/outflows, whale movements, HODL waves.",
+    "latency": "5min",
+    "cost": 30,
+    "reliability": 0.96,
+    "supported_assets": ["crypto"],
+    "tags": ["on_chain", "whale", "defi", "bitcoin"]
+  },
+  {
+    "id": "ds_social_sentiment",
+    "name": "Social Sentiment",
+    "category": "sentiment",
+    "icon": "💬",
+    "description": "NLP-derived sentiment score from Twitter/X, Reddit, Discord, Telegram. -1 (bearish) to +1 (bullish).",
+    "latency": "1min",
+    "cost": 25,
+    "reliability": 0.88,
+    "supported_assets": ["crypto", "stocks"],
+    "tags": ["sentiment", "social", "nlp"]
+  },
+  {
+    "id": "ds_fear_greed",
+    "name": "Fear & Greed Index",
+    "category": "sentiment",
+    "icon": "😱",
+    "description": "Composite index (0–100) aggregating volatility, momentum, sentiment, and survey data.",
+    "latency": "1h",
+    "cost": 0,
+    "reliability": 0.95,
+    "supported_assets": ["crypto", "stocks"],
+    "tags": ["sentiment", "macro", "index"]
+  },
+  {
+    "id": "ds_macro_indicators",
+    "name": "Macro Indicators",
+    "category": "macro",
+    "icon": "🌍",
+    "description": "Fed rates, CPI, GDP, unemployment, PMI, yield curves. Critical for macro-driven strategies.",
+    "latency": "daily",
+    "cost": 15,
+    "reliability": 0.99,
+    "supported_assets": ["stocks", "forex", "commodities"],
+    "tags": ["macro", "rates", "inflation", "fundamental"]
+  },
+  {
+    "id": "ds_github_commits",
+    "name": "GitHub Commits",
+    "category": "fundamental",
+    "icon": "💻",
+    "description": "Development activity for open-source blockchain projects. Proxy for technology health.",
+    "latency": "1h",
+    "cost": 10,
+    "reliability": 0.93,
+    "supported_assets": ["crypto"],
+    "tags": ["fundamental", "development", "crypto"]
+  },
+  {
+    "id": "ds_news_events",
+    "name": "News & Events",
+    "category": "sentiment",
+    "icon": "📰",
+    "description": "Real-time financial news, earnings releases, regulatory filings, and geopolitical events.",
+    "latency": "real-time",
+    "cost": 20,
+    "reliability": 0.9,
+    "supported_assets": ["crypto", "stocks", "forex", "commodities"],
+    "tags": ["news", "events", "fundamental"]
+  },
+  {
+    "id": "ds_defi_metrics",
+    "name": "DeFi Metrics",
+    "category": "blockchain",
+    "icon": "🏦",
+    "description": "TVL, liquidity pools, yield rates, protocol revenues across major DeFi protocols.",
+    "latency": "1min",
+    "cost": 35,
+    "reliability": 0.92,
+    "supported_assets": ["crypto"],
+    "tags": ["defi", "tvl", "yield"]
+  },
+  {
+    "id": "ds_options_flow",
+    "name": "Options Flow",
+    "category": "derivatives",
+    "icon": "⚡",
+    "description": "Options open interest, put/call ratio, implied volatility, and large options block trades.",
+    "latency": "15min",
+    "cost": 40,
+    "reliability": 0.94,
+    "supported_assets": ["stocks", "crypto"],
+    "tags": ["options", "iv", "derivatives"]
+  },
+  {
+    "id": "ds_ai_avatar",
+    "name": "AI Avatar Signal",
+    "category": "ai",
+    "icon": "🤖",
+    "description": "Opinion vector from a trained user avatar. Outputs allocation bias across asset classes.",
+    "latency": "real-time",
+    "cost": 50,
+    "reliability": 0.85,
+    "supported_assets": ["crypto", "stocks", "forex", "commodities"],
+    "tags": ["ai", "avatar", "ml", "opinion"]
+  },
+  {
+    "id": "ds_geopolitical",
+    "name": "Geopolitical Stress",
+    "category": "macro",
+    "icon": "🗺",
+    "description": "Composite geopolitical risk index from conflict zones, elections, sanctions, and trade wars.",
+    "latency": "1h",
+    "cost": 15,
+    "reliability": 0.87,
+    "supported_assets": ["forex", "commodities", "stocks"],
+    "tags": ["geopolitical", "macro", "risk"]
+  }
+]

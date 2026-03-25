@@ -9,59 +9,75 @@ export interface FriendMessage {
 
 export interface Friend {
   id: string
-  image: string
-  messages: FriendMessage[]
   name: string
-  online: boolean
   username: string
+  image: string
   value: number
   value_evolution_percent: number
+  online: boolean
+  performance_30d?: number
+  win_rate?: number
+  total_trades?: number
+  trading_style?: string
+  risk_tolerance?: string
+  messages: FriendMessage[]
 }
 
 export const useFriendsStore = defineStore('friends', {
   state: () => ({
     friends: [] as Friend[],
     loading: false,
-    error: null as Error | null
+    error: null as string | null
   }),
 
   getters: {
-    getFriendById: (state) => (id: string) => {
-      console.log('getFriendById called with id:', id);
-      const friend = state.friends.find(friend => friend.id === id);
-      console.log('Found friend:', friend);
-      return friend;
+    getFriendById: (state) => (id: string): Friend | undefined => {
+      return state.friends.find(f => f.id === id)
     },
 
-    getOnlineFriends: (state) => {
-      return state.friends.filter(friend => friend.online);
+    getOnlineFriends: (state): Friend[] => {
+      return state.friends.filter(f => f.online)
     },
 
-    getFriendsCount: (state) => {
-      return state.friends.length;
+    getFriendsCount: (state): number => {
+      return state.friends.length
+    },
+
+    /** Top friends by 30d performance */
+    getTopPerformers: (state): Friend[] => {
+      return [...state.friends]
+        .sort((a, b) => (b.performance_30d ?? 0) - (a.performance_30d ?? 0))
+        .slice(0, 5)
     }
   },
 
   actions: {
-    async fetchFriends() {
+    async fetchFriends(): Promise<void> {
       try {
         this.loading = true
-        const friendsData = await $fetch<Friend[]>('/Friends.json')
-        this.friends = friendsData
-      } catch (error) {
-        this.error = error as Error
-        console.error('Failed to fetch friends:', error)
+        this.error = null
+        // Try data/ subfolder first (enriched), then root fallback
+        let data: Friend[] | null = null
+        try {
+          data = await $fetch<Friend[]>('/data/Friends.json')
+        } catch {
+          data = await $fetch<Friend[]>('/Friends.json')
+        }
+        if (!data) throw new Error('Friends data not found')
+        this.friends = data
+      } catch (err) {
+        this.error = (err as Error).message
+        console.error('[FriendsStore] fetchFriends failed:', err)
       } finally {
         this.loading = false
       }
     },
 
-    async getMessages(friendId: string) {
-      const friend = this.getFriendById(friendId);
-      return friend ? friend.messages : [];
+    getMessages(friendId: string): FriendMessage[] {
+      return this.getFriendById(friendId)?.messages ?? []
     },
 
-    async initializeStore() {
+    async initializeStore(): Promise<void> {
       await this.fetchFriends()
     }
   }

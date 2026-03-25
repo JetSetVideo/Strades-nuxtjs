@@ -86,6 +86,15 @@ onMounted(async () => {
             </div>
           </div>
 
+          <NuxtLink
+            v-if="currentUser"
+            :to="`/profile/${currentUser.id}`"
+            class="view-profile-link"
+            @click="isOpen = false"
+          >
+            View Full Profile →
+          </NuxtLink>
+
           <ButtonSettings />
         </div>
     </OverlaySlideover>
@@ -277,6 +286,25 @@ onMounted(async () => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 60%;
+}
+
+.view-profile-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1rem;
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 8px;
+  color: var(--primary-green, #00ff88);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.view-profile-link:hover {
+  background: rgba(0, 255, 136, 0.15);
 }
 
 @media (min-width: 768px) {
