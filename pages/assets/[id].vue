@@ -3,14 +3,26 @@ import { ref, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { navigateTo } from "#app";
 import { useAssetsStore } from "@/stores/assets";
+import { usePredictionsStore } from "@/stores/predictions";
+import PriceIntuition from "@/components/Widget/PriceIntuition.vue";
 
 const route = useRoute();
 const assetId = route.params.id;
 
 const assetsStore = useAssetsStore();
+const predStore = usePredictionsStore();
 const asset = ref(null);
 const relatedAssets = ref([]);
 const loading = ref(true);
+const priceHistory = ref([]);
+const currentUserId = 'current_user';
+
+// Friends data (static for demo)
+const FRIENDS = [
+  { id: 'kevin_scalper',     name: 'Kevin',   username: 'kevin_scalper',     avatar: 'https://i.pravatar.cc/50?u=kevin' },
+  { id: 'simon_trader',      name: 'Simon',   username: 'simon_trader',      avatar: 'https://i.pravatar.cc/50?u=simon' },
+  { id: 'arthuro_investor',  name: 'Arthuro', username: 'arthuro_investor',  avatar: 'https://i.pravatar.cc/50?u=arthuro' },
+];
 
 const tagColors = {
   technology: "rgba(0, 121, 191, 0.8)",
@@ -77,13 +89,26 @@ const navigateToAsset = (id) => {
   navigateTo(`/assets/${id}`);
 };
 
+// Build a synthetic price history based on current price and volatility
+function buildPriceHistory(current, vol, n = 14) {
+  const pts = [current];
+  for (let i = 1; i < n; i++) {
+    const prev = pts[0];
+    const drift = (Math.random() - 0.5) * 2 * (vol || 0.3) * 0.05;
+    pts.unshift(Math.max(0.0001, prev * (1 - drift)));
+  }
+  return pts;
+}
+
 // Load asset data
 onMounted(async () => {
   try {
     loading.value = true;
 
-    // Initialize the assets store
+    // Initialize stores
     await assetsStore.initializeStore();
+    predStore.init();
+    await predStore.seedFromFile();
 
     // Find the specific asset by ID or symbol
     const foundAsset = assetsStore.getAssetById(assetId) ||
@@ -91,6 +116,10 @@ onMounted(async () => {
 
     if (foundAsset) {
       asset.value = foundAsset;
+
+      // Build synthetic price history for chart
+      const vol = foundAsset.psychology_profile?.volatility_index ?? 0.3;
+      priceHistory.value = buildPriceHistory(foundAsset.current_price, vol);
 
       // Find related assets based on similar_assets and depends_on relationships
       const relatedIds = new Set([
@@ -120,32 +149,50 @@ onMounted(async () => {
 
 // Computed properties
 const tabs = computed(() => [
-  {
-    label: "Overview",
-    key: "overview",
-    icon: "📊"
-  },
-  {
-    label: "Financials",
-    key: "financials",
-    icon: "💰"
-  },
-  {
-    label: "Relationships",
-    key: "relationships",
-    icon: "🔗"
-  },
-  {
-    label: "Events",
-    key: "events",
-    icon: "📅"
-  },
-  {
-    label: "Psychology",
-    key: "psychology",
-    icon: "🧠"
-  }
+  { label: "Overview",      key: "overview",      icon: "📊" },
+  { label: "Financials",    key: "financials",    icon: "💰" },
+  { label: "Relationships", key: "relationships", icon: "🔗" },
+  { label: "Events",        key: "events",        icon: "📅" },
+  { label: "Psychology",    key: "psychology",    icon: "🧠" },
+  { label: "Intuition",     key: "intuition",     icon: "🎯" },
 ]);
+
+// ── Intuition tab computed ─────────────────────────────────────────────
+const assetSymbol = computed(() => asset.value?.symbol ?? '');
+const volatility  = computed(() => asset.value?.psychology_profile?.volatility_index ?? 0.3);
+
+// All pending predictions for this asset (user + friends + community)
+const allAssetPredictions = computed(() =>
+  predStore.byAsset(assetSymbol.value).filter(p => p.status === 'pending')
+);
+
+const friendsPredictions = computed(() =>
+  predStore.friendsForAsset(currentUserId, assetSymbol.value)
+);
+
+// Consensus per timeframe
+const TIMEFRAMES = ['1D', '1W', '1M', '3M', '6M', '1Y'];
+const consensusPerTf = computed(() =>
+  TIMEFRAMES.map(tf => ({
+    tf,
+    data: predStore.consensusForTf(assetSymbol.value, tf)
+  })).filter(x => x.data)
+);
+
+// Friend name mapping
+function friendInfo(userId) {
+  return FRIENDS.find(f => f.id === userId) ?? { name: userId.split('_')[0], avatar: null };
+}
+
+function fmtPct(v) {
+  return (v >= 0 ? '+' : '') + Number(v).toFixed(1) + '%';
+}
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function predDirColor(dir) {
+  return dir === 'bullish' ? 'var(--success-green)' : dir === 'bearish' ? 'var(--error-red)' : 'var(--text-gray)';
+}
 
 const riskToleranceLabel = computed(() => {
   const labels = {
@@ -277,6 +324,19 @@ const getVolatilityDescription = (volatilityIndex) => {
             <span class="value">{{ formatCurrency(asset?.stock_price_usd) }}</span>
           </div>
         </div>
+      </div>
+
+      <!-- ── Price Intuition Section (always visible) ── -->
+      <div class="asset-intuition-section">
+        <PriceIntuition
+          :asset-id="asset?.symbol"
+          :asset-name="asset?.name"
+          :current-price="asset?.current_price"
+          :price-history="priceHistory"
+          :volatility="volatility"
+          :user-id="currentUserId"
+          :max-range-pct="30"
+        />
       </div>
 
       <!-- Navigation Tabs -->
@@ -588,12 +648,295 @@ const getVolatilityDescription = (volatilityIndex) => {
             </div>
           </div>
         </div>
+
+        <!-- ── Intuition Tab ── -->
+        <div v-if="activeTab === 'intuition'" class="intuition-content">
+
+          <!-- Community consensus per TF -->
+          <div v-if="consensusPerTf.length" class="intuition-card">
+            <h3>Community Consensus</h3>
+            <div class="tf-consensus-grid">
+              <div
+                v-for="item in consensusPerTf"
+                :key="item.tf"
+                class="tf-consensus-item"
+              >
+                <div class="tfc-tf">{{ item.tf }}</div>
+                <div class="tfc-bar-wrap">
+                  <div class="tfc-bar-fill bull" :style="{ width: item.data.bullPct + '%' }" />
+                  <div class="tfc-bar-fill bear" :style="{ width: (100 - item.data.bullPct) + '%' }" />
+                </div>
+                <div class="tfc-stats">
+                  <span :style="{ color: 'var(--success-green)' }">↑{{ item.data.bullPct.toFixed(0) }}%</span>
+                  <span class="tfc-avg">{{ fmtPct(item.data.avgChangePct) }}</span>
+                  <span class="tfc-count">{{ item.data.count }} preds</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="intuition-empty">
+            <p>No community predictions yet. Be the first to record your intuition above!</p>
+          </div>
+
+          <!-- Friends' predictions -->
+          <div v-if="friendsPredictions.length" class="intuition-card">
+            <h3>Friends' Predictions</h3>
+            <div class="friends-pred-list">
+              <div
+                v-for="fp in friendsPredictions"
+                :key="fp.id"
+                class="fp-row"
+                :style="{ borderLeftColor: predDirColor(fp.direction) }"
+              >
+                <div class="fp-avatar-wrap">
+                  <img
+                    :src="friendInfo(fp.userId).avatar"
+                    :alt="friendInfo(fp.userId).name"
+                    class="fp-avatar"
+                    @error="$event.target.style.display='none'"
+                  />
+                </div>
+                <div class="fp-info">
+                  <div class="fp-name-row">
+                    <span class="fp-name">{{ friendInfo(fp.userId).name }}</span>
+                    <span class="fp-tf">{{ fp.timeframe }}</span>
+                    <span class="fp-dir" :style="{ color: predDirColor(fp.direction) }">
+                      {{ fp.direction === 'bullish' ? '↑ Bullish' : '↓ Bearish' }}
+                    </span>
+                  </div>
+                  <div class="fp-price-row">
+                    <span class="fp-pct" :style="{ color: predDirColor(fp.direction) }">
+                      {{ fmtPct(fp.predictedChangePct) }}
+                    </span>
+                    <span class="fp-arrow">→</span>
+                    <span class="fp-price">${{ fp.predictedPrice.toLocaleString('en-US', { maximumFractionDigits: 2 }) }}</span>
+                    <span class="fp-target-date">by {{ fmtDate(fp.targetDate) }}</span>
+                  </div>
+                  <div v-if="fp.note" class="fp-note">"{{ fp.note }}"</div>
+                </div>
+                <div class="fp-conf">
+                  <span v-for="s in 5" :key="s" class="fp-star" :class="{ filled: s <= fp.confidence }">★</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- All predictions table -->
+          <div v-if="allAssetPredictions.length" class="intuition-card">
+            <h3>All Active Predictions ({{ allAssetPredictions.length }})</h3>
+            <div class="all-preds-table">
+              <div class="apt-header">
+                <span>User</span>
+                <span>TF</span>
+                <span>Direction</span>
+                <span>Target %</span>
+                <span>Target Price</span>
+                <span>Confidence</span>
+                <span>Until</span>
+              </div>
+              <div
+                v-for="p in allAssetPredictions"
+                :key="p.id"
+                class="apt-row"
+                :class="p.direction"
+              >
+                <span class="apt-user">{{ FRIENDS.find(f => f.id === p.userId)?.name ?? p.userId.split('_')[0] }}</span>
+                <span class="apt-tf">{{ p.timeframe }}</span>
+                <span class="apt-dir" :style="{ color: predDirColor(p.direction) }">
+                  {{ p.direction === 'bullish' ? '↑' : '↓' }}
+                </span>
+                <span class="apt-pct" :style="{ color: predDirColor(p.direction) }">{{ fmtPct(p.predictedChangePct) }}</span>
+                <span class="apt-price">${{ p.predictedPrice.toLocaleString('en-US', { maximumFractionDigits: 2 }) }}</span>
+                <span class="apt-conf">{{ '★'.repeat(p.confidence) }}</span>
+                <span class="apt-date">{{ fmtDate(p.targetDate) }}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* ── Intuition Section (above tabs) ─────────────────────────────── */
+.asset-intuition-section {
+  margin: var(--spacing-lg) 0;
+}
+
+/* ── Intuition Tab Content ─────────────────────────────────────── */
+.intuition-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.intuition-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+}
+
+.intuition-card h3 {
+  color: var(--primary-green);
+  margin: 0 0 var(--spacing-md) 0;
+  font-family: var(--font-family-primary);
+  font-size: 1.1rem;
+}
+
+.intuition-empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-gray);
+}
+
+/* Consensus per TF grid */
+.tf-consensus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.tf-consensus-item {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tfc-tf {
+  font-family: var(--font-family-primary);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-white);
+}
+
+.tfc-bar-wrap {
+  display: flex;
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(255,255,255,.05);
+}
+
+.tfc-bar-fill {
+  height: 100%;
+  transition: width 0.4s;
+}
+.tfc-bar-fill.bull { background: var(--success-green); }
+.tfc-bar-fill.bear { background: var(--error-red); }
+
+.tfc-stats {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.72rem;
+}
+.tfc-avg  { color: var(--text-gray); }
+.tfc-count { color: rgba(255,255,255,.3); margin-left: auto; }
+
+/* Friends predictions */
+.friends-pred-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.fp-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--border-primary);
+}
+
+.fp-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border-secondary);
+  flex-shrink: 0;
+}
+
+.fp-avatar-wrap { flex-shrink: 0; }
+
+.fp-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+
+.fp-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fp-name { font-weight: 700; font-size: 0.85rem; color: var(--text-white); }
+.fp-tf {
+  font-size: 0.65rem;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.08);
+  color: var(--text-gray);
+  font-weight: 600;
+}
+.fp-dir { font-size: 0.72rem; font-weight: 700; }
+
+.fp-price-row { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; }
+.fp-pct    { font-weight: 700; }
+.fp-arrow  { color: rgba(255,255,255,.3); }
+.fp-price  { font-family: var(--font-family-primary); color: var(--text-white); }
+.fp-target-date { color: rgba(255,255,255,.35); font-size: 0.65rem; }
+
+.fp-note {
+  font-size: 0.7rem;
+  color: var(--text-gray);
+  font-style: italic;
+}
+
+.fp-conf { display: flex; gap: 1px; font-size: 0.7rem; }
+.fp-star { color: rgba(255,255,255,.15); }
+.fp-star.filled { color: #ffc800; }
+
+/* All predictions table */
+.all-preds-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.75rem;
+}
+
+.apt-header {
+  display: grid;
+  grid-template-columns: 80px 40px 60px 70px 110px 80px 80px;
+  gap: 8px;
+  padding: 4px 8px;
+  color: var(--text-gray);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.apt-row {
+  display: grid;
+  grid-template-columns: 80px 40px 60px 70px 110px 80px 80px;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  align-items: center;
+}
+.apt-row.bullish { background: rgba(0,255,136,.04); }
+.apt-row.bearish { background: rgba(255,68,68,.04); }
+
+.apt-user { color: var(--text-white); font-weight: 600; }
+.apt-tf   { color: var(--text-gray); font-weight: 700; }
+.apt-dir  { font-weight: 700; font-size: 0.9rem; }
+.apt-pct  { font-weight: 600; }
+.apt-price { font-family: var(--font-family-primary); color: var(--text-white); }
+.apt-conf  { color: #ffc800; letter-spacing: -1px; }
+.apt-date  { color: rgba(255,255,255,.35); }
+
 .asset-detail-page {
   min-height: 100vh;
   background: var(--bg-primary);

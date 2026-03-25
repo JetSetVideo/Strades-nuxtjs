@@ -13,6 +13,7 @@
  * Shows the user's last prediction badge for this asset from the predictions store.
  */
 import { ref, computed, onMounted } from 'vue'
+import { navigateTo } from '#app'
 import PriceIntuition from '@/components/Widget/PriceIntuition.vue'
 import { usePredictionsStore } from '@/stores/predictions'
 
@@ -35,6 +36,15 @@ const props = defineProps<{
 }>()
 
 defineEmits<{ click: [id: string] }>()
+
+// Navigate to the asset detail page
+function goToAssetPage(e: MouseEvent) {
+  // Prevent navigation when clicking predict button
+  const target = e.target as HTMLElement
+  if (target.closest('.da-predict-btn') || target.closest('.da-intuition-wrap')) return
+  const assetPageId = props.asset?.id ?? id.value.toLowerCase()
+  if (assetPageId) navigateTo(`/assets/${assetPageId}`)
+}
 
 // ── Predictions store ─────────────────────────────────────────────────────
 const predStore = usePredictionsStore()
@@ -162,9 +172,33 @@ const sparkColor = computed(() => changePct.value >= 0 ? 'var(--success-green)' 
 // ── PriceIntuition expand ─────────────────────────────────────────────────
 const showIntuition = ref(false)
 
-// ── Last prediction badge ─────────────────────────────────────────────────
-const lastPrediction = computed(() =>
-  predStore.recentByAsset(props.userId ?? 'current_user', symbol.value, 1)[0] ?? null
+// ── Multi-TF active predictions ───────────────────────────────────────────
+const activeUserPreds = computed(() =>
+  predStore.activeByAsset(props.userId ?? 'current_user', symbol.value)
+)
+
+// Summary string for button: e.g. "1W↑ 1M↓"
+const predSummary = computed(() => {
+  if (!activeUserPreds.value.length) return ''
+  return activeUserPreds.value
+    .sort((a, b) => a.timeframe.localeCompare(b.timeframe))
+    .map(p => `${p.timeframe}${p.direction === 'bullish' ? '↑' : '↓'}`)
+    .join(' ')
+})
+
+// Dominant direction across all active preds
+const predDominantDir = computed<'bullish' | 'bearish' | 'mixed' | null>(() => {
+  if (!activeUserPreds.value.length) return null
+  const bull = activeUserPreds.value.filter(p => p.direction === 'bullish').length
+  const bear = activeUserPreds.value.filter(p => p.direction === 'bearish').length
+  if (bull === bear) return 'mixed'
+  return bull > bear ? 'bullish' : 'bearish'
+})
+
+// Alerts for this asset
+const assetAlerts = computed(() =>
+  predStore.recentAlerts(props.userId ?? 'current_user')
+    .filter(a => a.assetId === symbol.value)
 )
 </script>
 
@@ -178,9 +212,23 @@ const lastPrediction = computed(() =>
       '--da-accent': accentColor,
       '--da-cat-color': catColor,
     }"
+    @click="goToAssetPage($event)"
   >
+    <!-- Alert ribbon -->
+    <div v-if="assetAlerts.length" class="da-alert-ribbon">
+      <span
+        v-for="a in assetAlerts.slice(0, 1)"
+        :key="a.id"
+        :class="['da-alert-chip', a.status]"
+      >
+        {{ a.status === 'accurate' ? '✓' : a.status === 'missed' ? '✗' : '⏱' }}
+        {{ a.timeframe }} prediction: {{ a.status }}
+        <template v-if="a.accuracyScore !== undefined"> ({{ a.accuracyScore }}%)</template>
+      </span>
+    </div>
+
     <!-- ── Main card row ── -->
-    <div class="da-row" @click="$emit('click', id)">
+    <div class="da-row">
 
       <!-- Icon -->
       <div class="da-icon-wrap">
@@ -213,11 +261,13 @@ const lastPrediction = computed(() =>
           </span>
         </div>
 
-        <!-- Last prediction badge -->
-        <div v-if="lastPrediction" class="da-pred-badge"
-          :style="{ color: lastPrediction.direction === 'bullish' ? 'var(--success-green)' : 'var(--error-red)' }">
-          <span>🎯 {{ lastPrediction.direction === 'bullish' ? '↑' : '↓' }}{{ Math.abs(lastPrediction.predictedChangePct).toFixed(1) }}%</span>
-          <span class="da-pred-status">{{ lastPrediction.status === 'pending' ? '⏳' : lastPrediction.status === 'accurate' ? '✓' : '✗' }}</span>
+        <!-- Multi-TF prediction badge -->
+        <div v-if="predSummary" class="da-pred-badge"
+          :style="{
+            color: predDominantDir === 'bullish' ? 'var(--success-green)' :
+                   predDominantDir === 'bearish' ? 'var(--error-red)' : 'var(--text-gray)'
+          }">
+          <span>🎯 {{ predSummary }}</span>
         </div>
       </div>
 
@@ -237,15 +287,25 @@ const lastPrediction = computed(() =>
         </svg>
       </div>
 
-      <!-- Predict button -->
+      <!-- Predict button — shows multi-TF state when predictions active -->
       <button
         class="da-predict-btn"
-        :class="{ active: showIntuition }"
+        :class="{
+          active: showIntuition,
+          'has-bull': predDominantDir === 'bullish',
+          'has-bear': predDominantDir === 'bearish',
+          'has-mixed': predDominantDir === 'mixed',
+        }"
         @click.stop="showIntuition = !showIntuition"
         title="Record your price intuition"
       >
-        🎯
-        <span class="da-predict-label">{{ showIntuition ? 'Close' : 'Predict' }}</span>
+        <template v-if="predSummary && !showIntuition">
+          <span class="da-pred-summary">{{ predSummary }}</span>
+        </template>
+        <template v-else>
+          🎯
+          <span class="da-predict-label">{{ showIntuition ? 'Close' : 'Predict' }}</span>
+        </template>
       </button>
 
     </div><!-- end da-row -->
@@ -440,6 +500,35 @@ const lastPrediction = computed(() =>
   display: block;
 }
 
+/* ── Alert ribbon ── */
+.da-alert-ribbon {
+  padding: 4px 12px;
+  display: flex;
+  gap: 6px;
+  background: rgba(0,0,0,.2);
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+.da-alert-chip {
+  font-size: 0.62rem;
+  padding: 1px 8px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+.da-alert-chip.accurate {
+  color: var(--success-green);
+  border-color: rgba(0,255,136,.3);
+  background: rgba(0,255,136,.08);
+}
+.da-alert-chip.missed {
+  color: var(--error-red);
+  border-color: rgba(255,68,68,.3);
+  background: rgba(255,68,68,.08);
+}
+.da-alert-chip.expired {
+  color: var(--text-gray);
+  border-color: rgba(136,136,136,.3);
+}
+
 /* ── Predict button ── */
 .da-predict-btn {
   display: flex;
@@ -471,11 +560,32 @@ const lastPrediction = computed(() =>
   border-color: var(--border-accent);
   color: var(--primary-green);
 }
+.da-predict-btn.has-bull {
+  background: rgba(0,255,136,.1);
+  border-color: rgba(0,255,136,.4);
+  color: var(--success-green);
+}
+.da-predict-btn.has-bear {
+  background: rgba(255,68,68,.1);
+  border-color: rgba(255,68,68,.4);
+  color: var(--error-red);
+}
+.da-predict-btn.has-mixed {
+  background: rgba(255,200,0,.08);
+  border-color: rgba(255,200,0,.3);
+  color: #ffc800;
+}
 
 .da-predict-label {
   font-size: 0.42rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+.da-pred-summary {
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
 }
 
 /* ── PriceIntuition expansion ── */

@@ -121,6 +121,44 @@ export const usePredictionsStore = defineStore('predictions', {
       )
     },
 
+    /** All active (pending) predictions for a user+asset across all timeframes */
+    activeByAsset: (state) => (userId: string, assetId: string): Prediction[] =>
+      state.predictions.filter(
+        p => p.userId === userId && p.assetId === assetId && p.status === 'pending'
+      ),
+
+    /** Active (pending) prediction for a specific user+asset+timeframe */
+    activeForAssetTf: (state) => (userId: string, assetId: string, tf: string): Prediction | null =>
+      state.predictions.find(
+        p => p.userId === userId && p.assetId === assetId && p.timeframe === tf && p.status === 'pending'
+      ) ?? null,
+
+    /** Friends' pending predictions for an asset (excludes currentUserId) */
+    friendsForAsset: (state) => (currentUserId: string, assetId: string): Prediction[] =>
+      state.predictions.filter(
+        p => p.userId !== currentUserId && p.assetId === assetId && p.status === 'pending'
+      ),
+
+    /** Community consensus for a specific asset+timeframe */
+    consensusForTf: (state) => (assetId: string, tf: string): { count: number; bullPct: number; avgChangePct: number } | null => {
+      const preds = state.predictions.filter(
+        p => p.assetId === assetId && p.timeframe === tf && p.status === 'pending'
+      )
+      if (!preds.length) return null
+      const bullPct = (preds.filter(p => p.direction === 'bullish').length / preds.length) * 100
+      const avgChangePct = preds.reduce((s, p) => s + p.predictedChangePct, 0) / preds.length
+      return { count: preds.length, bullPct, avgChangePct }
+    },
+
+    /** Recent evaluated predictions for a user (last 7 days) — used for alerts */
+    recentAlerts: (state) => (userId: string): Prediction[] => {
+      const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      return state.predictions
+        .filter(p => p.userId === userId && p.status !== 'pending' && p.timestamp > cutoff)
+        .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+        .slice(0, 5)
+    },
+
     /** Recent N predictions for a given user+asset */
     recentByAsset: (state) => (userId: string, assetId: string, n = 5) =>
       state.predictions
@@ -225,6 +263,15 @@ export const usePredictionsStore = defineStore('predictions', {
         }
       }
       if (changed) saveToStorage(this.predictions)
+    },
+
+    /** Update an existing prediction (e.g. user changes their view) */
+    updatePrediction(id: string, updates: Partial<Omit<Prediction, 'id'>>) {
+      const idx = this.predictions.findIndex(p => p.id === id)
+      if (idx !== -1) {
+        this.predictions[idx] = { ...this.predictions[idx]!, ...updates }
+        saveToStorage(this.predictions)
+      }
     },
 
     /** Delete a prediction by ID */
