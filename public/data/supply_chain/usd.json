@@ -1,0 +1,39 @@
+{
+  "asset_id": "usd",
+  "asset_kind": "fiat_currency",
+  "label_overrides": {
+    "suppliers": "Issuance",
+    "customers": "FX Reserves & Pegged Countries",
+    "shipments": "Cross-border Flows",
+    "facilities": "Federal Reserve Banks"
+  },
+  "headquarters": {
+    "name": "Federal Reserve Board",
+    "city": "Washington DC",
+    "country": "US",
+    "lat": 38.9072,
+    "lng": -77.0369
+  },
+  "facilities": [
+    { "id": "fed_ny", "name": "Fed NY", "city": "New York", "country": "US", "lat": 40.7128, "lng": -74.0060, "type": "central_bank", "size": "large", "status": "active" },
+    { "id": "fed_sf", "name": "Fed SF", "city": "San Francisco", "country": "US", "lat": 37.7749, "lng": -122.4194, "type": "central_bank", "size": "medium", "status": "active" },
+    { "id": "fed_ch", "name": "Fed Chicago", "city": "Chicago", "country": "US", "lat": 41.8781, "lng": -87.6298, "type": "central_bank", "size": "medium", "status": "active" },
+    { "id": "fed_dal", "name": "Fed Dallas", "city": "Dallas", "country": "US", "lat": 32.7767, "lng": -96.7970, "type": "central_bank", "size": "medium", "status": "active" }
+  ],
+  "suppliers": [
+    { "id": "fed_issuance", "name": "Federal Reserve System", "country": "US", "country_flag": "🇺🇸", "city": "Washington DC", "lat": 38.9072, "lng": -77.0369, "product": "USD base money", "share_pct": 100, "shipments_90d": 0, "value_usd": 5800000000000, "since": "1913" }
+  ],
+  "customers": [
+    { "id": "cn_reserves", "name": "PBoC reserves", "country": "CN", "country_flag": "🇨🇳", "city": "Beijing", "lat": 39.9042, "lng": 116.4074, "product": "FX reserves", "share_pct": 24, "shipments_90d": 0, "value_usd": 770000000000 },
+    { "id": "jp_reserves", "name": "BoJ reserves", "country": "JP", "country_flag": "🇯🇵", "city": "Tokyo", "lat": 35.6762, "lng": 139.6503, "product": "FX reserves", "share_pct": 19, "shipments_90d": 0, "value_usd": 610000000000 },
+    { "id": "ch_reserves", "name": "SNB reserves", "country": "CH", "country_flag": "🇨🇭", "city": "Bern", "lat": 46.9480, "lng": 7.4474, "product": "FX reserves", "share_pct": 8, "shipments_90d": 0, "value_usd": 260000000000 },
+    { "id": "in_reserves", "name": "RBI reserves", "country": "IN", "country_flag": "🇮🇳", "city": "Mumbai", "lat": 19.0760, "lng": 72.8777, "product": "FX reserves", "share_pct": 7, "shipments_90d": 0, "value_usd": 220000000000 },
+    { "id": "sa_pegged", "name": "Saudi riyal peg", "country": "SA", "country_flag": "🇸🇦", "city": "Riyadh", "lat": 24.7136, "lng": 46.6753, "product": "Currency peg", "share_pct": 5, "shipments_90d": 0, "value_usd": 160000000000 },
+    { "id": "hk_pegged", "name": "HKD peg", "country": "HK", "country_flag": "🇭🇰", "city": "Hong Kong", "lat": 22.3193, "lng": 114.1694, "product": "Currency peg", "share_pct": 3, "shipments_90d": 0, "value_usd": 95000000000 }
+  ],
+  "shipments": [
+    { "id": "fx_u1", "from_country": "US", "to_country": "JP", "product": "Treasury auction settlement", "containers": 0, "value_usd": 4200000000, "date": "2026-05-29" },
+    { "id": "fx_u2", "from_country": "CN", "to_country": "US", "product": "Trade surplus settlement", "containers": 0, "value_usd": 1840000000, "date": "2026-05-28" },
+    { "id": "fx_u3", "from_country": "EU", "to_country": "US", "product": "Capital flow", "containers": 0, "value_usd": 920000000, "date": "2026-05-27" }
+  ]
+}

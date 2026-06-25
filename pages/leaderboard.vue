@@ -2,13 +2,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useUsersStore } from '@/stores/users'
 import { useStrategiesStore } from '@/stores/strategies'
-import { useWalletsStore } from '@/stores/wallets'
+import { useWalletStore } from '@/stores/wallet'
 import Competition from '@/components/Leaderboard/Competition.vue';
 import { useLocalJson } from '@/composables/useLocalJson';
 
 const usersStore = useUsersStore()
 const strategiesStore = useStrategiesStore()
-const walletsStore = useWalletsStore()
+const walletsStore = useWalletStore()
 
 const { data: competitions } = useLocalJson('competitions/competitions.json');
 const { data: contributions, refresh: refreshContributions } = useLocalJson('competitions/contributions.json');

@@ -1,0 +1,35 @@
+{
+  "asset_id": "cny",
+  "asset_kind": "fiat_currency",
+  "label_overrides": {
+    "suppliers": "Issuance",
+    "customers": "Trade Partners & Pegged Currencies",
+    "shipments": "Cross-border Flows",
+    "facilities": "PBoC Branches"
+  },
+  "headquarters": {
+    "name": "People's Bank of China",
+    "city": "Beijing",
+    "country": "CN",
+    "lat": 39.9042,
+    "lng": 116.4074
+  },
+  "facilities": [
+    { "id": "pboc_bj", "name": "PBoC HQ", "city": "Beijing", "country": "CN", "lat": 39.9042, "lng": 116.4074, "type": "central_bank", "size": "large", "status": "active" },
+    { "id": "pboc_sh", "name": "PBoC Shanghai", "city": "Shanghai", "country": "CN", "lat": 31.2304, "lng": 121.4737, "type": "central_bank", "size": "large", "status": "active" },
+    { "id": "hkma_hk", "name": "HKMA Hong Kong", "city": "Hong Kong", "country": "HK", "lat": 22.3193, "lng": 114.1694, "type": "central_bank", "size": "medium", "status": "active" }
+  ],
+  "suppliers": [
+    { "id": "pboc_issuance", "name": "People's Bank of China", "country": "CN", "country_flag": "🇨🇳", "city": "Beijing", "lat": 39.9042, "lng": 116.4074, "product": "CNY base money", "share_pct": 100, "shipments_90d": 0, "value_usd": 5400000000000, "since": "1948" }
+  ],
+  "customers": [
+    { "id": "ru_cny", "name": "Russia trade settlement", "country": "RU", "country_flag": "🇷🇺", "city": "Moscow", "lat": 55.7558, "lng": 37.6173, "product": "Trade settlement", "share_pct": 14, "shipments_90d": 0, "value_usd": 78000000000 },
+    { "id": "br_cny", "name": "Brazil trade settlement", "country": "BR", "country_flag": "🇧🇷", "city": "Brasília", "lat": -15.7942, "lng": -47.8822, "product": "Trade settlement", "share_pct": 5, "shipments_90d": 0, "value_usd": 28000000000 },
+    { "id": "sa_cny", "name": "Saudi oil-yuan settlement", "country": "SA", "country_flag": "🇸🇦", "city": "Riyadh", "lat": 24.7136, "lng": 46.6753, "product": "Commodity settlement", "share_pct": 6, "shipments_90d": 0, "value_usd": 32000000000 },
+    { "id": "ir_cny", "name": "Iran trade settlement", "country": "IR", "country_flag": "🇮🇷", "city": "Tehran", "lat": 35.6892, "lng": 51.3890, "product": "Trade settlement", "share_pct": 3, "shipments_90d": 0, "value_usd": 18000000000 }
+  ],
+  "shipments": [
+    { "id": "fx_c1", "from_country": "CN", "to_country": "RU", "product": "Oil settlement (yuan)", "containers": 0, "value_usd": 2400000000, "date": "2026-05-29" },
+    { "id": "fx_c2", "from_country": "CN", "to_country": "BR", "product": "Soy import settlement", "containers": 0, "value_usd": 920000000, "date": "2026-05-28" }
+  ]
+}

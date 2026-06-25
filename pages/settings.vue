@@ -1,129 +1,85 @@
-<script setup>
-import { ref } from 'vue';
+<script setup lang="ts">
+import { ref } from 'vue'
+import UIPageHeader from '@/components/UI/PageHeader.vue'
+import UICard from '@/components/UI/Card.vue'
+import UIPill from '@/components/UI/Pill.vue'
 
-definePageMeta({
-    title: "Settings",
-    description: "User Settings",
-    layout: "default",
-});
+definePageMeta({ title: 'Settings', description: 'Account, security, preferences.', layout: 'default' })
 
 const apiKeys = ref([
   { exchange: 'Binance', key: '', secret: '' },
   { exchange: 'Kraken', key: '', secret: '' },
-  { exchange: 'Uniswap', key: '', secret: '' },
-]);
+  { exchange: 'Uniswap', key: '', secret: '' }
+])
 
-const addApiKey = (exchange) => {
-  apiKeys.value.push({ exchange, key: '', secret: '' });
-};
-
-const removeApiKey = (index) => {
-  apiKeys.value.splice(index, 1);
-};
-
-const saveSettings = () => {
-  // Implement saving logic here
-  console.log('Saving settings:', apiKeys.value);
-};
+const addApiKey = (exchange: string) => apiKeys.value.push({ exchange, key: '', secret: '' })
+const removeApiKey = (i: number) => apiKeys.value.splice(i, 1)
+const saveSettings = () => { /* persist later */ }
 </script>
 
 <template>
   <div class="settings-page">
-    <h1>Settings</h1>
-    
-    <section>
-      <h2>API Keys</h2>
-      <div v-for="(api, index) in apiKeys" :key="index" class="api-key-input">
-        <h3>{{ api.exchange }}</h3>
+    <UIPageHeader title="Settings" subtitle="Account, security, preferences." />
+
+    <UICard title="API Keys">
+      <template #action><UIPill tone="warning" show-dot>Local-only</UIPill></template>
+      <div v-for="(api, i) in apiKeys" :key="i" class="api-row">
+        <strong>{{ api.exchange }}</strong>
         <input v-model="api.key" placeholder="API Key" />
         <input v-model="api.secret" placeholder="API Secret" type="password" />
-        <button @click="removeApiKey(index)" class="remove-button">Remove</button>
+        <button class="ghost danger" @click="removeApiKey(i)">Remove</button>
       </div>
-      <button @click="addApiKey('Custom')" class="add-button">Add Custom API</button>
-    </section>
+      <template #footer>
+        <button class="ghost" @click="addApiKey('Custom')">+ Add custom</button>
+        <button class="primary" @click="saveSettings">Save</button>
+      </template>
+    </UICard>
 
-    <button @click="saveSettings" class="save-button">Save Settings</button>
+    <UICard title="Preferences" padding="tight">
+      <p class="muted">Per-class trading defaults, theme density, hover-intent thresholds — coming soon.</p>
+    </UICard>
 
-    <section>
-      <h2>Preferences</h2>
-      <!-- Add preference options here -->
-    </section>
+    <UICard title="Security" padding="tight">
+      <p class="muted">2FA, session keys, withdrawal whitelist — coming soon.</p>
+    </UICard>
 
-    <section>
-      <h2>Notifications</h2>
-      <!-- Add notification settings here -->
-    </section>
-
-    <section>
-      <h2>Security</h2>
-      <!-- Add security settings here -->
-    </section>
-
-    <section>
-      <h2>Help & Support</h2>
-      <a href="/faq">FAQ</a>
-      <a href="/contact">Contact Us</a>
-    </section>
-
-    <section>
-      <h2>Legal</h2>
-      <a href="/terms">Terms of Service</a>
-      <a href="/privacy">Privacy Policy</a>
-    </section>
-
-    <section>
-      <h2>About</h2>
-      <p>Version: 0.1</p>
-      <a href="/changelog">Changelog</a>
-    </section>
+    <UICard title="About" padding="tight">
+      <p class="muted">Strades · v0.2 · <NuxtLink to="/about">Read the vision →</NuxtLink></p>
+    </UICard>
   </div>
 </template>
 
 <style scoped>
-.settings-page {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
-}
+.settings-page { display: flex; flex-direction: column; gap: 0.75rem; max-width: 760px; margin: 0 auto; }
 
-h1, h2 {
-  margin-bottom: 1rem;
+.api-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr auto;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
-
-section {
-  margin-bottom: 2rem;
-}
-
-.api-key-input {
-  margin-bottom: 1rem;
-}
+.api-row:last-of-type { border-bottom: none; }
+.api-row strong { font-size: 0.85rem; }
 
 input {
-  display: block;
-  width: 100%;
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #fff;
+  padding: 0.4rem 0.55rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
 }
+input:focus { outline: none; border-color: var(--primary-green, #00ff88); }
 
-button {
-  padding: 0.5rem 1rem;
-  margin-right: 0.5rem;
-}
+.muted { color: rgba(255,255,255,0.55); font-size: 0.8rem; margin: 0; }
+.muted a { color: var(--primary-green, #00ff88); }
 
-.remove-button {
-  background-color: #ff4136;
-  color: white;
-}
-
-.add-button {
-  background-color: #0074d9;
-  color: white;
-}
-
-.save-button {
-  background-color: #2ecc40;
-  color: white;
-  font-size: 1.2rem;
-  padding: 0.75rem 1.5rem;
-}
+button { font-family: inherit; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 0.4rem 0.85rem; border-radius: 5px; }
+.ghost { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); }
+.ghost.danger:hover { color: var(--error-red, #ff4444); border-color: var(--error-red, #ff4444); }
+.ghost:hover { color: #fff; }
+.primary { background: var(--primary-gradient); color: #000; border: none; font-weight: 700; }
+.primary:hover { transform: translateY(-1px); }
 </style>

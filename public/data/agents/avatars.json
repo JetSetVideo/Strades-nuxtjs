@@ -1,0 +1,207 @@
+[
+  {
+    "id": "avatar_user_001",
+    "name": "Alice's Avatar",
+    "owner_id": "user_001",
+    "kind": "personal",
+    "avatar_url": "/avatars/Ellipse5.png",
+    "tagline": "Learning from your every move",
+    "specialization": ["crypto", "stocks"],
+    "trading_style": "swing_intraday",
+    "personality_matrix": {
+      "risk": 0.72,
+      "aggression": 0.65,
+      "reaction_speed": 0.8,
+      "patience": 0.35,
+      "contrarian": 0.4
+    },
+    "opinion_vector": { "fiat": 15, "crypto": 50, "stocks": 25, "commodities": 10 },
+    "confidence": 0.74,
+    "training_state": {
+      "version": 12,
+      "epochs": 1284,
+      "last_trained_at": "2026-05-28T09:55:00Z",
+      "samples_observed": 4321,
+      "samples_since_last_train": 87,
+      "reward_ema_pnl": 0.043,
+      "loss_ema": 0.18,
+      "status": "training"
+    },
+    "performance": {
+      "live_pnl_pct": 12.4,
+      "backtest_pnl_pct": 18.6,
+      "win_rate": 0.61,
+      "sharpe": 1.42,
+      "max_drawdown_pct": -8.3,
+      "trades_total": 312,
+      "last_30d_curve": [100, 102, 101.5, 104, 103, 106, 108, 107.5, 110, 109, 111.5, 113, 112, 114, 113.5, 115]
+    },
+    "lineage": { "parent_id": null, "forked_at": null },
+    "share_state": { "is_public": false, "price_credits": 0, "license": "private" },
+    "created_at": "2025-11-02T08:00:00Z"
+  },
+  {
+    "id": "avatar_pro_momentum",
+    "name": "Momentum Hawk",
+    "owner_id": "user_002",
+    "kind": "public",
+    "avatar_url": "/avatars/Ellipse6.png",
+    "tagline": "Rides breakouts, cuts fast on weakness",
+    "specialization": ["crypto", "commodities"],
+    "trading_style": "trend_follow",
+    "personality_matrix": {
+      "risk": 0.85,
+      "aggression": 0.9,
+      "reaction_speed": 0.95,
+      "patience": 0.15,
+      "contrarian": 0.1
+    },
+    "opinion_vector": { "fiat": 5, "crypto": 65, "stocks": 10, "commodities": 20 },
+    "confidence": 0.82,
+    "training_state": {
+      "version": 47,
+      "epochs": 9821,
+      "last_trained_at": "2026-05-28T08:10:00Z",
+      "samples_observed": 142000,
+      "samples_since_last_train": 0,
+      "reward_ema_pnl": 0.082,
+      "loss_ema": 0.09,
+      "status": "live"
+    },
+    "performance": {
+      "live_pnl_pct": 38.7,
+      "backtest_pnl_pct": 42.1,
+      "win_rate": 0.54,
+      "sharpe": 2.18,
+      "max_drawdown_pct": -22.6,
+      "trades_total": 1842,
+      "last_30d_curve": [100, 103, 108, 107, 112, 115, 113, 119, 124, 128, 126, 132, 135, 134, 138, 142]
+    },
+    "lineage": { "parent_id": null, "forked_at": null },
+    "share_state": { "is_public": true, "price_credits": 250, "license": "swarm-readonly" },
+    "created_at": "2024-08-12T08:00:00Z"
+  },
+  {
+    "id": "avatar_pro_mean_revert",
+    "name": "Reversion Quant",
+    "owner_id": "user_003",
+    "kind": "public",
+    "avatar_url": "/avatars/Ellipse7.png",
+    "tagline": "Fades extremes, sells volatility",
+    "specialization": ["stocks", "fiat"],
+    "trading_style": "mean_reversion",
+    "personality_matrix": {
+      "risk": 0.32,
+      "aggression": 0.25,
+      "reaction_speed": 0.45,
+      "patience": 0.88,
+      "contrarian": 0.85
+    },
+    "opinion_vector": { "fiat": 35, "crypto": 5, "stocks": 50, "commodities": 10 },
+    "confidence": 0.69,
+    "training_state": {
+      "version": 31,
+      "epochs": 6420,
+      "last_trained_at": "2026-05-27T22:45:00Z",
+      "samples_observed": 98500,
+      "samples_since_last_train": 14,
+      "reward_ema_pnl": 0.031,
+      "loss_ema": 0.12,
+      "status": "live"
+    },
+    "performance": {
+      "live_pnl_pct": 14.9,
+      "backtest_pnl_pct": 16.2,
+      "win_rate": 0.71,
+      "sharpe": 1.96,
+      "max_drawdown_pct": -5.8,
+      "trades_total": 920,
+      "last_30d_curve": [100, 100.5, 101, 100.8, 102, 101.5, 103, 103.5, 104, 105, 104.5, 106, 107, 107.5, 108, 108.5]
+    },
+    "lineage": { "parent_id": null, "forked_at": null },
+    "share_state": { "is_public": true, "price_credits": 180, "license": "swarm-readonly" },
+    "created_at": "2024-11-20T08:00:00Z"
+  },
+  {
+    "id": "avatar_macro_thinker",
+    "name": "Macro Owl",
+    "owner_id": "user_004",
+    "kind": "public",
+    "avatar_url": "/avatars/Ellipse5.png",
+    "tagline": "Geopolitics in, allocation out",
+    "specialization": ["commodities", "fiat", "stocks"],
+    "trading_style": "macro_overlay",
+    "personality_matrix": {
+      "risk": 0.55,
+      "aggression": 0.4,
+      "reaction_speed": 0.35,
+      "patience": 0.78,
+      "contrarian": 0.3
+    },
+    "opinion_vector": { "fiat": 20, "crypto": 10, "stocks": 30, "commodities": 40 },
+    "confidence": 0.77,
+    "training_state": {
+      "version": 22,
+      "epochs": 4180,
+      "last_trained_at": "2026-05-28T07:30:00Z",
+      "samples_observed": 64200,
+      "samples_since_last_train": 3,
+      "reward_ema_pnl": 0.055,
+      "loss_ema": 0.14,
+      "status": "live"
+    },
+    "performance": {
+      "live_pnl_pct": 22.4,
+      "backtest_pnl_pct": 24.0,
+      "win_rate": 0.59,
+      "sharpe": 1.74,
+      "max_drawdown_pct": -11.2,
+      "trades_total": 540,
+      "last_30d_curve": [100, 101, 102.5, 103, 104, 106, 107, 109, 110, 112, 114, 115, 117, 118, 120, 122]
+    },
+    "lineage": { "parent_id": null, "forked_at": null },
+    "share_state": { "is_public": true, "price_credits": 200, "license": "swarm-readonly" },
+    "created_at": "2025-02-10T08:00:00Z"
+  },
+  {
+    "id": "avatar_user_001_fork_of_momentum",
+    "name": "My Momentum Fork",
+    "owner_id": "user_001",
+    "kind": "forked",
+    "avatar_url": "/avatars/Ellipse6.png",
+    "tagline": "Forked from Momentum Hawk — tuned for patience",
+    "specialization": ["crypto"],
+    "trading_style": "trend_follow",
+    "personality_matrix": {
+      "risk": 0.78,
+      "aggression": 0.75,
+      "reaction_speed": 0.85,
+      "patience": 0.45,
+      "contrarian": 0.2
+    },
+    "opinion_vector": { "fiat": 10, "crypto": 60, "stocks": 20, "commodities": 10 },
+    "confidence": 0.68,
+    "training_state": {
+      "version": 4,
+      "epochs": 240,
+      "last_trained_at": "2026-05-27T14:00:00Z",
+      "samples_observed": 1820,
+      "samples_since_last_train": 12,
+      "reward_ema_pnl": 0.038,
+      "loss_ema": 0.22,
+      "status": "training"
+    },
+    "performance": {
+      "live_pnl_pct": 4.2,
+      "backtest_pnl_pct": 9.8,
+      "win_rate": 0.52,
+      "sharpe": 1.05,
+      "max_drawdown_pct": -7.4,
+      "trades_total": 38,
+      "last_30d_curve": [100, 100.8, 101.5, 102, 101.2, 102.5, 103, 102.8, 103.5, 104, 103.5, 104.2, 104, 104.5, 104.2]
+    },
+    "lineage": { "parent_id": "avatar_pro_momentum", "forked_at": "2026-04-18T11:20:00Z" },
+    "share_state": { "is_public": false, "price_credits": 0, "license": "private" },
+    "created_at": "2026-04-18T11:20:00Z"
+  }
+]

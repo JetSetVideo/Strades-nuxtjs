@@ -1,6 +1,7 @@
 [
   {
     "id": "post_001",
+<<<<<<< HEAD
     "author_id": "user_001",
     "title": "BTC / ETH swing setup — March 2026",
     "content": "Strong higher high forming on BTC 4H. RSI divergence cleared, open interest declining = healthy reset. Target: $65K. SL: $60.5K. Position size: 3% wallet. Sharing my swing trade plan for transparency.",
@@ -98,5 +99,76 @@
     "timestamp": "2026-03-21T09:15:00Z",
     "tags": ["equities", "macro", "bonds", "opinion"],
     "is_pinned": false
+=======
+    "author_id": "user_002",
+    "content": "ECB just hinted at faster QT. Watching DXY closely — fiat strength likely to bleed crypto bids over the next few sessions.",
+    "geographic_origin": { "lat": 50.11, "lng": 8.68, "name": "Frankfurt" },
+    "political_leaning": -0.3,
+    "controversy_index": 0.72,
+    "weight": 0.9,
+    "published_at": "2026-05-28T09:42:00Z",
+    "interactions": { "likes": 312, "comments": 88, "shares": 41 },
+    "embedded_allocation": { "fiat": 50, "crypto": 10, "stocks": 30, "commodities": 10 }
+  },
+  {
+    "id": "post_002",
+    "author_id": "user_003",
+    "content": "SOL TPS just printed a new ATH. Network is healthier than the price action suggests. Accumulating into weakness.",
+    "geographic_origin": { "lat": 37.77, "lng": -122.41, "name": "San Francisco" },
+    "political_leaning": 0.1,
+    "controversy_index": 0.34,
+    "weight": 0.65,
+    "published_at": "2026-05-28T09:30:00Z",
+    "interactions": { "likes": 845, "comments": 122, "shares": 210 },
+    "embedded_allocation": { "fiat": 10, "crypto": 70, "stocks": 15, "commodities": 5 }
+  },
+  {
+    "id": "post_003",
+    "author_id": "user_004",
+    "content": "Pipeline halt in Eastern Europe pushing Brent +2.4%. Energy majors should bid into the open.",
+    "geographic_origin": { "lat": 50.45, "lng": 30.52, "name": "Kyiv" },
+    "political_leaning": 0.5,
+    "controversy_index": 0.88,
+    "weight": 0.95,
+    "published_at": "2026-05-28T08:55:00Z",
+    "interactions": { "likes": 1422, "comments": 384, "shares": 612 },
+    "embedded_allocation": { "fiat": 20, "crypto": 10, "stocks": 30, "commodities": 40 }
+  },
+  {
+    "id": "post_004",
+    "author_id": "user_005",
+    "content": "Bond yields curling lower into CPI. Risk-on tape for tech, but rotation will get violent if the print surprises.",
+    "geographic_origin": { "lat": 40.71, "lng": -74.0, "name": "New York" },
+    "political_leaning": -0.1,
+    "controversy_index": 0.42,
+    "weight": 0.7,
+    "published_at": "2026-05-28T08:20:00Z",
+    "interactions": { "likes": 521, "comments": 96, "shares": 80 },
+    "embedded_allocation": { "fiat": 25, "crypto": 25, "stocks": 40, "commodities": 10 }
+  },
+  {
+    "id": "post_005",
+    "author_id": "user_006",
+    "content": "Tokyo session quietly bid. Yen carry unwind risk back on the radar if MoF intervenes again.",
+    "geographic_origin": { "lat": 35.68, "lng": 139.69, "name": "Tokyo" },
+    "political_leaning": 0.0,
+    "controversy_index": 0.18,
+    "weight": 0.55,
+    "published_at": "2026-05-28T07:10:00Z",
+    "interactions": { "likes": 188, "comments": 22, "shares": 14 },
+    "embedded_allocation": { "fiat": 60, "crypto": 5, "stocks": 25, "commodities": 10 }
+  },
+  {
+    "id": "post_006",
+    "author_id": "user_007",
+    "content": "Singapore copper warehouses drawing fast. China restock thesis intact.",
+    "geographic_origin": { "lat": 1.35, "lng": 103.82, "name": "Singapore" },
+    "political_leaning": 0.2,
+    "controversy_index": 0.27,
+    "weight": 0.6,
+    "published_at": "2026-05-28T06:30:00Z",
+    "interactions": { "likes": 233, "comments": 41, "shares": 36 },
+    "embedded_allocation": { "fiat": 15, "crypto": 15, "stocks": 20, "commodities": 50 }
+>>>>>>> ccc9f82 (Enhance documentation for component structure and layout. Added detailed descriptions of folder organization and component hierarchy in Components.md and Structure.md. Updated CSS variables for responsive design in variables.css. Removed obsolete components to streamline the codebase, including APISynchronisations.vue, Asset.vue, and others. Improved Todo.md with completed tasks for better project tracking.)
   }
 ]

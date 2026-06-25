@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Friend } from '@/stores/FriendsStore'
+import type { CommunityUser } from '@/stores/community'
 
 const props = defineProps<{
-  friends: Friend[]
+  friends: CommunityUser[]
 }>()
 
 const perfColor = (pct: number | undefined): string => {

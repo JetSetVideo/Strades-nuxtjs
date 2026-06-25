@@ -1,1163 +1,391 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useStrategies, type StrategySummary } from '@/composables/useStrategies'
-import StrategyVisualizer from '@/components/StrategyVisualizer.vue'
-import StrategyCodeView from '@/components/StrategyCodeView.vue'
-import StrategyRating from '@/components/StrategyRating.vue'
-import StrategyPnlChart from '@/components/StrategyPnlChart.vue'
-import AvatarCard from '@/components/Card/Avatar.vue'
+import { useRoute } from 'vue-router'
+import { useStrategies } from '@/composables/useStrategies'
+import { useAgentsStore } from '@/stores/agents'
+import { useBotsStore } from '@/stores/bots'
+import { seededRandom } from '@/composables/useSeededRandom'
 
-// Get the strategy ID from the route
+import UIPageHeader from '@/components/UI/PageHeader.vue'
+import UICard from '@/components/UI/Card.vue'
+import UIStat from '@/components/UI/Stat.vue'
+import UIPill from '@/components/UI/Pill.vue'
+import UIMetricRow from '@/components/UI/MetricRow.vue'
+import UISectionTabs, { type TabItem } from '@/components/UI/SectionTabs.vue'
+import UIEmptyState from '@/components/UI/EmptyState.vue'
+import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
+
+import StrategyEquityCurve from '@/components/Strategy/EquityCurve.vue'
+import StrategyTradeList from '@/components/Strategy/TradeList.vue'
+import StrategyRunByPanel from '@/components/Strategy/RunByPanel.vue'
+
+definePageMeta({ title: 'Strategy', layout: 'default' })
+
 const route = useRoute()
-const strategyId = route.params.id as string
+const strategyId = computed(() => String(route.params.id))
 
-const { strategies, updateStrategy, fetchStrategies, fetchStrategyDetail, backtestStrategy, generateComplementary, generateOpposite } = useStrategies()
-const isEditing = ref(false)
-interface Block {
-  type: string;
-  id: number;
-  data: any;
-}
+const { strategies, fetchStrategies, toggleStrategyStatus, backtestStrategy } = useStrategies()
+const agents = useAgentsStore()
+const bots = useBotsStore()
 
-interface Trade {
-  asset: string;
-  entryPrice: number;
-  exitPrice: number;
-  duration: number;
-  date: string;
-}
-
-interface StrategySummaryExtended extends StrategySummary {
-  blocks?: Block[];
-  lastModifiedDate?: string;
-  riskRating?: number;
-  complexityRating?: string;
-  dataSources?: string[];
-  trades?: Trade[];
-  isRunning?: boolean;
-}
-
-// Use StrategySummaryExtended for refs
-const editedStrategy = ref<StrategySummaryExtended | null>(null)
-const details = ref<{ code: any; rating: any; history: any[]; trades: any[] } | null>(null)
-const profileObjects = ref<Array<{ id: string; name: string; avatar_url?: string; pnl?: number; traits?: string[] }>>([])
-
-async function loadProfiles(profileIds: string[]) {
-  if (!profileIds || profileIds.length === 0) return
-  try {
-    const allProfiles = await $fetch<Array<{ id: string; name: string; avatar_url?: string; pnl?: number; traits?: string[] }>>('/data/strategies/profiles.json')
-    profileObjects.value = allProfiles.filter(p => profileIds.includes(p.id))
-  } catch {
-    profileObjects.value = profileIds.map(id => ({ id, name: id }))
-  }
-}
-
-// Find the current strategy
-const currentStrategy = computed<StrategySummaryExtended | null>(() => {
-  return strategies.value.find(s => s.id === strategyId) as StrategySummaryExtended | null || null
-})
-
-// Asset icon mapping for display
-function getAssetIcon(asset: string) {
-  const assetMap: Record<string, string> = {
-    'BTC': 'btc.svg',
-    'ETH': 'eth.png',
-    'bitcoin': 'btc.svg',
-    'ethereum': 'eth.png',
-    'AAPL': 'apple.png',
-    'GOOGL': 'google.png',
-    'MSFT': 'msft.png',
-    'XRP': 'xrp.png',
-    'USD': 'average.png',
-  };
-
-  const iconFile = assetMap[asset] || assetMap[asset.toUpperCase()] || 'average.png';
-  return `/logos/${iconFile}`;
-}
-
-// Status management
-function toggleStrategyStatus() {
-  if (currentStrategy.value) {
-    const newStatus = currentStrategy.value.status === 'active' ? 'paused' : 'active'
-    updateStrategy(currentStrategy.value.id!, {
-      status: newStatus
-    })
-  }
-}
-
-// Editing functions
-function startEditing() {
-  if (currentStrategy.value) {
-    editedStrategy.value = { ...currentStrategy.value }
-    isEditing.value = true
-  }
-}
-
-function cancelEditing() {
-  editedStrategy.value = null
-  isEditing.value = false
-}
-
-function saveChanges() {
-  if (editedStrategy.value && currentStrategy.value) {
-    updateStrategy(currentStrategy.value.id!, editedStrategy.value)
-    isEditing.value = false
-    editedStrategy.value = null
-  }
-}
-
-function addTrade() {
-  if (editedStrategy.value) {
-    const newTrade = {
-      asset: 'BTC',
-      entryPrice: 0,
-      exitPrice: 0,
-      duration: 1,
-      date: new Date().toISOString().split('T')[0] as string
-    }
-    editedStrategy.value.trades = [...(editedStrategy.value.trades || []), newTrade]
-  }
-}
-
-function removeTrade(index: number) {
-  if (editedStrategy.value?.trades) {
-    editedStrategy.value.trades.splice(index, 1)
-  }
-}
-
-function addBlock(type: string) {
-  if (editedStrategy.value) {
-    const newBlock = {
-      type,
-      id: Date.now(),
-      data: {}
-    }
-    editedStrategy.value.blocks = [...(editedStrategy.value.blocks || []), newBlock]
-  }
-}
-
-function removeBlock(index: number) {
-  if (editedStrategy.value?.blocks) {
-    editedStrategy.value.blocks.splice(index, 1)
-  }
-}
-
-function handleImageError(event: Event) {
-  const img = event.target as HTMLImageElement;
-  if (img) {
-    img.style.display = 'none';
-    const placeholder = img.nextElementSibling as HTMLElement;
-    if (placeholder) {
-      placeholder.style.display = 'block';
-    }
-  }
-}
+const loading = ref(true)
+const tab = ref<'performance' | 'trades' | 'code' | 'backtest'>('performance')
+const isBacktesting = ref(false)
 
 onMounted(async () => {
-  await fetchStrategies()
+  loading.value = true
+  await Promise.all([
+    fetchStrategies(),
+    !agents.hydrated ? agents.fetchAgents() : Promise.resolve(),
+    !bots.hydrated ? bots.fetchBots() : Promise.resolve()
+  ])
+  loading.value = false
+})
+
+const strategy = computed<any>(() =>
+  (strategies.value ?? []).find((s: any) => s.id === strategyId.value)
+)
+
+const agent = computed(() =>
+  strategy.value?.agent_id ? agents.getAvatarById(strategy.value.agent_id) : null
+)
+
+const attachedBots = computed(() =>
+  bots.list.filter(b => b.strategy_id === strategyId.value)
+)
+
+const statusTone = computed(() => {
+  switch (strategy.value?.status) {
+    case 'active': return 'success'
+    case 'paused': return 'warning'
+    case 'stopped': return 'danger'
+    default: return 'neutral'
+  }
+})
+
+const returnPct = computed(() => strategy.value?.total_return_percentage ?? 0)
+
+const tabs = computed<TabItem[]>(() => [
+  { id: 'performance', label: 'Performance' },
+  { id: 'trades',      label: 'Trades',  count: strategy.value?.total_trades ?? null },
+  { id: 'code',        label: 'Code' },
+  { id: 'backtest',    label: 'Backtest' }
+])
+
+const lastRunRel = computed(() => {
+  if (!strategy.value?.last_run) return '—'
+  const days = Math.floor((Date.now() - new Date(strategy.value.last_run).getTime()) / 86_400_000)
+  if (days === 0) return 'today'
+  if (days === 1) return 'yesterday'
+  if (days < 30) return `${days}d ago`
+  return `${Math.floor(days / 30)}mo ago`
+})
+
+// Synthetic trade list using total_trades + win_rate
+const syntheticTrades = computed(() => {
+  if (!strategy.value) return []
+  const n = Math.min(20, strategy.value.total_trades ?? 0)
+  const win = (strategy.value.win_rate ?? 0) / 100
+  const rand = seededRandom(strategy.value.id + 'trades')
+  const assets: string[] = strategy.value.target_assets ?? ['?']
+  const out: any[] = []
+  for (let i = 0; i < n; i++) {
+    const isWin = rand() < win
+    const asset = assets[Math.floor(rand() * assets.length)]
+    const pct = (isWin ? rand() * 4 : -rand() * 3)
+    const usd = pct * (strategy.value.initial_capital ?? 10000) / 100
+    out.push({
+      id: `t_${strategy.value.id}_${i}`,
+      asset,
+      type: isWin ? 'win' : 'loss',
+      pct,
+      usd,
+      ts: Date.now() - (i + 1) * 86_400_000 * (1 + rand() * 2)
+    })
+  }
+  return out
+})
+
+async function onToggle() {
+  if (!strategy.value) return
+  toggleStrategyStatus(strategy.value.id)
+}
+
+async function onRunBacktest() {
+  if (!strategy.value) return
+  isBacktesting.value = true
   try {
-    details.value = await fetchStrategyDetail(strategyId)
-    if (details.value?.code?.profiles) {
-      await loadProfiles(details.value.code.profiles)
-    }
-  } catch {}
+    await backtestStrategy(strategy.value.id)
+  } finally {
+    isBacktesting.value = false
+  }
+}
+
+const codeJson = computed(() => {
+  if (!strategy.value) return ''
+  const { id, name, description, category, type, target_assets, indicators,
+          risk_level, entry_conditions, exit_conditions, tags } = strategy.value
+  return JSON.stringify({
+    id, name, description, category, type, target_assets, indicators, risk_level,
+    entry_conditions, exit_conditions, tags
+  }, null, 2)
 })
 </script>
+
 <template>
-  <div class="strategy-detail-page">
-    <!-- Header -->
-    <div class="strategy-header">
-      <div class="header-content">
-        <h1 class="strategy-title" v-if="!isEditing">{{ currentStrategy?.name }}</h1>
-        <input
-          v-else
-          v-model="editedStrategy!.name"
-          class="strategy-title-input"
-          placeholder="Strategy Name"
-        >
-
-        <div class="strategy-meta">
-          <div class="meta-item">
-            <span class="label">Creator:</span>
-            <span class="value" v-if="!isEditing">{{ currentStrategy?.creator }}</span>
-            <input
-              v-else
-              v-model="editedStrategy!.creator"
-              class="meta-input"
-              placeholder="Creator"
-            >
-          </div>
-
-          <div class="meta-item">
-            <span class="label">Created:</span>
-            <span class="value">{{ currentStrategy?.creationDate }}</span>
-          </div>
-
-          <div class="meta-item">
-            <span class="label">Last Modified:</span>
-            <span class="value">{{ currentStrategy?.lastModifiedDate }}</span>
-          </div>
-
-          <div class="meta-item">
-            <span class="label">Status:</span>
-            <div class="status-indicator" :class="currentStrategy?.status">
-              {{ currentStrategy?.status }}
-            </div>
-          </div>
-        </div>
-
-        <div class="strategy-description">
-          <label class="description-label" v-if="isEditing">Description:</label>
-          <p v-if="!isEditing">{{ currentStrategy?.description }}</p>
-          <textarea
-            v-else
-            v-model="editedStrategy!.description"
-            class="description-input"
-            placeholder="Strategy Description"
-          ></textarea>
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="action-buttons">
-        <button
-          v-if="!isEditing"
-          @click="startEditing"
-          class="action-btn edit-btn"
-        >
-          Edit Strategy
-        </button>
-
-        <button
-          v-if="!isEditing"
-          @click="toggleStrategyStatus"
-          :class="['action-btn', 'status-btn', currentStrategy?.status]"
-        >
-          {{ currentStrategy?.status === 'active' ? 'Pause' : 'Start' }}
-        </button>
-
-        <button
-          v-if="isEditing"
-          @click="saveChanges"
-          class="action-btn save-btn"
-        >
-          Save Changes
-        </button>
-
-        <button
-          v-if="isEditing"
-          @click="cancelEditing"
-          class="action-btn cancel-btn"
-        >
-          Cancel
-        </button>
-      </div>
+  <!-- Loading shell -->
+  <div v-if="loading" class="loading-shell">
+    <AppSkeletonLoader height="20px" width="240px" />
+    <AppSkeletonLoader height="14px" width="160px" />
+    <div class="skel-metrics">
+      <AppSkeletonLoader height="56px" />
+      <AppSkeletonLoader height="56px" />
+      <AppSkeletonLoader height="56px" />
+      <AppSkeletonLoader height="56px" />
     </div>
+    <AppSkeletonLoader height="180px" />
+    <AppSkeletonLoader height="240px" />
+  </div>
 
-    <!-- Main Content -->
-    <div class="strategy-content">
-      <!-- Performance Metrics -->
-      <div class="section performance-section">
-        <h2 class="section-title">Performance Metrics</h2>
-        <div class="metrics-grid">
-          <div class="metric-card">
-            <div class="metric-label">Monthly Gain</div>
-            <div
-              class="metric-value"
-              :class="{ positive: (currentStrategy?.monthlyGain || 0) > 0, negative: (currentStrategy?.monthlyGain || 0) < 0 }"
-            >
-              {{ currentStrategy?.monthlyGain }}%
-            </div>
-          </div>
+  <div v-else-if="strategy" class="strategy-detail">
+    <UIPageHeader :title="strategy.name" :subtitle="strategy.description">
+      <template #actions>
+        <UIPill :tone="statusTone" show-dot>{{ strategy.status }}</UIPill>
+        <button class="action" @click="onToggle" :title="strategy.status === 'active' ? 'Pause' : 'Resume'">
+          {{ strategy.status === 'active' ? '⏸ Pause' : '▶ Resume' }}
+        </button>
+        <button class="action ghost" @click="onRunBacktest" :disabled="isBacktesting">
+          {{ isBacktesting ? '…' : '↺ Backtest' }}
+        </button>
+      </template>
+    </UIPageHeader>
 
-          <div class="metric-card">
-            <div class="metric-label">Monthly Drawdown</div>
-            <div
-              class="metric-value"
-              :class="{ positive: (currentStrategy?.monthlyDrawdown || 0) < 0, negative: (currentStrategy?.monthlyDrawdown || 0) > 0 }"
-            >
-              {{ currentStrategy?.monthlyDrawdown }}%
-            </div>
-          </div>
+    <UIMetricRow :cols="4">
+      <UIStat label="Return"   :value="returnPct" tone="auto" suffix="%" :precision="2" size="lg" />
+      <UIStat label="Capital"  :value="strategy.current_capital ?? 0" :precision="0" suffix="USD" size="md" />
+      <UIStat label="Win rate" :value="strategy.win_rate ?? 0" suffix="%" :precision="0" size="md" />
+      <UIStat label="Sharpe"   :value="strategy.sharpe_ratio ?? 0" :precision="2" size="md" />
+    </UIMetricRow>
 
-          <div class="metric-card">
-            <div class="metric-label">Total Profit</div>
-            <div class="metric-value positive">
-              ${{ currentStrategy?.totalProfit }}
-            </div>
-          </div>
+    <UISectionTabs v-model="tab" :tabs="tabs" />
 
-          <div class="metric-card">
-            <div class="metric-label">Win Rate</div>
-            <div class="metric-value positive">
-              {{ currentStrategy?.winRate }}%
-            </div>
-          </div>
+    <!-- PERFORMANCE -->
+    <template v-if="tab === 'performance'">
+      <UICard title="Equity curve">
+        <template #action><UIPill ghost tone="neutral">since inception</UIPill></template>
+        <StrategyEquityCurve
+          :seed="strategy.id"
+          :initial-value="strategy.initial_capital ?? 10000"
+          :final-value="strategy.current_capital ?? (strategy.initial_capital ?? 10000)"
+        />
+      </UICard>
 
-          <div class="metric-card">
-            <div class="metric-label">Number of Trades</div>
-            <div class="metric-value">
-              {{ currentStrategy?.numberOfTrades }}
-            </div>
-          </div>
+      <div class="grid-3">
+        <UICard title="Risk metrics">
+          <UIMetricRow :cols="2">
+            <UIStat label="Max DD"    :value="-(strategy.max_drawdown ?? 0)" tone="negative" suffix="%" :precision="1" size="sm" />
+            <UIStat label="Vol (ann)" :value="strategy.performance_metrics?.volatility ?? 0" suffix="%" :precision="1" size="sm" />
+            <UIStat label="Beta"      :value="strategy.performance_metrics?.beta ?? 0" :precision="2" size="sm" />
+            <UIStat label="Alpha"     :value="strategy.performance_metrics?.alpha ?? 0" :precision="2" size="sm" tone="auto" />
+          </UIMetricRow>
+        </UICard>
 
-          <div class="metric-card">
-            <div class="metric-label">Avg Trade Duration</div>
-            <div class="metric-value">
-              {{ currentStrategy?.averageTradeDuration }} days
-            </div>
-          </div>
-        </div>
+        <UICard title="Trade stats">
+          <UIMetricRow :cols="2">
+            <UIStat label="Total trades" :value="strategy.total_trades ?? 0" size="sm" />
+            <UIStat label="Successful"   :value="strategy.successful_trades ?? 0" tone="positive" size="sm" />
+            <UIStat label="Avg duration" :value="strategy.average_trade_duration ?? '—'" size="sm" />
+            <UIStat label="Last run"     :value="lastRunRel" size="sm" />
+          </UIMetricRow>
+        </UICard>
+
+        <StrategyRunByPanel :agent="agent" :bots="attachedBots" />
       </div>
+    </template>
 
-      <!-- Strategy Configuration -->
-      <div class="section config-section">
-        <h2 class="section-title">Strategy Configuration</h2>
+    <!-- TRADES -->
+    <template v-else-if="tab === 'trades'">
+      <UICard title="Recent trades">
+        <template #action>
+          <UIPill ghost tone="neutral">
+            {{ syntheticTrades.length }} shown · {{ strategy.total_trades ?? 0 }} total
+          </UIPill>
+        </template>
+        <UIEmptyState
+          v-if="syntheticTrades.length === 0"
+          icon="◯"
+          message="This strategy hasn't run any trades yet."
+        />
+        <StrategyTradeList v-else :trades="syntheticTrades" />
+      </UICard>
+    </template>
 
-        <div class="config-grid">
-          <div class="config-item">
-            <label class="config-label">Risk Rating:</label>
-            <div v-if="!isEditing" class="config-value">{{ currentStrategy?.riskRating }}/10</div>
-            <input
-              v-else
-              v-model.number="editedStrategy!.riskRating"
-              type="range"
-              min="1"
-              max="10"
-              class="config-slider"
-            >
-            <span v-if="isEditing" class="slider-value">{{ editedStrategy?.riskRating }}/10</span>
-          </div>
+    <!-- CODE -->
+    <template v-else-if="tab === 'code'">
+      <UICard title="Strategy code">
+        <template #action>
+          <NuxtLink to="/creator" class="link-btn">Edit in creator →</NuxtLink>
+        </template>
+        <pre class="code-block">{{ codeJson }}</pre>
+      </UICard>
 
-          <div class="config-item">
-            <label class="config-label">Complexity:</label>
-            <div v-if="!isEditing" class="config-value">{{ currentStrategy?.complexityRating }}</div>
-            <input
-              v-else
-              v-model="editedStrategy!.complexityRating"
-              class="config-input"
-              placeholder="e.g., 3/10"
-            >
-          </div>
-
-          <div class="config-item">
-            <label class="config-label">Data Sources:</label>
-            <div v-if="!isEditing" class="config-value">
-              <span v-for="source in currentStrategy?.dataSources" :key="source" class="source-tag">
-                {{ source }}
-              </span>
-            </div>
-            <input
-              v-else
-              v-model="editedStrategy!.dataSources"
-              class="config-input"
-              placeholder="Comma-separated data sources"
-            >
-          </div>
+      <UICard title="Indicators">
+        <div class="tag-row" v-if="strategy.indicators?.length">
+          <span v-for="ind in strategy.indicators" :key="ind" class="tag info">{{ ind }}</span>
         </div>
-      </div>
+        <UIEmptyState v-else size="sm" icon="◯" message="No indicators configured." />
+      </UICard>
 
-      <!-- Trading History -->
-      <div class="section trades-section">
-        <div class="section-header">
-          <h2 class="section-title">Trading History</h2>
-          <button
-            v-if="isEditing"
-            @click="addTrade"
-            class="add-btn"
-          >
-            Add Trade
+      <UICard title="Tags">
+        <div class="tag-row" v-if="strategy.tags?.length">
+          <span v-for="t in strategy.tags" :key="t" class="tag">{{ t }}</span>
+        </div>
+        <UIEmptyState v-else size="sm" icon="◯" message="No tags." />
+      </UICard>
+    </template>
+
+    <!-- BACKTEST -->
+    <template v-else-if="tab === 'backtest'">
+      <UICard title="Backtest summary">
+        <template #action>
+          <button class="action ghost" @click="onRunBacktest" :disabled="isBacktesting">
+            {{ isBacktesting ? 'Running…' : '↺ Re-run' }}
           </button>
-        </div>
+        </template>
+        <UIMetricRow :cols="3">
+          <UIStat label="Period" :value="`${strategy.backtest_period?.start ?? '—'} → ${strategy.backtest_period?.end ?? '—'}`" size="sm" />
+          <UIStat label="Annual return" :value="strategy.performance_metrics?.annual_return ?? 0" tone="auto" suffix="%" :precision="1" size="md" />
+          <UIStat label="Total return"  :value="returnPct" tone="auto" suffix="%" :precision="2" size="md" />
+        </UIMetricRow>
+        <p class="muted">
+          Replays the strategy on historical data for the configured period. The metrics above reflect
+          the most recent run. Adjust parameters in the Creator, then re-run to see impact.
+        </p>
+      </UICard>
 
-        <div class="trades-grid">
-          <div
-            v-for="(trade, index) in (isEditing ? editedStrategy?.trades : currentStrategy?.trades)"
-            :key="index"
-            class="trade-card"
-          >
-            <div class="trade-header">
-              <div class="trade-asset">
-                <img
-                  :src="getAssetIcon(trade.asset)"
-                  :alt="trade.asset"
-                  class="asset-icon"
-                  @error="handleImageError"
-                >
-                <div class="asset-placeholder" style="display: none;"></div>
-                <span class="asset-name">{{ trade.asset }}</span>
-              </div>
+      <UICard title="What's tested" padding="tight">
+        <UIMetricRow :cols="4">
+          <UIStat label="Win rate"   :value="strategy.win_rate ?? 0"               suffix="%" :precision="1" size="sm" />
+          <UIStat label="Sharpe"     :value="strategy.sharpe_ratio ?? 0"           :precision="2" size="sm" />
+          <UIStat label="Max DD"     :value="-(strategy.max_drawdown ?? 0)"        tone="negative" suffix="%" :precision="1" size="sm" />
+          <UIStat label="Volatility" :value="strategy.performance_metrics?.volatility ?? 0" suffix="%" :precision="1" size="sm" />
+        </UIMetricRow>
+      </UICard>
+    </template>
+  </div>
 
-              <button
-                v-if="isEditing"
-                @click="removeTrade(index)"
-                class="remove-btn"
-              >
-                ×
-              </button>
-            </div>
-
-            <div class="trade-details">
-              <div class="trade-metric">
-                <span class="label">Entry Price:</span>
-                <span v-if="!isEditing" class="value">${{ trade.entryPrice }}</span>
-                <input
-                  v-else
-                  v-model.number="trade.entryPrice"
-                  type="number"
-                  step="0.01"
-                  class="trade-input"
-                >
-              </div>
-
-              <div class="trade-metric">
-                <span class="label">Exit Price:</span>
-                <span v-if="!isEditing" class="value">${{ trade.exitPrice }}</span>
-                <input
-                  v-else
-                  v-model.number="trade.exitPrice"
-                  type="number"
-                  step="0.01"
-                  class="trade-input"
-                >
-              </div>
-
-              <div class="trade-metric">
-                <span class="label">Duration:</span>
-                <span v-if="!isEditing" class="value">{{ trade.duration }} days</span>
-                <input
-                  v-else
-                  v-model.number="trade.duration"
-                  type="number"
-                  class="trade-input"
-                >
-              </div>
-
-              <div class="trade-metric">
-                <span class="label">Date:</span>
-                <span v-if="!isEditing" class="value">{{ trade.date }}</span>
-                <input
-                  v-else
-                  v-model="trade.date"
-                  type="date"
-                  class="trade-input"
-                >
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Strategy Blocks (if editing) -->
-      <div v-if="isEditing" class="section blocks-section">
-        <div class="section-header">
-          <h2 class="section-title">Strategy Blocks</h2>
-          <div class="add-block-buttons">
-            <button @click="addBlock('asset')" class="add-block-btn">Add Asset</button>
-            <button @click="addBlock('condition')" class="add-block-btn">Add Condition</button>
-            <button @click="addBlock('action')" class="add-block-btn">Add Action</button>
-          </div>
-        </div>
-
-        <div class="blocks-list">
-          <div
-            v-for="(block, index) in editedStrategy?.blocks"
-            :key="block.id"
-            class="block-item"
-          >
-            <div class="block-header">
-              <span class="block-type">{{ block.type }}</span>
-              <button @click="removeBlock(index)" class="remove-btn">×</button>
-            </div>
-            <div class="block-content">
-              <pre>{{ JSON.stringify(block.data, null, 2) }}</pre>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Asset Flow -->
-      <div v-if="details?.code" class="section asset-flow-section">
-        <h2 class="section-title">Asset Flow</h2>
-        <div class="asset-flow">
-          <div class="flow-item">
-            <span class="flow-label">From</span>
-            <span class="flow-asset">{{ details!.code.assets?.entry || 'N/A' }}</span>
-          </div>
-          <div class="flow-arrow">→</div>
-          <div class="flow-item">
-            <span class="flow-label">To</span>
-            <span class="flow-asset">{{ details!.code.assets?.exit || 'N/A' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Users Involved (Avatars) -->
-      <div v-if="profileObjects.length" class="section avatars-section">
-        <h2 class="section-title">Users Involved</h2>
-        <div class="avatars-grid">
-          <AvatarCard v-for="profile in profileObjects" :key="profile.id" :profile="profile" />
-        </div>
-      </div>
-
-      <!-- Strategy Code -->
-      <div v-if="!isEditing && details?.code" class="section visualization-section">
-        <h2 class="section-title">Strategy Code</h2>
-        <StrategyCodeView :code="details!.code" />
-      </div>
-
-      <!-- Ratings -->
-      <div v-if="details" class="section">
-        <h2 class="section-title">Ratings</h2>
-        <StrategyRating :risk="details!.rating.risk" :complexity="details!.rating.complexity" :computationalCost="details!.rating.computationalCost" />
-      </div>
-
-      <!-- P&L Chart -->
-      <div v-if="details?.history?.length" class="section">
-        <h2 class="section-title">P&L History</h2>
-        <StrategyPnlChart :history="details!.history" />
-      </div>
-
-      <!-- Derived Strategies -->
-      <div class="section">
-        <div class="section-header">
-          <h2 class="section-title">Derived Strategies</h2>
-          <div class="add-block-buttons">
-            <button @click="async () => { const s = await generateComplementary(strategyId); await navigateTo(`/strategy/${s.id}`) }" class="add-block-btn">Create complementary strategy</button>
-            <button @click="async () => { const s = await generateOpposite(strategyId); await navigateTo(`/strategy/${s.id}`) }" class="add-block-btn">Create opposite strategy</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Loading/Error States -->
-    <div v-if="!currentStrategy" class="loading-state">
-      <div class="loading-spinner"></div>
-      <p>Loading strategy...</p>
-    </div>
+  <div v-else class="not-found">
+    <h1>Strategy not found</h1>
+    <NuxtLink to="/strategies">← Back to Trading Lab</NuxtLink>
   </div>
 </template>
 
 <style scoped>
-.strategy-detail-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-  color: white;
-  padding: 20px;
+.strategy-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--page-gap, 0.6rem);
+  min-width: 0;
 }
 
-.strategy-header {
-  background: rgba(30, 30, 30, 0.9);
-  border-radius: 15px;
-  padding: 30px;
-  margin-bottom: 30px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+.loading-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
 }
-
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.strategy-title {
-  font-size: 3rem;
-  font-weight: bold;
-  margin-bottom: 20px;
-  text-shadow:
-    0 2px 4px rgba(255, 255, 255, 0.9),
-    inset 0 1px 2px rgba(255, 255, 255, 0.4);
-}
-
-.strategy-title-input {
-  font-size: 3rem;
-  font-weight: bold;
-  width: 100%;
-  background: rgba(60, 60, 60, 0.8);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 15px;
-  color: white;
-  margin-bottom: 20px;
-}
-
-.strategy-title-input:focus {
-  outline: none;
-  border-color: rgba(0, 123, 255, 0.8);
-  box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
-}
-
-.strategy-meta {
+.skel-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 25px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+@media (max-width: 640px) {
+  .skel-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.meta-item .label {
-  font-weight: bold;
-  color: rgba(200, 200, 200, 1);
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.meta-item .value {
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.meta-input {
-  background: rgba(60, 60, 60, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  padding: 5px 8px;
-  color: white;
-  flex: 1;
-}
-
-.meta-input:focus {
-  outline: none;
-  border-color: rgba(0, 123, 255, 0.8);
-}
-
-.status-indicator {
-  padding: 4px 12px;
-  border-radius: 15px;
-  font-size: 12px;
-  font-weight: bold;
-  text-transform: uppercase;
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.status-indicator.active {
-  background: rgba(0, 255, 0, 0.8);
-  color: black;
-}
-
-.status-indicator.paused {
-  background: rgba(255, 165, 0, 0.8);
-  color: black;
-}
-
-.status-indicator.stopped {
-  background: rgba(128, 128, 128, 0.8);
-  color: white;
-}
-
-.strategy-description {
-  margin-bottom: 20px;
-}
-
-.description-label {
-  display: block;
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: rgba(200, 200, 200, 1);
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.strategy-description p {
-  font-size: 1.1rem;
-  line-height: 1.6;
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.description-input {
-  width: 100%;
-  min-height: 80px;
-  background: rgba(60, 60, 60, 0.8);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 15px;
-  color: white;
-  font-size: 1.1rem;
-  resize: vertical;
-}
-
-.description-input:focus {
-  outline: none;
-  border-color: rgba(0, 123, 255, 0.8);
-  box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
-}
-
-.action-buttons {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  margin-top: 30px;
-  flex-wrap: wrap;
-}
-
-.action-btn {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.edit-btn {
-  background: rgba(0, 0, 255, 0.8);
-  color: white;
-}
-
-.edit-btn:hover {
-  background: rgba(0, 0, 150, 0.8);
-  transform: translateY(-2px);
-}
-
-.status-btn.active {
-  background: rgba(255, 165, 0, 0.8);
-  color: black;
-}
-
-.status-btn:not(.active) {
-  background: rgba(0, 255, 0, 0.8);
-  color: black;
-}
-
-.status-btn:hover {
-  transform: translateY(-2px);
-}
-
-.save-btn {
-  background: rgba(0, 255, 0, 0.8);
-  color: black;
-}
-
-.save-btn:hover {
-  background: rgba(0, 200, 0, 0.8);
-  transform: translateY(-2px);
-}
-
-.cancel-btn {
-  background: rgba(255, 0, 0, 0.8);
-  color: white;
-}
-
-.cancel-btn:hover {
-  background: rgba(200, 0, 0, 0.8);
-  transform: translateY(-2px);
-}
-
-.strategy-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  gap: 30px;
-}
-
-.section {
-  background: rgba(30, 30, 30, 0.9);
-  border-radius: 15px;
-  padding: 25px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-.section-title {
-  font-size: 2rem;
-  font-weight: bold;
-  margin-bottom: 20px;
-  text-shadow:
-    0 2px 4px rgba(255, 255, 255, 0.9),
-    inset 0 1px 2px rgba(255, 255, 255, 0.4);
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.add-btn, .add-block-btn {
-  background: rgba(0, 255, 0, 0.8);
-  color: black;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: all 0.3s ease;
-}
-
-.add-btn:hover, .add-block-btn:hover {
-  background: rgba(0, 200, 0, 0.8);
-  transform: translateY(-2px);
-}
-
-.add-block-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-}
-
-.metric-card {
-  background: rgba(50, 50, 50, 0.8);
-  border-radius: 10px;
-  padding: 20px;
+.not-found {
   text-align: center;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  padding: 3rem 1rem;
+  color: rgba(255,255,255,0.5);
 }
+.not-found a { color: var(--primary-green, #00ff88); }
 
-.metric-label {
-  font-size: 0.9rem;
-  color: rgba(200, 200, 200, 1);
-  margin-bottom: 8px;
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.metric-value {
-  font-size: 2rem;
-  font-weight: bold;
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.metric-value.positive {
-  color: rgba(0, 255, 0, 0.9);
-}
-
-.metric-value.negative {
-  color: rgba(255, 0, 0, 0.9);
-}
-
-.config-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-}
-
-.config-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.config-label {
-  font-weight: bold;
-  color: rgba(200, 200, 200, 1);
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.config-value {
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.config-slider {
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: rgba(100, 100, 100, 0.5);
-  outline: none;
-}
-
-.slider-value {
-  font-size: 0.9rem;
-  color: rgba(200, 200, 200, 1);
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.config-input {
-  background: rgba(60, 60, 60, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  padding: 8px 12px;
-  color: white;
-}
-
-.config-input:focus {
-  outline: none;
-  border-color: rgba(0, 123, 255, 0.8);
-  box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
-}
-
-.source-tag {
-  display: inline-block;
-  background: rgba(0, 123, 255, 0.2);
-  border: 1px solid rgba(0, 123, 255, 0.4);
-  border-radius: 12px;
-  padding: 4px 8px;
-  margin: 2px;
-  font-size: 0.8rem;
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.trades-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 20px;
-}
-
-.trade-card {
-  background: rgba(50, 50, 50, 0.8);
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-}
-
-.trade-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.trade-asset {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.asset-icon, .asset-placeholder {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(128, 128, 128, 0.8), rgba(160, 160, 160, 0.8));
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-.asset-name {
-  font-weight: bold;
-  font-size: 1.1rem;
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.remove-btn {
-  background: rgba(255, 0, 0, 0.8);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
+.action {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.85);
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--app-border-radius, 6px);
   cursor: pointer;
-  font-size: 16px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-family: inherit;
 }
-
-.remove-btn:hover {
-  background: rgba(200, 0, 0, 0.8);
-  transform: scale(1.1);
+.action:hover {
+  border-color: var(--primary-green, #00ff88);
+  color: var(--primary-green, #00ff88);
 }
+.action.ghost { font-weight: 600; }
+.action:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.trade-details {
+.grid-3 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 0.6rem;
+  min-width: 0;
 }
+.grid-3 > * { min-width: 0; }
 
-.trade-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.trade-metric .label {
-  font-size: 0.8rem;
-  color: rgba(200, 200, 200, 1);
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.trade-metric .value {
-  font-weight: bold;
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.trade-input {
-  background: rgba(60, 60, 60, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  padding: 6px 8px;
-  color: white;
-  font-size: 0.9rem;
-}
-
-.trade-input:focus {
-  outline: none;
-  border-color: rgba(0, 123, 255, 0.8);
-  box-shadow: 0 0 6px rgba(0, 123, 255, 0.3);
-}
-
-.blocks-list {
-  display: grid;
-  gap: 15px;
-}
-
-.block-item {
-  background: rgba(60, 60, 60, 0.8);
-  border-radius: 8px;
-  padding: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.block-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.block-type {
-  font-weight: bold;
-  color: rgba(0, 123, 255, 0.9);
-  text-transform: capitalize;
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.block-content {
-  background: rgba(40, 40, 40, 0.8);
-  border-radius: 4px;
-  padding: 10px;
-  font-family: monospace;
-  font-size: 0.8rem;
-  overflow-x: auto;
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 50vh;
-  gap: 20px;
-}
-
-.loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.1);
-  border-left: 4px solid rgba(0, 123, 255, 0.8);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.loading-state p {
-  font-size: 1.2rem;
-  color: rgba(200, 200, 200, 1);
-  text-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .strategy-title {
-    font-size: 2rem;
-  }
-
-  .strategy-title-input {
-    font-size: 2rem;
-  }
-
-  .strategy-meta {
-    grid-template-columns: 1fr;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .action-btn {
-    width: 100%;
-  }
-
-  .metrics-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .config-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .trades-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .trade-details {
-    grid-template-columns: 1fr;
-  }
-
-  .add-block-buttons {
-    flex-direction: column;
-  }
-}
-
-@media (max-width: 480px) {
-  .strategy-header {
-    padding: 20px;
-  }
-
-  .section {
-    padding: 15px;
-  }
-
-  .trade-card {
-    padding: 15px;
-  }
-}
-
-.asset-flow {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-md);
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: var(--radius-md);
-}
-
-.flow-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.flow-label {
-  font-size: 12px;
-  color: var(--text-light-gray);
+.link-btn {
+  color: var(--primary-green, #00ff88);
+  font-size: 0.7rem;
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+.link-btn:hover { text-decoration: underline; }
 
-.flow-asset {
-  font-size: 18px;
+.code-block {
+  margin: 0;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--app-border-radius, 6px);
+  padding: 0.7rem 0.85rem;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.85);
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.tag-row { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.tag {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+  font-size: 0.65rem;
   font-weight: 700;
-  color: var(--text-white);
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.tag.info {
+  background: rgba(0,170,255,0.08);
+  border-color: rgba(0,170,255,0.25);
+  color: var(--primary-blue, #00aaff);
 }
 
-.flow-arrow {
-  font-size: 32px;
-  color: var(--primary-green);
-}
-
-.avatars-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--spacing-md);
+.muted {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.55);
+  margin: 0.4rem 0 0 0;
+  line-height: 1.5;
 }
 </style>

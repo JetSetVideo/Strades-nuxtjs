@@ -1,0 +1,11 @@
+{
+  "featured": ["avatar_pro_momentum", "avatar_macro_thinker", "avatar_pro_mean_revert"],
+  "trending_24h": ["avatar_pro_momentum", "avatar_macro_thinker"],
+  "categories": [
+    { "id": "high-pnl", "label": "Top PnL (30d)", "agent_ids": ["avatar_pro_momentum", "avatar_macro_thinker", "avatar_pro_mean_revert"] },
+    { "id": "low-drawdown", "label": "Low Drawdown", "agent_ids": ["avatar_pro_mean_revert", "avatar_macro_thinker"] },
+    { "id": "high-sharpe", "label": "Best Sharpe", "agent_ids": ["avatar_pro_momentum", "avatar_pro_mean_revert", "avatar_macro_thinker"] },
+    { "id": "swarm-ready", "label": "Swarm-Plugin Ready", "agent_ids": ["avatar_pro_momentum", "avatar_pro_mean_revert", "avatar_macro_thinker"] }
+  ],
+  "recently_listed": ["avatar_macro_thinker"]
+}

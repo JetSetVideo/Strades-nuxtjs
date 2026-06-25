@@ -1,0 +1,48 @@
+[
+  {
+    "id": "te_001",
+    "agent_id": "avatar_user_001",
+    "ts": "2026-05-28T09:55:00Z",
+    "event": "epoch_complete",
+    "delta": { "risk": 0.01, "aggression": 0.005, "patience": -0.01 },
+    "reward": 0.043,
+    "loss": 0.18,
+    "samples": 87
+  },
+  {
+    "id": "te_002",
+    "agent_id": "avatar_user_001",
+    "ts": "2026-05-28T08:30:00Z",
+    "event": "user_observed",
+    "delta": { "reaction_speed": 0.01 },
+    "note": "Manual allocation slider adjusted 4 times in 20s — fast reaction signal"
+  },
+  {
+    "id": "te_003",
+    "agent_id": "avatar_user_001",
+    "ts": "2026-05-28T07:10:00Z",
+    "event": "epoch_complete",
+    "delta": { "contrarian": 0.02 },
+    "reward": 0.038,
+    "loss": 0.21,
+    "samples": 64
+  },
+  {
+    "id": "te_004",
+    "agent_id": "avatar_user_001_fork_of_momentum",
+    "ts": "2026-05-27T14:00:00Z",
+    "event": "forked",
+    "from": "avatar_pro_momentum",
+    "note": "Initial state copied; reduced aggression by 15%"
+  },
+  {
+    "id": "te_005",
+    "agent_id": "avatar_pro_momentum",
+    "ts": "2026-05-28T08:10:00Z",
+    "event": "epoch_complete",
+    "delta": { "reaction_speed": 0.001 },
+    "reward": 0.082,
+    "loss": 0.09,
+    "samples": 2400
+  }
+]

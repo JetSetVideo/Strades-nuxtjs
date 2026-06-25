@@ -1,55 +1,56 @@
-<script setup>
-const props = defineProps({
-  sharedData: {
-    type: Object,
-    required: true,
-  },
-});
-
-function getTypeIcon(type) {
-  const typeIcons = {
-    analysis: '📊',
-    news: '📰',
-    research: '🔬',
-    article: '📄',
-    insight: '💡',
-    strategy: '📈',
-  };
-  return typeIcons[type] || '📄';
+<script setup lang="ts">
+interface SharedDataItem {
+  id: string
+  type: string
+  title?: string
+  asset?: string
+  timestamp: string
+  [key: string]: any
 }
 
-function getAssetIcon(asset) {
-  const assetMap = {
-    'BTC': 'btc.svg',
-    'ETH': 'eth.png',
-    'bitcoin': 'btc.svg',
-    'ethereum': 'eth.png',
-    'AAPL': 'apple.png',
-    'GOOGL': 'google.png',
-    'MSFT': 'msft.png',
-    'XRP': 'xrp.png',
-    'TSLA': 'tesla.png',
-    'NVDA': 'nvidia.png',
-    'USD': 'average.png',
-  };
+defineProps<{ sharedData: SharedDataItem }>()
 
-  const iconFile = assetMap[asset] || assetMap[asset.toUpperCase()] || 'average.png';
-  return `/logos/${iconFile}`;
+const TYPE_ICONS: Record<string, string> = {
+  analysis: '📊',
+  news: '📰',
+  research: '🔬',
+  article: '📄',
+  insight: '💡',
+  strategy: '📈'
 }
 
-function handleAssetIconError(event) {
-  const img = event.target;
-  img.style.display = 'none';
+const ASSET_ICON_MAP: Record<string, string> = {
+  BTC: 'btc.svg', bitcoin: 'btc.svg',
+  ETH: 'eth.png', ethereum: 'eth.png',
+  AAPL: 'apple.png', GOOGL: 'google.png',
+  MSFT: 'msft.png', XRP: 'xrp.png',
+  TSLA: 'tesla.png', NVDA: 'nvidia.png',
+  USD: 'average.png'
+}
 
-  let placeholder = img.parentNode.querySelector('.asset-placeholder');
+function getTypeIcon(type: string) {
+  return TYPE_ICONS[type] ?? '📄'
+}
+
+function getAssetIcon(asset: string) {
+  const iconFile = ASSET_ICON_MAP[asset] || ASSET_ICON_MAP[asset.toUpperCase()] || 'average.png'
+  return `/logos/${iconFile}`
+}
+
+function handleAssetIconError(event: Event) {
+  const img = event.target as HTMLImageElement
+  img.style.display = 'none'
+  const parent = img.parentNode as HTMLElement | null
+  if (!parent) return
+  let placeholder = parent.querySelector('.asset-placeholder')
   if (!placeholder) {
-    placeholder = document.createElement('div');
-    placeholder.className = 'asset-placeholder';
-    img.parentNode.appendChild(placeholder);
+    placeholder = document.createElement('div')
+    placeholder.className = 'asset-placeholder'
+    parent.appendChild(placeholder)
   }
 }
 
-function formatTimestamp(timestamp) {
+function formatTimestamp(timestamp: string) {
   const date = new Date(timestamp);
   const now = new Date();
   const diffInMs = now.getTime() - date.getTime();

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "inf_001",
+    "handle": "@macro_sentinel",
+    "name": "Macro Sentinel",
+    "avatar_url": "/avatars/Ellipse5.png",
+    "followers": 412000,
+    "followed_by_user": true,
+    "specialization": ["fiat", "commodities"],
+    "credibility_score": 0.86,
+    "win_rate_calls_30d": 0.62,
+    "latest_signal": {
+      "type": "bearish",
+      "asset": "USDJPY",
+      "confidence": 0.71,
+      "issued_at": "2026-05-28T08:55:00Z",
+      "thesis": "MoF intervention risk + carry unwind"
+    },
+    "last_30d_pnl_pct": 14.8,
+    "platforms": ["twitter", "substack"]
+  },
+  {
+    "id": "inf_002",
+    "handle": "@onchain_owl",
+    "name": "Onchain Owl",
+    "avatar_url": "/avatars/Ellipse6.png",
+    "followers": 188000,
+    "followed_by_user": true,
+    "specialization": ["crypto"],
+    "credibility_score": 0.78,
+    "win_rate_calls_30d": 0.55,
+    "latest_signal": {
+      "type": "bullish",
+      "asset": "ETH",
+      "confidence": 0.64,
+      "issued_at": "2026-05-28T09:12:00Z",
+      "thesis": "Staking flows + L2 fees inflecting"
+    },
+    "last_30d_pnl_pct": 22.4,
+    "platforms": ["twitter", "discord"]
+  },
+  {
+    "id": "inf_003",
+    "handle": "@equity_quant",
+    "name": "Equity Quant",
+    "avatar_url": "/avatars/Ellipse7.png",
+    "followers": 95000,
+    "followed_by_user": true,
+    "specialization": ["stocks"],
+    "credibility_score": 0.81,
+    "win_rate_calls_30d": 0.66,
+    "latest_signal": {
+      "type": "neutral",
+      "asset": "QQQ",
+      "confidence": 0.45,
+      "issued_at": "2026-05-28T08:30:00Z",
+      "thesis": "Pin to expiry; range-bound 478-484"
+    },
+    "last_30d_pnl_pct": 6.2,
+    "platforms": ["twitter", "youtube"]
+  },
+  {
+    "id": "inf_004",
+    "handle": "@gold_hawk",
+    "name": "Gold Hawk",
+    "avatar_url": "/avatars/Ellipse5.png",
+    "followers": 56000,
+    "followed_by_user": false,
+    "specialization": ["commodities"],
+    "credibility_score": 0.72,
+    "win_rate_calls_30d": 0.58,
+    "latest_signal": {
+      "type": "bullish",
+      "asset": "XAUUSD",
+      "confidence": 0.69,
+      "issued_at": "2026-05-28T07:45:00Z",
+      "thesis": "Real yields rolling over; CB demand intact"
+    },
+    "last_30d_pnl_pct": 9.1,
+    "platforms": ["twitter", "blog"]
+  }
+]

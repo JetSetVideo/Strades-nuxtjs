@@ -62,3 +62,52 @@ Stores are divided methodically to handle specific domains without cross-contami
 
 - **UI Modifiers as Composables**: Instead of writing complex CSS bindings in every component, use composables like `const { dynamicStyles } = useLivingUI(assetData, macroState)`. This returns an object of CSS variables (`{ '--border-radius': '4px', '--animation-speed': '0.8s' }`) that is bound to the component's root `div`.
 - **Living Icons**: Icons are no longer static SVGs. They are tiny Vue components wrapping Canvas or SVG elements that subscribe to specific data streams (e.g., `components/Navigation/Icons/GlobeIcon.vue` subscribes to the latest news coordinates).
+
+## Component Folder Layout
+
+Every component lives inside a domain folder. The root `components/` directory contains **no** loose `.vue` files — only folders. Pages compose domain components; domain components compose UI primitives.
+
+```
+components/
+├── App/              # Headless app-wide controllers (DynamicThemeController, SkeletonLoader)
+├── UI/               # Design-system primitives (PageHeader, Card, Pill, Stat, MetricRow,
+│                     #   SectionTabs, EmptyState, DateRangePicker)
+├── Navigation/       # Top nav, drawer, bottom bar, SearchBar, Living Icons/
+├── Overlay/          # Modals, slideovers (CountdownModal, Slideover)
+│
+├── Wallet/           # 100% allocation engine UI
+│                     #   AllocationSlider, FlowVisualizer, Hero, Positions, Trades,
+│                     #   EquityCurve, RiskPanel, PlatformList, BotContribution …
+├── Strategy/         # Strategy/bot domain
+│                     #   Card, BotCard, MarketplaceCard, Visualizer, CodeView, Rating
+├── Builder/          # Node-tree editor for the Creator page
+│                     #   NodeCanvas, BlockEditor, Condition, Action, Nodes/AvatarNode
+├── Agent/            # AI avatars / swarm (AvatarCard, OpinionVector, Compare, Training)
+├── Asset/            # Single-asset detail blocks (CandleChart, Heatmap, Map,
+│                     #   MoversStrip, NewsSnippets, Suppliers, Shipments …)
+├── Corporate/        # Company / supply-chain graphs (NetworkGraph)
+├── Social/           # Posts, opinions (ArticlePost)
+├── News/             # CalendarStrip, InfluencerRail
+├── Community/        # PersonCard (friend / discover variants)
+├── Chat/             # ConversationList, NewDiscussionModal
+├── Profile/          # Header, UserStats, Achievements, PortfolioSnapshot, Preferences
+├── Leaderboard/      # Competition
+├── Quest/            # Filter
+├── Screener/         # ScreenerHeader, ScreenerToolbar, ScreenerStatus
+├── Transactions/     # History, Next
+├── Selector/         # Form selectors (Asset, Assets, Datasources, Users, Conditions, Entry)
+├── Button/           # Atomic icon buttons (Avatar, Bookmark, Notification, Settings …)
+├── Card/             # Generic cards (Asset, Avatar, Datasource, Friend, SharedData)
+├── Chart/            # Chart variants (BarChart, CandleChart)
+├── Map/              # MapButton, MapOverlay, WorldMap
+└── Widget/           # Dashboard widgets (Asset, Chart, NewsCard, NewsListItem,
+                      #   Treemap, Heatmap, Sentiment, Quest, Transactions …)
+```
+
+### Folder rules
+
+- **Pages** (`pages/`) own data fetching and orchestration only. They compose `UI/*` for chrome and one or more **domain components** per section.
+- **Domain components** (e.g. `Wallet/PlatformList.vue`) are *opinionated* to their domain. They may call domain stores but should not fetch raw JSON.
+- **UI primitives** (`UI/*`) are pure presentation — no store access, no data fetches. Inputs are props only.
+- **Naming**: PascalCase files inside PascalCase folders. The folder name is implicit in Nuxt's auto-import key (`WalletPlatformList`, `UIPageHeader`, `StrategyBotCard`). Never repeat the folder prefix in the filename (`Strategy/Card.vue` not `Strategy/StrategyCard.vue`).
+- **No loose root-level components**. If a component does not belong in an existing folder, create a new folder rather than dropping a `.vue` at the root.

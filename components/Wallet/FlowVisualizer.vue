@@ -7,10 +7,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useWalletStore } from '~/stores/wallet'
+import { useMacroStore } from '~/stores/macro'
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
-const walletStore = useWalletStore()
+const macro = useMacroStore()
 
 let animationFrameId: number
 let particles: Array<{ x: number, y: number, vx: number, vy: number, color: string, life: number }> = []
@@ -38,10 +38,10 @@ const animate = () => {
   ctx.clearRect(0, 0, width, height)
   
   // Velocity modifier from store
-  const speed = walletStore.flowVelocity * 5
+  const speed = macro.flow_velocity * 5
 
   // Spawn new particles
-  if (Math.random() < walletStore.flowVelocity) {
+  if (Math.random() < macro.flow_velocity) {
     particles.push({
       x: Math.random() * width,
       y: Math.random() * height,
@@ -75,14 +75,21 @@ const animate = () => {
   animationFrameId = requestAnimationFrame(animate)
 }
 
+let resizeObserver: ResizeObserver | null = null
+
 onMounted(() => {
   window.addEventListener('resize', resizeCanvas)
+  if (canvasRef.value?.parentElement && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(resizeCanvas)
+    resizeObserver.observe(canvasRef.value.parentElement)
+  }
   resizeCanvas()
   animate()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resizeCanvas)
+  resizeObserver?.disconnect()
   cancelAnimationFrame(animationFrameId)
 })
 </script>
@@ -91,7 +98,7 @@ onBeforeUnmount(() => {
 .flow-visualizer {
   position: relative;
   width: 100%;
-  height: 100%;
+  min-height: 100vh;
 }
 .particles-canvas {
   position: absolute;

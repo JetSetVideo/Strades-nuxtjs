@@ -1,0 +1,54 @@
+{
+  "asset_id": "aapl",
+  "asset_kind": "company",
+  "label_overrides": {
+    "suppliers": "Suppliers",
+    "customers": "Distribution & Carriers",
+    "shipments": "Shipments",
+    "facilities": "Facilities"
+  },
+  "headquarters": {
+    "name": "Apple Park",
+    "city": "Cupertino",
+    "country": "US",
+    "lat": 37.3349,
+    "lng": -122.0089
+  },
+  "facilities": [
+    { "id": "f_apl_1", "name": "Apple Park HQ", "city": "Cupertino", "country": "US", "lat": 37.3349, "lng": -122.0089, "type": "headquarters", "size": "large", "status": "active" },
+    { "id": "f_apl_2", "name": "Cork EMEA HQ", "city": "Cork", "country": "IE", "lat": 51.8985, "lng": -8.4756, "type": "office", "size": "medium", "status": "active" },
+    { "id": "f_apl_3", "name": "Austin Mac Pro Plant", "city": "Austin", "country": "US", "lat": 30.2672, "lng": -97.7431, "type": "factory", "size": "medium", "status": "active" },
+    { "id": "f_apl_4", "name": "Shanghai R&D", "city": "Shanghai", "country": "CN", "lat": 31.2304, "lng": 121.4737, "type": "office", "size": "medium", "status": "active" },
+    { "id": "f_apl_5", "name": "Singapore APAC", "city": "Singapore", "country": "SG", "lat": 1.3521, "lng": 103.8198, "type": "office", "size": "small", "status": "active" }
+  ],
+  "suppliers": [
+    { "id": "foxconn", "name": "Foxconn (Hon Hai)", "country": "TW", "country_flag": "🇹🇼", "city": "Taipei", "lat": 25.0330, "lng": 121.5654, "product": "iPhone assembly", "share_pct": 38, "shipments_90d": 4820, "value_usd": 12400000000, "since": "2007" },
+    { "id": "tsmc", "name": "TSMC", "country": "TW", "country_flag": "🇹🇼", "city": "Hsinchu", "lat": 24.8138, "lng": 120.9675, "product": "A-series & M-series chips", "share_pct": 22, "shipments_90d": 1180, "value_usd": 8200000000, "since": "2014" },
+    { "id": "samsung_disp", "name": "Samsung Display", "country": "KR", "country_flag": "🇰🇷", "city": "Asan", "lat": 36.7898, "lng": 127.0017, "product": "OLED panels", "share_pct": 12, "shipments_90d": 740, "value_usd": 3100000000, "since": "2017" },
+    { "id": "lg_display", "name": "LG Display", "country": "KR", "country_flag": "🇰🇷", "city": "Paju", "lat": 37.7596, "lng": 126.7790, "product": "Display panels", "share_pct": 7, "shipments_90d": 420, "value_usd": 1500000000, "since": "2018" },
+    { "id": "sk_hynix", "name": "SK Hynix", "country": "KR", "country_flag": "🇰🇷", "city": "Icheon", "lat": 37.2722, "lng": 127.4348, "product": "DRAM / NAND memory", "share_pct": 6, "shipments_90d": 530, "value_usd": 1100000000, "since": "2012" },
+    { "id": "pegatron", "name": "Pegatron", "country": "TW", "country_flag": "🇹🇼", "city": "Taipei", "lat": 25.0478, "lng": 121.5318, "product": "Device assembly", "share_pct": 5, "shipments_90d": 480, "value_usd": 950000000, "since": "2011" },
+    { "id": "luxshare", "name": "Luxshare Precision", "country": "CN", "country_flag": "🇨🇳", "city": "Shenzhen", "lat": 22.5431, "lng": 114.0579, "product": "AirPods + connectors", "share_pct": 4, "shipments_90d": 920, "value_usd": 720000000, "since": "2017" },
+    { "id": "japan_display", "name": "Japan Display Inc.", "country": "JP", "country_flag": "🇯🇵", "city": "Tokyo", "lat": 35.6762, "lng": 139.6503, "product": "LCD modules", "share_pct": 3, "shipments_90d": 210, "value_usd": 480000000, "since": "2013" },
+    { "id": "sony_sensors", "name": "Sony Semiconductor", "country": "JP", "country_flag": "🇯🇵", "city": "Kumamoto", "lat": 32.7898, "lng": 130.7417, "product": "CMOS image sensors", "share_pct": 2, "shipments_90d": 180, "value_usd": 360000000, "since": "2010" },
+    { "id": "stmicro", "name": "STMicroelectronics", "country": "CH", "country_flag": "🇨🇭", "city": "Geneva", "lat": 46.2044, "lng": 6.1432, "product": "MEMS sensors", "share_pct": 1, "shipments_90d": 120, "value_usd": 210000000, "since": "2015" }
+  ],
+  "customers": [
+    { "id": "best_buy", "name": "Best Buy", "country": "US", "country_flag": "🇺🇸", "city": "Richfield", "lat": 44.8831, "lng": -93.2829, "product": "Retail channel", "share_pct": 18, "shipments_90d": 1280, "value_usd": 4200000000 },
+    { "id": "att_inc", "name": "AT&T", "country": "US", "country_flag": "🇺🇸", "city": "Dallas", "lat": 32.7767, "lng": -96.7970, "product": "iPhone carrier bundle", "share_pct": 14, "shipments_90d": 870, "value_usd": 3100000000 },
+    { "id": "verizon", "name": "Verizon", "country": "US", "country_flag": "🇺🇸", "city": "New York", "lat": 40.7128, "lng": -74.0060, "product": "iPhone carrier bundle", "share_pct": 12, "shipments_90d": 760, "value_usd": 2800000000 },
+    { "id": "tmobile", "name": "T-Mobile", "country": "US", "country_flag": "🇺🇸", "city": "Bellevue", "lat": 47.6101, "lng": -122.2015, "product": "iPhone carrier bundle", "share_pct": 9, "shipments_90d": 540, "value_usd": 2100000000 },
+    { "id": "softbank", "name": "SoftBank", "country": "JP", "country_flag": "🇯🇵", "city": "Tokyo", "lat": 35.6762, "lng": 139.6503, "product": "iPhone carrier bundle", "share_pct": 7, "shipments_90d": 380, "value_usd": 1600000000 },
+    { "id": "china_mobile", "name": "China Mobile", "country": "CN", "country_flag": "🇨🇳", "city": "Beijing", "lat": 39.9042, "lng": 116.4074, "product": "iPhone carrier bundle", "share_pct": 6, "shipments_90d": 510, "value_usd": 1200000000 },
+    { "id": "vodafone", "name": "Vodafone Group", "country": "GB", "country_flag": "🇬🇧", "city": "London", "lat": 51.5074, "lng": -0.1278, "product": "iPhone carrier bundle", "share_pct": 5, "shipments_90d": 320, "value_usd": 980000000 },
+    { "id": "deutsche_t", "name": "Deutsche Telekom", "country": "DE", "country_flag": "🇩🇪", "city": "Bonn", "lat": 50.7374, "lng": 7.0982, "product": "iPhone carrier bundle", "share_pct": 4, "shipments_90d": 270, "value_usd": 850000000 }
+  ],
+  "shipments": [
+    { "id": "sh_a1", "from_country": "TW", "to_country": "US", "product": "iPhone 17 finished units", "containers": 2480, "value_usd": 1840000000, "date": "2026-05-29" },
+    { "id": "sh_a2", "from_country": "KR", "to_country": "CN", "product": "OLED panels (rolls)", "containers": 320, "value_usd": 84000000, "date": "2026-05-28" },
+    { "id": "sh_a3", "from_country": "JP", "to_country": "TW", "product": "CMOS image sensors", "containers": 84, "value_usd": 32000000, "date": "2026-05-28" },
+    { "id": "sh_a4", "from_country": "CN", "to_country": "US", "product": "AirPods Pro", "containers": 1210, "value_usd": 410000000, "date": "2026-05-27" },
+    { "id": "sh_a5", "from_country": "TW", "to_country": "DE", "product": "iPad assemblies", "containers": 510, "value_usd": 320000000, "date": "2026-05-26" },
+    { "id": "sh_a6", "from_country": "CN", "to_country": "JP", "product": "Apple Watch Series", "containers": 240, "value_usd": 145000000, "date": "2026-05-26" }
+  ]
+}

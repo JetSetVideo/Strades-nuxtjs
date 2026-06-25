@@ -1,0 +1,35 @@
+{
+  "asset_id": "eur",
+  "asset_kind": "fiat_currency",
+  "label_overrides": {
+    "suppliers": "Issuance",
+    "customers": "Reserve Holders",
+    "shipments": "Cross-border Flows",
+    "facilities": "Eurosystem Central Banks"
+  },
+  "headquarters": {
+    "name": "European Central Bank",
+    "city": "Frankfurt",
+    "country": "DE",
+    "lat": 50.1109,
+    "lng": 8.6821
+  },
+  "facilities": [
+    { "id": "ecb", "name": "ECB Frankfurt", "city": "Frankfurt", "country": "DE", "lat": 50.1109, "lng": 8.6821, "type": "central_bank", "size": "large", "status": "active" },
+    { "id": "boz_paris", "name": "Banque de France", "city": "Paris", "country": "FR", "lat": 48.8566, "lng": 2.3522, "type": "central_bank", "size": "large", "status": "active" },
+    { "id": "boz_rome", "name": "Banca d'Italia", "city": "Rome", "country": "IT", "lat": 41.9028, "lng": 12.4964, "type": "central_bank", "size": "medium", "status": "active" },
+    { "id": "boz_madrid", "name": "Banco de España", "city": "Madrid", "country": "ES", "lat": 40.4168, "lng": -3.7038, "type": "central_bank", "size": "medium", "status": "active" }
+  ],
+  "suppliers": [
+    { "id": "ecb_issuance", "name": "Eurosystem (ECB)", "country": "EU", "country_flag": "🇪🇺", "city": "Frankfurt", "lat": 50.1109, "lng": 8.6821, "product": "EUR base money", "share_pct": 100, "shipments_90d": 0, "value_usd": 1700000000000, "since": "1999" }
+  ],
+  "customers": [
+    { "id": "cn_reserves_eur", "name": "PBoC EUR reserves", "country": "CN", "country_flag": "🇨🇳", "city": "Beijing", "lat": 39.9042, "lng": 116.4074, "product": "FX reserves", "share_pct": 16, "shipments_90d": 0, "value_usd": 210000000000 },
+    { "id": "ru_reserves_eur", "name": "Russia EUR reserves", "country": "RU", "country_flag": "🇷🇺", "city": "Moscow", "lat": 55.7558, "lng": 37.6173, "product": "FX reserves (frozen)", "share_pct": 9, "shipments_90d": 0, "value_usd": 120000000000 },
+    { "id": "ch_reserves_eur", "name": "SNB EUR reserves", "country": "CH", "country_flag": "🇨🇭", "city": "Bern", "lat": 46.9480, "lng": 7.4474, "product": "FX reserves", "share_pct": 11, "shipments_90d": 0, "value_usd": 150000000000 }
+  ],
+  "shipments": [
+    { "id": "fx_e1", "from_country": "DE", "to_country": "CH", "product": "ECB → SNB swap", "containers": 0, "value_usd": 1200000000, "date": "2026-05-28" },
+    { "id": "fx_e2", "from_country": "FR", "to_country": "US", "product": "Sovereign bond settlement", "containers": 0, "value_usd": 840000000, "date": "2026-05-27" }
+  ]
+}

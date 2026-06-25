@@ -34,3 +34,46 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 ## Phase 7: Predictive UX Optimization
 - [x] **7.1 Skeleton Forms**: Update all loading states to check the user's `dominant_asset_class` preference to determine if the skeleton loader should have sharp or rounded edges.
 - [x] **7.2 Hover Intent Pre-fetching**: Implement `stores/prefetch.ts`. Add `@mouseenter` hooks to Top Navigation icons that trigger data fetching if hovered for >200ms.
+
+## Phase 8: Component Tree Cleanup
+- [x] **8.1 Delete orphaned root-level components**: 28 dead `.vue` files at `components/` root removed (Profil, Calendar, Comparator, FinancialChart, Radar, Search, Timer, Navbar, NavBarCircle, Asset, Strategies, Strategy, Filters, Carousel, GlobalCategories, …).
+- [x] **8.2 Relocate live root-level components**: `SearchBar`→`Navigation/`, `DateRangePicker`→`UI/`, `BlockEditor`→`Builder/`, `CountdownModal`→`Overlay/`, `StrategyVisualizer/CodeView/Rating`→`Strategy/`, `Widget/news.vue`→`Widget/NewsCard.vue`, `Card/Strategy.vue`→`Strategy/MarketplaceCard.vue`. All imports updated.
+- [x] **8.3 Refactor `pages/creator.vue` to the design system**: Replace raw HTML with `UIPageHeader`/`UICard`/`UIPill`/`UIStat`/`UIMetricRow`/`UIEmptyState`. Page broken into ten numbered steps (Identity → Action Bar) with completion-aware pills and a sticky action bar.
+- [x] **8.4 Extract page sub-sections into domain components**:
+    - `pages/wallet.vue` → `Wallet/PlatformList.vue`
+    - `pages/prices.vue` → `Asset/MoversStrip.vue`
+    - `pages/news.vue`   → `News/InfluencerRail.vue`
+    - `pages/chat.vue`   → `Community/PersonCard.vue`, `Chat/ConversationList.vue`
+    - `pages/strategies.vue` → `Strategy/BotCard.vue`
+- [x] **8.5 Delete sandbox pages** (`components.vue`, `test.vue`, `testest.vue`, `auth.vue`) that only referenced deleted components.
+- [x] **8.6 Migrate the remaining stores to a single case convention** (`wallets.ts` merged into `wallet.ts` for portfolio data; 100% allocation engine moved to `allocation.ts` with `useAllocationStore`).
+- [x] **8.7 Convert `pages/historic.vue` and `pages/contact.vue` stubs** to the design-system shell — both now use `UIPageHeader`/`UICard`/`UIMetricRow` plus reusable components (`historic.vue` reuses `Wallet/Trades.vue`; `contact.vue` got a two-column layout with a contact form and other channels).
+
+## Phase 9: Page-Level Refactors
+- [x] **9.1 Refactor `pages/apis.vue` (569 → 130 LOC)**: Extract `APIs/PlatformCard.vue` and `APIs/AddConnectionModal.vue`. Page becomes pure orchestration.
+- [x] **9.2 Refactor `pages/calendar.vue` (408 → 220 LOC)**: Extract `Calendar/EventRow.vue`. Page handles only day grouping and filtering.
+- [x] **9.3 Modernize `pages/Shop.vue`**: Replaced broken legacy `MarketplaceCard` (data shape mismatch with current `useStrategiesStore`) with `Strategy/Card.vue`. Added category tabs, tier filter, design-system shell, premium/free pill via new `#footer-extra` slot on `Strategy/Card`. Updated `Button/Database.vue` import. Deleted `Strategy/MarketplaceCard.vue`.
+- [x] **9.4 Resolve duplicate TypeScript interface auto-import collisions**: `userPreferences.PersonalityMatrix` → `UserPersonalityMatrix`; `training.TrainingState` → `TrainingStoreState` (kept agent-side names canonical).
+- [ ] **9.5 Silence remaining `actions` auto-import warnings**: pre-existing `@pinia/nuxt` scanner picks up the `actions:` key from Pinia options-stores. Requires migrating stores to setup-store style — out of scope here.
+
+## Phase 10: Detail-Page Refactors
+- [x] **10.1 Store cleanup**: deleted 5 dead stores (`MessagesStore`, `DiscussionsStore`, `DatasourcesStore`, `FriendsStore`, `priceStore`); renamed `newsStore.ts` → `news.ts` and `BitcoinStore.ts` → `bitcoin.ts` (callsites updated).
+- [x] **10.2 `pages/assets/[id].vue` 805 → 463 LOC**: extracted `Asset/LiveSignalsStrip`, `Asset/AnalysisPanel`, `Asset/FacilityList`. Moved shared `COUNTRY_LATLNG` table to `composables/useCountryLatLng`.
+- [x] **10.3 `pages/strategy/[id].vue` 675 → 391 LOC**: extracted `Strategy/EquityCurve` (deterministic random-walk SVG), `Strategy/TradeList`, `Strategy/RunByPanel`. Moved `cyrb53` + `mulberry32` to `composables/useSeededRandom`.
+- [x] **10.4 `pages/bots/[id].vue` 508 → 337 LOC**: extracted `Bot/LinkRow` (agent/strategy/platform variants) and `Bot/FillsList`. Reuses `Strategy/EquityCurve` and `useSeededRandom`.
+- [x] **10.5 `pages/conversations/[id].vue` 680 → 404 LOC**: extracted `Chat/MessageBubble` and `Chat/Composer` (with keyboard handling).
+- [x] **10.6 `pages/profile/index.vue` 536 → 409 LOC**: extracted `Profile/Hero` and `Profile/PersonalityMatrix`. Both reused on `pages/profile/[id].vue`, which was modernized from a 103 LOC stub into a proper design-system page (Hero, KPIs, portfolio table, achievements).
+- [x] **10.7 Deleted 5 obsolete stub Profile components**: `Profile/Header.vue`, `UserStats.vue`, `Achievements.vue`, `Preferences.vue`, `PortfolioSnapshot.vue`. None had meaningful styling; all replaced by the new Hero + inline UI primitives.
+
+## Phase 11: Trailing-Page Refactors
+- [x] **11.1 `pages/articles/[id].vue` 394 → 256 LOC**: page didn't use the design system at all (custom `.article-page` shell + inline tile styling). Rewritten as `UIPageHeader` + hero card with cover + metadata grid + `WidgetSentiment`.
+- [x] **11.2 `pages/agents/[id].vue` modernized**: replaced inline custom pills/stat-grids with `UIPill` / `UIStat` / `UIMetricRow`, and inlined `Profile/PersonalityMatrix` for the 5-axis bars. Tighter, design-system-consistent.
+- [x] **11.3 `pages/summarizer/[id].vue` 100 → 195 LOC** (now functional, was broken): old version dumped raw JSON and navigated to `/result` (which doesn't exist). Rewritten as a proper review page using `Strategy/CodeView`, `UIMetricRow`, with backtest → strategy detail navigation.
+- [x] **11.4 Dead-component cleanup**: deleted 25 unwired components (~2 700 LOC), kept `Builder/NodeCanvas.vue` and `Corporate/NetworkGraph.vue` since they're referenced in the design vision. Empty `Transactions/`, `Leaderboard/`, `Quest/` folders removed.
+- [x] **11.5 Verified `quest.vue`, `leaderboard.vue`, `notifications.vue`, `settings.vue`**: already clean, design-system-consistent, no extraction needed.
+
+## Phase 12: Wiring, Types, Cleanup
+- [x] **12.1 Wired `Corporate/NetworkGraph.vue`** into the asset Supply Chain tab — rewritten to consume the real supply-chain JSON shape (HQ + facilities + suppliers + customers as nodes, weighted edges by share_pct), with a colour-coded legend, deterministic d3-force layout, and accessible aria labels.
+- [x] **12.2 Type-safety pass on substantive JS components**: converted `Builder/BlockEditor.vue`, `Builder/Action.vue`, `Builder/Condition.vue`, `Strategy/Visualizer.vue`, `Selector/Asset.vue`, `Selector/Datasources.vue`, `Card/SharedData.vue`, `Widget/NewsCard.vue`, `pages/CandleChart.vue`, `pages/index.vue` to `lang="ts"` with typed props/emits. The Builder + Selector trio got design-system styling on the way (the Creator page now uses consistent chips/inputs instead of bare `<select>`/`<input>` defaults).
+- [x] **12.3 Second-wave dead-component cleanup**: deleted 12 more unwired components (~2 840 LOC) — `Wallet/AssetsDistribution`, `CapitalCounter`, `EvolutionAllocation`, `Evolution` (657 LOC d3 chart, superseded by `EquityCurve`), `OverallStratstats`, `Portfolio` (superseded by `Positions`), `PositionTracker`, `SelectStrats`, `TradesHistory`, `Navigation/Creator`, `Navigation/Analyse`, `Selector/Users`.
+- [x] **12.4 CSS variables audit**: confirmed `assets/css/variables.css` is complete; `--app-*` runtime variables (border-radius, animation-speed, glass-blur, ambient, glow, news-pulse, light-angle) are intentionally set by `App/DynamicThemeController.vue` at runtime from macro store state.

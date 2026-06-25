@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import Strategy from '@/components/Card/Strategy.vue'
+import Strategy from '@/components/Strategy/Card.vue'
 import SharedData from '@/components/Card/SharedData.vue'
 import { useStrategiesStore } from '@/stores/strategies'
 import { useChatStore } from '@/stores/chat'

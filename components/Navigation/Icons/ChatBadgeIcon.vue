@@ -1,70 +1,82 @@
 <template>
-  <div class="chat-badge-icon" :style="{ width: `${size}px`, height: `${size}px` }">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+  <div class="chat-icon" :style="{ width: `${size}px`, height: `${size}px` }">
+    <svg :width="size" :height="size" viewBox="0 0 24 24" aria-hidden="true">
+      <defs>
+        <linearGradient id="chat-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="rgba(0,255,136,0.85)" />
+          <stop offset="100%" stop-color="rgba(0,170,255,0.85)" />
+        </linearGradient>
+      </defs>
+
+      <!-- Outer speech bubble -->
+      <path
+        d="M 4 5 Q 4 3 6 3 L 18 3 Q 20 3 20 5 L 20 13 Q 20 15 18 15 L 11 15 L 7 19 L 7 15 L 6 15 Q 4 15 4 13 Z"
+        fill="rgba(255,255,255,0.05)"
+        stroke="currentColor"
+        stroke-width="1.4"
+        stroke-linejoin="round"
+      />
+
+      <!-- Typing dots -->
+      <g class="dots">
+        <circle cx="9" cy="9" r="1" fill="currentColor" class="dot dot-1" />
+        <circle cx="12" cy="9" r="1" fill="currentColor" class="dot dot-2" />
+        <circle cx="15" cy="9" r="1" fill="currentColor" class="dot dot-3" />
+      </g>
+
+      <!-- Urgent badge -->
+      <g v-if="unreadCount > 0" class="badge" :class="{ urgent: emotionalUrgency > 0.7 }">
+        <circle cx="19" cy="5" r="3.5" :fill="emotionalUrgency > 0.7 ? 'var(--error-red, #ff4444)' : 'url(#chat-gradient)'" />
+        <text x="19" y="6.5" text-anchor="middle" font-size="3.5" font-weight="700" :fill="emotionalUrgency > 0.7 ? '#fff' : '#000'" font-family="Poppins, sans-serif">
+          {{ unreadCount > 9 ? '9+' : unreadCount }}
+        </text>
+      </g>
     </svg>
-    <div v-if="unreadCount > 0" class="badge" :class="{ urgent: emotionalUrgency > 0.7 }">
-      {{ unreadCount > 99 ? '99+' : unreadCount }}
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { useChatStore } from '~/stores/chat'
+import { useCurrentUser } from '~/composables/useCurrentUser'
 
-const props = defineProps({
-  size: {
-    type: Number,
-    default: 24
-  }
-})
+withDefaults(defineProps<{ size?: number }>(), { size: 24 })
 
-// Mocking the chat store data for now
-const unreadCount = ref(3)
-const emotionalUrgency = ref(0.8) // 0.0 to 1.0
+const chat = useChatStore()
+const { userId } = useCurrentUser()
+
+const unreadCount = computed(() => chat.getUnreadCount(userId))
+const emotionalUrgency = computed(() => chat.getEmotionalUrgency(userId))
 </script>
 
 <style scoped>
-.chat-badge-icon {
-  position: relative;
+.chat-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: inherit;
 }
+svg { overflow: visible; }
 
-svg {
-  width: 100%;
-  height: 100%;
+.dots .dot {
+  animation: dot-blink 1.4s infinite ease-in-out;
+}
+.dot-1 { animation-delay: 0s; }
+.dot-2 { animation-delay: 0.2s; }
+.dot-3 { animation-delay: 0.4s; }
+
+@keyframes dot-blink {
+  0%, 60%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
 }
 
-.badge {
-  position: absolute;
-  top: -4px;
-  right: -6px;
-  background: var(--primary-green, #31d0aa);
-  color: #000;
-  font-size: 0.6rem;
-  font-weight: bold;
-  padding: 2px 4px;
-  border-radius: 10px;
-  min-width: 16px;
-  text-align: center;
-  line-height: 1;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-  font-family: 'Poppins', sans-serif;
+.badge.urgent {
+  animation: badge-pulse 1.1s infinite ease-out;
+  transform-origin: 19px 5px;
 }
-
-/* Phase 5: Map emotional urgency to a pulse animation */
-.urgent {
-  background: var(--error-red, #ed4b9e);
-  color: #fff;
-  animation: urgent-pulse 1s infinite;
-}
-
-@keyframes urgent-pulse {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(237, 75, 158, 0.7); }
-  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(237, 75, 158, 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(237, 75, 158, 0); }
+@keyframes badge-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
 }
 </style>

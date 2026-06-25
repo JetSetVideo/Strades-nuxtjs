@@ -1,0 +1,50 @@
+{
+  "asset_id": "amzn",
+  "asset_kind": "company",
+  "label_overrides": {
+    "suppliers": "Top Sellers / Suppliers",
+    "customers": "Wholesale & B2B",
+    "shipments": "Inbound Shipments",
+    "facilities": "Fulfillment Network"
+  },
+  "headquarters": {
+    "name": "Amazon HQ",
+    "city": "Seattle",
+    "country": "US",
+    "lat": 47.6062,
+    "lng": -122.3321
+  },
+  "facilities": [
+    { "id": "az_hq", "name": "HQ — Seattle", "city": "Seattle", "country": "US", "lat": 47.6062, "lng": -122.3321, "type": "headquarters", "size": "large", "status": "active" },
+    { "id": "az_arl", "name": "HQ2 — Arlington", "city": "Arlington", "country": "US", "lat": 38.8816, "lng": -77.0910, "type": "headquarters", "size": "large", "status": "active" },
+    { "id": "az_lux", "name": "AWS Luxembourg", "city": "Luxembourg City", "country": "LU", "lat": 49.6116, "lng": 6.1319, "type": "datacenter", "size": "medium", "status": "active" },
+    { "id": "az_lon", "name": "Fulfillment Tilbury", "city": "Tilbury", "country": "GB", "lat": 51.4626, "lng": 0.3573, "type": "fulfillment", "size": "large", "status": "active" },
+    { "id": "az_pat", "name": "Fulfillment Patna", "city": "Patna", "country": "IN", "lat": 25.5941, "lng": 85.1376, "type": "fulfillment", "size": "medium", "status": "active" },
+    { "id": "az_sao", "name": "Fulfillment São Paulo", "city": "São Paulo", "country": "BR", "lat": -23.5505, "lng": -46.6333, "type": "fulfillment", "size": "medium", "status": "active" },
+    { "id": "az_syd", "name": "AWS Sydney", "city": "Sydney", "country": "AU", "lat": -33.8688, "lng": 151.2093, "type": "datacenter", "size": "medium", "status": "active" }
+  ],
+  "suppliers": [
+    { "id": "anker", "name": "Anker Innovations", "country": "CN", "country_flag": "🇨🇳", "city": "Shenzhen", "lat": 22.5431, "lng": 114.0579, "product": "Consumer electronics", "share_pct": 5, "shipments_90d": 4120, "value_usd": 380000000, "since": "2014" },
+    { "id": "philips", "name": "Philips", "country": "NL", "country_flag": "🇳🇱", "city": "Amsterdam", "lat": 52.3676, "lng": 4.9041, "product": "Personal care / health", "share_pct": 3, "shipments_90d": 2640, "value_usd": 320000000, "since": "2007" },
+    { "id": "logitech", "name": "Logitech", "country": "CH", "country_flag": "🇨🇭", "city": "Lausanne", "lat": 46.5197, "lng": 6.6323, "product": "PC peripherals", "share_pct": 3, "shipments_90d": 1820, "value_usd": 280000000, "since": "2010" },
+    { "id": "kraft_heinz", "name": "Kraft Heinz", "country": "US", "country_flag": "🇺🇸", "city": "Chicago", "lat": 41.8781, "lng": -87.6298, "product": "Grocery (Whole Foods)", "share_pct": 4, "shipments_90d": 5180, "value_usd": 420000000, "since": "2017" },
+    { "id": "unilever", "name": "Unilever", "country": "GB", "country_flag": "🇬🇧", "city": "London", "lat": 51.5074, "lng": -0.1278, "product": "Personal care brands", "share_pct": 3, "shipments_90d": 3120, "value_usd": 340000000, "since": "2014" },
+    { "id": "samsung_e", "name": "Samsung Electronics", "country": "KR", "country_flag": "🇰🇷", "city": "Suwon", "lat": 37.2636, "lng": 127.0286, "product": "TVs / displays", "share_pct": 4, "shipments_90d": 1640, "value_usd": 460000000, "since": "2006" },
+    { "id": "lg_e", "name": "LG Electronics", "country": "KR", "country_flag": "🇰🇷", "city": "Seoul", "lat": 37.5665, "lng": 126.9780, "product": "Home appliances", "share_pct": 3, "shipments_90d": 1180, "value_usd": 290000000, "since": "2008" },
+    { "id": "haier", "name": "Haier Group", "country": "CN", "country_flag": "🇨🇳", "city": "Qingdao", "lat": 36.0671, "lng": 120.3826, "product": "Appliances / smart-home", "share_pct": 2, "shipments_90d": 920, "value_usd": 180000000, "since": "2015" },
+    { "id": "lego", "name": "LEGO Group", "country": "DK", "country_flag": "🇩🇰", "city": "Billund", "lat": 55.7350, "lng": 9.1271, "product": "Toys", "share_pct": 1, "shipments_90d": 580, "value_usd": 120000000, "since": "2002" }
+  ],
+  "customers": [
+    { "id": "aws_netflix", "name": "Netflix (AWS)", "country": "US", "country_flag": "🇺🇸", "city": "Los Gatos", "lat": 37.2358, "lng": -121.9624, "product": "Cloud infrastructure", "share_pct": 14, "shipments_90d": 0, "value_usd": 1240000000 },
+    { "id": "aws_capone", "name": "Capital One (AWS)", "country": "US", "country_flag": "🇺🇸", "city": "McLean", "lat": 38.9343, "lng": -77.1773, "product": "Cloud infrastructure", "share_pct": 6, "shipments_90d": 0, "value_usd": 540000000 },
+    { "id": "aws_pfizer", "name": "Pfizer (AWS)", "country": "US", "country_flag": "🇺🇸", "city": "New York", "lat": 40.7128, "lng": -74.0060, "product": "Cloud / pharma compute", "share_pct": 4, "shipments_90d": 0, "value_usd": 380000000 },
+    { "id": "aws_bbva", "name": "BBVA (AWS)", "country": "ES", "country_flag": "🇪🇸", "city": "Madrid", "lat": 40.4168, "lng": -3.7038, "product": "Cloud infrastructure", "share_pct": 3, "shipments_90d": 0, "value_usd": 220000000 },
+    { "id": "aws_samsung", "name": "Samsung SDS (AWS)", "country": "KR", "country_flag": "🇰🇷", "city": "Seoul", "lat": 37.5665, "lng": 126.9780, "product": "Cloud infrastructure", "share_pct": 3, "shipments_90d": 0, "value_usd": 190000000 }
+  ],
+  "shipments": [
+    { "id": "sh_m1", "from_country": "CN", "to_country": "US", "product": "Consumer electronics (mixed)", "containers": 6420, "value_usd": 412000000, "date": "2026-05-29" },
+    { "id": "sh_m2", "from_country": "VN", "to_country": "US", "product": "Apparel + footwear", "containers": 3180, "value_usd": 184000000, "date": "2026-05-28" },
+    { "id": "sh_m3", "from_country": "IN", "to_country": "GB", "product": "Home goods", "containers": 1620, "value_usd": 92000000, "date": "2026-05-28" },
+    { "id": "sh_m4", "from_country": "DE", "to_country": "US", "product": "Mechanical tools", "containers": 480, "value_usd": 56000000, "date": "2026-05-27" }
+  ]
+}

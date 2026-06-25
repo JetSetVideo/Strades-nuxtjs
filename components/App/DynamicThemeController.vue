@@ -1,47 +1,50 @@
 <template>
-  <!-- Headless component, no visual output of its own -->
   <slot />
 </template>
 
 <script setup lang="ts">
-import { watchEffect, onMounted, onUnmounted } from 'vue'
+import { watchEffect, onMounted } from 'vue'
 import { useMacroStore } from '~/stores/macro'
+import { useUserPreferencesStore } from '~/stores/userPreferences'
 
-const macroStore = useMacroStore()
+const macro = useMacroStore()
+const prefs = useUserPreferencesStore()
 
-// Apply CSS variables to the document root
-const applyDynamicTheme = () => {
-  if (typeof document !== 'undefined') {
-    const root = document.documentElement
-    
-    // Animation Speed (based on volatility)
-    root.style.setProperty('--app-animation-speed', `${macroStore.appAnimationSpeed}s`)
-    
-    // Lighting Hue (based on geopolitical stress)
-    // E.g., shifts the overall ambient tint
-    root.style.setProperty('--app-lighting-hue', `${macroStore.appLightingHue}`)
-    
-    // Border Radius (based on dominant asset class)
-    root.style.setProperty('--app-border-radius', macroStore.appBorderRadius)
-    
-    // Derived properties for glassmorphism and depth
-    // The higher the volatility, the less blur (sharp, clear, fast UI)
-    const blurAmount = Math.max(2, 20 - (macroStore.global_volatility_index * 20))
-    root.style.setProperty('--app-glass-blur', `${blurAmount}px`)
-  }
+const applyTheme = () => {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+
+  // Core: per Components.md DynamicThemeController spec
+  root.style.setProperty('--app-animation-speed', `${macro.appAnimationSpeed}s`)
+  root.style.setProperty('--app-lighting-hue', String(macro.appLightingHue))
+  root.style.setProperty('--app-border-radius', macro.appBorderRadius)
+
+  // Extended: glass blur narrows under high volatility (sharper, less depth)
+  const blurAmount = Math.max(2, 20 - macro.global_volatility_index * 20)
+  root.style.setProperty('--app-glass-blur', `${blurAmount}px`)
+
+  // Density (Design.md: aggressive traders get compact UI)
+  const density = Math.min(macro.appDensityScale, 1 - prefs.personality_matrix.risk * 0.15)
+  root.style.setProperty('--app-density', density.toFixed(3))
+
+  // Ambient background tint — geopolitical stress shifts hue, sentiment shifts lightness
+  root.style.setProperty('--app-ambient', macro.ambientOklch)
+
+  // Glow radius derived from liquidity index (Design.md: liquid assets glow more)
+  root.style.setProperty('--app-glow-radius', `${macro.glowRadiusPx}px`)
+
+  // News pulse — emits as a CSS animation duration for the news icon
+  const pulseDuration = Math.max(0.3, 2.0 - macro.newsPulseHz * 1.5)
+  root.style.setProperty('--app-news-pulse', `${pulseDuration}s`)
+
+  // Lighting source angle (for shadows / radial gradients)
+  root.style.setProperty('--app-light-angle', `${macro.lighting_source_angle}deg`)
 }
 
 onMounted(() => {
-  // Initially fetch data
-  macroStore.fetchMacroState()
-  
-  // Watch for changes in macro state and apply
-  watchEffect(() => {
-    applyDynamicTheme()
-  })
-})
-
-onUnmounted(() => {
-  // Cleanup if necessary
+  // Plugin already hydrated macro, but fall back if it didn't
+  if (!macro.hydrated) macro.fetchMacroState()
+  if (!prefs.hydrated) prefs.fetchPreferences()
+  watchEffect(applyTheme)
 })
 </script>

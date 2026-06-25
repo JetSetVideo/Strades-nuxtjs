@@ -35,12 +35,18 @@ export interface Message {
   is_edited: boolean
   edited_at: string | null
   attachments: Array<{
-    type: 'image' | 'file' | 'link'
+    type: 'image' | 'file' | 'link' | 'share'
     url?: string
     filename?: string
     size_bytes?: number
     title?: string
     description?: string
+    share_id?: string
+    share_kind?: string
+    asset_id?: string
+    asset_symbol?: string
+    strategy_id?: string
+    opinion_vector?: { fiat: number; crypto: number; stocks: number; commodities: number }
   }>
   reactions: Array<{
     user_id: string
@@ -60,6 +66,7 @@ export const useChatStore = defineStore('chat', {
     conversations: [] as Conversation[],
     messages: [] as Message[],
     activeConversation: null as Conversation | null,
+    hydrated: false,
     loading: false,
     error: null as Error | null
   }),
@@ -92,6 +99,24 @@ export const useChatStore = defineStore('chat', {
       return state.conversations
         .filter(conversation => conversation.participants.includes(userId))
         .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
+    },
+
+    /** 0–1 urgency score from unread volume and message recency — drives the nav badge pulse */
+    getEmotionalUrgency: (state) => (userId: string) => {
+      const unreadKey = `unread_count_${userId}` as keyof Conversation
+      let score = 0
+
+      for (const conversation of state.conversations) {
+        if (!conversation.participants.includes(userId)) continue
+        const unread = (conversation[unreadKey] as number) || 0
+        if (unread === 0) continue
+
+        const hoursAgo = (Date.now() - new Date(conversation.last_message_at).getTime()) / 3_600_000
+        const recencyBoost = hoursAgo < 1 ? 1 : hoursAgo < 6 ? 0.7 : 0.35
+        score += unread * recencyBoost
+      }
+
+      return Math.min(1, score / 12)
     }
   },
 
@@ -119,10 +144,12 @@ export const useChatStore = defineStore('chat', {
     },
 
     async initializeStore() {
+      if (this.hydrated) return
       await Promise.all([
         this.fetchConversations(),
         this.fetchMessages()
       ])
+      this.hydrated = true
     },
 
     setActiveConversation(conversationId: string) {
@@ -210,6 +237,20 @@ export const useChatStore = defineStore('chat', {
 
       this.conversations.push(newConversation)
       return newConversation
+    },
+
+    editMessage(messageId: string, content: string) {
+      const message = this.messages.find(m => m.id === messageId)
+      if (!message) return
+      message.content = content
+      message.is_edited = true
+      message.edited_at = new Date().toISOString()
+      message.metadata.character_count = content.length
+    },
+
+    deleteMessage(messageId: string) {
+      const idx = this.messages.findIndex(m => m.id === messageId)
+      if (idx > -1) this.messages.splice(idx, 1)
     }
   }
 })

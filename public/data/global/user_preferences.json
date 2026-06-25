@@ -1,0 +1,26 @@
+{
+  "user_id": "user_001",
+  "base_currency": "USD",
+  "personality_matrix": {
+    "risk": 0.72,
+    "aggression": 0.65,
+    "reaction_speed": 0.8,
+    "patience": 0.35
+  },
+  "trading_style": "swing_intraday",
+  "ui_density_preference": "auto",
+  "behavioral_history": {
+    "eye_tracking_heat": {
+      "wallet_pie": 0.42,
+      "prices_grid": 0.31,
+      "news_feed": 0.17,
+      "strategy_canvas": 0.10
+    },
+    "click_priors": {
+      "after_news_alert": "prices",
+      "after_market_open": "wallet",
+      "after_chat_notification": "chat"
+    }
+  },
+  "favorite_assets": ["btc", "eth", "tsla", "aapl"]
+}

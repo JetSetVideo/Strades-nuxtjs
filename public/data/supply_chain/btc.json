@@ -1,0 +1,42 @@
+{
+  "asset_id": "btc",
+  "asset_kind": "crypto_network",
+  "label_overrides": {
+    "suppliers": "Mining Pools",
+    "customers": "Major Holders & Exchanges",
+    "shipments": "On-chain Flows",
+    "facilities": "Hash Power Hubs"
+  },
+  "headquarters": null,
+  "facilities": [
+    { "id": "h_tx", "name": "Texas Mining Belt", "city": "Rockdale", "country": "US", "lat": 30.6557, "lng": -97.0014, "type": "mining_hub", "size": "large", "status": "active", "share_pct": 22 },
+    { "id": "h_kz", "name": "Kazakhstan Plains", "city": "Astana", "country": "KZ", "lat": 51.1605, "lng": 71.4704, "type": "mining_hub", "size": "medium", "status": "active", "share_pct": 13 },
+    { "id": "h_ca", "name": "Quebec Hydro Sites", "city": "Quebec City", "country": "CA", "lat": 46.8139, "lng": -71.2080, "type": "mining_hub", "size": "medium", "status": "active", "share_pct": 9 },
+    { "id": "h_ru", "name": "Siberia Hydro", "city": "Irkutsk", "country": "RU", "lat": 52.2978, "lng": 104.2964, "type": "mining_hub", "size": "medium", "status": "active", "share_pct": 11 },
+    { "id": "h_om", "name": "Oman Renewable", "city": "Salalah", "country": "OM", "lat": 17.0151, "lng": 54.0924, "type": "mining_hub", "size": "small", "status": "active", "share_pct": 4 },
+    { "id": "h_sv", "name": "El Salvador (state)", "city": "San Salvador", "country": "SV", "lat": 13.6929, "lng": -89.2182, "type": "mining_hub", "size": "small", "status": "active", "share_pct": 2 }
+  ],
+  "suppliers": [
+    { "id": "foundry", "name": "Foundry USA", "country": "US", "country_flag": "🇺🇸", "city": "Rochester", "lat": 43.1566, "lng": -77.6088, "product": "BTC block production", "share_pct": 28, "shipments_90d": 4280, "value_usd": 1840000000, "since": "2021" },
+    { "id": "antpool", "name": "AntPool", "country": "CN", "country_flag": "🇨🇳", "city": "Beijing", "lat": 39.9042, "lng": 116.4074, "product": "BTC block production", "share_pct": 22, "shipments_90d": 3380, "value_usd": 1420000000, "since": "2014" },
+    { "id": "f2pool", "name": "F2Pool", "country": "CN", "country_flag": "🇨🇳", "city": "Hangzhou", "lat": 30.2741, "lng": 120.1551, "product": "BTC block production", "share_pct": 13, "shipments_90d": 2010, "value_usd": 860000000, "since": "2013" },
+    { "id": "viabtc", "name": "ViaBTC", "country": "CN", "country_flag": "🇨🇳", "city": "Shenzhen", "lat": 22.5431, "lng": 114.0579, "product": "BTC block production", "share_pct": 11, "shipments_90d": 1720, "value_usd": 720000000, "since": "2016" },
+    { "id": "binancepool", "name": "Binance Pool", "country": "MT", "country_flag": "🇲🇹", "city": "Valletta", "lat": 35.8989, "lng": 14.5146, "product": "BTC block production", "share_pct": 9, "shipments_90d": 1380, "value_usd": 580000000, "since": "2020" },
+    { "id": "luxor", "name": "Luxor", "country": "US", "country_flag": "🇺🇸", "city": "Seattle", "lat": 47.6062, "lng": -122.3321, "product": "BTC block production", "share_pct": 4, "shipments_90d": 640, "value_usd": 240000000, "since": "2018" }
+  ],
+  "customers": [
+    { "id": "coinbase_treasury", "name": "Coinbase (treasury + custody)", "country": "US", "country_flag": "🇺🇸", "city": "San Francisco", "lat": 37.7749, "lng": -122.4194, "product": "Custody outflow", "share_pct": 17, "shipments_90d": 4810, "value_usd": 92000000000 },
+    { "id": "binance_holding", "name": "Binance hot/cold wallets", "country": "AE", "country_flag": "🇦🇪", "city": "Dubai", "lat": 25.2048, "lng": 55.2708, "product": "Exchange wallets", "share_pct": 22, "shipments_90d": 9120, "value_usd": 138000000000 },
+    { "id": "microstrategy", "name": "MicroStrategy treasury", "country": "US", "country_flag": "🇺🇸", "city": "Tysons Corner", "lat": 38.9189, "lng": -77.2231, "product": "Corporate treasury", "share_pct": 1.4, "shipments_90d": 12, "value_usd": 8200000000 },
+    { "id": "blackrock_etf", "name": "BlackRock IBIT ETF", "country": "US", "country_flag": "🇺🇸", "city": "New York", "lat": 40.7128, "lng": -74.0060, "product": "Spot ETF custody", "share_pct": 3.1, "shipments_90d": 120, "value_usd": 19800000000 },
+    { "id": "kraken_custody", "name": "Kraken custody", "country": "US", "country_flag": "🇺🇸", "city": "San Francisco", "lat": 37.7749, "lng": -122.4194, "product": "Exchange wallets", "share_pct": 4, "shipments_90d": 1820, "value_usd": 18400000000 },
+    { "id": "sv_treasury", "name": "El Salvador treasury", "country": "SV", "country_flag": "🇸🇻", "city": "San Salvador", "lat": 13.6929, "lng": -89.2182, "product": "Sovereign treasury", "share_pct": 0.05, "shipments_90d": 4, "value_usd": 380000000 }
+  ],
+  "shipments": [
+    { "id": "tx_b1", "from_country": "US", "to_country": "AE", "product": "BTC OTC desk transfer", "containers": 1, "value_usd": 240000000, "date": "2026-05-29" },
+    { "id": "tx_b2", "from_country": "CN", "to_country": "US", "product": "Miner reward distribution", "containers": 1, "value_usd": 86000000, "date": "2026-05-29" },
+    { "id": "tx_b3", "from_country": "AE", "to_country": "DE", "product": "Cold storage rebalance", "containers": 1, "value_usd": 38000000, "date": "2026-05-28" },
+    { "id": "tx_b4", "from_country": "US", "to_country": "GB", "product": "ETF creation flow", "containers": 1, "value_usd": 142000000, "date": "2026-05-28" },
+    { "id": "tx_b5", "from_country": "SV", "to_country": "US", "product": "Sovereign sale", "containers": 1, "value_usd": 12000000, "date": "2026-05-27" }
+  ]
+}

@@ -1,229 +1,159 @@
-<script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useWalletsStore } from '@/stores/wallets';
-import { useWalletStore } from '@/stores/wallet'; // Phase 3 store
-import WalletCapitalCounter from '@/components/Wallet/CapitalCounter.vue';
-import WalletPortfolio from '@/components/Wallet/Portfolio.vue';
-import WalletEvolution from '@/components/Wallet/Evolution.vue';
-import WalletPositionTracker from '@/components/Wallet/PositionTracker.vue';
-import TradesHistory from '@/components/Transactions/History.vue';
-import Chart from '@/components/Chart.vue';
-import WalletEvolutionAllocation from '@/components/Wallet/EvolutionAllocation.vue';
-import WalletAllocationSlider from '@/components/Wallet/AllocationSlider.vue';
-import WalletFlowVisualizer from '@/components/Wallet/FlowVisualizer.vue';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useWalletStore } from '@/stores/wallet'
+import { useAllocationStore } from '@/stores/allocation'
+import { usePlatformsStore } from '@/stores/platforms'
+import { useBotsStore } from '@/stores/bots'
+import { useOpinionsStore } from '@/stores/opinions'
 
-definePageMeta({
-    title: "wallet",
-    description: "Wallet",
-    layout: "wallet",
-});
+import UIScreenShell from '@/components/UI/ScreenShell.vue'
+import UICard from '@/components/UI/Card.vue'
+import UIPill from '@/components/UI/Pill.vue'
+import WalletSwitcher from '@/components/Wallet/Switcher.vue'
+import WalletHero from '@/components/Wallet/Hero.vue'
+import WalletPositions from '@/components/Wallet/Positions.vue'
+import WalletEquityCurve from '@/components/Wallet/EquityCurve.vue'
+import WalletRiskPanel from '@/components/Wallet/RiskPanel.vue'
+import WalletBotContribution from '@/components/Wallet/BotContribution.vue'
+import WalletTrades from '@/components/Wallet/Trades.vue'
+import WalletAllocationSlider from '@/components/Wallet/AllocationSlider.vue'
+import WalletFlowVisualizer from '@/components/Wallet/FlowVisualizer.vue'
+import WalletPlatformList from '@/components/Wallet/PlatformList.vue'
+import MapButton from '@/components/Map/MapButton.vue'
+import type { MapMarker } from '@/components/Map/WorldMap.vue'
 
-const walletsStore = useWalletsStore();
-const allocationStore = useWalletStore(); // Global 100% allocation
-const selectedCurrency = ref('USD');
-const selectedAsset = ref('All');
-const selectedWalletId = ref('wallet_001');
-const selectedPeriod = ref('30d');
+definePageMeta({ title: 'Wallet', layout: 'default' })
+
+const PLATFORM_LL: Record<string, { lat: number; lng: number }> = {
+  plat_coinbase: { lat: 37.7749, lng: -122.4194 },
+  plat_ibkr: { lat: 41.0262, lng: -73.6285 },
+  plat_kraken: { lat: 37.7749, lng: -122.4194 },
+  plat_chase: { lat: 40.7128, lng: -74.0060 },
+  plat_robinhood: { lat: 37.4848, lng: -122.1484 },
+  plat_metals: { lat: 51.5074, lng: -0.1278 }
+}
+
+const walletStore = useWalletStore()
+const allocation = useAllocationStore()
+const platforms = usePlatformsStore()
+const bots = useBotsStore()
+const opinions = useOpinionsStore()
+
+const selectedWalletId = ref<string>('wallet_001')
+const period = ref<'1d' | '7d' | '30d' | '90d' | '1y'>('30d')
 
 onMounted(async () => {
-  await walletsStore.initializeStore();
-  if (!selectedWalletId.value) {
-    const defaultWallet = walletsStore.getDefaultWallet('user_001');
-    if (defaultWallet) {
-      selectedWalletId.value = defaultWallet.id;
-    } else if (walletsStore.wallets.length > 0) {
-      selectedWalletId.value = walletsStore.wallets[0].id;
-    }
+  if (!walletStore.hydrated) await walletStore.initializeStore()
+  if (!platforms.hydrated) await platforms.fetchPlatforms()
+  if (!bots.hydrated) await bots.fetchBots()
+  if (!selectedWalletId.value || !walletStore.getWalletById(selectedWalletId.value)) {
+    const def = walletStore.getDefaultWallet('user_001')
+    selectedWalletId.value = def?.id ?? walletStore.wallets[0]?.id
   }
-});
+})
 
-const currentWallet = computed(() => walletsStore.getWalletById(selectedWalletId.value));
+const currentWallet = computed<any>(() => walletStore.getWalletById(selectedWalletId.value))
+const positions = computed(() => currentWallet.value?.assets ?? [])
+const transactions = computed(() => currentWallet.value?.transactions ?? [])
 
-const walletSummary = computed(() => {
-  if (!currentWallet.value) return null;
-  return {
-    totalValue: currentWallet.value.total_value,
-    currency: currentWallet.value.currency,
-    totalReturnPercentage: currentWallet.value.total_return_percentage,
-  };
-});
+const kpis = computed(() => [
+  { label: 'Value', value: currentWallet.value ? `$${Math.round(currentWallet.value.total_value).toLocaleString()}` : '—' },
+  { label: 'Today', value: currentWallet.value?.daily_change_percentage ?? 0, suffix: '%', tone: (currentWallet.value?.daily_change_percentage ?? 0) >= 0 ? 'positive' as const : 'negative' as const },
+  { label: 'Platforms', value: platforms.connectedCount }
+])
 
-const filteredAssets = computed(() => {
-    if (!currentWallet.value) return [];
-    if (selectedAsset.value === 'All') return currentWallet.value.assets;
-    return currentWallet.value.assets.filter(asset => asset.symbol === selectedAsset.value);
-});
+const todayPctMap = computed<Record<string, number>>(() => {
+  const out: Record<string, number> = {}
+  for (const p of positions.value) {
+    let hash = 0
+    for (let i = 0; i < (p.asset_id ?? '').length; i++) hash = (hash * 31 + p.asset_id.charCodeAt(i)) >>> 0
+    out[p.asset_id] = ((hash % 1000) / 1000 - 0.45) * 10
+  }
+  return out
+})
 
-const walletTransactions = computed(() => currentWallet.value?.transactions || []);
-
-const handleAllocationUpdate = (payload) => {
-    selectedAsset.value = payload.asset;
-    selectedPeriod.value = payload.period;
-};
-
-const switchWallet = () => {
-  const currentIndex = walletsStore.wallets.findIndex(w => w.id === selectedWalletId.value);
-  const nextIndex = (currentIndex + 1) % walletsStore.wallets.length;
-  selectedWalletId.value = walletsStore.wallets[nextIndex].id;
-};
+const walletMapMarkers = computed<MapMarker[]>(() =>
+  platforms.list.filter(p => PLATFORM_LL[p.id]).map(p => ({
+    id: p.id,
+    lat: PLATFORM_LL[p.id].lat,
+    lng: PLATFORM_LL[p.id].lng,
+    label: `${p.name}`,
+    tone: (p.daily_pnl_pct >= 0 ? 'positive' : 'negative') as any,
+    weight: Math.min(1, p.balance_usd / 60000),
+    group: p.type
+  }))
+)
 </script>
 
 <template>
   <WalletFlowVisualizer>
-    <div class="body-wallet">
-      <!-- Wallet Header with Summary -->
-      <div class="wallet-header">
-          <WalletCapitalCounter
-              :total-value="walletSummary?.totalValue"
-              :currency="walletSummary?.currency"
-              :return-percentage="walletSummary?.totalReturnPercentage"
-              :wallet-name="currentWallet?.name"
-              @switch-wallet="switchWallet"
-            />
+    <UIScreenShell
+      title="Wallet"
+      :subtitle="`${platforms.connectedCount} platforms · ${opinions.activeCount} agents plugged`"
+      :kpis="kpis"
+    >
+      <template #actions>
+        <MapButton v-if="walletMapMarkers.length" :markers="walletMapMarkers" title="Platforms" :subtitle="`${walletMapMarkers.length} connected`" />
+        <UIPill :tone="allocation.is100Percent ? 'success' : 'warning'" show-dot>
+          {{ allocation.is100Percent ? '100%' : 'REBAL' }}
+        </UIPill>
+      </template>
+
+      <WalletSwitcher
+        v-if="walletStore.wallets.length"
+        :wallets="walletStore.wallets"
+        :active-id="selectedWalletId"
+        @switch="selectedWalletId = $event"
+      />
+
+      <WalletHero :wallet="currentWallet" v-model:period="period" />
+
+      <WalletAllocationSlider />
+
+      <div class="row two-col">
+        <UICard title="Performance">
+          <WalletEquityCurve
+            v-if="currentWallet"
+            :wallet-id="currentWallet.id"
+            :total-value="currentWallet.total_value"
+            :performance-history="currentWallet.performance_history"
+            :period="period"
+          />
+          <WalletRiskPanel
+            v-if="currentWallet"
+            class="risk-inline"
+            :positions="positions"
+            :performance-history="currentWallet.performance_history"
+            :wallet-id="currentWallet.id"
+          />
+        </UICard>
+
+        <UICard title="Bots & platforms">
+          <WalletBotContribution :total-today="currentWallet?.daily_change ?? 0" />
+          <WalletPlatformList :platforms="platforms.list" class="platforms-inline" />
+        </UICard>
       </div>
 
-      <!-- Main Content -->
-      <div class="wallet-content">
-        <!-- New 100% Allocation Enforcer Row -->
-        <div class="wallet-row single">
-          <div class="wallet-component slider-container">
-            <WalletAllocationSlider />
-          </div>
-        </div>
+      <UICard title="Holdings">
+        <WalletPositions
+          :positions="positions"
+          :total-value="currentWallet?.total_value"
+          :today-pct-map="todayPctMap"
+          @open-asset="(id) => navigateTo(`/assets/${id}`)"
+        />
+      </UICard>
 
-        <!-- Row 2: Portfolio and Evolution -->
-        <div class="wallet-row double">
-          <div class="wallet-component relative-z">
-            <WalletPortfolio
-              :assets="filteredAssets"
-              :total-value="walletSummary?.totalValue"
-              @select-asset="selectedAsset = $event"
-            />
-          </div>
-          <div class="wallet-component relative-z">
-              <div class="evolution-allocation-container">
-                <WalletEvolution
-                  :assets="filteredAssets"
-                  :transactions="walletTransactions"
-                  :selected-period="selectedPeriod"
-                  :wallet-id="selectedWalletId"
-                  @update-period="selectedPeriod = $event"
-                  @select-asset="selectedAsset = $event"
-                />
-                <WalletEvolutionAllocation
-                  :assets="filteredAssets"
-                  :transactions="walletTransactions"
-                  :selected-period="selectedPeriod"
-                  @update-selection="handleAllocationUpdate"
-                />
-              </div>
-          </div>
-        </div>
-
-        <!-- Row 3: Position Tracker and Trades History -->
-        <div class="wallet-row double relative-z">
-          <div class="wallet-component">
-            <WalletPositionTracker :assets="filteredAssets" />
-          </div>
-          <div class="wallet-component">
-            <TradesHistory :trades="walletTransactions" />
-          </div>
-        </div>
-      </div>
-      <div style="height: 100px;"></div> <!-- Spacer -->
-    </div>
+      <UICard v-if="transactions.length" title="Recent activity" padding="tight">
+        <WalletTrades :trades="transactions.slice(0, 5)" />
+      </UICard>
+    </UIScreenShell>
   </WalletFlowVisualizer>
 </template>
 
 <style scoped>
-.body-wallet {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    min-height: 100vh;
-    margin: 0;
-    padding: 4rem 1rem 2rem 1rem; 
-    gap: 1.5rem;
-    padding-bottom: 100px;
-    position: relative;
-    z-index: 1; /* Above FlowVisualizer */
-}
-
-.relative-z {
-  position: relative;
-  z-index: 2;
-}
-
-.wallet-header {
-  width: 100%;
-  margin-bottom: 1rem;
-  z-index: 2;
-}
-
-.slider-container {
-  max-width: 800px;
-  margin: 0 auto;
-  z-index: 2;
-  position: relative;
-}
-
-.wallet-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  width: 100%;
-  max-width: 1400px;
-}
-
-.wallet-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-  gap: 1.5rem;
-  width: 100%;
-  align-items: start;
-}
-
-.wallet-row.single {
-  grid-template-columns: 1fr;
-  width: 100%;
-}
-
-.wallet-row.double {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.wallet-component {
-  width: 100%;
-}
-
-.evolution-allocation-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-@media (max-width: 1024px) {
-  .wallet-row {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  .wallet-row.double {
-    grid-template-columns: 1fr;
-  }
-  .body-wallet {
-    padding: 4rem 1rem 2rem 1rem;
-    gap: 1rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .body-wallet {
-    padding: 4rem 0.5rem 1rem 0.5rem;
-  }
-  .wallet-row {
-    gap: 0.75rem;
-  }
-}
+:deep(.screen-shell) { position: relative; z-index: 1; }
+.row { display: grid; gap: 0.6rem; }
+.row.two-col { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.risk-inline { margin-top: 0.5rem; }
+.platforms-inline { margin-top: 0.5rem; }
 </style>

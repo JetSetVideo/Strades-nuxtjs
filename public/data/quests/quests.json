@@ -1,0 +1,47 @@
+[
+  {
+    "id": "q_001",
+    "title": "First Backtest",
+    "description": "Run a backtest on any strategy from the Creator.",
+    "category_id": "onboarding",
+    "reward_credits": 100,
+    "completed": true,
+    "progress": 1.0
+  },
+  {
+    "id": "q_002",
+    "title": "Plug a Marketplace Agent",
+    "description": "Plug a public agent into your swarm and let it influence your wallet.",
+    "category_id": "agents",
+    "reward_credits": 150,
+    "completed": false,
+    "progress": 0.0
+  },
+  {
+    "id": "q_003",
+    "title": "Reach 100 Training Samples",
+    "description": "Your personal Avatar needs at least 100 behavioral samples between epochs.",
+    "category_id": "agents",
+    "reward_credits": 200,
+    "completed": false,
+    "progress": 0.42
+  },
+  {
+    "id": "q_004",
+    "title": "Beat the Swarm",
+    "description": "Outperform the swarm allocation for 7 consecutive days.",
+    "category_id": "performance",
+    "reward_credits": 500,
+    "completed": false,
+    "progress": 0.28
+  },
+  {
+    "id": "q_005",
+    "title": "Connect All Asset Classes",
+    "description": "Link a platform for fiat, crypto, stocks, and commodities.",
+    "category_id": "onboarding",
+    "reward_credits": 250,
+    "completed": true,
+    "progress": 1.0
+  }
+]

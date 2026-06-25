@@ -1,407 +1,256 @@
-<script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-import { useNewsStore } from '@/stores/newsStore';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useNewsStore } from '@/stores/news'
 
-const route = useRoute();
-const articleId = route.params.id;
+import UIPageHeader from '@/components/UI/PageHeader.vue'
+import UICard from '@/components/UI/Card.vue'
+import UIPill from '@/components/UI/Pill.vue'
+import UIEmptyState from '@/components/UI/EmptyState.vue'
+import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
+import WidgetSentiment from '@/components/Widget/Sentiment.vue'
 
-const newsStore = useNewsStore();
-const loading = ref(false);
+definePageMeta({ title: 'Article', layout: 'default' })
 
-// Find the article by ID across all articles
-const article = computed(() => {
-  if (!newsStore.news) return null;
-  for (const category of newsStore.news.categories) {
-    const foundArticle = category.articles.find(a => a.id === articleId);
-    if (foundArticle) {
-      return foundArticle;
-    }
-  }
-  return null;
-});
+const route = useRoute()
+const articleId = computed(() => String(route.params.id))
 
-// Initialize store on mount
+const newsStore = useNewsStore()
+const loading = ref(true)
+
 onMounted(async () => {
-  loading.value = true;
-  await newsStore.initializeStore();
-  loading.value = false;
-});
+  loading.value = true
+  await newsStore.initializeStore()
+  loading.value = false
+})
 
-// Format date for display
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-};
+const article = computed<any | null>(() => {
+  if (!newsStore.news) return null
+  for (const category of newsStore.news.categories ?? []) {
+    const found = (category.articles ?? []).find((a: any) => a.id === articleId.value)
+    if (found) return { ...found, category: category.name }
+  }
+  return null
+})
+
+const publishedRel = computed(() => {
+  if (!article.value?.publishing_date) return '—'
+  const d = new Date(article.value.publishing_date)
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+})
+
+const minuteRead = computed(() => {
+  const words = (article.value?.content ?? '').trim().split(/\s+/).length
+  return Math.max(1, Math.round(words / 220))
+})
+
+const wordCount = computed(() => (article.value?.content ?? '').trim().split(/\s+/).filter(Boolean).length)
 </script>
 
 <template>
   <div class="article-page">
-    <!-- Loading State -->
-    <div v-if="loading" class="loading-state">
-      <div class="loading-spinner"></div>
-      <p>Loading article...</p>
-    </div>
+    <!-- Loading shell -->
+    <template v-if="loading">
+      <AppSkeletonLoader height="20px" width="120px" />
+      <AppSkeletonLoader height="32px" width="80%" />
+      <div class="skel-row">
+        <AppSkeletonLoader height="180px" />
+        <AppSkeletonLoader height="180px" />
+      </div>
+      <AppSkeletonLoader height="320px" />
+    </template>
 
-    <!-- Article Content -->
-    <div v-else-if="article" class="article-content">
-      <!-- Article Header -->
-      <div class="article-header">
-        <div class="article-image">
-          <img :src="article.imageUrl" :alt="article.title" />
-        </div>
-        <div class="article-meta">
-          <div class="article-category">
-            <span class="category-badge">{{ article.category }}</span>
-          </div>
-          <h1 class="article-title">{{ article.title }}</h1>
-          <div class="article-info">
-            <div class="info-item">
-              <span class="info-label">By:</span>
-              <span class="info-value">{{ article.author }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Published:</span>
-              <span class="info-value">{{ formatDate(article.publishing_date) }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Source:</span>
-              <span class="info-value">{{ article.source }}</span>
-            </div>
-          </div>
-        </div>
+    <template v-else-if="article">
+      <UIPageHeader :title="article.title" :subtitle="`By ${article.author} · ${article.source}`">
+        <template #actions>
+          <UIPill tone="info">{{ article.category }}</UIPill>
+          <UIPill ghost tone="neutral">{{ minuteRead }} min read</UIPill>
+          <NuxtLink to="/news" class="back-link">← Back</NuxtLink>
+        </template>
+      </UIPageHeader>
+
+      <!-- Hero: image + meta -->
+      <div class="hero">
+        <UICard class="hero-image" padding="tight">
+          <img
+            v-if="article.imageUrl"
+            :src="article.imageUrl"
+            :alt="article.title"
+            class="cover"
+            loading="lazy"
+          />
+          <UIEmptyState v-else size="sm" icon="◯" message="No cover image." />
+        </UICard>
+
+        <UICard title="Article details">
+          <ul class="meta-list">
+            <li><span class="m-label">Author</span><span class="m-value">{{ article.author }}</span></li>
+            <li><span class="m-label">Published</span><span class="m-value">{{ publishedRel }}</span></li>
+            <li><span class="m-label">Source</span><span class="m-value">{{ article.source }}</span></li>
+            <li><span class="m-label">Category</span><span class="m-value">{{ article.category }}</span></li>
+            <li v-if="article.data_affiliated">
+              <span class="m-label">Related asset</span>
+              <NuxtLink
+                :to="`/assets/${article.data_affiliated.toLowerCase()}`"
+                class="m-link"
+              >{{ article.data_affiliated }} →</NuxtLink>
+            </li>
+            <li><span class="m-label">Length</span><span class="m-value">{{ wordCount }} words</span></li>
+          </ul>
+        </UICard>
       </div>
 
-      <!-- Article Body -->
-      <div class="article-body">
-        <div class="article-text">
+      <!-- Body -->
+      <UICard title="Story">
+        <article class="prose">
           <p>{{ article.content }}</p>
-        </div>
+        </article>
+      </UICard>
 
-        <!-- Tags -->
-        <div v-if="article.tags && article.tags.length > 0" class="tags-section">
-          <h3>Tags:</h3>
-          <div class="tags-list">
-            <span v-for="tag in article.tags" :key="tag" class="tag-item">{{ tag }}</span>
-          </div>
+      <!-- Tags -->
+      <UICard v-if="article.tags?.length" title="Tags">
+        <div class="tags-row">
+          <span v-for="tag in article.tags" :key="tag" class="tag">{{ tag }}</span>
         </div>
+      </UICard>
 
-        <!-- Related Asset -->
-        <div v-if="article.data_affiliated" class="asset-section">
-          <h3>Related Asset:</h3>
-          <div class="asset-info">
-            <span class="asset-symbol">{{ article.data_affiliated }}</span>
-            <span class="asset-label">Related Financial Data</span>
-          </div>
-        </div>
+      <!-- Sentiment -->
+      <UICard title="Community sentiment">
+        <template #action>
+          <UIPill tone="success" show-dot>LIVE</UIPill>
+        </template>
+        <WidgetSentiment />
+      </UICard>
+    </template>
 
-        <!-- Sentiment Analysis -->
-        <div class="sentiment-section">
-          <h3>Community Sentiment</h3>
-          <WidgetSentiment />
-        </div>
-      </div>
-    </div>
-
-    <!-- Article Not Found -->
-    <div v-else class="article-not-found">
-      <h2>Article Not Found</h2>
-      <p>The article with ID "{{ articleId }}" could not be found.</p>
-      <NuxtLink to="/news" class="back-link">← Back to News</NuxtLink>
-    </div>
+    <UIEmptyState
+      v-else
+      icon="◯"
+      title="Article not found"
+      :message="`The article \`${articleId}\` could not be loaded.`"
+    >
+      <template #action>
+        <NuxtLink to="/news" class="back-link">← Back to News</NuxtLink>
+      </template>
+    </UIEmptyState>
   </div>
 </template>
 
 <style scoped>
 .article-page {
-  min-height: 100vh;
-  background: var(--bg-primary);
-  color: var(--text-white);
-  padding: var(--spacing-lg);
-}
-
-.loading-state {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-xxl);
-  color: var(--text-gray);
+  gap: var(--page-gap, 0.75rem);
+  min-width: 0;
 }
 
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--border-primary);
-  border-top: 3px solid var(--primary-green);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: var(--spacing-lg);
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.article-content {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.article-header {
+.skel-row {
   display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: var(--spacing-xl);
-  margin-bottom: var(--spacing-xl);
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.6rem;
+}
+@media (max-width: 720px) {
+  .skel-row { grid-template-columns: 1fr; }
 }
 
-.article-image {
-  position: relative;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-primary);
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: stretch;
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .hero { grid-template-columns: 1fr; }
 }
 
-.article-image img {
-  width: 100%;
-  height: 300px;
-  object-fit: cover;
+.hero-image .cover {
   display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: var(--app-border-radius, 6px);
 }
 
-.article-meta {
+.meta-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 0.3rem;
 }
-
-.article-category {
-  margin-bottom: var(--spacing-sm);
+.meta-list li {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.35rem 0.45rem;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 5px;
 }
-
-.category-badge {
-  background: var(--primary-gradient);
-  color: var(--secondary-darker);
-  padding: var(--spacing-xs) var(--spacing-md);
-  border-radius: var(--radius-md);
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-family: var(--font-family-secondary);
+.m-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  font-weight: 700;
+  color: rgba(255,255,255,0.45);
 }
-
-.article-title {
-  font-size: 2.5rem;
-  font-weight: bold;
-  color: var(--text-white);
-  font-family: var(--font-family-primary);
-  line-height: 1.2;
-  margin: 0;
-}
-
-.article-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.info-label {
-  color: var(--text-gray);
-  font-size: 0.9rem;
-  font-weight: 500;
-  font-family: var(--font-family-secondary);
-  min-width: 80px;
-}
-
-.info-value {
-  color: var(--text-white);
-  font-size: 0.9rem;
-  font-family: var(--font-family-primary);
-}
-
-.article-body {
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
-  box-shadow: var(--shadow-primary);
-  border: 1px solid var(--border-primary);
-}
-
-.article-text {
-  margin-bottom: var(--spacing-xl);
-}
-
-.article-text p {
-  font-size: 1.1rem;
-  line-height: 1.6;
-  color: var(--text-white);
-  font-family: var(--font-family-primary);
-  margin: 0;
-}
-
-.tags-section,
-.asset-section,
-.sentiment-section {
-  margin-bottom: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--border-primary);
-}
-
-.tags-section h3,
-.asset-section h3,
-.sentiment-section h3 {
-  color: var(--text-white);
-  font-size: 1.2rem;
+.m-value {
+  font-size: 0.82rem;
   font-weight: 600;
-  font-family: var(--font-family-primary);
-  margin: 0 0 var(--spacing-md) 0;
+  color: rgba(255,255,255,0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-link {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--primary-green, #00ff88);
+  text-decoration: none;
+}
+.m-link:hover { text-decoration: underline; }
+
+.prose p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.9);
+  font-family: 'Poppins', sans-serif;
+  white-space: pre-wrap;
 }
 
-.tags-list {
+.tags-row {
   display: flex;
+  gap: 0.3rem;
   flex-wrap: wrap;
-  gap: var(--spacing-sm);
 }
-
-.tag-item {
-  background: var(--bg-accent);
-  color: var(--primary-green);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  font-weight: 500;
-  font-family: var(--font-family-secondary);
-  border: 1px solid var(--primary-green);
-}
-
-.asset-info {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  background: var(--bg-secondary);
-  padding: var(--spacing-md);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-primary);
-}
-
-.asset-symbol {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: var(--primary-green);
-  font-family: var(--font-family-secondary);
-}
-
-.asset-label {
-  color: var(--text-gray);
-  font-size: 0.9rem;
-  font-family: var(--font-family-primary);
-}
-
-.article-not-found {
-  text-align: center;
-  padding: var(--spacing-xxl);
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-primary);
-  box-shadow: var(--shadow-primary);
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.article-not-found h2 {
-  color: var(--text-white);
-  font-size: 2rem;
-  font-weight: bold;
-  font-family: var(--font-family-primary);
-  margin: 0 0 var(--spacing-md) 0;
-}
-
-.article-not-found p {
-  color: var(--text-gray);
-  font-size: 1rem;
-  font-family: var(--font-family-primary);
-  margin: 0 0 var(--spacing-lg) 0;
+.tag {
+  background: rgba(0,255,136,0.08);
+  border: 1px solid rgba(0,255,136,0.3);
+  color: var(--primary-green, #00ff88);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 999px;
 }
 
 .back-link {
-  display: inline-block;
-  color: var(--primary-green);
+  color: var(--primary-green, #00ff88);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
   text-decoration: none;
-  font-weight: 600;
-  font-family: var(--font-family-secondary);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--primary-green);
-  border-radius: var(--radius-md);
-  transition: var(--transition-normal);
+  padding: 0.3rem 0.6rem;
+  border: 1px solid rgba(0,255,136,0.3);
+  border-radius: var(--app-border-radius, 6px);
 }
-
 .back-link:hover {
-  background: var(--bg-accent);
-  color: var(--text-white);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .article-page {
-    padding: var(--spacing-md);
-  }
-
-  .article-header {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-lg);
-  }
-
-  .article-image img {
-    height: 200px;
-  }
-
-  .article-title {
-    font-size: 2rem;
-  }
-
-  .article-body {
-    padding: var(--spacing-lg);
-  }
-
-  .article-text p {
-    font-size: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .article-title {
-    font-size: 1.5rem;
-  }
-
-  .article-header {
-    gap: var(--spacing-md);
-  }
-
-  .article-body {
-    padding: var(--spacing-md);
-  }
-
-  .tags-list {
-    justify-content: center;
-  }
-
-  .asset-info {
-    flex-direction: column;
-    text-align: center;
-    gap: var(--spacing-sm);
-  }
+  background: rgba(0,255,136,0.08);
 }
 </style>
-

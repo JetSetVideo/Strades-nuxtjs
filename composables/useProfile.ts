@@ -17,10 +17,10 @@
  */
 import { computed, ref, watch, onMounted, onUnmounted, type Ref } from 'vue'
 import { useUsersStore, type User } from '@/stores/users'
-import { useWalletsStore } from '@/stores/wallets'
+import { useWalletStore } from '@/stores/wallet'
 import { useStrategiesStore } from '@/stores/strategies'
 import type { Strategy } from '@/stores/strategies'
-import type { Wallet } from '@/stores/wallets'
+import type { Wallet } from '@/stores/wallet'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ export function useProfile(userId: Ref<string> | string) {
   const id = typeof userId === 'string' ? ref(userId) : userId
 
   const usersStore     = useUsersStore()
-  const walletsStore   = useWalletsStore()
+  const walletsStore   = useWalletStore()
   const strategiesStore = useStrategiesStore()
 
   const loading      = ref(true)

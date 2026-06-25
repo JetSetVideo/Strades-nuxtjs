@@ -2,7 +2,7 @@
 import { useRoute } from 'vue-router'
 import { computed, ref, onMounted } from 'vue'
 import { useUsersStore } from '@/stores/users'
-import { useFriendsStore } from '@/stores/FriendsStore'
+import { useCommunityStore } from '@/stores/community'
 import { useProfile } from '@/composables/useProfile'
 
 import ProfileHero from '@/components/Profile/Hero.vue'
@@ -22,7 +22,7 @@ const route = useRoute()
 const userId = computed(() => route.params.id as string)
 
 const usersStore = useUsersStore()
-const friendsStore = useFriendsStore()
+const communityStore = useCommunityStore()
 
 const {
   user,
@@ -37,7 +37,7 @@ const {
 } = useProfile(userId)
 
 // Load friends for contacts rail (non-blocking, parallel with profile data)
-onMounted(() => { friendsStore.fetchFriends() })
+onMounted(() => { communityStore.fetchCommunity() })
 
 // Active section tab for Self-Analyse panel
 type AnalyseSection =
@@ -258,7 +258,7 @@ const pageStyle = computed(() => ({
           <!-- Contacts -->
           <ContactsRail
             v-if="activeSection === 'contacts'"
-            :friends="friendsStore.friends"
+            :friends="communityStore.friends"
           />
 
           <!-- Achievements -->
@@ -281,8 +281,7 @@ const pageStyle = computed(() => ({
         <PostsFeed :posts="posts" />
       </section>
 
-    </template>
-  </div>
+    </template>  </div>
 </template>
 
 <style scoped>
@@ -548,6 +547,5 @@ const pageStyle = computed(() => ({
 @media (min-width: 1024px) {
   .profile-page {
     max-width: 760px;
-  }
-}
+  }}
 </style>

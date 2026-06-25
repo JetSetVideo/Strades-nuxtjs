@@ -1,0 +1,49 @@
+{
+  "asset_id": "tsla",
+  "asset_kind": "company",
+  "label_overrides": {
+    "suppliers": "Suppliers",
+    "customers": "Fleet & Channel",
+    "shipments": "Shipments",
+    "facilities": "Gigafactories"
+  },
+  "headquarters": {
+    "name": "Tesla HQ",
+    "city": "Austin",
+    "country": "US",
+    "lat": 30.2672,
+    "lng": -97.7431
+  },
+  "facilities": [
+    { "id": "g_fr", "name": "Fremont Factory", "city": "Fremont", "country": "US", "lat": 37.5485, "lng": -121.9886, "type": "factory", "size": "large", "status": "active" },
+    { "id": "g_nv", "name": "Gigafactory Nevada", "city": "Sparks", "country": "US", "lat": 39.5349, "lng": -119.7527, "type": "factory", "size": "large", "status": "active" },
+    { "id": "g_sh", "name": "Gigafactory Shanghai", "city": "Shanghai", "country": "CN", "lat": 31.2304, "lng": 121.4737, "type": "factory", "size": "large", "status": "active" },
+    { "id": "g_bl", "name": "Gigafactory Berlin", "city": "Grünheide", "country": "DE", "lat": 52.3958, "lng": 13.6981, "type": "factory", "size": "large", "status": "active" },
+    { "id": "g_tx", "name": "Gigafactory Texas", "city": "Austin", "country": "US", "lat": 30.2240, "lng": -97.6173, "type": "factory", "size": "large", "status": "active" },
+    { "id": "g_mx", "name": "Gigafactory Mexico (planned)", "city": "Monterrey", "country": "MX", "lat": 25.6866, "lng": -100.3161, "type": "factory", "size": "large", "status": "planned" }
+  ],
+  "suppliers": [
+    { "id": "panasonic", "name": "Panasonic", "country": "JP", "country_flag": "🇯🇵", "city": "Osaka", "lat": 34.6937, "lng": 135.5023, "product": "2170 / 4680 battery cells", "share_pct": 31, "shipments_90d": 1480, "value_usd": 4200000000, "since": "2014" },
+    { "id": "catl", "name": "CATL", "country": "CN", "country_flag": "🇨🇳", "city": "Ningde", "lat": 26.6655, "lng": 119.5478, "product": "LFP battery cells", "share_pct": 26, "shipments_90d": 1820, "value_usd": 3700000000, "since": "2019" },
+    { "id": "lg_es", "name": "LG Energy Solution", "country": "KR", "country_flag": "🇰🇷", "city": "Seoul", "lat": 37.5665, "lng": 126.9780, "product": "21700 battery cells", "share_pct": 12, "shipments_90d": 680, "value_usd": 1500000000, "since": "2020" },
+    { "id": "albemarle", "name": "Albemarle", "country": "US", "country_flag": "🇺🇸", "city": "Charlotte", "lat": 35.2271, "lng": -80.8431, "product": "Lithium hydroxide", "share_pct": 9, "shipments_90d": 240, "value_usd": 920000000, "since": "2018" },
+    { "id": "sqm", "name": "SQM (Sociedad Química y Minera)", "country": "CL", "country_flag": "🇨🇱", "city": "Santiago", "lat": -33.4489, "lng": -70.6693, "product": "Lithium carbonate", "share_pct": 7, "shipments_90d": 180, "value_usd": 720000000, "since": "2018" },
+    { "id": "nvidia_chips", "name": "NVIDIA (HW3 era)", "country": "US", "country_flag": "🇺🇸", "city": "Santa Clara", "lat": 37.3541, "lng": -121.9552, "product": "Compute / training silicon", "share_pct": 5, "shipments_90d": 70, "value_usd": 380000000, "since": "2017" },
+    { "id": "samsung_si", "name": "Samsung Foundry", "country": "KR", "country_flag": "🇰🇷", "city": "Hwaseong", "lat": 37.1996, "lng": 126.8311, "product": "FSD chip fabrication", "share_pct": 4, "shipments_90d": 95, "value_usd": 290000000, "since": "2019" },
+    { "id": "glencore", "name": "Glencore", "country": "CH", "country_flag": "🇨🇭", "city": "Baar", "lat": 47.1949, "lng": 8.5260, "product": "Cobalt sourcing", "share_pct": 3, "shipments_90d": 110, "value_usd": 210000000, "since": "2020" }
+  ],
+  "customers": [
+    { "id": "hertz", "name": "Hertz Global", "country": "US", "country_flag": "🇺🇸", "city": "Estero", "lat": 26.4382, "lng": -81.8061, "product": "Model 3 rental fleet", "share_pct": 9, "shipments_90d": 18, "value_usd": 1850000000 },
+    { "id": "amazon_fleet", "name": "Amazon Logistics", "country": "US", "country_flag": "🇺🇸", "city": "Seattle", "lat": 47.6062, "lng": -122.3321, "product": "Solar + Powerpack", "share_pct": 6, "shipments_90d": 24, "value_usd": 410000000 },
+    { "id": "uber_emea", "name": "Uber EMEA fleet", "country": "GB", "country_flag": "🇬🇧", "city": "London", "lat": 51.5074, "lng": -0.1278, "product": "Driver lease fleet", "share_pct": 5, "shipments_90d": 16, "value_usd": 340000000 },
+    { "id": "free_now", "name": "FREE NOW", "country": "DE", "country_flag": "🇩🇪", "city": "Hamburg", "lat": 53.5511, "lng": 9.9937, "product": "Driver lease fleet", "share_pct": 3, "shipments_90d": 11, "value_usd": 180000000 },
+    { "id": "dish", "name": "DISH Network", "country": "US", "country_flag": "🇺🇸", "city": "Englewood", "lat": 39.6478, "lng": -104.9876, "product": "Cybertruck commercial", "share_pct": 2, "shipments_90d": 6, "value_usd": 140000000 }
+  ],
+  "shipments": [
+    { "id": "sh_t1", "from_country": "JP", "to_country": "US", "product": "2170 cells (40 ft containers)", "containers": 280, "value_usd": 142000000, "date": "2026-05-29" },
+    { "id": "sh_t2", "from_country": "CN", "to_country": "DE", "product": "LFP packs", "containers": 410, "value_usd": 198000000, "date": "2026-05-28" },
+    { "id": "sh_t3", "from_country": "KR", "to_country": "US", "product": "21700 cells", "containers": 120, "value_usd": 64000000, "date": "2026-05-27" },
+    { "id": "sh_t4", "from_country": "CL", "to_country": "US", "product": "Lithium carbonate (bulk)", "containers": 65, "value_usd": 32000000, "date": "2026-05-26" },
+    { "id": "sh_t5", "from_country": "US", "to_country": "GB", "product": "Model Y EU spec", "containers": 380, "value_usd": 280000000, "date": "2026-05-25" }
+  ]
+}

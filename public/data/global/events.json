@@ -1,0 +1,65 @@
+[
+  {
+    "id": "ev_001",
+    "title": "US CPI Print",
+    "category": "macro",
+    "starts_at": "2026-05-29T12:30:00Z",
+    "impact": "high",
+    "consensus": "+0.2%",
+    "actual": null
+  },
+  {
+    "id": "ev_002",
+    "title": "FOMC Minutes",
+    "category": "central_bank",
+    "starts_at": "2026-05-29T18:00:00Z",
+    "impact": "high",
+    "consensus": "",
+    "actual": null
+  },
+  {
+    "id": "ev_003",
+    "title": "ETH Pectra Hardfork",
+    "category": "crypto",
+    "starts_at": "2026-05-30T02:00:00Z",
+    "impact": "high",
+    "consensus": "",
+    "actual": null
+  },
+  {
+    "id": "ev_004",
+    "title": "TSLA Q3 Earnings",
+    "category": "earnings",
+    "starts_at": "2026-05-30T20:00:00Z",
+    "impact": "medium",
+    "consensus": "$1.18 EPS",
+    "actual": null
+  },
+  {
+    "id": "ev_005",
+    "title": "EU PMI Flash",
+    "category": "macro",
+    "starts_at": "2026-05-28T08:00:00Z",
+    "impact": "medium",
+    "consensus": "48.5",
+    "actual": "49.2"
+  },
+  {
+    "id": "ev_006",
+    "title": "BoJ Rate Decision",
+    "category": "central_bank",
+    "starts_at": "2026-05-31T03:00:00Z",
+    "impact": "high",
+    "consensus": "Hold",
+    "actual": null
+  },
+  {
+    "id": "ev_007",
+    "title": "Apple WWDC Keynote",
+    "category": "earnings",
+    "starts_at": "2026-06-01T17:00:00Z",
+    "impact": "medium",
+    "consensus": "",
+    "actual": null
+  }
+]

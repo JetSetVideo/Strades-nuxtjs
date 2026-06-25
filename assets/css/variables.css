@@ -1,5 +1,46 @@
 /* Strades Master CSS Variables */
 
+/* Breakpoint custom properties — for documentation/JS reads.
+   Use the @media (min-width: ...) at the same values in component CSS. */
+:root {
+  --bp-mobile: 640px;
+  --bp-tablet: 1024px;
+  --bp-desktop: 1536px;
+
+  /* Layout density (auto-tightens on smaller screens) */
+  --page-gutter: 0.5rem;
+  --page-gap: 0.5rem;
+  --card-gap: 0.4rem;
+  --card-pad: 0.6rem;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --page-gutter: 0.75rem;
+    --page-gap: 0.6rem;
+    --card-gap: 0.5rem;
+    --card-pad: 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --page-gutter: 1rem;
+    --page-gap: 0.75rem;
+    --card-gap: 0.6rem;
+    --card-pad: 0.85rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  :root {
+    --page-gutter: 1.5rem;
+    --page-gap: 1rem;
+    --card-gap: 0.75rem;
+    --card-pad: 1rem;
+  }
+}
+
 /* Color Palette */
 :root {
   /* Primary Colors */

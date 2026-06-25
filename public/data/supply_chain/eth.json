@@ -1,0 +1,36 @@
+{
+  "asset_id": "eth",
+  "asset_kind": "crypto_network",
+  "label_overrides": {
+    "suppliers": "Validators",
+    "customers": "Major Holders & Exchanges",
+    "shipments": "On-chain Flows",
+    "facilities": "Staking Hubs"
+  },
+  "headquarters": null,
+  "facilities": [
+    { "id": "h_lido", "name": "Lido cluster", "city": "Distributed", "country": "GLOBAL", "lat": 50.0, "lng": 10.0, "type": "staking_hub", "size": "large", "status": "active", "share_pct": 32 },
+    { "id": "h_cb", "name": "Coinbase Cloud", "city": "San Francisco", "country": "US", "lat": 37.7749, "lng": -122.4194, "type": "staking_hub", "size": "large", "status": "active", "share_pct": 14 },
+    { "id": "h_kr", "name": "Kraken stake-pool", "city": "Seattle", "country": "US", "lat": 47.6062, "lng": -122.3321, "type": "staking_hub", "size": "medium", "status": "active", "share_pct": 8 },
+    { "id": "h_bn", "name": "Binance Stake", "city": "Singapore", "country": "SG", "lat": 1.3521, "lng": 103.8198, "type": "staking_hub", "size": "medium", "status": "active", "share_pct": 6 },
+    { "id": "h_sw", "name": "Swissborg validators", "city": "Lausanne", "country": "CH", "lat": 46.5197, "lng": 6.6323, "type": "staking_hub", "size": "small", "status": "active", "share_pct": 2 }
+  ],
+  "suppliers": [
+    { "id": "lido", "name": "Lido stETH", "country": "GLOBAL", "country_flag": "🌐", "city": "Distributed", "lat": 50.0, "lng": 10.0, "product": "Beacon chain validation", "share_pct": 32, "shipments_90d": 0, "value_usd": 30200000000, "since": "2020" },
+    { "id": "coinbase_eth", "name": "Coinbase validators", "country": "US", "country_flag": "🇺🇸", "city": "San Francisco", "lat": 37.7749, "lng": -122.4194, "product": "Liquid staking", "share_pct": 14, "shipments_90d": 0, "value_usd": 13800000000, "since": "2022" },
+    { "id": "binance_eth", "name": "Binance staking", "country": "AE", "country_flag": "🇦🇪", "city": "Dubai", "lat": 25.2048, "lng": 55.2708, "product": "Beacon chain validation", "share_pct": 8, "shipments_90d": 0, "value_usd": 7800000000, "since": "2021" },
+    { "id": "kraken_eth", "name": "Kraken staking", "country": "US", "country_flag": "🇺🇸", "city": "Seattle", "lat": 47.6062, "lng": -122.3321, "product": "Pooled staking", "share_pct": 4, "shipments_90d": 0, "value_usd": 3900000000, "since": "2021" },
+    { "id": "rocketpool", "name": "Rocket Pool", "country": "GLOBAL", "country_flag": "🌐", "city": "Distributed", "lat": 0, "lng": 0, "product": "Decentralized staking", "share_pct": 3, "shipments_90d": 0, "value_usd": 2940000000, "since": "2021" }
+  ],
+  "customers": [
+    { "id": "uniswap", "name": "Uniswap protocol", "country": "GLOBAL", "country_flag": "🌐", "city": "Distributed", "lat": 0, "lng": 0, "product": "DEX liquidity", "share_pct": 8, "shipments_90d": 12400, "value_usd": 7400000000 },
+    { "id": "aave", "name": "Aave protocol", "country": "GLOBAL", "country_flag": "🌐", "city": "Distributed", "lat": 0, "lng": 0, "product": "Lending markets", "share_pct": 5, "shipments_90d": 8200, "value_usd": 4600000000 },
+    { "id": "maker", "name": "MakerDAO", "country": "GLOBAL", "country_flag": "🌐", "city": "Distributed", "lat": 0, "lng": 0, "product": "DAI collateral", "share_pct": 4, "shipments_90d": 3120, "value_usd": 3800000000 },
+    { "id": "blackrock_eth", "name": "BlackRock ETH ETF", "country": "US", "country_flag": "🇺🇸", "city": "New York", "lat": 40.7128, "lng": -74.0060, "product": "Spot ETF custody", "share_pct": 1, "shipments_90d": 80, "value_usd": 1100000000 }
+  ],
+  "shipments": [
+    { "id": "tx_e1", "from_country": "US", "to_country": "GLOBAL", "product": "Spot ETF inflow", "containers": 1, "value_usd": 184000000, "date": "2026-05-29" },
+    { "id": "tx_e2", "from_country": "AE", "to_country": "GLOBAL", "product": "Binance withdraw", "containers": 1, "value_usd": 64000000, "date": "2026-05-29" },
+    { "id": "tx_e3", "from_country": "GLOBAL", "to_country": "US", "product": "DeFi → Coinbase", "containers": 1, "value_usd": 28000000, "date": "2026-05-28" }
+  ]
+}

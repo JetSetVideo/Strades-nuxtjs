@@ -2,6 +2,8 @@
 
 This document maps exactly which data keys from `Data.md` flow into which Vue components, and specifically how they drive the visual aspects (form, size, color, animation) of the living UI.
 
+> **Folder layout:** every component lives inside a PascalCase domain folder (`App/`, `UI/`, `Wallet/`, `Strategy/`, `Builder/`, `Asset/`, `Corporate/`, `Social/`, `News/`, `Community/`, `Chat/`, `Navigation/`, `Overlay/`, …). See [Structure.md](./Structure.md) for the full tree and folder rules. Pages compose **domain components**, which themselves compose **UI primitives**.
+
 ## 1. Global & System Components
 
 ### App/DynamicThemeController.vue (Headless)

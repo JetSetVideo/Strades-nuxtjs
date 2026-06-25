@@ -1,70 +1,71 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import type { SearchHistory, SearchSuggestion, Notification } from '@/types';
-import NavigationTop from '~/components/Navigation/Top.vue';
-import NavigationBar from '~/components/Navigation/Bar.vue';
-import NotificationButton from '~/components/Button/Notification.vue';
+import { computed } from 'vue'
+import type { SearchHistory, SearchSuggestion, Notification } from '@/types'
+import NavigationTop from '~/components/Navigation/Top.vue'
+import NavigationBar from '~/components/Navigation/Bar.vue'
+import NotificationButton from '~/components/Button/Notification.vue'
 
-const { data: searchHistory } = await useAsyncData<SearchHistory[]>('searchHistory', () => useLocalJson<SearchHistory[]>('search/history.json'), { default: () => [] });
-const { data: searchSuggestions } = await useAsyncData<SearchSuggestion[]>('searchSuggestions', () => useLocalJson<SearchSuggestion[]>('search/suggestions.json'), { default: () => [] });
-const { data: notifications } = await useAsyncData<Notification[]>('notifications', () => useLocalJson<Notification[]>('social/notifications.json'), { default: () => [] });
+const { data: searchHistory } = await useAsyncData<SearchHistory[]>(
+  'searchHistory',
+  () => useLocalJson<SearchHistory[]>('search/history.json'),
+  { default: () => [] }
+)
+const { data: searchSuggestions } = await useAsyncData<SearchSuggestion[]>(
+  'searchSuggestions',
+  () => useLocalJson<SearchSuggestion[]>('search/suggestions.json'),
+  { default: () => [] }
+)
+const { data: notifications } = await useAsyncData<Notification[]>(
+  'notifications',
+  () => useLocalJson<Notification[]>('social/notifications.json'),
+  { default: () => [] }
+)
 
 const unreadCount = computed(() => {
-  if (!Array.isArray(notifications.value)) return 0;
-  return notifications.value.filter(n => !n.read_at).length;
-});
+  if (!notifications.value) return 0
+  return notifications.value.filter(n => !n.read).length
+})
 </script>
 
 <template>
-  <NavigationTop :search-history="searchHistory" :search-suggestions="searchSuggestions">
-    <NotificationButton :unread-count="unreadCount" />
-  </NavigationTop>
-  <div class="bg-[#0e0e0f]">
-    <div class="defaultLayout font-[kanit]">
+  <div class="app-shell">
+    <NavigationTop :search-history="searchHistory" :search-suggestions="searchSuggestions">
+      <NotificationButton :unread-count="unreadCount" />
+    </NavigationTop>
+    <main class="page-frame">
       <slot />
-    </div>
+    </main>
+    <NavigationBar />
   </div>
-  <NavigationBar />
 </template>
+
 <style scoped>
-.defaultLayout {
-  /* Layout and Positioning */
-  position: relative; /* Establishes a positioning context */
-  top: 2.5rem; /* Starts 2rem down from the top */
-  width: 100%; /* Takes full width of the viewport */
-  min-height: 100vh; /* Minimum height of 100% of the viewport height */
-  align-items: center; /* Center the content vertically */
-  align-content: center; /* Center the content vertically */
-  /* Spacing */
-  margin-left: auto; /* Center the layout with equal margins on both sides */
-  margin-right: auto;
-  margin-bottom: 150px;
-  padding: 1rem; /* Optional padding inside the layout */
+.app-shell {
+  min-height: 100vh;
+  background: var(--bg-primary, #000);
+  color: var(--text-white, #fff);
+  position: relative;
+}
 
-  /* Background and Colors */
-  /* background-color: rgba(20,20,20,0.5);  */
-  color: white; /* White text color */
+.page-frame {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding:
+    calc(3.25rem + var(--page-gutter))
+    var(--page-gutter)
+    calc(4rem + var(--page-gutter))
+    var(--page-gutter);
+  font-family: var(--font-family-secondary, 'Kanit', sans-serif);
+  line-height: 1.45;
+  transition: padding var(--app-animation-speed, 0.3s) ease;
+  box-sizing: border-box;
+}
 
-  /* Typography */
-  font-family: "Arial", sans-serif; /* Example font */
-  line-height: 1.6; /* Spacing between lines */
-  text-align: justify; /* Justified text for better readability */
-
-  /* Box Model */
-  box-sizing: border-box; /* Include padding and border in the width and height */
-  border: 1px solid #444; /* Optional border */
-
-  /* Visual Effects */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
-  border-radius: 5px; /* Rounded corners */
-
-  /* Responsiveness */
-  max-width: 1200px; /* Maximum width to ensure content readability on large screens */
-  @media (max-width: 768px) {
-    padding: 0.5rem; /* Smaller padding on smaller screens */
-  }
-
-  /* Transitions */
-  transition: all 0.3s ease; /* Smooth transition for any changes */
+@media (min-width: 1024px) {
+  .page-frame { max-width: 1440px; }
+}
+@media (min-width: 1536px) {
+  .page-frame { max-width: 1680px; }
 }
 </style>

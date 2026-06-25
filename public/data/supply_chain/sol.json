@@ -1,0 +1,31 @@
+{
+  "asset_id": "sol",
+  "asset_kind": "crypto_network",
+  "label_overrides": {
+    "suppliers": "Validators",
+    "customers": "Holders & dApps",
+    "shipments": "Bridge Flows",
+    "facilities": "Validator Hubs"
+  },
+  "headquarters": null,
+  "facilities": [
+    { "id": "h_sf", "name": "Solana Labs (advisor)", "city": "San Francisco", "country": "US", "lat": 37.7749, "lng": -122.4194, "type": "office", "size": "small", "status": "active" },
+    { "id": "h_de", "name": "EU validator cluster", "city": "Frankfurt", "country": "DE", "lat": 50.1109, "lng": 8.6821, "type": "validator_hub", "size": "medium", "status": "active", "share_pct": 18 },
+    { "id": "h_jp", "name": "Asia validator cluster", "city": "Tokyo", "country": "JP", "lat": 35.6762, "lng": 139.6503, "type": "validator_hub", "size": "medium", "status": "active", "share_pct": 12 },
+    { "id": "h_us", "name": "US validator cluster", "city": "Ashburn", "country": "US", "lat": 39.0438, "lng": -77.4874, "type": "validator_hub", "size": "large", "status": "active", "share_pct": 28 }
+  ],
+  "suppliers": [
+    { "id": "jito", "name": "Jito Labs", "country": "US", "country_flag": "🇺🇸", "city": "Chicago", "lat": 41.8781, "lng": -87.6298, "product": "MEV staking", "share_pct": 18, "shipments_90d": 0, "value_usd": 1860000000, "since": "2022" },
+    { "id": "marinade", "name": "Marinade Finance", "country": "GLOBAL", "country_flag": "🌐", "city": "Distributed", "lat": 0, "lng": 0, "product": "mSOL liquid staking", "share_pct": 6, "shipments_90d": 0, "value_usd": 620000000, "since": "2021" },
+    { "id": "everstake", "name": "Everstake", "country": "UA", "country_flag": "🇺🇦", "city": "Kyiv", "lat": 50.4501, "lng": 30.5234, "product": "Validator", "share_pct": 3, "shipments_90d": 0, "value_usd": 310000000, "since": "2020" },
+    { "id": "p2p", "name": "P2P.org", "country": "EE", "country_flag": "🇪🇪", "city": "Tallinn", "lat": 59.4370, "lng": 24.7536, "product": "Institutional staking", "share_pct": 2, "shipments_90d": 0, "value_usd": 210000000, "since": "2021" }
+  ],
+  "customers": [
+    { "id": "phantom", "name": "Phantom wallet (retail)", "country": "GLOBAL", "country_flag": "🌐", "city": "Distributed", "lat": 0, "lng": 0, "product": "Self-custody", "share_pct": 22, "shipments_90d": 28200, "value_usd": 2200000000 },
+    { "id": "jupiter", "name": "Jupiter DEX", "country": "GLOBAL", "country_flag": "🌐", "city": "Distributed", "lat": 0, "lng": 0, "product": "Routing", "share_pct": 14, "shipments_90d": 41200, "value_usd": 1400000000 },
+    { "id": "drift", "name": "Drift Protocol", "country": "GLOBAL", "country_flag": "🌐", "city": "Distributed", "lat": 0, "lng": 0, "product": "Perp DEX", "share_pct": 4, "shipments_90d": 9200, "value_usd": 400000000 }
+  ],
+  "shipments": [
+    { "id": "tx_s1", "from_country": "US", "to_country": "GLOBAL", "product": "Wormhole bridge", "containers": 1, "value_usd": 18000000, "date": "2026-05-29" }
+  ]
+}

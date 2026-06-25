@@ -1,0 +1,6 @@
+[
+  { "id": "onboarding", "name": "Onboarding", "description": "Get your account set up." },
+  { "id": "agents", "name": "Agents", "description": "Train, plug, and fork avatars." },
+  { "id": "performance", "name": "Performance", "description": "Beat the swarm." },
+  { "id": "social", "name": "Social", "description": "Engage with the community." }
+]

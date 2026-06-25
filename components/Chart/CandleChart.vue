@@ -1,6 +1,6 @@
 <script setup>
 import * as d3 from "d3";
-import { useBitcoinStore } from "@/stores/BitcoinStore.ts";
+import { useBitcoinStore } from "@/stores/bitcoin";
 
 // emit declaration
 const emit = defineEmits(["mouseUp"]);
