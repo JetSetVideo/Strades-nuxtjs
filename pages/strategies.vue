@@ -104,6 +104,14 @@ function clearSelection() {
 // ── Strategy actions ─────────────────────────────────────────────────────
 function handleToggleStatus(id: string) { toggleStrategyStatus(id) }
 
+async function handleClone(id: string) {
+  try {
+    await generateComplementary(id)
+    clearSelection()
+    await fetchStrategies()
+  } catch { /* silent */ }
+}
+
 function handleDelete(id: string) {
   if (confirm('Delete this strategy? This cannot be undone.')) {
     deleteStrategy(id)
@@ -203,7 +211,12 @@ onMounted(fetchStrategies)
     </Transition>
 
     <!-- ── Comparator ── -->
-    <Comparator v-if="showComparator" :strategies="selectedStrategies" />
+    <Comparator
+      v-if="showComparator"
+      :strategies="selectedStrategies"
+      :on-close="clearSelection"
+      @clone="(id) => handleClone(id)"
+    />
 
   </div>
 </template>

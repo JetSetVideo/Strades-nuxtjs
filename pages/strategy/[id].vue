@@ -28,7 +28,7 @@ definePageMeta({ title: 'Strategy', layout: 'default' })
 const route = useRoute()
 const strategyId = computed(() => String(route.params.id))
 
-const { strategies, fetchStrategies, toggleStrategyStatus, backtestStrategy, updateStrategy } = useStrategies()
+const { strategies, fetchStrategies, toggleStrategyStatus, backtestStrategy, updateStrategy, generateComplementary } = useStrategies()
 const backtestEngine = useBacktest()
 const opinionsStore = useOpinionsStore()
 const agents = useAgentsStore()
@@ -120,6 +120,14 @@ async function onToggle() {
   toggleStrategyStatus(strategy.value.id)
 }
 
+async function onFork() {
+  if (!strategy.value) return
+  try {
+    await generateComplementary(strategy.value.id)
+    navigateTo('/strategies')
+  } catch { /* silent */ }
+}
+
 async function onRunBacktest() {
   if (!strategy.value) return
   isBacktesting.value = true
@@ -198,6 +206,7 @@ const codeJson = computed(() => {
         <button class="action ghost" @click="onRunBacktest" :disabled="isBacktesting">
           {{ isBacktesting ? '…' : '↺ Backtest' }}
         </button>
+        <button class="action ghost" @click="onFork">⎆ Fork</button>
       </template>
     </UIPageHeader>
 
