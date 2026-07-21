@@ -28,6 +28,8 @@ export interface BacktestConfig {
   /** Optional supply-chain risk overlay */
   counterpartyRiskFactor?: number // 0–1
   commodityCorrelation?: number  // -1 to 1
+  /** Swarm opinion vector — biases the GBM drift toward the community consensus allocation */
+  swarmVector?: { fiat: number; crypto: number; stocks: number; commodities: number }
 }
 
 export interface BacktestCondition {
@@ -458,7 +460,29 @@ export function useBacktest() {
           const results = []
           for (let s = 0; s < batchSize && batch + s < simulations; s++) {
             const basePrice = basePrices[0] || 100
-            const drift = (macroState?.market_sentiment ?? 0) * 0.15
+            // Base drift from market sentiment
+            let drift = (macroState?.market_sentiment ?? 0) * 0.15
+
+            // Swarm opinion bias: if the community consensus favors this asset class,
+            // add a positive drift; if it underweights, add negative drift.
+            if (config.swarmVector && basePrices[0]) {
+              const targetSymbol = (config.targetAssets[0] ?? '').toLowerCase()
+              const sv = config.swarmVector
+              // Map asset to class allocation from swarm
+              const cryptoAssets = ['btc', 'eth', 'sol', 'bnb', 'ada', 'doge']
+              const stockAssets = ['aapl', 'amzn', 'tsla', 'nvda', 'msft', 'googl']
+              const fiatAssets = ['usd', 'eur', 'usdt', 'cny']
+              let swarmAlloc = 25 // default equal weight
+              if (cryptoAssets.some(a => targetSymbol.startsWith(a))) swarmAlloc = sv.crypto
+              else if (stockAssets.some(a => targetSymbol.startsWith(a))) swarmAlloc = sv.stocks
+              else if (fiatAssets.some(a => targetSymbol.startsWith(a))) swarmAlloc = sv.fiat
+              else swarmAlloc = sv.commodities
+
+              // Normalize: how far from 25% (equal weight)? Bias = (alloc - 25) / 100
+              const bias = (swarmAlloc - 25) / 100
+              drift += bias * 0.12 // swarm contributes up to ±12% drift
+            }
+
             const path = generatePricePath(basePrice, effectiveVol, days, batch + s * 7919, drift)
             const result = simulatePath(config, path, dates, days, stopLoss, takeProfit)
             results.push(result)

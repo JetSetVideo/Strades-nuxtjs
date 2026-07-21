@@ -8,6 +8,7 @@ import { useBotsStore } from '@/stores/bots'
 import { seededRandom } from '@/composables/useSeededRandom'
 import StrategyConsensusMeter from '@/components/Strategy/ConsensusMeter.vue'
 import StrategyCounterpartyCard from '@/components/Strategy/CounterpartyCard.vue'
+import { useOpinionsStore } from '@/stores/opinions'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
@@ -29,6 +30,7 @@ const strategyId = computed(() => String(route.params.id))
 
 const { strategies, fetchStrategies, toggleStrategyStatus, backtestStrategy, updateStrategy } = useStrategies()
 const backtestEngine = useBacktest()
+const opinionsStore = useOpinionsStore()
 const agents = useAgentsStore()
 const bots = useBotsStore()
 
@@ -139,6 +141,7 @@ async function onRunBacktest() {
       initialCapital: strategy.value.initial_capital ?? 10000,
       frequency: '1D',
       period: strategy.value.backtest_period ?? { start: '2024-01-01', end: '2025-06-01' },
+      swarmVector: opinionsStore.swarmVector,
     }
     const result = await backtestEngine.runBacktest(config, simulations.value)
     backtestResult.value = result

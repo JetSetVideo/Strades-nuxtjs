@@ -40,6 +40,7 @@ const items: MenuItem[] = [
   { label: 'Notifications', to: '/notifications', icon: '◔', group: 'you' },
   { label: 'API Sync', to: '/apis', icon: '⇄', group: 'you' },
   { label: 'Leaderboard', to: '/leaderboard', icon: '☷', group: 'discover' },
+  { label: 'Data Catalog', to: '/data', icon: '▦', group: 'discover' },
   { label: 'Quests', to: '/quest', icon: '◈', group: 'discover' },
   { label: 'Calendar', to: '/calendar', icon: '▦', group: 'discover' },
   { label: 'Historic', to: '/historic', icon: '⌖', group: 'discover' },

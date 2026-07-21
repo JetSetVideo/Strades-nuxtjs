@@ -353,6 +353,7 @@ async function onCountdownFinish() {
         start: strategy.value.period.start || new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10),
         end: strategy.value.period.end || new Date().toISOString().slice(0, 10),
       },
+      swarmVector: opinionsStore.swarmVector,
     }
     await backtestEngine.runBacktest(config, 250)
   } else {
@@ -379,6 +380,7 @@ async function onCountdownFinish() {
         start: strategy.value.period.start || new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10),
         end: strategy.value.period.end || new Date().toISOString().slice(0, 10),
       },
+      swarmVector: opinionsStore.swarmVector,
     }
     await backtestEngine.runBacktest(config, 250)
     await deployStrategy(pendingId.value)
