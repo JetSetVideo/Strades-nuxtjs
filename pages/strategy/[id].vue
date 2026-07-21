@@ -2,9 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStrategies } from '@/composables/useStrategies'
+import { useBacktest } from '@/composables/useBacktest'
 import { useAgentsStore } from '@/stores/agents'
 import { useBotsStore } from '@/stores/bots'
 import { seededRandom } from '@/composables/useSeededRandom'
+import StrategyConsensusMeter from '@/components/Strategy/ConsensusMeter.vue'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
@@ -24,13 +26,17 @@ definePageMeta({ title: 'Strategy', layout: 'default' })
 const route = useRoute()
 const strategyId = computed(() => String(route.params.id))
 
-const { strategies, fetchStrategies, toggleStrategyStatus, backtestStrategy } = useStrategies()
+const { strategies, fetchStrategies, toggleStrategyStatus, backtestStrategy, updateStrategy } = useStrategies()
+const backtestEngine = useBacktest()
 const agents = useAgentsStore()
 const bots = useBotsStore()
 
 const loading = ref(true)
 const tab = ref<'performance' | 'trades' | 'code' | 'backtest'>('performance')
 const isBacktesting = ref(false)
+const backtestResult = ref<any>(null)
+
+const simulations = ref(250)
 
 onMounted(async () => {
   loading.value = true
@@ -114,8 +120,39 @@ async function onToggle() {
 async function onRunBacktest() {
   if (!strategy.value) return
   isBacktesting.value = true
+  backtestResult.value = null
   try {
-    await backtestStrategy(strategy.value.id)
+    // Use Monte Carlo engine for a proper simulation with real data
+    const config = {
+      id: strategy.value.id,
+      name: strategy.value.name,
+      conditions: (strategy.value.entry_conditions ?? []).map((c: any) => ({
+        datasource: c.datasource ?? 'price',
+        asset: c.asset ?? strategy.value.target_assets?.[0] ?? 'BTC',
+        operator: c.operator ?? '>',
+        value: c.value ?? 50000,
+        timeframe: c.timeframe ?? '1D',
+      })),
+      variables: { stop_loss_percent: 5, take_profit_percent: 15, position_size: 10 },
+      targetAssets: strategy.value.target_assets ?? ['BTC'],
+      initialCapital: strategy.value.initial_capital ?? 10000,
+      frequency: '1D',
+      period: strategy.value.backtest_period ?? { start: '2024-01-01', end: '2025-06-01' },
+    }
+    const result = await backtestEngine.runBacktest(config, simulations.value)
+    backtestResult.value = result
+
+    // Sync results back into the strategy summary
+    if (result) {
+      await updateStrategy(strategy.value.id, {
+        totalProfit: result.metrics.totalReturn,
+        winRate: result.metrics.winRate,
+        monthlyGain: result.metrics.annualReturn / 12,
+        monthlyDrawdown: -result.metrics.maxDrawdownPct,
+        numberOfTrades: result.metrics.totalTrades,
+        status: strategy.value.status,
+      } as any)
+    }
   } finally {
     isBacktesting.value = false
   }
@@ -246,30 +283,62 @@ const codeJson = computed(() => {
 
     <!-- BACKTEST -->
     <template v-else-if="tab === 'backtest'">
-      <UICard title="Backtest summary">
+      <UICard title="Monte Carlo Backtest">
         <template #action>
-          <button class="action ghost" @click="onRunBacktest" :disabled="isBacktesting">
-            {{ isBacktesting ? 'Running…' : '↺ Re-run' }}
-          </button>
+          <div class="backtest-actions">
+            <span class="sim-count">{{ simulations }} simulations</span>
+            <button class="action ghost" @click="onRunBacktest" :disabled="isBacktesting">
+              {{ isBacktesting ? `Running… ${backtestEngine.progress}%` : '↺ Run' }}
+            </button>
+          </div>
         </template>
-        <UIMetricRow :cols="3">
-          <UIStat label="Period" :value="`${strategy.backtest_period?.start ?? '—'} → ${strategy.backtest_period?.end ?? '—'}`" size="sm" />
-          <UIStat label="Annual return" :value="strategy.performance_metrics?.annual_return ?? 0" tone="auto" suffix="%" :precision="1" size="md" />
-          <UIStat label="Total return"  :value="returnPct" tone="auto" suffix="%" :precision="2" size="md" />
-        </UIMetricRow>
-        <p class="muted">
-          Replays the strategy on historical data for the configured period. The metrics above reflect
-          the most recent run. Adjust parameters in the Creator, then re-run to see impact.
+
+        <!-- Progress -->
+        <div v-if="isBacktesting" class="backtest-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: `${backtestEngine.progress}%` }" />
+          </div>
+          <span class="progress-label">{{ backtestEngine.progress }}% — simulating {{ simulations }} price paths</span>
+        </div>
+
+        <!-- Results -->
+        <template v-else-if="backtestResult">
+          <UIMetricRow :cols="4">
+            <UIStat label="Total Return" :value="backtestResult.metrics.totalReturnPct" tone="auto" suffix="%" :precision="2" size="lg" />
+            <UIStat label="Annual Return" :value="backtestResult.metrics.annualReturn" tone="auto" suffix="%" :precision="2" size="md" />
+            <UIStat label="Sharpe" :value="backtestResult.metrics.sharpeRatio" :precision="3" size="md" />
+            <UIStat label="Sortino" :value="backtestResult.metrics.sortinoRatio" :precision="3" size="md" />
+          </UIMetricRow>
+          <UIMetricRow :cols="4">
+            <UIStat label="Max DD" :value="-(backtestResult.metrics.maxDrawdownPct)" tone="negative" suffix="%" :precision="2" size="md" />
+            <UIStat label="Volatility" :value="backtestResult.metrics.volatility" suffix="%" :precision="2" size="md" />
+            <UIStat label="Win Rate" :value="backtestResult.metrics.winRate" suffix="%" :precision="1" size="md" />
+            <UIStat label="Profit Factor" :value="backtestResult.metrics.profitFactor" :precision="2" size="md" />
+          </UIMetricRow>
+          <UIMetricRow :cols="4">
+            <UIStat label="Calmar Ratio" :value="backtestResult.metrics.calmarRatio" :precision="3" size="sm" />
+            <UIStat label="Total Trades" :value="backtestResult.metrics.totalTrades" size="sm" />
+            <UIStat label="Winning / Losing" :value="`${backtestResult.metrics.winningTrades} / ${backtestResult.metrics.losingTrades}`" size="sm" />
+            <UIStat label="Avg Win / Loss" :value="`$${Math.round(backtestResult.metrics.avgWin)} / $${Math.round(backtestResult.metrics.avgLoss)}`" size="sm" />
+          </UIMetricRow>
+        </template>
+
+        <!-- Empty / first visit -->
+        <p v-else class="muted">
+          Run a Monte Carlo simulation with {{ simulations }} paths to evaluate this strategy's risk-adjusted performance across varying market conditions.
         </p>
       </UICard>
 
-      <UICard title="What's tested" padding="tight">
-        <UIMetricRow :cols="4">
-          <UIStat label="Win rate"   :value="strategy.win_rate ?? 0"               suffix="%" :precision="1" size="sm" />
-          <UIStat label="Sharpe"     :value="strategy.sharpe_ratio ?? 0"           :precision="2" size="sm" />
-          <UIStat label="Max DD"     :value="-(strategy.max_drawdown ?? 0)"        tone="negative" suffix="%" :precision="1" size="sm" />
-          <UIStat label="Volatility" :value="strategy.performance_metrics?.volatility ?? 0" suffix="%" :precision="1" size="sm" />
-        </UIMetricRow>
+      <!-- Community consensus on this strategy's assets -->
+      <UICard v-if="strategy.target_assets?.length" title="Community Sentiment">
+        <div class="consensus-grid">
+          <StrategyConsensusMeter
+            v-for="assetId in strategy.target_assets"
+            :key="assetId"
+            :asset-id="assetId"
+            :compact="true"
+          />
+        </div>
       </UICard>
     </template>
   </div>
@@ -387,5 +456,43 @@ const codeJson = computed(() => {
   color: rgba(255,255,255,0.55);
   margin: 0.4rem 0 0 0;
   line-height: 1.5;
+}
+
+.backtest-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sim-count {
+  font-size: 0.62rem;
+  color: var(--text-gray);
+  font-variant-numeric: tabular-nums;
+}
+.backtest-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.progress-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--primary-green);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.progress-label {
+  font-size: 0.65rem;
+  color: var(--text-gray);
+  font-variant-numeric: tabular-nums;
+}
+.consensus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.5rem;
 }
 </style>
