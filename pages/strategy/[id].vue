@@ -7,6 +7,7 @@ import { useAgentsStore } from '@/stores/agents'
 import { useBotsStore } from '@/stores/bots'
 import { seededRandom } from '@/composables/useSeededRandom'
 import StrategyConsensusMeter from '@/components/Strategy/ConsensusMeter.vue'
+import StrategyCounterpartyCard from '@/components/Strategy/CounterpartyCard.vue'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
@@ -238,6 +239,11 @@ const codeJson = computed(() => {
 
         <StrategyRunByPanel :agent="agent" :bots="attachedBots" />
       </div>
+
+      <!-- Counterparty exposure for this strategy's target assets -->
+      <UICard v-if="strategy.target_assets?.length" title="Counterparty & Commodity Exposure">
+        <StrategyCounterpartyCard :target-assets="strategy.target_assets" :compact="true" />
+      </UICard>
     </template>
 
     <!-- TRADES -->

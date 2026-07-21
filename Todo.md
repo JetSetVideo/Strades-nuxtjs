@@ -92,3 +92,10 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **14.5 Backtest tab update** (`pages/strategy/[id].vue`): Replaced dummy backtest with real Monte Carlo engine. Shows 12-metric result grid (Sharpe, Sortino, Calmar, max DD, Vol, Win Rate, Profit Factor, Avg Win/Loss, Total Trades). Progress bar, community consensus on strategy assets.
 - [x] **14.6 Wire navigation**: Added "Risk & Exposure" item to drawer menu for discoverability.
 - [x] **14.7 Build verified**: `npm run build` passes clean after all enhancements.
+
+## Phase 15: Swarm Intelligence, Strategy Monitor & Counterparty Linkage
+- [x] **15.1 Swarm Intelligence in Creator** (`components/Strategy/SwarmPlugs.vue`): Added "Swarm" section between AI Avatars and Variables in the creator page. Users plug community members or AI avatars with weighted sliders. Uses `stores/opinions.ts` engine — weighted sum → normalized allocation vector. Live preview bar shows swarm-weighted allocation.
+- [x] **15.2 Real Monte Carlo backtest in Creator**: `onCountdownFinish` now builds a proper `BacktestConfig` from the strategy form state (conditions from blocks, variables, targets) and runs `useBacktest().runBacktest(config, 250)` instead of the old fake `backtestStrategy()`.
+- [x] **15.3 Strategy Monitor** (`pages/monitor.vue`): Live dashboard showing all strategies with P&L tick simulation, status filter tabs (active/paused/all), search, aggregate KPIs (total capital, total P&L, avg win rate), best/worst performers, per-strategy quick backtest button, per-strategy live metrics (return, capital, win rate, Sharpe, max DD, trades). Accessible via drawer menu.
+- [x] **15.4 Counterparty & Commodity Exposure** (`components/Strategy/CounterpartyCard.vue`): Fetches supply chain JSON for each target asset, extracts suppliers/customers/facilities/commodities with weight percentages. Shows risk breakdown by role type (supplier/customer/facility/commodity) adjusted by macro volatility. Wired into strategy detail page performance tab.
+- [x] **15.5 Build verified**: `npm run build` passes — 691 modules, 1.71 MB, 0 errors.

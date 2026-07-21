@@ -11,6 +11,9 @@ import StrategyRating from '@/components/StrategyRating.vue'
 import FrequencySelector from '@/components/Creator/FrequencySelector.vue'
 import CountdownModal from '@/components/CountdownModal.vue'
 import AvatarCard from '@/components/Card/Avatar.vue'
+import StrategySwarmPlugs from '@/components/Strategy/SwarmPlugs.vue'
+import { useOpinionsStore } from '@/stores/opinions'
+import { useBacktest } from '@/composables/useBacktest'
 
 definePageMeta({
   title: 'Strategy Creator',
@@ -43,6 +46,12 @@ const strategy = ref({
 })
 
 const profiles = ref<{ id: string; name: string; avatar_url?: string }[]>([])
+
+const opinionsStore = useOpinionsStore()
+const backtestEngine = useBacktest()
+function onSwarmChange() {
+  // Swarm plugs changed — opinionsStore already recomputed
+}
 
 onMounted(async () => {
   try { profiles.value = await $fetch('/data/strategies/profiles.json') } catch { /* ok */ }
@@ -196,6 +205,7 @@ const sections = [
   { id: 'sources',    label: 'Data Sources', icon: '📡' },
   { id: 'logic',      label: 'Logic',        icon: '⚙' },
   { id: 'avatars',    label: 'AI Avatars',   icon: '🤖' },
+  { id: 'swarm',      label: 'Swarm',        icon: '🧠' },
   { id: 'variables',  label: 'Variables',    icon: '🔧' },
   { id: 'preview',    label: 'Preview',      icon: '👁' },
 ]
@@ -319,8 +329,60 @@ async function handleSaveDraft() {
 
 async function onCountdownFinish() {
   if (!pendingId.value) return
-  if (pendingAction.value === 'backtest') await backtestStrategy(pendingId.value)
-  else await backtestAndDeploy(pendingId.value)
+  if (pendingAction.value === 'backtest') {
+    // Use real Monte Carlo engine
+    const config = {
+      id: pendingId.value,
+      name: strategy.value.name || 'Untitled',
+      conditions: strategy.value.blocks.filter(b => b.type === 'condition').map(b => ({
+        datasource: 'price',
+        asset: strategy.value.assetFrom || 'BTC',
+        operator: (b.data as any)?.operator || '>',
+        value: (b.data as any)?.value || 50000,
+        timeframe: strategy.value.frequency || '1D',
+      })),
+      variables: {
+        stop_loss_percent: Number((strategy.value.variables.find(v => v.key === 'stop_loss')?.value) || 5),
+        take_profit_percent: Number((strategy.value.variables.find(v => v.key === 'take_profit')?.value) || 15),
+        position_size: strategy.value.allocation || 10,
+      },
+      targetAssets: [strategy.value.assetFrom].filter(Boolean),
+      initialCapital: 10000,
+      frequency: strategy.value.frequency || '1D',
+      period: {
+        start: strategy.value.period.start || new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10),
+        end: strategy.value.period.end || new Date().toISOString().slice(0, 10),
+      },
+    }
+    await backtestEngine.runBacktest(config, 250)
+  } else {
+    // backtestAndDeploy — run MC then deploy
+    const config = {
+      id: pendingId.value,
+      name: strategy.value.name || 'Untitled',
+      conditions: strategy.value.blocks.filter(b => b.type === 'condition').map(b => ({
+        datasource: 'price',
+        asset: strategy.value.assetFrom || 'BTC',
+        operator: (b.data as any)?.operator || '>',
+        value: (b.data as any)?.value || 50000,
+        timeframe: strategy.value.frequency || '1D',
+      })),
+      variables: {
+        stop_loss_percent: Number((strategy.value.variables.find(v => v.key === 'stop_loss')?.value) || 5),
+        take_profit_percent: Number((strategy.value.variables.find(v => v.key === 'take_profit')?.value) || 15),
+        position_size: strategy.value.allocation || 10,
+      },
+      targetAssets: [strategy.value.assetFrom].filter(Boolean),
+      initialCapital: 10000,
+      frequency: strategy.value.frequency || '1D',
+      period: {
+        start: strategy.value.period.start || new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10),
+        end: strategy.value.period.end || new Date().toISOString().slice(0, 10),
+      },
+    }
+    await backtestEngine.runBacktest(config, 250)
+    await deployStrategy(pendingId.value)
+  }
   navigateTo(`/strategy/${pendingId.value}`)
 }
 </script>
@@ -692,6 +754,20 @@ async function onCountdownFinish() {
             <span class="no-avatars-icon">🤖</span>
             <p>No AI avatars available. Deploy strategies with avatars first.</p>
           </div>
+        </div>
+      </section>
+
+      <!-- SWARM -->
+      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'swarm' }">
+        <button class="section-toggle" @click="toggleSection('swarm')">
+          <span class="sec-icon">🧠</span>
+          <span class="sec-title">Swarm Intelligence</span>
+          <span class="sec-status">{{ opinionsStore?.plugs?.length ?? 0 }} plugged</span>
+          <span class="sec-chevron" :class="{ open: activeSection === 'swarm' }">▾</span>
+        </button>
+        <div v-show="activeSection === 'swarm' || activeSection === null" class="section-body">
+          <p class="section-hint">Plug community members or AI avatars to feed their weighted opinions into your strategy allocation engine.</p>
+          <StrategySwarmPlugs @change="onSwarmChange" />
         </div>
       </section>
 

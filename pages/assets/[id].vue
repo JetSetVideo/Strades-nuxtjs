@@ -5,6 +5,7 @@ import { navigateTo } from "#app";
 import { useAssetsStore } from "@/stores/assets";
 import { usePredictionsStore } from "@/stores/predictions";
 import PriceIntuition from "@/components/Widget/PriceIntuition.vue";
+import AssetCommodityPipeline from "@/components/Asset/CommodityPipeline.vue";
 
 const route = useRoute();
 const assetId = route.params.id;
@@ -532,6 +533,13 @@ const getVolatilityDescription = (volatilityIndex) => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Commodity Pipeline -->
+        <div v-if="activeTab === 'relationships'" class="relationships-content">
+          <div class="pipeline-section">
+            <AssetCommodityPipeline :compact="true" />
           </div>
         </div>
 
@@ -1407,8 +1415,11 @@ const getVolatilityDescription = (volatilityIndex) => {
 /* Relationships Tab */
 .relationships-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: var(--spacing-xl);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.pipeline-section {
+  margin-top: 1rem;
 }
 
 .relationship-card {
