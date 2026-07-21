@@ -43,6 +43,7 @@ const items: MenuItem[] = [
   { label: 'Data Catalog', to: '/data', icon: '▦', group: 'discover' },
   { label: 'Quests', to: '/quest', icon: '◈', group: 'discover' },
   { label: 'Calendar', to: '/calendar', icon: '▦', group: 'discover' },
+  { label: 'Deal Pipeline', to: '/deals', icon: '⟷', group: 'discover' },
   { label: 'Historic', to: '/historic', icon: '⌖', group: 'discover' },
   { label: 'Monitor', to: '/monitor', icon: '◉', group: 'discover' },
   { label: 'Risk & Exposure', to: '/risk', icon: '⚠', group: 'discover' },
