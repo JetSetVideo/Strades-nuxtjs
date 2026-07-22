@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
-import { useTrainingStore } from '~/stores/training'
 import { useAgentsStore, type OpinionVector } from '~/stores/agents'
 import { useAssetsStore } from '~/stores/assets'
+import { useActivityLog } from '~/composables/useActivityLog'
 
 export type ShareKind = 'asset' | 'opinion' | 'strategy' | 'article' | 'insight'
 
@@ -108,7 +108,7 @@ export const useSharesStore = defineStore('shares', {
       this.hydrated = true
     },
 
-    /** Record a share, feed avatar training, return payload for chat attachment */
+    /** Record a share, journal activity (why + friend profiles), train Avatar */
     share(payload: Omit<ShareRecord, 'id' | 'shared_at'>) {
       const record: ShareRecord = {
         ...payload,
@@ -117,21 +117,26 @@ export const useSharesStore = defineStore('shares', {
       }
       this.sessionShares.unshift(record)
 
-      const training = useTrainingStore()
+      const { share: logShare } = useActivityLog()
       const agents = useAgentsStore()
-      const eventType = record.kind === 'opinion' ? 'share_opinion'
-        : record.kind === 'asset' ? 'share_asset'
-        : record.kind === 'strategy' ? 'share_strategy'
-        : 'share_article'
-
-      training.record(eventType, {
-        conversation_id: record.conversation_id,
-        recipient_ids: record.recipient_ids,
-        asset_id: record.asset_id,
-        asset_symbol: record.asset_symbol,
-        strategy_id: record.strategy_id,
-        opinion_vector: record.opinion_vector,
-        agent_id: agents.personalId
+      logShare({
+        kind: record.kind,
+        target: record.asset_symbol
+          ?? record.asset_id
+          ?? record.strategy_id
+          ?? record.title
+          ?? record.kind,
+        friendIds: record.recipient_ids,
+        conversationId: record.conversation_id,
+        note: record.note,
+        title: record.title,
+        trainingPayload: {
+          asset_id: record.asset_id,
+          asset_symbol: record.asset_symbol,
+          strategy_id: record.strategy_id,
+          opinion_vector: record.opinion_vector,
+          agent_id: agents.personalId,
+        },
       })
 
       return record

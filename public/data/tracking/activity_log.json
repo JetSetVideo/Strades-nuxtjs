@@ -1,0 +1,106 @@
+[
+  {
+    "id": "al_seed_001",
+    "when": "2026-07-20T09:12:00.000Z",
+    "where": { "page": "/strategies", "component": "StrategiesPage" },
+    "what": { "action": "page_view", "target": "/strategies", "category": "navigation" },
+    "why": { "intent": "land", "context": { "from": "/" } },
+    "session_id": "sess_seed_001",
+    "duration_ms": 42000
+  },
+  {
+    "id": "al_seed_002",
+    "when": "2026-07-20T09:14:10.000Z",
+    "where": { "page": "/strategies", "component": "StrategyCard" },
+    "what": { "action": "asset_view", "target": "strategy_001", "category": "trading" },
+    "why": { "intent": "research", "context": { "filter": "active" } },
+    "session_id": "sess_seed_001",
+    "duration_ms": 18000
+  },
+  {
+    "id": "al_seed_003",
+    "when": "2026-07-20T09:18:40.000Z",
+    "where": { "page": "/wallet", "component": "AllocationSlider" },
+    "what": { "action": "allocation_change", "target": "crypto", "category": "trading" },
+    "why": { "intent": "rebalance", "context": { "magnitude": 12 } },
+    "session_id": "sess_seed_001"
+  },
+  {
+    "id": "al_seed_004",
+    "when": "2026-07-20T10:02:00.000Z",
+    "where": { "page": "/conversations/conv_001", "component": "ShareBar" },
+    "what": { "action": "share_asset", "target": "BTC", "category": "share" },
+    "why": {
+      "intent": "share_with_friends",
+      "context": { "kind": "asset", "recipient_count": 1, "title": "BTC breakout watch" }
+    },
+    "with": {
+      "friend_ids": ["user_002"],
+      "friend_profiles": [
+        {
+          "id": "user_002",
+          "username": "nova_trades",
+          "trading_style": "swing_trader",
+          "specialization": ["crypto"]
+        }
+      ],
+      "conversation_id": "conv_001"
+    },
+    "session_id": "sess_seed_001"
+  },
+  {
+    "id": "al_seed_005",
+    "when": "2026-07-20T10:05:22.000Z",
+    "where": { "page": "/conversations/conv_001", "component": "ChatComposer" },
+    "what": { "action": "chat_message", "target": "conv_001", "category": "social" },
+    "why": { "intent": "discuss_shared_content", "context": { "length": 86 } },
+    "with": {
+      "friend_ids": ["user_002"],
+      "friend_profiles": [
+        {
+          "id": "user_002",
+          "username": "nova_trades",
+          "trading_style": "swing_trader",
+          "specialization": ["crypto"]
+        }
+      ],
+      "conversation_id": "conv_001"
+    },
+    "session_id": "sess_seed_001"
+  },
+  {
+    "id": "sum_seed_001",
+    "when": "2026-07-19T16:40:00.000Z",
+    "where": { "page": "/assets/apple", "component": "AssetPage" },
+    "what": { "action": "asset_view", "target": "apple", "category": "content" },
+    "why": {
+      "intent": "pattern_repeat",
+      "context": { "folded": 14, "avg_duration_ms": 22000, "sample_targets": ["apple"] }
+    },
+    "reduced": true,
+    "count": 14,
+    "from_ts": "2026-07-18T08:00:00.000Z",
+    "to_ts": "2026-07-19T16:40:00.000Z"
+  },
+  {
+    "id": "sum_seed_002",
+    "when": "2026-07-19T18:10:00.000Z",
+    "where": { "page": "/chat", "component": "ShareBar" },
+    "what": { "action": "share_strategy", "target": "strategy_003", "category": "share" },
+    "why": {
+      "intent": "share_with_friends",
+      "context": { "folded": 5, "avg_duration_ms": 0 }
+    },
+    "with": {
+      "friend_ids": ["user_003", "user_004"],
+      "friend_profiles": [
+        { "id": "user_003", "username": "macro_mira", "trading_style": "position_trader" },
+        { "id": "user_004", "username": "quant_kai", "trading_style": "day_trader" }
+      ]
+    },
+    "reduced": true,
+    "count": 5,
+    "from_ts": "2026-07-17T11:00:00.000Z",
+    "to_ts": "2026-07-19T18:10:00.000Z"
+  }
+]

@@ -186,6 +186,17 @@ export const useChatStore = defineStore('chat', {
         })
       }
 
+      // Journal chat interaction with friend profile snapshots
+      try {
+        const { chatMessage } = useActivityLog()
+        chatMessage({
+          conversationId: message.conversation_id,
+          recipientIds: message.recipient_ids,
+          length: message.content?.length ?? message.metadata?.character_count ?? 0,
+          hasShare: message.attachments?.some(a => a.type === 'share') ?? false,
+        })
+      } catch { /* activity log optional */ }
+
       return newMessage
     },
 

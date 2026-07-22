@@ -44,7 +44,39 @@ export const useCommunityStore = defineStore('community', {
     },
     toggleFriend(id: string) {
       const u = this.list.find(x => x.id === id)
-      if (u) u.is_friend = !u.is_friend
+      if (!u) return
+      u.is_friend = !u.is_friend
+
+      if (u.is_friend) {
+        try {
+          const { interact } = useActivityLog()
+          interact({
+            action: 'friend_added',
+            target: id,
+            category: 'social',
+            component: 'PersonCard',
+            why: {
+              intent: 'expand_network',
+              context: {
+                trading_style: u.trading_style,
+                specialization: u.specialization,
+                match_score: u.match_score,
+              },
+            },
+            with: {
+              friend_ids: [id],
+              friend_profiles: [{
+                id: u.id,
+                username: u.username,
+                trading_style: u.trading_style,
+                specialization: u.specialization.map(String),
+                avatar_url: u.avatar_url,
+              }],
+            },
+            trainingPayload: { specialization: u.specialization },
+          })
+        } catch { /* activity log optional */ }
+      }
     }
   },
   getters: {

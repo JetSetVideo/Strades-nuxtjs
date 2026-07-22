@@ -7,7 +7,7 @@ import { useUsersStore } from '@/stores/users';
 definePageMeta({
     title: "Messages",
     description: "Chat conversations",
-    layout: "messages",
+    layout: "default",
 });
 
 const chatStore = useChatStore();

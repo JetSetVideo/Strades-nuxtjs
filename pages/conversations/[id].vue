@@ -3,13 +3,20 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useChatStore } from '@/stores/chat';
 import { useUsersStore } from '@/stores/users';
+import { useSharesStore } from '@/stores/shares';
+import { useAgentsStore } from '@/stores/agents';
 import DatabaseButton from '@/components/Button/Database.vue';
+import ChatShareBar from '@/components/Chat/ShareBar.vue';
+import ChatSharePayload from '@/components/Chat/SharePayload.vue';
+import ChatSharedContextPanel from '@/components/Chat/SharedContextPanel.vue';
 
 const route = useRoute();
 const conversationId = route.params.id;
 
 const chatStore = useChatStore();
 const usersStore = useUsersStore();
+const sharesStore = useSharesStore();
+const agents = useAgentsStore();
 const conversation = ref(null);
 const messages = ref([]);
 const newMessage = ref('');
@@ -24,6 +31,7 @@ onMounted(async () => {
   try {
     await chatStore.initializeStore();
     await usersStore.initializeStore();
+    await sharesStore.hydrate();
 
     conversation.value = chatStore.getConversationById(conversationId);
     messages.value = chatStore.getConversationMessages(conversationId);
@@ -47,6 +55,10 @@ const getOtherParticipantInfo = computed(() => {
   return usersStore.getUserById(getOtherParticipant.value);
 });
 
+const sharedContext = computed(() =>
+  sharesStore.correlate(String(conversationId))
+);
+
 const formatTimestamp = (timestamp) => {
   const date = new Date(timestamp);
   const now = new Date();
@@ -60,6 +72,10 @@ const formatTimestamp = (timestamp) => {
   } else {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
+};
+
+const refreshMessages = () => {
+  messages.value = chatStore.getConversationMessages(conversationId);
 };
 
 const sendMessage = () => {
@@ -82,13 +98,55 @@ const sendMessage = () => {
   };
 
   chatStore.sendMessage(messageData);
-  messages.value = chatStore.getConversationMessages(conversationId);
+  refreshMessages();
   newMessage.value = '';
 
-  // Scroll to bottom after sending message
   nextTick(() => {
     scrollToBottom();
   });
+};
+
+const shareContent = (kind) => {
+  if (!conversation.value) return;
+  const recipients = conversation.value.participants.filter(p => p !== currentUserId);
+  const opinion = agents.personal?.opinion_vector;
+
+  const record = sharesStore.share({
+    kind,
+    conversation_id: String(conversationId),
+    recipient_ids: recipients,
+    sender_id: currentUserId,
+    asset_symbol: kind === 'asset' ? 'BTC' : undefined,
+    asset_id: kind === 'asset' ? 'btc' : undefined,
+    strategy_id: kind === 'strategy' ? 'strategy_001' : undefined,
+    opinion_vector: kind === 'opinion' ? opinion : undefined,
+    title: kind === 'asset'
+      ? 'BTC watch'
+      : kind === 'strategy'
+        ? 'Shared strategy'
+        : 'My allocation',
+    note: newMessage.value.trim() || undefined,
+  });
+
+  chatStore.sendMessage({
+    conversation_id: conversationId,
+    sender_id: currentUserId,
+    recipient_ids: recipients,
+    content: newMessage.value.trim() || `Shared ${kind}`,
+    message_type: 'text',
+    attachments: [sharesStore.toAttachment(record)],
+    reactions: [],
+    reply_to: null,
+    metadata: {
+      character_count: (newMessage.value.trim() || `Shared ${kind}`).length,
+      mentions: [],
+      hashtags: [],
+    },
+  });
+
+  newMessage.value = '';
+  refreshMessages();
+  nextTick(() => scrollToBottom());
 };
 
 const scrollToBottom = () => {
@@ -209,6 +267,11 @@ const handleFile = (e) => {
           >
             <div class="message-content">
               <div class="message-text">{{ message.content }}</div>
+              <ChatSharePayload
+                v-for="(att, ai) in (message.attachments || []).filter(a => a.type === 'share')"
+                :key="`${message.id}-share-${ai}`"
+                :attachment="att"
+              />
               <div class="message-footer">
                 <span class="message-time">{{ formatTimestamp(message.timestamp) }}</span>
                 <div v-if="message.reactions.length > 0" class="message-reactions">
@@ -240,6 +303,11 @@ const handleFile = (e) => {
 
       <!-- Message Input -->
       <div class="message-input-container">
+        <ChatShareBar
+          @share-asset="shareContent('asset')"
+          @share-opinion="shareContent('opinion')"
+          @share-strategy="shareContent('strategy')"
+        />
         <div class="message-input-wrapper">
           <input
             v-model="newMessage"
@@ -256,6 +324,11 @@ const handleFile = (e) => {
             Send
           </button>
         </div>
+
+        <ChatSharedContextPanel
+          v-if="sharedContext.length"
+          :items="sharedContext"
+        />
 
         <!-- Shared Data Preview -->
         <div v-if="conversation.metadata?.shared_strategies?.length" class="shared-data">

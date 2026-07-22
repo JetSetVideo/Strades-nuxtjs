@@ -176,22 +176,46 @@ export const useTrainingStore = defineStore('training', {
       }
       this.buffer.push(ev)
       this.totalEventsRecorded++
-      if (this.buffer.length > this.maxBuffer) {
+      // Soft cap: keep newest events; overflow is folded on the next training tick
+      if (this.buffer.length > this.maxBuffer * 1.5) {
         this.buffer.splice(0, this.buffer.length - this.maxBuffer)
       }
       agents.recordSamples(targetId, 1)
     },
 
-    /** Drain the buffer, compute aggregate delta, and apply it to the target agent. */
+    /** Drain the buffer, compute aggregate delta, and apply it to the target agent.
+     *  Older events beyond maxBuffer are folded into a single summary note before drain
+     *  so high-frequency interaction never silently discards training signal. */
     applyTrainingTick(): TrainingDelta | null {
       const agents = useAgentsStore()
       if (this.buffer.length === 0) return null
 
+      // Soft-reduce: if somehow still over max, keep newest and fold the rest as a note
+      if (this.buffer.length > this.maxBuffer) {
+        const overflow = this.buffer.splice(0, this.buffer.length - this.maxBuffer)
+        const foldedTypes = overflow.reduce((acc, e) => {
+          acc[e.type] = (acc[e.type] ?? 0) + 1
+          return acc
+        }, {} as Record<string, number>)
+        const overflowAgent = overflow[0]?.agent_id ?? agents.personalId ?? 'unknown'
+        this.recentDeltas = [
+          {
+            delta: {},
+            reward: 0,
+            note: `Reduced ${overflow.length} overflow events: ${JSON.stringify(foldedTypes)}`,
+            source_event_ids: overflow.map(e => e.id),
+            applied_at: Date.now(),
+            agent_id: overflowAgent,
+          },
+          ...this.recentDeltas,
+        ].slice(0, 30)
+      }
+
       // Group buffered events by agent_id
       const byAgent: Record<string, TrainingEvent[]> = {}
       for (const ev of this.buffer) {
-        byAgent[ev.agent_id] = byAgent[ev.agent_id] ?? []
-        byAgent[ev.agent_id].push(ev)
+        const bucket = byAgent[ev.agent_id] ?? (byAgent[ev.agent_id] = [])
+        bucket.push(ev)
       }
 
       let lastDelta: TrainingDelta | null = null

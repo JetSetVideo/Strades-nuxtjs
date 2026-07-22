@@ -24,6 +24,7 @@ import { useBotsStore } from '~/stores/bots'
 import { useWalletStore } from '~/stores/wallet'
 import { useChatStore } from '~/stores/chat'
 import { useSharesStore } from '~/stores/shares'
+import { useActivityLogStore } from '~/stores/activityLog'
 
 const TICK_BUDGET_MS = 33 // ~30fps cap for visual updates
 
@@ -42,6 +43,7 @@ export default defineNuxtPlugin(async () => {
   const wallet = useWalletStore()
   const chat = useChatStore()
   const sharesStore = useSharesStore()
+  const activityLog = useActivityLogStore()
 
   pipeline.bootstrap()
   pipeline.stages.agents = pipeline.stages.agents ?? { name: 'agents', state: 'idle', lastTickMs: 0, errors: 0 }
@@ -51,6 +53,7 @@ export default defineNuxtPlugin(async () => {
   pipeline.stages.influencers = pipeline.stages.influencers ?? { name: 'influencers', state: 'idle', lastTickMs: 0, errors: 0 }
   pipeline.stages.bots = pipeline.stages.bots ?? { name: 'bots', state: 'idle', lastTickMs: 0, errors: 0 }
   pipeline.stages.chat = pipeline.stages.chat ?? { name: 'chat', state: 'idle', lastTickMs: 0, errors: 0 }
+  pipeline.stages.activityLog = pipeline.stages.activityLog ?? { name: 'activityLog', state: 'idle', lastTickMs: 0, errors: 0 }
 
   // ── 1. Initial hydration ────────────────────────────────────────────────
   pipeline.markStage('macro', 'hydrating')
@@ -60,6 +63,7 @@ export default defineNuxtPlugin(async () => {
 
   pipeline.markStage('wallet', 'hydrating')
   pipeline.markStage('chat', 'hydrating')
+  pipeline.markStage('activityLog', 'hydrating')
 
   await Promise.all([
     macro.fetchMacroState().then(() => pipeline.markStage('macro', 'streaming')),
@@ -75,7 +79,8 @@ export default defineNuxtPlugin(async () => {
     bots.fetchBots().then(() => pipeline.markStage('bots', 'streaming')),
     wallet.initializeStore().then(() => pipeline.markStage('wallet', 'streaming')),
     chat.initializeStore().then(() => pipeline.markStage('chat', 'streaming')),
-    sharesStore.hydrate()
+    sharesStore.hydrate(),
+    activityLog.hydrate().then(() => pipeline.markStage('activityLog', 'streaming')),
   ]).catch(() => {
     pipeline.markStage('macro', 'error')
   })
@@ -154,6 +159,14 @@ export default defineNuxtPlugin(async () => {
     if (training.bufferSize > 80) training.applyTrainingTick()
   }, 1500)
 
+  // Activity-log reduce watch — compact raw journal when threshold is crossed
+  // (also triggered inline on write; this catches persistence / edge cases).
+  const activityReduceWatch = setInterval(() => {
+    if (!activityLog.needsReduce) return
+    pipeline.markStage('activityLog', 'streaming')
+    activityLog.reduce()
+  }, 4000)
+
   // Opinion tick — every 4s each plugged agent's opinion is re-aggregated and
   // (in 'auto' mode) pushed straight to the wallet allocation. Per CodingAgent.md
   // section 3: "When dropped into the NodeCanvas this Opinion Vector acts as a live data source".
@@ -203,6 +216,7 @@ export default defineNuxtPlugin(async () => {
       clearInterval(synth)
       clearInterval(trainingTick)
       clearInterval(trainingOverflowWatch)
+      clearInterval(activityReduceWatch)
       clearInterval(opinionTick)
       clearInterval(botTick)
       cancelAnimationFrame(rafId)

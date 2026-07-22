@@ -20,7 +20,7 @@ import Heatmap from '@/components/Asset/Heatmap.vue'
 definePageMeta({
   title: 'Market Prices',
   description: 'Live asset prices and market data',
-  layout: 'prices',
+  layout: 'default',
 })
 
 const assetsStore      = useAssetsStore()

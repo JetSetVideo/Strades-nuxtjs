@@ -5,6 +5,7 @@ import { useWalletStore } from '@/stores/wallet'
 import { useAgentsStore } from '@/stores/agents'
 import { useUserPreferencesStore } from '@/stores/userPreferences'
 import { useTrainingStore } from '@/stores/training'
+import { useActivityLogStore } from '@/stores/activityLog'
 import { useBotsStore } from '@/stores/bots'
 import { useRoute } from 'vue-router'
 
@@ -17,6 +18,7 @@ import UIEmptyState from '@/components/UI/EmptyState.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import ProfileHero from '@/components/Profile/Hero.vue'
 import ProfilePersonalityMatrix from '@/components/Profile/PersonalityMatrix.vue'
+import ProfileTradingRecords from '@/components/Profile/TradingRecords.vue'
 
 definePageMeta({ title: 'Profile', layout: 'default' })
 
@@ -26,6 +28,7 @@ const walletStore = useWalletStore()
 const agents = useAgentsStore()
 const prefs = useUserPreferencesStore()
 const training = useTrainingStore()
+const activityLog = useActivityLogStore()
 const bots = useBotsStore()
 
 const userId = computed<string>(() => (route.params.id as string) || 'user_001')
@@ -40,7 +43,8 @@ onMounted(async () => {
     !walletStore.hydrated ? walletStore.fetchWallets() : Promise.resolve(),
     !agents.hydrated ? agents.fetchAgents() : Promise.resolve(),
     !prefs.hydrated ? prefs.fetchPreferences() : Promise.resolve(),
-    !bots.hydrated ? bots.fetchBots() : Promise.resolve()
+    !bots.hydrated ? bots.fetchBots() : Promise.resolve(),
+    activityLog.hydrate(),
   ])
   try {
     const statsData = await $fetch<any[]>('/data/user_statistics.json')
@@ -70,8 +74,10 @@ const winRate = computed(() => statistics.value?.performance?.win_rate ?? 0)
 const netProfit = computed(() => statistics.value?.performance?.net_profit ?? 0)
 const tradingStyle = computed(() => statistics.value?.psychology?.trading_style ?? prefs.trading_style ?? '—')
 
-// Recent activity captured by the training pipeline
+// Recent activity captured by the training pipeline + durable activity journal
 const recentEvents = computed(() => training.recentEvents.slice(0, 6))
+const tradingRecord = computed(() => activityLog.tradingRecords)
+const activityFeed = computed(() => activityLog.recentFeed)
 
 const eventLabel = (type: string) => type.replace(/_/g, ' ')
 
@@ -167,8 +173,15 @@ const totalBots = computed(() => bots.list.length)
         </UICard>
       </div>
 
-      <!-- Activity + Heat + Favorites -->
-      <div class="grid-3">
+      <!-- Trading records from activity log (where/when/what/why + shares) -->
+      <div class="grid-2">
+        <UICard title="Trading records">
+          <template #action>
+            <UIPill tone="info">{{ tradingRecord.total_interactions }} logged</UIPill>
+          </template>
+          <ProfileTradingRecords :record="tradingRecord" :recent="activityFeed" />
+        </UICard>
+
         <UICard title="Avatar Training">
           <template #action>
             <UIPill tone="info">{{ training.totalEventsRecorded }} events</UIPill>
@@ -182,7 +195,10 @@ const totalBots = computed(() => bots.list.length)
             </li>
           </ul>
         </UICard>
+      </div>
 
+      <!-- Activity + Heat + Favorites -->
+      <div class="grid-3">
         <UICard title="Attention heat" v-if="heatTop.length">
           <p class="muted">Where you spend the most time — these areas pre-fetch their data when you hover the nav.</p>
           <ul class="heat-list">
@@ -264,7 +280,14 @@ const totalBots = computed(() => bots.list.length)
 }
 .cta-link:hover { text-decoration: underline; }
 
-/* 3-col layouts */
+/* 2–3 col layouts */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 0.6rem;
+  min-width: 0;
+}
+.grid-2 > * { min-width: 0; }
 .grid-3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));

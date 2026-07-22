@@ -1,5 +1,6 @@
 import { onMounted, onBeforeUnmount, type Ref } from 'vue'
 import { useTrainingStore, type TrainingEventType } from '~/stores/training'
+import { useActivityLogStore, type ActivityCategory } from '~/stores/activityLog'
 
 /**
  * useAgentTracker — the user-behavior funnel feeding the personal Avatar.
@@ -8,6 +9,9 @@ import { useTrainingStore, type TrainingEventType } from '~/stores/training'
  *   1. Imperative:  `const tracker = useAgentTracker(); tracker.track('asset_click', { id })`
  *   2. Declarative: pass a `target` Ref<HTMLElement> + an `auto` map; it wires
  *      mouseenter (dwell), click, and viewport-visible events for you.
+ *
+ * Every track() also journals a where/when/what/why entry into the activity log
+ * (without double-feeding training — training.record remains the source of truth here).
  */
 export interface TrackerAutoConfig {
   click?: { type: TrainingEventType; payload?: Record<string, any> }
@@ -20,11 +24,64 @@ export interface AgentTracker {
   bindElement: (el: HTMLElement | null, cfg: TrackerAutoConfig) => () => void
 }
 
+const CATEGORY_FOR: Partial<Record<TrainingEventType, ActivityCategory>> = {
+  article_dwell: 'content',
+  article_political_view: 'content',
+  allocation_change: 'trading',
+  asset_click: 'content',
+  asset_hover: 'content',
+  strategy_deploy: 'trading',
+  strategy_pause: 'trading',
+  agent_compare: 'trading',
+  agent_fork: 'trading',
+  agent_plug: 'trading',
+  page_route: 'navigation',
+  chart_annotation: 'trading',
+  prediction_set: 'trading',
+  prediction_triggered: 'trading',
+  asset_tag: 'content',
+  chat_message_sent: 'social',
+  friend_added: 'social',
+  search_used: 'navigation',
+  share_asset: 'share',
+  share_opinion: 'share',
+  share_strategy: 'share',
+  share_article: 'share',
+}
+
 export function useAgentTracker(target?: Ref<HTMLElement | null>, auto?: TrackerAutoConfig): AgentTracker {
   const training = useTrainingStore()
+  const activityLog = useActivityLogStore()
 
   const track = (type: TrainingEventType, payload: Record<string, any> = {}) => {
     training.record(type, payload)
+
+    try {
+      const page = (payload.page as string)
+        ?? (import.meta.client ? window.location.pathname : '/')
+      activityLog.log({
+        where: { page, component: payload.component as string | undefined },
+        what: {
+          action: type,
+          target: String(payload.id ?? payload.target ?? payload.asset_id ?? type),
+          category: CATEGORY_FOR[type] ?? 'content',
+        },
+        why: {
+          intent: (payload.intent as string) ?? type,
+          context: { ...payload },
+        },
+        with: payload.recipient_ids || payload.friend_ids
+          ? {
+              friend_ids: (payload.recipient_ids ?? payload.friend_ids) as string[],
+              conversation_id: payload.conversation_id as string | undefined,
+            }
+          : undefined,
+        duration_ms: payload.dwell_ms as number | undefined,
+        feedTraining: false,
+      })
+    } catch {
+      /* activity log optional during early boot */
+    }
   }
 
   const bindElement = (el: HTMLElement | null, cfg: TrackerAutoConfig): (() => void) => {
