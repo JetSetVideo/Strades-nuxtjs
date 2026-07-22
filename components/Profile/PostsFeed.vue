@@ -19,20 +19,25 @@ const shakeAnimation = (idx: number): string => {
 }
 
 const timeAgo = (ts: string): string => {
-  const d = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
+  if (!ts) return ''
+  const t = new Date(ts).getTime()
+  if (isNaN(t)) return ''
+  const d = Math.floor((Date.now() - t) / 60000)
+  if (d < 0) return 'just now'
   if (d < 60) return `${d}m ago`
   if (d < 1440) return `${Math.floor(d / 60)}h ago`
   return `${Math.floor(d / 1440)}d ago`
 }
 
-const categoryColor = (cat: string): string => {
+const categoryColor = (cat?: string): string => {
   const map: Record<string, string> = {
     crypto: 'var(--asset-btc)',
     stocks: 'var(--primary-blue)',
     forex: 'var(--warning-orange)',
+    commodities: 'var(--asset-gold, #d4a017)',
     macro: 'var(--text-gray)',
   }
-  return map[cat] ?? 'var(--text-gray)'
+  return (cat && map[cat]) || 'var(--text-gray)'
 }
 </script>
 
@@ -55,10 +60,10 @@ const categoryColor = (cat: string): string => {
           {{ post.category }}
         </span>
         <span class="type-chip">{{ post.type?.replace(/_/g, ' ') }}</span>
-        <span class="timestamp">{{ timeAgo(post.timestamp) }}</span>
+        <span class="timestamp">{{ timeAgo(post.published_at ?? '') }}</span>
       </div>
 
-      <h4 class="post-title">{{ post.title }}</h4>
+      <h4 v-if="post.title" class="post-title">{{ post.title }}</h4>
       <p class="post-content">{{ post.content }}</p>
 
       <!-- Asset tags -->
@@ -80,13 +85,13 @@ const categoryColor = (cat: string): string => {
 
       <!-- Engagement bar -->
       <div class="engagement">
-        <span class="eng-item">👍 {{ post.likes_count }}</span>
+        <span class="eng-item">👍 {{ post.interactions?.likes ?? 0 }}</span>
         <span
           class="eng-item comment-count"
           :style="{ animation: shakeAnimation(post.controversy_index) }"
-        >💬 {{ post.comments_count }}</span>
-        <span class="eng-item">↗ {{ post.shares_count }}</span>
-        <span class="eng-item">🔖 {{ post.bookmarks_count }}</span>
+        >💬 {{ post.interactions?.comments ?? 0 }}</span>
+        <span class="eng-item">↗ {{ post.interactions?.shares ?? 0 }}</span>
+        <span v-if="post.interactions?.bookmarks !== undefined" class="eng-item">🔖 {{ post.interactions.bookmarks }}</span>
       </div>
     </article>
   </div>

@@ -16,15 +16,16 @@ const toggleDrawer = () => { drawerOpen.value = !drawerOpen.value }
 
 <template>
   <header class="top-nav" role="banner">
+    <NuxtLink to="/dashboard" class="brand-link" @click="drawerOpen = false">
+      <span class="brand-mark">◈</span>
+      <span class="brand-word">STRADES</span>
+    </NuxtLink>
     <button
-      class="brand-trigger"
-      :aria-expanded="drawerOpen"
+      class="menu-btn"
       aria-label="Open menu"
       @click="toggleDrawer"
     >
-      <span class="brand-mark">◈</span>
-      <span class="brand-word">STRADES</span>
-      <span class="brand-bars" aria-hidden="true"><span /><span /><span /></span>
+      <span class="bars"><span /><span /><span /></span>
     </button>
 
     <SearchBar
@@ -59,31 +60,46 @@ const toggleDrawer = () => { drawerOpen.value = !drawerOpen.value }
   z-index: 50;
 }
 
-.brand-trigger {
+.brand-link {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
   color: #fff;
   font-weight: 700;
   letter-spacing: 0.16em;
   font-size: 0.78rem;
   font-family: 'Poppins', sans-serif;
-  padding: 0.4rem 0.55rem;
+  padding: 0.4rem 0.5rem;
   border-radius: var(--app-border-radius, 8px);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.brand-link:hover { background: rgba(255,255,255,0.03); }
+
+.menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--app-border-radius, 6px);
   cursor: pointer;
   flex-shrink: 0;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.18s ease;
 }
-.brand-trigger:hover {
-  border-color: var(--primary-green, #00ff88);
-  background: rgba(0,255,136,0.05);
+.menu-btn:hover { border-color: var(--primary-green, #00ff88); }
+.bars {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
 }
-.brand-trigger:active { transform: scale(0.97); }
-.brand-trigger[aria-expanded="true"] {
-  border-color: var(--primary-green, #00ff88);
-  background: rgba(0,255,136,0.08);
+.bars span {
+  display: block;
+  width: 12px;
+  height: 1.5px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 2px;
 }
 
 .brand-mark {
@@ -95,21 +111,6 @@ const toggleDrawer = () => { drawerOpen.value = !drawerOpen.value }
   filter: drop-shadow(0 0 6px rgba(0,255,136,0.4));
 }
 .brand-word { display: none; }
-.brand-bars {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-left: 0.15rem;
-}
-.brand-bars span {
-  display: block;
-  width: 12px;
-  height: 1.5px;
-  background: rgba(255,255,255,0.5);
-  border-radius: 2px;
-  transition: background 0.2s ease;
-}
-.brand-trigger:hover .brand-bars span { background: var(--primary-green, #00ff88); }
 
 .search-bar {
   flex: 1;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useWalletStore } from '@/stores/wallet'
+import { usePaperStore } from '@/stores/paper'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UIStat from '@/components/UI/Stat.vue'
@@ -22,13 +23,15 @@ interface Trade {
 }
 
 const walletStore = useWalletStore()
+const paper = usePaperStore()
 
-const tab = ref<'closed' | 'open' | 'upcoming'>('closed')
+const tab = ref<'closed' | 'open' | 'upcoming' | 'paper'>('closed')
 const search = ref('')
 const loading = ref(true)
 
 onMounted(async () => {
   if (!walletStore.hydrated) await walletStore.initializeStore()
+  paper.hydrate()
   loading.value = false
 })
 
@@ -50,10 +53,20 @@ const filtered = computed(() => {
   })
 })
 
+/** Paper ledger rows, filtered by current search */
+const paperFiltered = computed(() => {
+  const term = search.value.trim().toLowerCase()
+  return paper.trades.filter(t => {
+    if (!term) return true
+    return t.asset_symbol.toLowerCase().includes(term) || t.asset_id.toLowerCase().includes(term)
+  })
+})
+
 const tabs = computed<TabItem[]>(() => [
   { id: 'closed',   label: 'Closed',   count: allTrades.value.filter(t => statusOf(t) === 'closed').length },
   { id: 'open',     label: 'Open',     count: allTrades.value.filter(t => statusOf(t) === 'open').length },
-  { id: 'upcoming', label: 'Upcoming', count: allTrades.value.filter(t => statusOf(t) === 'upcoming').length }
+  { id: 'upcoming', label: 'Upcoming', count: allTrades.value.filter(t => statusOf(t) === 'upcoming').length },
+  { id: 'paper',    label: 'Paper',    count: paper.trades.length }
 ])
 
 const stats = computed(() => {
@@ -102,7 +115,7 @@ const stats = computed(() => {
 
     <UISectionTabs v-model="tab" :tabs="tabs" />
 
-    <UICard :title="`${tab[0].toUpperCase() + tab.slice(1)} trades`">
+    <UICard v-if="tab !== 'paper'" :title="`${tab[0].toUpperCase() + tab.slice(1)} trades`">
       <UIEmptyState
         v-if="!loading && filtered.length === 0"
         icon="◯"
@@ -110,6 +123,53 @@ const stats = computed(() => {
         message="Try another tab or clear the search box."
       />
       <WalletTrades v-else :trades="filtered" />
+    </UICard>
+
+    <UICard v-else title="Paper trades ledger" padding="tight">
+      <UIEmptyState
+        v-if="!loading && paperFiltered.length === 0"
+        icon="P"
+        title="No paper trades yet"
+        message="Place a simulated bet from any asset page or strategy to see it here."
+      />
+      <div v-else class="paper-ledger">
+        <div
+          v-for="t in paperFiltered"
+          :key="t.id"
+          class="paper-row"
+          :data-side="t.side"
+          :data-status="t.status"
+        >
+          <div class="pr-left">
+            <span class="pr-chip">P</span>
+            <div class="pr-id">
+              <span class="pr-symbol">{{ t.asset_symbol }}</span>
+              <span class="pr-meta">
+                {{ t.side.toUpperCase() }} · {{ t.wallet_pct.toFixed(1) }}% wallet · ${{ t.notional_value.toFixed(0) }} notional
+              </span>
+              <span class="pr-time">{{ new Date(t.timestamp).toLocaleString() }}</span>
+              <span v-if="t.strategy_id || t.agent_id" class="pr-source">
+                {{ t.strategy_id ? `strategy: ${t.strategy_id}` : '' }}
+                {{ t.agent_id ? ` agent: ${t.agent_id}` : '' }}
+              </span>
+            </div>
+          </div>
+          <div class="pr-right">
+            <template v-if="t.status === 'open'">
+              <span class="pr-pnl" :data-tone="t.hypothetical_pnl_value >= 0 ? 'pos' : 'neg'">
+                {{ t.hypothetical_pnl_value >= 0 ? '+' : '' }}${{ t.hypothetical_pnl_value.toFixed(2) }}
+              </span>
+              <span class="pr-tag open">open</span>
+            </template>
+            <template v-else>
+              <span class="pr-pnl" :data-tone="(t.realized_pnl_value ?? 0) >= 0 ? 'pos' : 'neg'">
+                {{ (t.realized_pnl_value ?? 0) >= 0 ? '+' : '' }}${{ (t.realized_pnl_value ?? 0).toFixed(2) }}
+              </span>
+              <span class="pr-tag closed">closed</span>
+            </template>
+          </div>
+        </div>
+      </div>
     </UICard>
   </div>
 </template>
@@ -139,4 +199,49 @@ const stats = computed(() => {
   border-color: var(--primary-green, #00ff88);
   background: rgba(0,255,136,0.04);
 }
+
+/* Paper ledger — dotted left border per Design.md §4 */
+.paper-ledger { display: flex; flex-direction: column; gap: 0.4rem; }
+.paper-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  background: rgba(255,255,255,0.02);
+  border-radius: var(--app-border-radius, 6px);
+  border-left: 2px dotted color-mix(in oklch, var(--primary-blue) 50%, transparent);
+}
+.paper-row[data-side="sell"] { border-left-color: oklch(0.65 0.2 25 / 0.5); }
+
+.pr-left { display: flex; align-items: center; gap: 0.55rem; min-width: 0; flex: 1; }
+.pr-chip {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--primary-blue) 50%, transparent);
+  color: white;
+  font-size: 0.7rem; font-weight: 700;
+  flex-shrink: 0;
+}
+.pr-id { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.pr-symbol { font-weight: 600; font-size: 0.9rem; }
+.pr-meta { font-size: 0.72rem; color: var(--text-gray); }
+.pr-time { font-size: 0.65rem; color: var(--text-gray); opacity: 0.7; }
+.pr-source { font-size: 0.65rem; color: var(--primary-blue); font-style: italic; }
+
+.pr-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.pr-pnl { font-weight: 600; font-size: 0.9rem; }
+.pr-pnl[data-tone="pos"] { color: oklch(0.7 0.2 145); }
+.pr-pnl[data-tone="neg"] { color: oklch(0.65 0.2 25); }
+.pr-tag {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.pr-tag.open { background: oklch(0.7 0.15 220 / 0.2); color: oklch(0.75 0.15 220); }
+.pr-tag.closed { background: rgba(255,255,255,0.06); color: var(--text-gray); }
 </style>

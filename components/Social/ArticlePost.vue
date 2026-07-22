@@ -42,16 +42,22 @@
         <span class="weight-fill" :style="{ width: `${(post.weight ?? 0.5) * 100}%` }"></span>
       </span>
       <span class="interactions">
-        ♥ {{ post.interactions.likes }}
-        <span v-if="post.interactions.shares !== undefined">· ↗ {{ post.interactions.shares }}</span>
+        <button class="int-btn" :class="{ liked }" @click.stop="toggleLike" :title="liked ? 'Unlike' : 'Like'">
+          ♥ {{ localLikes }}
+        </button>
+        <button class="int-btn" @click.stop="onShare" title="Share — feeds your opinion profile with 2× weight">
+          ↗ {{ post.interactions.shares ?? 0 }}
+        </button>
       </span>
     </footer>
   </article>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useLivingUI } from '~/composables/useLivingUI'
+import { useOpinionProfileStore } from '~/stores/opinionProfile'
+import { useAgentTracker } from '~/composables/useAgentTracker'
 
 export interface AllocationPie {
   fiat: number
@@ -67,6 +73,9 @@ export interface Post {
   political_leaning: number
   controversy_index: number
   weight?: number
+  category?: string
+  economic_leaning?: number
+  sentiment?: number
   geographic_origin?: { lat: number; lng: number; name?: string }
   interactions: { comments: number; likes: number; shares?: number }
   embedded_allocation?: AllocationPie
@@ -76,6 +85,60 @@ const props = defineProps<{ post: Post }>()
 
 // Living UI: confidence = (1 - controversy) so highly controversial posts read sharper
 const { dynamicStyles } = useLivingUI({ confidence: 1 - props.post.controversy_index * 0.4 })
+
+// ── Opinion tracking (Phase 23): record article read + political view ────
+const opinionStore = useOpinionProfileStore()
+const tracker = useAgentTracker()
+let recorded = false
+let dwellStart = 0
+
+const recordView = () => {
+  if (recorded) return
+  recorded = true
+  const dwell = Date.now() - dwellStart
+  // Feed the opinion profiler (political / economic / sentiment leaning)
+  opinionStore.recordRead('user_001', {
+    id: props.post.id,
+    author_id: props.post.author_id,
+    category: props.post.category,
+    political_leaning: props.post.political_leaning,
+    economic_leaning: props.post.economic_leaning,
+    sentiment: props.post.sentiment,
+    weight: props.post.weight
+  })
+  // Feed the avatar training pipeline
+  tracker.track('article_political_view', { leaning: props.post.political_leaning, controversy: props.post.controversy_index })
+  tracker.track('article_dwell', { dwell_ms: dwell })
+}
+
+onMounted(() => {
+  dwellStart = Date.now()
+  // Record after 3s visible dwell — anything less is a drive-by
+  const timer = window.setTimeout(recordView, 3000)
+  onUnmounted(() => window.clearTimeout(timer))
+})
+
+// ── Interactions (Phase 24): like + share feed the opinion profiler ─────
+const liked = ref(false)
+const localLikes = computed(() => props.post.interactions.likes + (liked.value ? 1 : 0))
+
+const toggleLike = () => { liked.value = !liked.value }
+
+const onShare = () => {
+  // Share carries 2× weight in the opinion profiler (stronger signal than read)
+  opinionStore.recordShare('user_001', {
+    id: props.post.id,
+    author_id: props.post.author_id,
+    category: props.post.category,
+    political_leaning: props.post.political_leaning,
+    economic_leaning: props.post.economic_leaning,
+    sentiment: props.post.sentiment,
+    weight: props.post.weight
+  })
+  tracker.track('share_article', { controversy: props.post.controversy_index })
+  // Optimistic UI: bump the share count locally
+  if (props.post.interactions.shares !== undefined) props.post.interactions.shares += 1
+}
 
 const composedStyle = computed(() => {
   const normalized = (props.post.political_leaning + 1) / 2 // 0..1

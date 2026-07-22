@@ -35,10 +35,12 @@ watch(isOpen, (v) => {
 interface MenuItem { label: string; to: string; icon?: string; group: 'you' | 'discover' | 'support'; hint?: string }
 
 const items: MenuItem[] = [
+  { label: 'Dashboard', to: '/dashboard', icon: '◈', group: 'you' },
   { label: 'Profile', to: '/profile', icon: '◉', group: 'you' },
   { label: 'Settings', to: '/settings', icon: '⚙', group: 'you' },
   { label: 'Notifications', to: '/notifications', icon: '◔', group: 'you' },
   { label: 'API Sync', to: '/apis', icon: '⇄', group: 'you' },
+  { label: 'Avatars', to: '/agents', icon: '☰', group: 'discover' },
   { label: 'Leaderboard', to: '/leaderboard', icon: '☷', group: 'discover' },
   { label: 'Data Catalog', to: '/data', icon: '▦', group: 'discover' },
   { label: 'Quests', to: '/quest', icon: '◈', group: 'discover' },

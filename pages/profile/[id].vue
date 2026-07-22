@@ -9,6 +9,7 @@ import ProfileHero from '@/components/Profile/Hero.vue'
 import TradingCalendar from '@/components/Profile/TradingCalendar.vue'
 import PsychCard from '@/components/Profile/PsychCard.vue'
 import PoliticalCard from '@/components/Profile/PoliticalCard.vue'
+import OpinionProfileCard from '@/components/Profile/OpinionProfileCard.vue'
 import InvestorCard from '@/components/Profile/InvestorCard.vue'
 import AvatarsSection from '@/components/Profile/AvatarsSection.vue'
 import StrategiesSection from '@/components/Profile/StrategiesSection.vue'
@@ -231,10 +232,17 @@ const pageStyle = computed(() => ({
             :profile="user.investor_profile"
           />
 
-          <!-- Political Profile -->
+          <!-- Political Profile (static, self-reported) -->
           <PoliticalCard
             v-if="activeSection === 'political'"
             :profile="user.political_profile"
+          />
+
+          <!-- Live Opinion Profile (article-derived, dynamic) -->
+          <OpinionProfileCard
+            v-if="activeSection === 'political'"
+            :user-id="userId"
+            :friend-ids="(user.friends ?? []).slice(0, 5)"
           />
 
           <!-- Strategies -->

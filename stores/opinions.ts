@@ -111,6 +111,35 @@ export const useOpinionsStore = defineStore('opinions', {
       const w = allocation.allocationPie
       const s = this.swarmVector
       return (Math.abs(w.fiat - s.fiat) + Math.abs(w.crypto - s.crypto) + Math.abs(w.stocks - s.stocks) + Math.abs(w.commodities - s.commodities)) / 4
+    },
+    /**
+     * Swarm diversity score — variance across plugged agents' personality matrices.
+     * High diversity = more independent opinions = higher wisdom-of-crowds confidence.
+     * Range 0–1 where 1 = maximally diverse (agents disagree across all axes).
+     */
+    diversityScore(): number {
+      const agents = useAgentsStore()
+      const active = this.plugs.filter(p => p.enabled)
+      if (active.length < 2) return 0
+      const axes: Array<keyof import('~/stores/agents').PersonalityMatrix> = ['risk', 'aggression', 'reaction_speed', 'patience', 'contrarian']
+      let totalVariance = 0
+      for (const ax of axes) {
+        const vals = active.map(p => agents.getAvatarById(p.agent_id)?.personality_matrix[ax] ?? 0.5)
+        const mean = vals.reduce((s, v) => s + v, 0) / vals.length
+        const variance = vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length
+        totalVariance += variance
+      }
+      // Normalize: max variance per axis ≈ 0.25 (values spread across [0,1]), 5 axes
+      return Math.min(1, totalVariance / (5 * 0.25))
+    },
+    /** Confidence that the swarm vector beats any single agent. Higher diversity = higher confidence. */
+    swarmConfidence(): number {
+      const count = this.activeCount
+      if (count === 0) return 0
+      // Both diversity and count contribute: more agents + more diverse = more confident
+      const countBonus = Math.min(0.6, count * 0.15)
+      const diversityBonus = this.diversityScore * 0.4
+      return Math.min(1, countBonus + diversityBonus)
     }
   }
 })

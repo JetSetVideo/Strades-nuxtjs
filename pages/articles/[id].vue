@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNewsStore } from '@/stores/news'
+import { useArticleTracker } from '@/composables/useArticleTracker'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
@@ -32,6 +33,17 @@ const article = computed<any | null>(() => {
   }
   return null
 })
+
+// Track article reads into the Opinion Profiler (dwell ≥5s)
+useArticleTracker(() => article.value ? {
+  id: article.value.id,
+  author_id: article.value.author ?? 'editorial',
+  category: article.value.category,
+  political_leaning: article.value.political_leaning,
+  economic_leaning: article.value.economic_leaning,
+  sentiment: article.value.sentiment,
+  weight: 0.5
+} : null)
 
 const publishedRel = computed(() => {
   if (!article.value?.publishing_date) return '—'

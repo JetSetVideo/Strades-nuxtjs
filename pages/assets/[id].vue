@@ -6,6 +6,7 @@ import { useAssetsStore } from "@/stores/assets";
 import { usePredictionsStore } from "@/stores/predictions";
 import PriceIntuition from "@/components/Widget/PriceIntuition.vue";
 import AssetCommodityPipeline from "@/components/Asset/CommodityPipeline.vue";
+import AssetQuickPaperBet from "@/components/Asset/QuickPaperBet.vue";
 
 const route = useRoute();
 const assetId = route.params.id;
@@ -155,6 +156,7 @@ const tabs = computed(() => [
   { label: "Relationships", key: "relationships", icon: "🔗" },
   { label: "Events",        key: "events",        icon: "📅" },
   { label: "Psychology",    key: "psychology",    icon: "🧠" },
+  { label: "Paper Trade",   key: "paper",         icon: "📝" },
   { label: "Intuition",     key: "intuition",     icon: "🎯" },
 ]);
 
@@ -657,6 +659,16 @@ const getVolatilityDescription = (volatilityIndex) => {
           </div>
         </div>
 
+        <!-- ── Paper Trade Tab ── -->
+        <div v-if="activeTab === 'paper'" class="paper-content">
+          <AssetQuickPaperBet
+            v-if="asset"
+            :asset-id="String(assetId)"
+            :asset-symbol="asset.symbol || String(assetId)"
+            :current-price="asset.current_price || asset.nominal_price_usd || 100"
+          />
+        </div>
+
         <!-- ── Intuition Tab ── -->
         <div v-if="activeTab === 'intuition'" class="intuition-content">
 
@@ -773,6 +785,9 @@ const getVolatilityDescription = (volatilityIndex) => {
 .asset-intuition-section {
   margin: var(--spacing-lg) 0;
 }
+
+/* ── Paper Trade Tab Content ── */
+.paper-content { display: flex; flex-direction: column; gap: 0.6rem; max-width: 500px; }
 
 /* ── Intuition Tab Content ─────────────────────────────────────── */
 .intuition-content {

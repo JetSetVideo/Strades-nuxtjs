@@ -191,6 +191,28 @@ export default defineNuxtPlugin(async () => {
     opinions.recompute()
   }, 4000)
 
+  // Avatar drift tick — every 12s the personal avatar's opinion vector drifts
+  // toward the user's current wallet allocation, making the avatar learn their
+  // preferences. Per "avatar that trades like they would" in the vision.
+  const avatarDrift = setInterval(() => {
+    const personal = agents.personal
+    if (!personal) return
+    const walletPie = macro.dominant_asset_class === 'crypto'
+      ? { fiat: 15, crypto: 45, stocks: 25, commodities: 15 }
+      : macro.dominant_asset_class === 'stocks'
+        ? { fiat: 20, crypto: 10, stocks: 55, commodities: 15 }
+        : macro.dominant_asset_class === 'commodities'
+          ? { fiat: 20, crypto: 15, stocks: 25, commodities: 40 }
+          : { fiat: 40, crypto: 20, stocks: 25, commodities: 15 }
+    // Drift the opinion vector 3% toward the wallet allocation per tick
+    const DRIFT_RATE = 0.03
+    const ov = { ...personal.opinion_vector }
+    ;(Object.keys(ov) as Array<keyof typeof ov>).forEach(cls => {
+      ov[cls] += (walletPie[cls] - ov[cls]) * DRIFT_RATE
+    })
+    agents.patchAgent(personal.id, { opinion_vector: ov })
+  }, 12000)
+
   // RAF batcher — applies pending patches at most once per frame, with min budget
   const flush = () => {
     const now = performance.now()
@@ -218,6 +240,7 @@ export default defineNuxtPlugin(async () => {
       clearInterval(trainingOverflowWatch)
       clearInterval(activityReduceWatch)
       clearInterval(opinionTick)
+      clearInterval(avatarDrift)
       clearInterval(botTick)
       cancelAnimationFrame(rafId)
     })

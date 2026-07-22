@@ -1,48 +1,138 @@
 # Design & User Experience Guidelines
 
-This document explains the designer's perspective on how the user interacts with Strades. It dictates how data, time, and space interact to form a living, breathing UI where every data point visibly influences the aspect (form, size, color, animation) of the application.
+This document is the designer's contract with the codebase. It describes how the user journeys through Strades and how **every data point — primary or secondary — physically manifests** in form, size, color, or animation. If a piece of data exists in `Data.md`, it must visibly influence the UI somewhere.
 
-## The User Journey: A Living Financial Organism
+---
 
-### 1. Opening the App (Global Glance)
-When the user opens Strades, they shouldn't need to click anything to understand the state of their finances and the world. 
-- The background depth and lighting (`oklch` shifts) immediately communicate market sentiment (bright/cool for bull markets, dim/warm for bear markets).
-- The **Top Navigation Menu Icons** are not static; they are animated micro-dashboards providing immediate feedback.
+## 1. The User Journey: A Living Financial Organism
 
-### 2. The Living Navigation Icons (Micro-Dashboards)
-The menu icons reflect the perpetual financial fluctuations and the state of the pages they link to:
-- **Prices Icon**: Acts as a mini-sparkline or ticker. If global volatility is high, the icon vibrates or pulses. Colors trend red or green based on the daily delta.
-- **News Icon**: A globe that actively rotates to point towards the geographic origin of the latest breaking news or highest geopolitical stress zone.
-- **Wallet Icon**: A live, miniature pie-chart representing the user's exact 100% allocation across fiat, crypto, stocks, and commodities. As the strategy code rebalances the wallet, this icon visibly morphs.
-- **Messages Icon**: Pulses based on the `emotional_urgency` of unread messages. High urgency = faster, sharper pulsing.
-- **Creator (Strategy) Icon**: Nodes orbit the icon. The speed of the orbit reflects the `execution_frequency` of the user's active strategies.
+### 1.1 Opening the App (Global Glance)
+The user should understand the state of their finances and the world **without clicking anything**:
+- Background lighting (`oklch` hue + shadow angle) communicates market sentiment (cool/bright for bull, warm/dim for bear).
+- Top navigation icons are animated micro-dashboards, each streaming its own slice of state.
+- The dominant asset class already drives the global border-radius and padding density via `App/DynamicThemeController.vue`.
 
-### 3. The 100% Allocation Paradigm (Space & Interaction)
-The concept of betting the wallet as a full percentage dominates the UX.
-- **Interaction**: Sliders and drag-and-drop mechanics are used instead of text inputs for capital allocation. Increasing the Crypto allocation visually squeezes the Fiat, Stocks, and Commodities allocations, enforcing the 100% limit in real-time.
-- **Space**: The screen real estate dedicated to an asset class in the Wallet view is proportional to its percentage in the portfolio. A 80% Crypto allocation means crypto UI cards dominate the screen layout visually.
+### 1.2 First Run: Profile & Avatar Bootstrap
+On first login, the app has no behavioral history. The avatar starts as a **cold-start prior** (population-average personality matrix). As the user reads, scrolls, dwells, simulates trades and adjusts sliders, the avatar's personality matrix converges toward the user's true habits. This convergence is visualized on `pages/profile/index.vue` as a "training progress" curve.
 
-## Mapping Secondary Data to Visual Aspects
+### 1.3 Returning User: The Hub
+Returning users land on `pages/prices.vue` — the market hub. From here they can:
+- See their own wallet allocation pulsing in the nav icon.
+- Spot at a glance which friends are active (presence dots on the chat icon).
+- Notice a spike in geopolitical stress through the warm shift in ambient lighting.
 
-Every piece of secondary data translates to a CSS custom property (variable) that influences the component's geometry.
+---
 
-### Form (Border Radius, Sharpness, Compactness)
-- **User Risk Tolerance**: Conservative users get softer, rounded UI elements (e.g., `--base-radius: 16px`). Aggressive, high-frequency traders get sharp, highly compact interfaces (`--base-radius: 0px`, reduced padding) to fit more data on screen.
-- **Asset Dominance**: If Crypto dominates the 100% allocation, the entire app adopts a more "cyber/sharp" motif. If Fiat dominates, it adopts a "traditional banking/soft" motif.
+## 2. The Living Navigation Icons (Micro-Dashboards)
 
-### Size (Scale, DOM Footprint)
-- **Market Cap / Liquidity**: In lists and heatmaps, asset cards scale slightly based on their relative liquidity depth. Highly liquid assets have a larger click target and a subtle spatial glow.
-- **Confidence Scores**: Inside the Strategy Creator, nodes with a low `confidence_score` shrink and become translucent, allowing the user to visually identify weak links in their logic tree.
+Every menu icon is a live component. These are not static SVGs.
 
-### Color (Oklch, Hues, Lighting)
-- **Geopolitical Stress / Sentiment**: Affects the global background lighting. A high stress index shifts the environmental shadows to a warmer, tense hue.
-- **Political Leaning (News)**: Article cards subtly tint their background `oklch` value based on the NLP-derived political leaning of the text, allowing users to gauge bias at a glance.
-- **Profit/Loss (PnL)**: Naturally uses green/red, but the *saturation* of the color correlates with the *percentage magnitude* of the gain/loss.
+| Icon | Data source | Visual behavior |
+|------|-------------|-----------------|
+| **Prices** | `macro.global_volatility_index` | Pulse frequency = `1 / (0.5 + volatility)` Hz. Color swings green/red with daily delta. |
+| **News (globe)** | Latest weighted post's `geographic_origin` | Smooth 3D rotation to face the coordinates. A small "pulse ring" emanates when a new high-weight post arrives. |
+| **Wallet** | `allocation.allocationPie` | Tiny D3 pie chart inside the 24×24 icon. Sectors visibly grow/shrink as the strategy code rebalances. |
+| **Chat** | `chat.unread[].emotional_urgency` | Badge count + pulse speed. Urgency ≥ 0.7 → sharp fast pulse; ≤ 0.3 → slow breath. |
+| **Strategy orbit** | Max `execution_frequency` across active strategies | Two nodes orbit the icon. Orbit period = `4s - 3.5s × execution_frequency`. |
+| **Avatar (profile)** | `agents.personal.training_state.loss_ema` | A subtle ring around the avatar icon fills as training loss decreases. |
 
-### Animation (Speed, Frequency, Rhythm)
-- **Fluctuation Velocity**: The rate of price change directly drives CSS `--animation-duration`. High volatility means the UI breathes, pulses, and transitions rapidly. Low volatility results in slow, calm transitions.
-- **Flow Velocity**: The speed at which capital automatically flows between asset classes (driven by the user's strategy code) is visualized as animated border-trails or particle flows connecting the UI components on the Wallet page.
+---
 
-## UX Loading & Predictive Rendering
-- **No Spinners**: Avoid generic loading spinners. Use skeleton layouts that instantly inherit the user's specific geometric forms (sharp vs rounded).
-- **Hover Predictions**: Hovering over a Living Icon for >200ms begins pre-fetching the target page's JSON data, ensuring that when the click occurs, the spatial transition is immediate and seamless.
+## 3. The 100% Allocation Paradigm (Space & Interaction)
+
+The closed-pie constraint dominates the wallet UX.
+
+- **Sliders squeeze, never add.** Dragging Crypto from 25% → 40% automatically shrinks the other three proportionally. The user sees the pie deform in real time.
+- **Screen real estate mirrors allocation.** If Crypto is 70% of the pie, crypto UI cards occupy ~70% of the wallet viewport. The layout *is* the allocation.
+- **Ghost overlay for advisory mode.** When the user plugs external avatars in "advisory" mode, their swarm opinion renders as a translucent ghost pie on top of the user's own pie — a direct visual comparison.
+
+---
+
+## 4. Paper Trading Visual Language
+
+Simulated ("paper") trades must be visually distinct from real ones at a glance.
+
+- **Color**: paper trades use the accent color at 60% saturation; real trades use full saturation.
+- **Badge**: every paper position carries a `P` chip in the top-right corner.
+- **Historical log**: the paper-trading ledger (`pages/historic.vue`) uses a dotted left-border to distinguish simulated rows.
+- **Switching modes**: a prominent toggle in the wallet header switches between *Live* and *Paper* views. The background subtly shifts hue (cool tint for paper) so the user never forgets which mode they are in.
+
+---
+
+## 5. Article Cards & Opinion Visualization
+
+Articles are the raw material for opinion profiling. Their visual design must surface the NLP metadata at a glance.
+
+- **Political leaning tint** — background shifts subtly red (right) ↔ blue (left). The tint is intentionally faint (~5% opacity) so it informs without biasing the read.
+- **Economic leaning** — a small horizontal axis under the title shows dove ↔ hawk position.
+- **Controversy shake** — comment count icon vibrates when `controversy_index > 0.6`. The shake frequency scales with the index.
+- **Embedded allocation mini-pie** — a 12px tall horizontal stacked bar directly inside the post flow shows the author's 100% pie. Hovering expands it to a full donut.
+- **Topic chip** — colored by asset class (crypto amber, stocks blue, forex orange, commodities gold, macro gray).
+
+---
+
+## 6. Avatar & Swarm Visual Language
+
+### Avatar cards
+- Shape encodes personality: aggressive avatars get hexagonal frames (`border-radius: 0`), conservative get circles (`border-radius: 50%`).
+- Confidence is opacity: an avatar with `confidence_score = 0.4` renders at 40% opacity.
+- Training state is a thin progress ring around the avatar image.
+
+### Swarm plugs (Creator page)
+- Each plugged avatar renders as a small chip with a weighted slider.
+- Dragging the slider updates the swarm vector preview bar **live**, showing the user exactly how much each avatar pulls the pie.
+- The preview bar animates with a spring transition so the user feels the "weight" of each plug.
+
+---
+
+## 7. Mapping Secondary Data to Visual Aspects
+
+Every piece of secondary data translates to a CSS custom property bound by `useLivingUI`.
+
+### Form (border radius, compactness)
+| Data | Mapping |
+|------|---------|
+| `user.personality_matrix.risk` | `< 0.4` → `--base-radius: 16px`; `> 0.7` → `--base-radius: 2px` |
+| `macro.dominant_asset_class` | `crypto` → sharp motif, `fiat` → soft/rounded motif |
+| `strategy.confidence_score` | Node opacity = `0.4 + 0.6 × score` |
+
+### Size (scale, DOM footprint)
+| Data | Mapping |
+|------|---------|
+| `asset.liquidity_depth` | Card scale 0.95 ↔ 1.05; glow radius 0 ↔ 24px |
+| `post.weight` | Font size 0.9rem ↔ 1.05rem |
+| `strategy.trades_total` | Row height in leaderboard 48px ↔ 64px |
+
+### Color (oklch, hue, lighting)
+| Data | Mapping |
+|------|---------|
+| `macro.geopolitical_stress` | `--app-lighting-hue` shifts 220° (calm blue) → 20° (tense amber) |
+| `post.political_leaning` | Article card background tint (blue ↔ red) |
+| `post.economic_leaning` | Small dove↔hawk axis under title |
+| `wallet.daily_change_percentage` | Green/red saturation proportional to magnitude |
+| `paper_trade.is_paper` | Accent at 60% saturation vs. 100% for real |
+
+### Animation (speed, rhythm)
+| Data | Mapping |
+|------|---------|
+| `macro.global_volatility_index` | `--app-animation-speed` 0.3s ↔ 1.5s |
+| `wallet.flow_velocity` | Particle flow speed on the wallet page |
+| `strategy.execution_frequency` | Node heartbeat `scale(1.05)` pulse |
+| `chat.emotional_urgency` | Chat badge pulse frequency |
+| `agent.training_state.loss_ema` | Avatar ring fill speed |
+
+---
+
+## 8. UX Loading & Predictive Rendering
+
+- **No generic spinners.** Skeleton layouts inherit the user's geometric preferences (sharp vs. rounded, compact vs. spacious) from `userPreferences` before data arrives.
+- **Hover intent** — hovering a nav icon > 200 ms triggers the prefetch store. If prediction confidence exceeds 65%, the next page's JSON is already in Pinia before the click.
+- **Progressive disclosure** — dense pages (risk, monitor) render KPI strip first, then charts, then tables, so the user sees value within 200 ms even on slow connections.
+
+---
+
+## 9. Accessibility & Readability
+
+- Living animations respect `prefers-reduced-motion` — when set, all pulse/shake/orbit animations become static.
+- Color-coded leaning / sentiment always paired with a text label or icon (never color alone).
+- The 100% pie always exposes numeric percentages for screen readers.

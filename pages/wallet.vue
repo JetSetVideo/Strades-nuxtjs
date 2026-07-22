@@ -18,7 +18,8 @@ import WalletBotContribution from '@/components/Wallet/BotContribution.vue'
 import WalletTrades from '@/components/Wallet/Trades.vue'
 import WalletAllocationSlider from '@/components/Wallet/AllocationSlider.vue'
 import WalletFlowVisualizer from '@/components/Wallet/FlowVisualizer.vue'
-import WalletPlatformList from '@/components/Wallet/PlatformList.vue'
+import WalletPlatformBreakdown from '@/components/Wallet/PlatformBreakdown.vue'
+import WalletPaperPanel from '@/components/Wallet/PaperPanel.vue'
 import MapButton from '@/components/Map/MapButton.vue'
 import type { MapMarker } from '@/components/Map/WorldMap.vue'
 
@@ -108,6 +109,8 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 
       <WalletHero :wallet="currentWallet" v-model:period="period" />
 
+      <WalletPaperPanel />
+
       <WalletAllocationSlider />
 
       <div class="row two-col">
@@ -130,7 +133,6 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 
         <UICard title="Bots & platforms">
           <WalletBotContribution :total-today="currentWallet?.daily_change ?? 0" />
-          <WalletPlatformList :platforms="platforms.list" class="platforms-inline" />
         </UICard>
       </div>
 
@@ -146,6 +148,11 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
       <UICard v-if="transactions.length" title="Recent activity" padding="tight">
         <WalletTrades :trades="transactions.slice(0, 5)" />
       </UICard>
+
+      <!-- Platform breakdown — the centralized hub view -->
+      <UICard title="Connected platforms" padding="tight">
+        <WalletPlatformBreakdown />
+      </UICard>
     </UIScreenShell>
   </WalletFlowVisualizer>
 </template>
@@ -155,5 +162,4 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 .row { display: grid; gap: 0.6rem; }
 .row.two-col { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
 .risk-inline { margin-top: 0.5rem; }
-.platforms-inline { margin-top: 0.5rem; }
 </style>

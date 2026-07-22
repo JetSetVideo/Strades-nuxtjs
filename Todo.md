@@ -104,3 +104,64 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **16.1 Data Catalog** (`pages/data.vue`): Browsable catalog of 25+ data sources across 10 categories (Core, Macro, Supply Chain, Agents, Strategies, Social, Chat, Relationships, Competitions, Quests). Each card shows path, schema keys, type, size, description, and which pages consume it. Searchable by name/key/description, filterable by category. Navigation entry in drawer menu.
 - [x] **16.2 Swarm-informed backtest**: `useBacktest.ts` accepts `swarmVector` in `BacktestConfig`. When plugged agents have a consensus allocation (e.g. 60% crypto), the GBM drift is biased toward that asset class (up to ±12% annualized). Wired into Creator (`onCountdownFinish`) and strategy detail page (`onRunBacktest`) via `opinionsStore.swarmVector`.
 - [x] **16.3 Build verified**: `npm run build` passes — 697 modules, 1.72 MB, 0 errors.
+
+## Phase 19: Documentation Overhaul & Data-Schema Normalization
+- [x] **19.1 README.md rewrite**: repositioned Strades as a gamified trading hub (centralized wallets + trader profiles + AI avatars + swarm intelligence + paper trading + article NLP). Added explicit "6-step loop" (Centralize → Profile → Avatar → Swarm → Paper-trade → Read together) and a documentation map.
+- [x] **19.2 Design.md rewrite**: added First-Run avatar bootstrap journey, Paper-Trading visual language section (color, badge, ledger borders), Article-card & Opinion visualization section, Avatar & Swarm visual language (frames, opacity, swarm plugs), and Accessibility section.
+- [x] **19.3 Data.md rewrite**: added full data-source map (table of every JSON file → consuming store), canonical Post schema (TS interface), Agent schema (TS interface), PaperTrade ledger schema, Opinion Profile schema, and a Visual State Inheritance diagram (ASCII tree).
+- [x] **19.4 CodingAgent.md rewrite**: added Avatar training pipeline (feature engineering table), Swarm aggregator with diversity bonus, Opinion Profiler (article → leaning pipeline), Paper Trading Engine (flow + ledger schema + historical replay), Mock data generation invariants, and Future backend plug-in points.
+- [x] **19.5 Fix `public/data/social/posts.json` merge conflict**: HEAD vs `ccc9f82` had two incompatible post schemas. Resolved to the newer NLP-enriched shape (`interactions`, `published_at`, `economic_leaning`, `sentiment`, `weight`, `geographic_origin.name`), expanded from 5 → 8 posts across 4 categories, and added `is_pinned` flags.
+- [x] **19.6 Normalize `PostSummary` type**: `composables/useProfile.ts` updated to canonical shape (interactions sub-object, `published_at`, optional NLP fields).
+- [x] **19.7 Fix `Profile/PostsFeed.vue`**: switched from legacy flat fields (`likes_count`, `timestamp`) to canonical (`interactions.likes`, `published_at`); made `timeAgo` defensive against invalid timestamps; extended `categoryColor` map for `commodities`; made `post.title` optional.
+
+## Phase 20: Paper Trading Engine
+- [x] **20.1 Paper store** (`stores/paper.ts`): paper trades as % of wallet (not absolute amounts), open/closed lifecycle, mark-to-market simulation, equity curve getter, localStorage persistence, demo seeding. Enforces `is_paper: true` discriminator and 0.1–50% wallet_pct clamp per CodingAgent.md §5.
+- [x] **20.2 Wallet integration** (`components/Wallet/PaperPanel.vue` + `pages/wallet.vue`): Live/Paper mode toggle, 4 KPI strip (open/realized P&L, win rate, positions), mini equity curve, open-positions list with per-trade close button, recent-closed details. Visual language per Design.md §4: dashed border, `P` chip, 60%-saturation accent.
+- [x] **20.3 Paper ledger in `pages/historic.vue`**: new "Paper" tab with dotted-left-border rows, `P` chip on each trade, side-colored borders (buy=blue/sell=red), open/closed status tags, notional + wallet_pct + timestamp + strategy/agent source.
+
+## Phase 21: Article NLP Enrichment & Opinion Profiler
+- [x] **21.1 `stores/opinionProfile.ts`**: decay-weighted moving average (α=0.15) for political & economic leaning per user; sentiment bias; topic affinity histogram; influence web (author → weight); confidence grows logarithmically with sample count; localStorage persistence.
+- [x] **21.2 `components/Profile/OpinionProfileCard.vue`**: dual-axis visualization (political left↔right, economic dove↔hawk), sentiment bias pill, topic affinity chips with per-category colors, influenced-by avatars, friend-circle small-multiples comparison grid. Confidence badge showing sample size.
+- [x] **21.3 `composables/useArticleTracker.ts`**: reusable composable that auto-logs `article_read` events after 5s dwell time (or on page unload after 30s). Wired into `pages/articles/[id].vue`.
+- [x] **21.4 Profile page integration**: `OpinionProfileCard` rendered alongside `PoliticalCard` on `pages/profile/[id].vue` political section; friends passed via `user.friends`.
+
+## Phase 24: Avatar Learning Drift & Swarm Diversity Confidence
+- [x] **24.1 Avatar opinion drift** (`plugins/00.dataPipeline.client.ts`): the personal avatar's opinion vector drifts 3%/tick toward the wallet's dominant-class profile every 12s. The avatar literally learns "trades like you would" — if you lean crypto-heavy, so does your avatar.
+- [x] **24.2 Swarm diversity score** (`stores/opinions.ts`): new `diversityScore` getter computes the variance across all plugged agents' 5 personality axes. High diversity = independent opinions = higher "wisdom of crowds" confidence. New `swarmConfidence` getter combines count + diversity into a 0–1 score.
+- [x] **24.3 Swarm confidence badge** (`components/Wallet/Hero.vue`): the ghost overlay now shows `XX%` confidence badge next to the swarm message, with a tooltip revealing diversity and confidence breakdowns.
+- [x] **24.4 Like/share interaction tracking** (`components/Social/ArticlePost.vue`): share button is now clickable; calls `opinionStore.recordShare()` with 2× weight and fires `share_article` training events. Like button is local-UI only (stub for future server sync).
+
+## Phase 29: Behavior Timeline Visibility
+- [x] **29.1 Training stream on agent detail page** — `AgentTrainingTimeline.vue` (existed but was orphaned) now renders on `pages/agents/[id].vue` below the Trader DNA card. Shows recent gradient chips, applied epochs with reward, buffered events.
+- [x] **29.2 Build verified**: 1.87 MB, 0 errors.
+
+## Phase 28: In-Context Paper Trading on Asset Page
+- [x] **28.1 `Asset/QuickPaperBet.vue`** — inline paper trading panel for the asset detail page. Buy/sell toggle, wallet % slider, notional, open positions with close, P&L summary.
+- [x] **28.2 Asset page integration** — new "Paper Trade" tab on `pages/assets/[id].vue`.
+- [x] **28.3 Build verified**: 1.87 MB, 0 errors.
+
+## Phase 27: Centralized Platform Hub — Wallet Platform Breakdown
+- [x] **27.1 `Wallet/PlatformBreakdown.vue`** — new component showing the consolidated portfolio across all connected trading platforms. Stacked bar by platform type (exchange/broker/bank/vault), per-platform cards with balance, PnL, asset count, available balance, fees, last sync. The "centralized hub" view the vision describes.
+- [x] **27.2 Wallet page** — PlatformBreakdown replaces the old inline PlatformList. Import cleaned up, dead CSS removed.
+- [x] **27.3 Build verified**: 1.86 MB, 0 errors.
+
+## Phase 26: Avatar Marketplace & Navigation Polish
+- [x] **26.1 `pages/agents/index.vue`** transformed from a redirect stub into a full Avatar Marketplace. Search, filter by trading style (5 types), sort by PnL/confidence/popularity, KPI strip (total agents, plugged count, top PnL, avg confidence), per-agent plug button, grid layout. Reuses `Agent/AvatarCard` with frame shapes + training rings.
+- [x] **26.2 Middleware removed**: `middleware/agents-redirect.ts` gutted — `/agents` no longer redirects to `/strategies`.
+- [x] **26.3 Drawer menu**: added "Avatars" link to the discover group.
+- [x] **26.4 Brand link**: brand logo in `Navigation/Top.vue` now links to `/dashboard` instead of being a drawer toggle. Separate hamburger button added for drawer access. Dead CSS cleaned up.
+
+## Phase 25: Dashboard & Documentation Finale
+- [x] **25.1 `Components.md` rewrite**: full audit — 60+ components documented with their exact data sources, visual mappings, and tracking behaviors. Added a Data Flow Map (read-only path diagram). Matches current Phase 20–24 additions.
+- [x] **25.2 Drawer menu**: added `Dashboard` as the first item in the "you" group (`components/Navigation/DrawerMenu.vue`).
+- [x] **25.3 `pages/dashboard.vue`**: consolidated hub showing portfolio KPI strip, market pulse chips (bull/bear, stress, volatility), personal avatar card, quick-link grid to 6 key pages, paper-trading snapshot (open positions, win rate, realized P&L), and swarm status bar.
+
+## Phase 23: Avatar Training Loop Closure & Trader DNA Visualization
+- [x] **23.1 News-feed opinion tracking** (`components/Social/ArticlePost.vue`): every post now auto-logs `article_read` into the Opinion Profiler after 3s visible dwell, plus `article_political_view` and `article_dwell` events into the Avatar training pipeline. This closes the loop: articles read → opinion profile evolves → avatar trains.
+- [x] **23.2 `Agent/PersonalityRadar.vue`**: 5-axis spider chart rendering the personality matrix (risk / aggression / reaction_speed / patience / contrarian). Concentric grid rings, axis labels, dominant-axis highlight, optional ghost-comparison polygon, and a "Dominant X%" read-out.
+- [x] **23.3 Agent detail page integration** (`pages/agents/[id].vue`): "Trader DNA" section now shows the radar side-by-side with the existing bar matrix in a responsive grid.
+
+## Phase 22: Avatar & Swarm Polish
+- [x] **22.1 Swarm ghost overlay** on wallet page when `opinions.mode === 'advisory'`: pulsing banner inside `Wallet/Hero.vue` showing `SWARM ×N` chip, top divergence message ("Agents want +X% class"), and "Match" button. Ghost allocation bar below shows the swarm vector split. Driven by `opinions.swarmVector` vs `allocation.allocationPie`.
+- [x] **22.2 Avatar personality shape encoding** in `Agent/AvatarCard.vue`: hexagon clip-path for aggressive (`risk + aggression > 0.65`), circle for conservative (`< 0.35`), rounded square for balanced. Frame glow color matches personality (red for aggressive, blue for conservative).
+- [x] **22.3 Training progress ring** around the avatar image driven by `training_state.loss_ema`. SVG ring with `stroke-dashoffset` bound to `1 - (loss / 0.5)`, transitioning smoothly as training improves.

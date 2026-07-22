@@ -1,5 +1,2 @@
-export default defineNuxtRouteMiddleware((to) => {
-  if (to.path === '/agents' || to.path === '/agents/') {
-    return navigateTo('/strategies')
-  }
-})
+// Middleware removed — agents/index.vue is now a proper marketplace page.
+export default defineNuxtRouteMiddleware(() => {})

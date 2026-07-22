@@ -12,6 +12,8 @@ import UIStat from '@/components/UI/Stat.vue'
 import UIMetricRow from '@/components/UI/MetricRow.vue'
 import UIEmptyState from '@/components/UI/EmptyState.vue'
 import AgentOpinionVector from '@/components/Agent/OpinionVector.vue'
+import AgentPersonalityRadar from '@/components/Agent/PersonalityRadar.vue'
+import AgentTrainingTimeline from '@/components/Agent/TrainingTimeline.vue'
 import ProfilePersonalityMatrix from '@/components/Profile/PersonalityMatrix.vue'
 
 definePageMeta({ title: 'Agent', layout: 'default' })
@@ -163,12 +165,18 @@ function fork() {
     </div>
 
     <!-- Personality matrix -->
-    <UICard title="Personality matrix">
+    <UICard title="Trader DNA — Personality matrix">
       <template #action>
         <UIPill tone="info">v{{ agent.training_state.version }}</UIPill>
       </template>
-      <ProfilePersonalityMatrix :matrix="agent.personality_matrix" />
+      <div class="dna-grid">
+        <AgentPersonalityRadar :matrix="agent.personality_matrix" :size="220" />
+        <ProfilePersonalityMatrix :matrix="agent.personality_matrix" />
+      </div>
     </UICard>
+
+    <!-- Training stream — live feed of tracked interactions -->
+    <AgentTrainingTimeline />
   </div>
 
   <UIEmptyState
@@ -190,6 +198,16 @@ function fork() {
   gap: var(--page-gap, 0.6rem);
   min-width: 0;
   padding-bottom: 1.5rem;
+}
+
+.dna-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+}
+@media (max-width: 720px) {
+  .dna-grid { grid-template-columns: 1fr; justify-items: center; }
 }
 
 .breadcrumb {

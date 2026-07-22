@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useNewsStore } from '@/stores/news'
 import { useInfluencersStore } from '@/stores/influencers'
 import { useMacroStore } from '@/stores/macro'
+import { useOpinionProfileStore } from '~/stores/opinionProfile'
 
 import UIScreenShell from '@/components/UI/ScreenShell.vue'
 import UIPill from '@/components/UI/Pill.vue'
@@ -49,6 +50,14 @@ onMounted(async () => {
   loading.value = false
   if (newsStore.news?.categories?.length > 0) {
     editorialCategory.value = newsStore.news.categories[0].name
+  }
+
+  // Seed opinion profiler from existing posts for a first-use profile
+  const opinionProfile = useOpinionProfileStore()
+  if (opinionProfile.getProfile('user_001').sample_count < 3 && postsRes.length > 0) {
+    postsRes.slice(0, 5).forEach((p: any) => {
+      opinionProfile.recordRead('user_001', { id: p.id, author_id: p.author_id, category: p.category, political_leaning: p.political_leaning, economic_leaning: p.economic_leaning, sentiment: p.sentiment, weight: p.weight })
+    })
   }
 })
 

@@ -6,7 +6,20 @@
     @click="$emit('select', agent.id)"
   >
     <header class="card-head">
-      <img :src="agent.avatar_url" :alt="agent.name" class="avatar" loading="lazy" />
+      <!-- Avatar frame: shape encodes personality (hexagon = aggressive, circle = conservative) -->
+      <div class="avatar-frame" :class="frameShape" :title="`Risk ${(agent.personality_matrix.risk * 100).toFixed(0)}% · Aggression ${(agent.personality_matrix.aggression * 100).toFixed(0)}%`">
+        <img :src="agent.avatar_url" :alt="agent.name" class="avatar" loading="lazy" />
+        <!-- Training progress ring driven by loss_ema -->
+        <svg class="training-ring" viewBox="0 0 56 56">
+          <circle class="ring-bg" cx="28" cy="28" r="26" />
+          <circle
+            class="ring-fill"
+            cx="28" cy="28" r="26"
+            :stroke-dasharray="ringCircumference"
+            :stroke-dashoffset="ringOffset"
+          />
+        </svg>
+      </div>
       <div class="head-text">
         <div class="name-line">
           <h3 class="name">{{ agent.name }}</h3>
@@ -122,6 +135,27 @@ const trainingFill = computed(() => {
   return Math.min(1, samples / 100)
 })
 
+// ── Personality shape encoding (Phase 22.2) ──────────────────────────────
+// Hexagon = aggressive (sharp edges), Circle = conservative (soft edges),
+// Rounded square = balanced.  Driven by risk + aggression average.
+const frameShape = computed(() => {
+  const agg = (props.agent.personality_matrix.risk + props.agent.personality_matrix.aggression) / 2
+  if (agg > 0.65) return 'frame-hexagon'
+  if (agg < 0.35) return 'frame-circle'
+  return 'frame-rounded'
+})
+
+// ── Training progress ring (Phase 22.3) ──────────────────────────────────
+// loss_ema is an exponential moving average of training loss (lower = better).
+// Map it to a 0-1 "trainedness" score: loss 0.5 → 0%, loss 0.05 → 100%.
+const ringCircumference = 2 * Math.PI * 26 // r = 26
+const trainedness = computed(() => {
+  const loss = props.agent.training_state.loss_ema
+  // Sigmoid-ish mapping: 1 at loss=0, 0 at loss≥0.5
+  return Math.max(0, Math.min(1, 1 - (loss / 0.5)))
+})
+const ringOffset = computed(() => ringCircumference * (1 - trainedness.value))
+
 const canFork = computed(() =>
   props.agent.share_state.is_public && props.agent.owner_id !== 'user_001'
 )
@@ -162,11 +196,47 @@ const fork = () => {
 .agent-card.kind-forked { border-left: 3px solid var(--primary-blue, #00aaff); }
 
 .card-head { display: flex; align-items: flex-start; gap: 0.6rem; }
+
+/* Personality-shaped avatar frame (Phase 22.2) */
+.avatar-frame {
+  position: relative;
+  width: 56px; height: 56px;
+  flex-shrink: 0;
+}
 .avatar {
-  width: 48px; height: 48px; border-radius: 50%;
+  width: 100%; height: 100%;
   object-fit: cover;
   border: 2px solid rgba(255,255,255,0.12);
-  flex-shrink: 0;
+  transition: border-radius 0.3s ease;
+}
+.frame-circle   .avatar { border-radius: 50%; }
+.frame-rounded  .avatar { border-radius: 18%; }
+.frame-hexagon  .avatar {
+  border-radius: 0;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+.frame-hexagon { filter: drop-shadow(0 0 4px rgba(255, 80, 80, 0.3)); }
+.frame-circle  { filter: drop-shadow(0 0 4px rgba(80, 180, 255, 0.3)); }
+
+/* Training progress ring (Phase 22.3) */
+.training-ring {
+  position: absolute;
+  inset: -4px;
+  width: 64px; height: 64px;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+.ring-bg {
+  fill: none;
+  stroke: rgba(255,255,255,0.08);
+  stroke-width: 2;
+}
+.ring-fill {
+  fill: none;
+  stroke: var(--primary-green, #00ff88);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s ease;
 }
 .head-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1; }
 .name-line { display: flex; justify-content: space-between; align-items: baseline; gap: 0.4rem; }

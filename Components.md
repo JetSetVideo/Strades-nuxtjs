@@ -1,72 +1,427 @@
 # Components Data Usage Analysis & Visual Mapping
 
-This document maps exactly which data keys from `Data.md` flow into which Vue components, and specifically how they drive the visual aspects (form, size, color, animation) of the living UI.
+This document maps **every data key from `Data.md` to the Vue component that consumes it**, and specifically how each key drives form, size, color, or animation of the living UI.
 
-> **Folder layout:** every component lives inside a PascalCase domain folder (`App/`, `UI/`, `Wallet/`, `Strategy/`, `Builder/`, `Asset/`, `Corporate/`, `Social/`, `News/`, `Community/`, `Chat/`, `Navigation/`, `Overlay/`, …). See [Structure.md](./Structure.md) for the full tree and folder rules. Pages compose **domain components**, which themselves compose **UI primitives**.
+> **Folder rules** (from `Structure.md`): every component lives in a PascalCase domain folder. Pages compose domain components; domain components compose UI primitives. No loose `.vue` files at `components/` root.
+
+---
 
 ## 1. Global & System Components
 
-### App/DynamicThemeController.vue (Headless)
-- **Role**: Sits at the root of the app (`app.vue`), subscribes to global macro data, and injects CSS custom properties into the `:root` pseudo-class.
-- **Data Source**: `stores/macro.ts` (`global/macro_state.json`)
-- **Mapping**:
-  - `global_volatility_index` -> `--app-animation-speed` (e.g., `0.3s` to `1.5s`)
-  - `geopolitical_stress` -> `--app-lighting-hue` (shifts `oklch` base values)
-  - `dominant_asset_class` -> `--app-border-radius` (e.g., `crypto = 2px`, `fiat = 16px`)
+### App/DynamicThemeController.vue
+Headless controller at the root of `app.vue`. Subscribes to `stores/macro.ts` and injects CSS custom properties into `:root`.
+
+| Data key | CSS variable | Effect |
+|----------|-------------|--------|
+| `global_volatility_index` | `--app-animation-speed` | 0.3s–1.5s transition duration |
+| `geopolitical_stress` | `--app-lighting-hue` | oklch base hue shift (blue→amber) |
+| `dominant_asset_class` | `--app-border-radius` | crypto=2px, fiat=16px |
+| `market_sentiment` | `--light-angle` | Shadow depth + gradient angle |
+
+### App/SkeletonLoader.vue
+Reactive skeleton that inherits the user's `personality_matrix.risk` (compact vs. spacious) before real data arrives.
+
+---
 
 ## 2. Navigation: The Living Icons (Micro-Dashboards)
 
-Found in `components/Navigation/Icons/`. These are not static SVGs, but reactive Vue/Canvas components.
+Every nav icon is a live component that double-dashes as an info display.
 
-### Navigation/Icons/WalletIcon.vue
-- **Role**: Replaces the static wallet SVG.
-- **Data Source**: `stores/wallet.ts` -> `allocation_pie` (fiat, crypto, stocks, commodities %)
-- **Visual Mapping**: Renders a tiny D3 pie chart inside the 24x24px icon space. Visibly shifts as capital automatically flows between asset classes.
+| Icon component | Data source | Visual behavior |
+|----------------|-------------|-----------------|
+| `Navigation/Icons/WalletIcon.vue` | `allocation.allocationPie` | Tiny D3 pie chart inside 24×24px |
+| `Navigation/Icons/PricesIcon.vue` | `macro.global_volatility_index` | Pulse frequency tied to volatility |
+| `Navigation/Icons/NewsGlobeIcon.vue` | `prefetch.latestNewsCoords` | Smooth 3D rotation toward geography |
+| `Navigation/Icons/ChatBadgeIcon.vue` | `chat.unread[].emotional_urgency` | Badge + pulse speed |
+| `Navigation/Icons/StrategyOrbitIcon.vue` | `max execution_frequency` | Orbiting nodes |
 
-### Navigation/Icons/PricesIcon.vue
-- **Data Source**: `stores/macro.ts` -> `global_volatility_index`
-- **Visual Mapping**: The icon physically vibrates or pulses. The frequency of the pulse is exactly mathematically tied to the volatility index.
+### Navigation/Top.vue
+Composes the 5 living icons + the search bar (`Navigation/SearchBar.vue`). SearchBar logs `search_used` training events.
 
-### Navigation/Icons/NewsGlobeIcon.vue
-- **Data Source**: `stores/prefetch.ts` -> `social/posts.json` (latest breaking `geographic_origin`)
-- **Visual Mapping**: The SVG globe smoothly rotates its coordinates to face the geographic origin of the most recent highly-weighted news alert.
+### Navigation/DrawerMenu.vue
+Side drawer with links to all pages. Highlights the current route.
 
-## 3. Wallet & 100% Allocation Components
+---
+
+## 3. Wallet & 100% Allocation Engine
+
+### Wallet/Hero.vue
+Primary wallet header — total balance, period PnL, available/invested/today breakdown.
+- **Data**: `wallet.total_value`, `wallet.performance_history[period]`, `wallet.daily_change`
+- **Visual**: color-coded PnL, period selector tabs
+- **Swarm ghost overlay**: when `opinions.activeCount > 0 && mode === 'advisory'`, shows swarm divergence, confidence badge, "Match" button (Phase 22.1, 24.3)
+
+### Wallet/PaperPanel.vue (Phase 20)
+Paper-trading dashboard: Live/Paper mode toggle, KPI strip, mini equity curve, open positions with close buttons, recent closed list.
+- **Data**: `paper.trades`, `paper.openPnlValue`, `paper.realizedPnlValue`, `paper.winRate`, `paper.equityCurve`
+- **Visual**: dashed border, `P` chip, 60%-saturation accent (Design.md §4)
 
 ### Wallet/AllocationSlider.vue
-- **Role**: The core interactive component allowing users to set their opinions on the 100% portfolio pie.
-- **Data Source**: `stores/wallet.ts`
-- **Interaction**: Squeezing the slider for 'Crypto' dynamically forces the 'Fiat' and 'Stocks' sliders to shrink, enforcing `Total = 100%` mathematically. Color saturation indicates profit/loss in that specific sector.
+Four linked sliders that enforce `fiat + crypto + stocks + commodities = 100%`. Dragging any slider compresses the others proportionally.
+- **Data**: `allocation.allocationPie`
+- **Visual**: per-class swatches, dominant-class highlight, swarm ghost bar when agents are plugged
+- **Events**: fires `allocation_change` training events
 
 ### Wallet/FlowVisualizer.vue
-- **Data Source**: `stores/wallet.ts` -> `flow_velocity`
-- **Visual Mapping**: A background layer behind the wallet cards. Uses animated particles flowing between the asset class "zones" on the screen. Speed is driven by `flow_velocity`.
+Background canvas particle effect behind the wallet page. Particle speed = `macro.flow_velocity`.
 
-## 4. Strategy Creator (Nodes & Code)
+### Wallet/Positions.vue
+Holdings table from `wallet.assets[]`. Row height proportional to `allocation_percentage`. Click to navigate to `/assets/[id]`.
+
+### Wallet/EquityCurve.vue
+SVG sparkline from `wallet.performance_history` or synthetic historical points.
+
+### Wallet/Trades.vue
+Transaction rows from `wallet.transactions[]`. Color-coded buy/sell.
+
+### Wallet/RiskPanel.vue
+Inline risk metrics: concentration risk, VaR contribution, class volatility.
+
+### Wallet/PlatformList.vue
+Connected platform cards from `platforms.list`. Shows balance, daily PnL, status.
+
+### Wallet/BotContribution.vue
+How much of today's PnL came from automated strategies vs. manual trades.
+
+### Wallet/Switcher.vue
+Multi-wallet selector when the user has multiple sub-wallets.
+
+---
+
+## 4. Strategy & Creator
+
+### Strategy/Card.vue
+Strategy summary card — name, PnL, win rate, status, target assets.
+- **Data**: `strategy.is_paper` → Paper badge
+- **Visual**: equity-curve sparkline, asset chips
+
+### Strategy/EquityCurve.vue
+Deterministic random-walk SVG chart used on strategy detail and bot detail pages.
+
+### Strategy/Visualizer.vue
+Read-only SVG view of a strategy's node tree.
+
+### Strategy/CodeView.vue
+Syntax-highlighted strategy code viewer.
+
+### Strategy/SwarmPlugs.vue (Phase 15)
+Plug/unplug agents into the strategy with weighted sliders. Live preview bar.
+- **Data**: `opinions.plugs`, `opinions.swarmVector`, `opinions.diversityScore`
+
+### Strategy/ConsensusMeter.vue (Phase 14)
+Community sentiment gauge — bullish/bearish/neutral split with controversy shake animation.
+
+### Strategy/CounterpartyCard.vue (Phase 15)
+Supply-chain exposure for each strategy target: suppliers, customers, facilities, commodities.
+
+### Strategy/TradeList.vue
+Strategy trade history table.
+
+### Strategy/RunByPanel.vue
+Shows which agents/bots are running the strategy.
+
+### Strategy/DealRow.vue
+Cross-strategy deal pipeline row (Phase 17).
+
+### Strategy/BotCard.vue
+Agent-driven strategy card showing the bot's PnL, Sharpe, status.
+
+---
+
+## 5. Builder (Creator Page Canvas)
 
 ### Builder/NodeCanvas.vue
-- **Role**: The WebWorker/Canvas API driven infinite grid where users build their financial codes.
-- **Data Source**: `stores/builder.ts` (`core/strategies.json`)
-- **Visual Mapping**:
-  - Nodes with low `confidence_score` have their opacity reduced to `0.4`.
-  - The `execution_frequency` variable drives a scale transform (`scale(1.05)`) causing the node to visibly "beat" like a heart when it triggers a trade in the 100% allocation engine.
+SVG infinite grid for the node-based strategy creator. d3-force layout in a WebWorker.
+
+### Builder/BlockEditor.vue
+Property panel for editing a selected node's conditions and actions.
+
+### Builder/Condition.vue
+Conditional logic node (price cross_above/below, MA, RSI, etc).
+
+### Builder/Action.vue
+Action node (rebalance, alert, deploy, pause).
 
 ### Builder/Nodes/AvatarNode.vue
-- **Data Source**: `core/users.json` -> `avatar.personality_matrix`
-- **Visual Mapping**: The shape of the node morphs based on the Avatar's risk profile (sharp hexagon for aggressive, soft circle for conservative).
+Avatar plug-in node with confidence opacity, execution heartbeat, personality-shaped frame.
 
-## 5. Market Intelligence & Social
+---
+
+## 6. AI Avatars & Swarm
+
+### Agent/AvatarCard.vue
+Summary card for any avatar. Plug/fork/compare actions.
+- **Data**: `agent.personality_matrix` → frame shape (hexagon/circle/rounded)
+- **Data**: `agent.training_state.loss_ema` → SVG progress ring
+- **Data**: `agent.confidence` → card opacity
+- **Data**: `agent.performance.last_30d_curve` → sparkline
+- **Data**: `agent.opinion_vector` → mini stacked bar
+
+### Agent/PersonalityRadar.vue (Phase 23)
+5-axis spider chart (risk/aggression/speed/patience/contrarian) for the Trader DNA.
+- **Props**: `matrix`, optional `compare` ghost overlay
+- **Visual**: concentric grid rings, dominant-axis highlight, center-of-gravity dot
+
+### Agent/OpinionVector.vue
+Stacked bar showing fiat/crypto/stocks/commodities percentages.
+
+### Agent/Compare.vue
+Side-by-side comparison of two agents' matrices and opinion vectors.
+
+### Agent/TrainingTimeline.vue
+History of training events: epochs, loss curve, reward EMA.
+
+---
+
+## 7. Profiles (Own & Others)
+
+### Profile/Hero.vue
+Profile header: avatar, cover, name, bio, role, follower/following counts, KPI strip (portfolio, win rate, trades, strategies).
+
+### Profile/PsychCard.vue
+Psychology profile: MBTI, FOMO, revenge-trading tendency, loss aversion, discipline score.
+
+### Profile/InvestorCard.vue
+Investment style derived from wallet history: risk tolerance, horizon, preferred classes.
+
+### Profile/PoliticalCard.vue
+Static self-reported political profile (from `user.political_profile`). Multi-axis bars.
+
+### Profile/OpinionProfileCard.vue (Phase 21)
+Live article-derived opinion profile: political axis, economic axis, sentiment bias, topic affinity, influenced-by list, friend-circle small-multiples comparison.
+- **Data**: `opinionProfile.getProfile(userId)`, `topTopics`, `topInfluencers`
+
+### Profile/PersonalityMatrix.vue
+Five horizontal bars for the avatar personality matrix. Used on agent detail page.
+
+### Profile/ExperienceBar.vue
+XP/level progress toward next rank.
+
+### Profile/AvatarsSection.vue
+List of avatars owned by the user — personal + forked.
+
+### Profile/StrategiesSection.vue
+User's strategies with status, PnL, win rate.
+
+### Profile/PostsFeed.vue
+User's social posts with political-leaning background tint, embedded allocation bar, controversy shake animation (Phase 19 fixed — uses canonical `interactions.*` shape).
+
+### Profile/CommunitySection.vue
+Communities the user belongs to.
+
+### Profile/ContactsRail.vue
+Friend list with avatar, trading style, online status.
+
+### Profile/AchievementsSection.vue
+Unlocked achievements by rarity tier.
+
+### Profile/TradingCalendar.vue
+Day-by-day PnL heatmap grid.
+
+### Profile/TradingRecords.vue
+Trade history summary table for the profile page.
+
+---
+
+## 8. Corporate & Supply Chain
 
 ### Corporate/NetworkGraph.vue
-- **Data Source**: `core/companies.json`
-- **Visual Mapping**:
-  - Link thickness bound to `supply_chain_health`.
-  - Node pulse speed bound to `fluctuation_velocity`.
-  - Color of factory sub-nodes bound to `factories[n].status`.
+D3 force-directed graph showing HQ + facilities + suppliers + customers.
+| Data | Visual |
+|------|--------|
+| `supply_chain_health` | SVG link stroke width |
+| `fluctuation_velocity` | Node pulse speed |
+| `factories[].status` | Color (green/yellow/red) |
+| `share_pct` | Edge label weight |
+
+### Asset/CommodityPipeline.vue (Phase 14)
+Per-commodity exposure grid from supply chain data.
+
+### Asset/LiveSignalsStrip.vue
+Live buy/sell signals for a given asset.
+
+### Asset/AnalysisPanel.vue
+Long-form analysis text + metrics.
+
+### Asset/FacilityList.vue
+Factory/warehouse locations for an asset's company.
+
+### Asset/NewsSnippets.vue
+Recent news articles tagged with the asset's ticker. Fetches `social/posts.json`.
+
+### Asset/Heatmap.vue
+Market-wide or sector-wide heatmap of price changes.
+
+### Asset/CandleChart.vue
+Price candle chart with volume (dedicated page + inline widget).
+
+### Asset/MoversStrip.vue
+Scrollable strip of top movers (up/down by category).
+
+---
+
+## 9. Social & News
 
 ### Social/ArticlePost.vue
-- **Data Source**: `social/posts.json`
-- **Visual Mapping**:
-  - Background `oklch` tint bound to `political_leaning` (-1.0 to 1.0).
-  - The `controversy_index` drives a CSS shake animation on the comment counter icon if the debate is highly polarized.
-  - Renders the `embedded_allocation` tiny pie chart directly inside the post text flow.
+Social feed post card with full NLP metadata visualization (Phase 23, 24).
+| Data | Visual |
+|------|--------|
+| `political_leaning` | oklch background tint (blue↔red) |
+| `controversy_index` | Comment icon shake if > 0.7 |
+| `embedded_allocation` | Inline mini-pie bar |
+| `weight` | Sort weight bar |
+| `category` | Asset-class chip color |
+
+**Tracking**: auto-logs `article_read` after 3s dwell, `article_political_view` + `article_dwell` training events, `share_article` on share click (2× opinion weight).
+
+### News/CalendarStrip.vue
+Upcoming earnings / economic events.
+
+### News/InfluencerRail.vue
+Top signal providers with their latest calls.
+
+### Widget/NewsCard.vue
+Editorial news card (from `news.json`) with category, title, excerpt.
+
+### Widget/Sentiment.vue
+Bullish/bearish/neutral gauge.
+
+---
+
+## 10. UI Primitives (Pure Presentation)
+
+No store access — inputs are props only.
+
+| Component | Role |
+|-----------|------|
+| UI/Card.vue | Generic content card with optional title, slot, padding |
+| UI/PageHeader.vue | Page title + subtitle + action slot |
+| UI/Stat.vue | Single metric: label, value, tone, suffix, precision |
+| UI/MetricRow.vue | Responsive row of Stat components |
+| UI/Pill.vue | Badge/chip with tone, dot, count |
+| UI/SectionTabs.vue | Tab bar for section switching |
+| UI/ScreenShell.vue | Page chrome: header, tabs, KPIs, content slot |
+| UI/EmptyState.vue | Empty-slate placeholder with icon + message + action |
+| UI/DateRangePicker.vue | Date range selector |
+| UI/KpiStrip.vue | Horizontal KPI strip used on monitor and risk pages |
+
+---
+
+## 11. Widgets & Charts
+
+### Widget/DisplayAsset.vue
+Asset card with price, change%, liquidity glow, specials, price intuition slider.
+
+### Widget/Asset.vue
+Generic asset display (icon + symbol + price).
+
+### Widget/Chart.vue
+Generic chart container (SVG wrapper).
+
+### Widget/BarChart.vue
+Horizontal or vertical bar chart.
+
+### Widget/CandleChart.vue
+Price candle series (SVG).
+
+### Widget/NewsCard.vue
+Editorial news card with category chip, date, excerpt.
+
+### Widget/NewsListItem.vue
+Compact news list row.
+
+### Widget/Treemap.vue
+Market-cap-weighted treemap.
+
+### Widget/Heatmap.vue
+Sector performance grid.
+
+### Widget/Sentiment.vue
+Sentiment gauge.
+
+### Widget/Quest.vue
+Quest/progress widget.
+
+### Widget/Transactions.vue
+Recent transaction row.
+
+---
+
+## 12. Selectors & Buttons
+
+### Selector/Asset.vue
+Searchable single-asset picker.
+
+### Selector/Assets.vue
+Multi-asset picker with chips.
+
+### Selector/Datasources.vue
+Data-source selector for strategy nodes.
+
+### Selector/Condition.vue
+Condition-type picker.
+
+### Selector/Entry.vue
+Order-type picker (market/limit/stop).
+
+### Button/*.vue
+Icon-only buttons: Avatar, Bookmark, Notification, Settings, Database. Reusable across the app.
+
+---
+
+## 13. Domain-Specific Cards
+
+### Card/Asset.vue
+Asset mini-card for grids and lists.
+
+### Card/Avatar.vue
+Avatar mini-card with personality indicators.
+
+### Card/Datasource.vue
+Data-source card for the catalog.
+
+### Card/Friend.vue (removed Phase 14)
+Superseded by Community/ContactsRail.
+
+### Card/SharedData.vue
+Shared strategy/data card for the feed.
+
+---
+
+## Data Flow Map (Read-Only Paths)
+
+```
+macro_state ──┬─> DynamicThemeController ─> :root CSS
+              ├─> PricesIcon (pulse)
+              ├─> NewsGlobeIcon (rotation)
+              ├─> FlowVisualizer (particles)
+              ├─> AllocationSlider (dominant highlight)
+              └─> Widget/DisplayAsset (sentiment tone)
+
+allocationPie ──┬─> WalletIcon (nav pie)
+                ├─> AllocationSlider
+                ├─> Wallet/Hero (swarm ghost)
+                └─> Wallet/Positions (row heights)
+
+wallets[] ──┬─> Wallet/Hero
+            ├─> Wallet/Positions
+            ├─> Wallet/Trades
+            └─> Wallet/EquityCurve
+
+agents[] ──┬─> Agent/AvatarCard (frame, ring, opacity)
+           ├─> Agent/PersonalityRadar
+           ├─> Agent/OpinionVector
+           ├─> Profile/AvatarsSection
+           └─> Strategy/SwarmPlugs
+
+opinionProfile ──┬─> Profile/OpinionProfileCard
+                 └─> Profile/PoliticalCard (friend comparison)
+
+tracking ──┬─> training store (avatar learns)
+           └─> activityLog (trading profile records)
+
+posts[] ──┬─> Social/ArticlePost (NLP display + tracking)
+          ├─> Profile/PostsFeed
+          ├─> News globe rotation (coords)
+          └─> Asset/NewsSnippets
+```

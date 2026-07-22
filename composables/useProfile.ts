@@ -24,24 +24,32 @@ import type { Wallet } from '@/stores/wallet'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
+export interface AllocationPie {
+  fiat: number
+  crypto: number
+  stocks: number
+  commodities: number
+}
+
 export interface PostSummary {
   id: string
   author_id: string
-  title: string
+  title?: string
   content: string
-  type: string
-  category: string
-  assets: string[]
+  type?: string
+  category?: string
+  assets?: string[]
+  geographic_origin?: { lat: number; lng: number; name?: string }
   political_leaning: number
+  economic_leaning?: number
+  sentiment?: number
   controversy_index: number
-  embedded_allocation: { fiat: number; crypto: number; stocks: number; commodities: number }
-  likes_count: number
-  comments_count: number
-  shares_count: number
-  bookmarks_count: number
-  timestamp: string
-  tags: string[]
-  is_pinned: boolean
+  weight?: number
+  embedded_allocation?: AllocationPie
+  published_at: string
+  interactions: { likes: number; comments: number; shares: number; bookmarks?: number }
+  tags?: string[]
+  is_pinned?: boolean
 }
 
 export interface SectionErrors {

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useOpinionsStore } from '~/stores/opinions'
+import { useAllocationStore } from '~/stores/allocation'
 
 interface PerfPoint { change: number; change_percentage: number }
 interface Wallet {
@@ -20,6 +22,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ (e: 'update:period', p: '1d' | '7d' | '30d' | '90d' | '1y'): void }>()
+
+const opinions = useOpinionsStore()
+const allocation = useAllocationStore()
 
 const PERIOD_LABELS: Record<'1d' | '7d' | '30d' | '90d' | '1y', string> = {
   '1d': '1D',
@@ -43,6 +48,20 @@ const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 
 const todayPnl = computed(() => props.wallet?.daily_change ?? 0)
 const todayPct = computed(() => props.wallet?.daily_change_percentage ?? 0)
+
+// ── Swarm advisory ghost overlay (Phase 22.1) ───────────────────────────
+const showSwarm = computed(() => opinions.mode === 'advisory' && opinions.activeCount > 0)
+const swarmDivergence = computed(() => opinions.divergence)
+// Delta of each class between swarm vector and the user's actual wallet allocation
+const swarmDeltas = computed(() => {
+  const w = allocation.allocationPie
+  const s = opinions.swarmVector
+  return (Object.keys(s) as Array<keyof typeof s>).map(k => ({
+    key: k,
+    delta: s[k] - w[k]
+  })).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+})
+const topDelta = computed(() => swarmDeltas.value[0])
 </script>
 
 <template>
@@ -91,6 +110,27 @@ const todayPct = computed(() => props.wallet?.daily_change_percentage ?? 0)
         <span class="sub-value">{{ fmtSigned(todayPnl) }} <span class="sub-pct">({{ fmtPct(todayPct) }})</span></span>
       </div>
     </div>
+
+    <!-- Swarm advisory ghost overlay (Phase 22.1) -->
+    <div v-if="showSwarm" class="swarm-ghost" :title="`Swarm diverges from your wallet by ${swarmDivergence.toFixed(1)}%`">
+      <div class="swarm-row">
+        <span class="swarm-chip">SWARM ×{{ opinions.activeCount }}</span>
+        <span class="swarm-msg">
+          Agents want
+          <b :class="{ pos: topDelta.delta > 0, neg: topDelta.delta < 0 }">
+            {{ topDelta.delta > 0 ? '+' : '' }}{{ topDelta.delta.toFixed(1) }}% {{ topDelta.key }}
+          </b>
+          · diverge {{ swarmDivergence.toFixed(0) }}%
+        </span>
+        <span class="swarm-confidence" :title="`Swarm confidence ${Math.round(opinions.swarmConfidence * 100)}% (diversity ${Math.round(opinions.diversityScore * 100)}%)`">
+          {{ Math.round(opinions.swarmConfidence * 100) }}%
+        </span>
+        <button class="swarm-apply" @click.stop="opinions.commitToWallet()">Match</button>
+      </div>
+      <div class="swarm-bar">
+        <div v-for="(v, k) in opinions.swarmVector" :key="k" :class="['swarm-seg', `bg-${k}`]" :style="{ width: `${v}%` }" />
+      </div>
+    </div>
   </section>
 </template>
 
@@ -117,6 +157,68 @@ const todayPct = computed(() => props.wallet?.daily_change_percentage ?? 0)
 @media (max-width: 720px) {
   .primary-row { grid-template-columns: 1fr; gap: 0.5rem; }
 }
+
+/* Swarm advisory ghost overlay (Phase 22.1) */
+.swarm-ghost {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  background: color-mix(in oklch, var(--primary-blue) 8%, transparent);
+  border: 1px dashed color-mix(in oklch, var(--primary-blue) 40%, transparent);
+  border-radius: var(--app-border-radius, 6px);
+  animation: swarmPulse 2.4s ease-in-out infinite;
+}
+@keyframes swarmPulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+.swarm-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+}
+.swarm-chip {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.1rem 0.4rem;
+  background: color-mix(in oklch, var(--primary-blue) 30%, transparent);
+  color: var(--primary-blue);
+  border-radius: 4px;
+}
+.swarm-msg { color: var(--text-gray); flex: 1; }
+.swarm-msg b { font-weight: 600; }
+.swarm-msg b.pos { color: oklch(0.7 0.2 145); }
+.swarm-msg b.neg { color: oklch(0.65 0.2 25); }
+.swarm-apply {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.5rem;
+  background: color-mix(in oklch, var(--primary-blue) 25%, transparent);
+  color: white;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.swarm-apply:hover { background: color-mix(in oklch, var(--primary-blue) 40%, transparent); }
+
+.swarm-confidence {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  color: oklch(0.7 0.2 145);
+}
+
+.swarm-bar {
+  display: flex;
+  height: 4px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.swarm-seg { height: 100%; opacity: 0.6; }
 
 .balance-block {
   display: flex;
