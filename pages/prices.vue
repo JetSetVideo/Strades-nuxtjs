@@ -11,9 +11,10 @@
  *    at a fixed interval instead of re-randomised on every render
  *  • PriceIntuition widget is embedded in each DisplayAsset card
  */
-import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, reactive } from 'vue'
 import { useAssetsStore } from '@/stores/assets'
 import { usePredictionsStore } from '@/stores/predictions'
+import { useMacroStore } from '@/stores/macro'
 import DisplayAsset from '@/components/Widget/DisplayAsset.vue'
 import Heatmap from '@/components/Asset/Heatmap.vue'
 
@@ -25,13 +26,18 @@ definePageMeta({
 
 const assetsStore      = useAssetsStore()
 const predStore        = usePredictionsStore()
+const macroStore       = useMacroStore()
 
 const selectedType     = ref('all')
 const selectedAssetId  = ref<string | null>(null)
 const showMoreAssets   = ref(false)
-const loading          = ref(false)
 const sortBy           = ref<'default' | 'gainers' | 'losers' | 'vol_high' | 'cap'>('default')
 const searchQuery      = ref('')
+
+// Aliases to store reactive state
+const loading      = computed(() => assetsStore.loading)
+const isRefreshing = computed(() => assetsStore.isRefreshing)
+const hasData      = computed(() => assetsStore.assets.length > 0)
 
 // ── Stable per-asset % changes (avoid re-render jitter) ──────────────────
 // Uses a reactive plain object keyed by asset id
@@ -43,6 +49,7 @@ function seedChanges() {
     const vol = (asset as any).psychology_profile?.volatility_index ?? 0.3
     priceChanges[asset.id] = +(((Math.random() - 0.5) * 2 * vol * 12)).toFixed(2)
   })
+  macroStore.updateFromPriceChanges(priceChanges)
 }
 
 // ── Real-time simulation ─────────────────────────────────────────────────
@@ -60,15 +67,30 @@ function startTicker() {
       assetsStore.updateAssetPrice(asset.id, +p.toFixed(asset.current_price < 1 ? 6 : 2))
     })
     assetsStore.lastUpdated = new Date()
+    // Sync aggregates into macro store so nav icons always reflect live session data
+    macroStore.updateFromPriceChanges(priceChanges)
   }, 5000)
 }
 
+// Seed price changes + start ticker as soon as assets are available
+// (may be from cache before network completes)
+const tickerStarted = ref(false)
+watch(
+  () => assetsStore.assets.length,
+  (len) => {
+    if (len > 0) {
+      seedChanges()
+      if (!tickerStarted.value) {
+        tickerStarted.value = true
+        startTicker()
+      }
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
-  loading.value = true
-  await assetsStore.initializeStore()
-  seedChanges()
-  loading.value = false
-  startTicker()
+  assetsStore.initializeStore()
   predStore.init()
   predStore.seedFromFile()
 })
@@ -161,8 +183,18 @@ function navigateToAsset(assetId: string) {
 <template>
   <div class="prices-page">
 
+    <!-- ── Background-refresh overlay spinner ───────────────────────── -->
+    <Transition name="fade">
+      <div v-if="isRefreshing && hasData" class="refresh-overlay">
+        <div class="refresh-pill">
+          <div class="refresh-spinner" />
+          <span>Updating…</span>
+        </div>
+      </div>
+    </Transition>
+
     <!-- ── Market overview bar ──────────────────────────────────────── -->
-    <div class="market-bar" v-if="!loading">
+    <div class="market-bar" v-if="hasData">
       <!-- Sentiment signal -->
       <div class="market-sentiment"
         :class="marketSentiment >= 0 ? 'bull' : 'bear'"
@@ -199,7 +231,7 @@ function navigateToAsset(assetId: string) {
     </div>
 
     <!-- ── Search + Filters + Sort ──────────────────────────────────── -->
-    <div class="controls-bar" v-if="!loading">
+    <div class="controls-bar" v-if="hasData">
       <!-- Search -->
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
@@ -236,14 +268,19 @@ function navigateToAsset(assetId: string) {
       </div>
     </div>
 
-    <!-- ── Loading skeleton ─────────────────────────────────────────── -->
-    <div v-if="loading" class="loading-state">
-      <div class="loading-spinner" />
-      <p>Loading market data…</p>
+    <!-- ── Cold loading skeleton (no data at all) ──────────────────── -->
+    <div v-if="loading && !hasData" class="loading-state">
+      <div class="skeleton-cards">
+        <div v-for="n in 6" :key="n" class="skeleton-card" />
+      </div>
+      <div class="loading-hint">
+        <div class="loading-spinner" />
+        <p>Loading market data…</p>
+      </div>
     </div>
 
     <!-- ── Asset list ────────────────────────────────────────────────── -->
-    <div v-if="!loading" class="assets-section">
+    <div v-if="hasData" class="assets-section">
 
       <!-- Heatmap panel for selected asset -->
       <Transition name="fade">
@@ -304,13 +341,9 @@ function navigateToAsset(assetId: string) {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  padding: 5rem 1rem 6rem;
-  min-height: 100vh;
+  padding: 0;
+  min-height: 100%;
   color: var(--text-white);
-}
-
-@media (min-width: 768px) {
-  .prices-page { padding: 5rem 1.5rem 6rem; }
 }
 
 /* ── Market overview bar ── */
@@ -445,19 +478,81 @@ function navigateToAsset(assetId: string) {
 }
 .sort-select:focus { border-color: var(--border-accent); }
 
-/* ── Loading ── */
+/* ── Background refresh overlay ── */
+.refresh-overlay {
+  position: fixed;
+  top: 4.5rem;
+  right: 1rem;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.refresh-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid var(--border-primary);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  font-size: 0.65rem;
+  color: var(--text-gray);
+  font-family: var(--font-family-secondary);
+}
+
+.refresh-spinner {
+  width: 10px; height: 10px;
+  border: 1.5px solid var(--border-secondary);
+  border-top-color: var(--primary-green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Cold loading skeleton ── */
 .loading-state {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: var(--spacing-xxl);
-  color: var(--text-gray);
   gap: var(--spacing-md);
 }
 
+.loading-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--text-gray);
+  padding: var(--spacing-md);
+}
+
+.skeleton-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.skeleton-card {
+  height: 72px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
 .loading-spinner {
-  width: 36px; height: 36px;
-  border: 3px solid var(--border-primary);
+  width: 28px; height: 28px;
+  border: 2.5px solid var(--border-primary);
   border-top-color: var(--primary-green);
   border-radius: 50%;
   animation: spin 1s linear infinite;

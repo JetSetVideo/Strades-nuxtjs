@@ -14,7 +14,6 @@ const props = defineProps<{
   frequency?: string
 }>()
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
 function conditionLabel(data: Record<string, unknown>): string {
   if (!data?.indicator) return 'Condition'
   const ind = String(data.indicator)
@@ -37,10 +36,6 @@ function actionLabel(data: Record<string, unknown>): string {
   return `${t}${alloc}`
 }
 
-function blockColor(type: string): string {
-  return type === 'condition' ? 'var(--primary-blue)' : 'var(--warning-orange)'
-}
-
 const conditions = computed(() => props.blocks.filter(b => b.type === 'condition'))
 const actions    = computed(() => props.blocks.filter(b => b.type === 'action'))
 const hasBlocks  = computed(() => props.blocks.length > 0)
@@ -53,26 +48,20 @@ const hasBlocks  = computed(() => props.blocks.length > 0)
       <span v-if="frequency" class="sv-freq">{{ frequency }}</span>
     </div>
 
-    <!-- Empty state -->
     <div v-if="!hasBlocks && !assetFrom && !assetTo" class="sv-empty">
       <span class="empty-icon">🗺</span>
       <p>Add assets, conditions & actions to see your strategy flow.</p>
     </div>
 
-    <!-- Flow diagram -->
     <div v-else class="sv-flow">
-
-      <!-- Asset FROM node -->
       <div v-if="assetFrom" class="flow-node asset-node from-node">
         <span class="node-icon">📤</span>
         <span class="node-label">{{ assetFrom }}</span>
         <span class="node-meta">FROM</span>
       </div>
 
-      <!-- Arrow + conditions -->
       <template v-if="hasBlocks || assetFrom || assetTo">
         <div class="flow-col">
-          <!-- Condition blocks -->
           <template v-if="conditions.length">
             <div class="col-label">IF</div>
             <div
@@ -89,10 +78,8 @@ const hasBlocks  = computed(() => props.blocks.length > 0)
             <div class="flow-placeholder">+ Add conditions</div>
           </template>
 
-          <!-- Connector -->
           <div class="arrow-connector">▼</div>
 
-          <!-- Action blocks -->
           <template v-if="actions.length">
             <div class="col-label">THEN</div>
             <div
@@ -110,15 +97,12 @@ const hasBlocks  = computed(() => props.blocks.length > 0)
         </div>
       </template>
 
-      <!-- Asset TO node -->
       <div v-if="assetTo" class="flow-node asset-node to-node">
         <span class="node-icon">📥</span>
         <span class="node-label">{{ assetTo }}</span>
         <span class="node-meta">TO</span>
       </div>
-
     </div>
-
   </div>
 </template>
 
@@ -156,7 +140,6 @@ const hasBlocks  = computed(() => props.blocks.length > 0)
   border-radius: 999px;
 }
 
-/* ── Empty ── */
 .sv-empty {
   display: flex;
   flex-direction: column;
@@ -169,7 +152,6 @@ const hasBlocks  = computed(() => props.blocks.length > 0)
 .empty-icon { font-size: 1.6rem; opacity: 0.4; }
 .sv-empty p { font-size: 0.72rem; text-align: center; margin: 0; }
 
-/* ── Flow layout ── */
 .sv-flow {
   display: flex;
   align-items: flex-start;
@@ -180,7 +162,6 @@ const hasBlocks  = computed(() => props.blocks.length > 0)
 
 .sv-flow::-webkit-scrollbar { display: none; }
 
-/* ── Nodes ── */
 .flow-node {
   display: flex;
   flex-direction: column;
@@ -224,7 +205,6 @@ const hasBlocks  = computed(() => props.blocks.length > 0)
 .cond-dot   { background: var(--primary-blue); }
 .action-dot { background: var(--warning-orange); }
 
-/* ── Centre column ── */
 .flow-col {
   display: flex;
   flex-direction: column;

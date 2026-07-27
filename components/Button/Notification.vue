@@ -1,64 +1,102 @@
 <script setup lang="ts">
-const props = defineProps({
-  unreadCount: {
-    type: Number,
-    default: 0,
-  },
-});
+import { computed } from 'vue'
+
+const props = defineProps({ unreadCount: { type: Number, default: 0 } })
+const { playHover, playClick } = useNavSound()
+
+const badgeLabel = computed(() => props.unreadCount > 99 ? '99+' : String(props.unreadCount))
 </script>
 
 <template>
-  <NuxtLink to="/notifications" class="button">
-    <UChip :text="unreadCount" v-if="unreadCount > 0" position="bottom-right" size="xl">
-      <span class="btn-label">Notifications</span>
-      <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 24 24">
-          <path fill="currentColor" d="M4 19v-2h2v-7q0-2.075 1.25-3.687T10.5 4.2v-.7q0-.625.438-1.062T12 2q.625 0 1.063.438T13.5 3.5v.7q2 .5 3.25 2.113T18 10v7h2v2zm8 3q-.825 0-1.412-.587T10 20h4q0 .825-.587 1.413T12 22" />
-      </svg>
-    </UChip>
-    <div v-else class="icon-wrapper">
-      <span class="btn-label">Notifications</span>
-      <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 24 24">
-          <path fill="currentColor" d="M4 19v-2h2v-7q0-2.075 1.25-3.687T10.5 4.2v-.7q0-.625.438-1.062T12 2q.625 0 1.063.438T13.5 3.5v.7q2 .5 3.25 2.113T18 10v7h2v2zm8 3q-.825 0-1.412-.587T10 20h4q0 .825-.587 1.413T12 22" />
-      </svg>
-    </div>
+  <NuxtLink
+    to="/notifications"
+    class="nav-icon-btn"
+    title="Notifications"
+    @mouseenter="playHover"
+    @click="playClick"
+  >
+    <!-- Bell icon -->
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <!-- Bell body -->
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"
+            stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Clapper -->
+      <path d="M13.73 21a2 2 0 0 1-3.46 0"
+            stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+
+    <!-- Unread badge -->
+    <span
+      v-if="unreadCount > 0"
+      class="badge"
+      :aria-label="`${unreadCount} notifications`"
+    >
+      {{ badgeLabel }}
+    </span>
   </NuxtLink>
 </template>
 
 <style scoped>
-.button {
-    color: #ffffff;
-    background-color: rgba(255, 255, 255, 0.05);
-    margin: 0;
-    padding: 0.5rem 1rem;
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: var(--app-border-radius, 0.5rem);
-    border: 1px solid rgba(255,255,255,0.1);
-    transition: background-color 0.3s;
-    text-decoration: none;
-    font-family: 'Poppins', sans-serif;
-    font-size: 0.9rem;
-}
-.button:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-.icon-wrapper {
+.nav-icon-btn {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  width:  var(--nav-icon-btn-size, 2rem);
+  height: var(--nav-icon-btn-size, 2rem);
+  border-radius: var(--radius-md, 0.5rem);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: all var(--transition-fast, 0.2s ease);
 }
 
-.btn-label {
-  display: none;
+.nav-icon-btn svg {
+  width:  1.15rem;
+  height: 1.15rem;
 }
 
-@media (min-width: 768px) {
-  .btn-label {
-    display: block;
-    margin-right: 0.5rem;
-  }
+.nav-icon-btn:hover {
+  color: var(--primary-blue, #00aaff);
+  border-color: rgba(0, 170, 255, 0.35);
+  background: rgba(0, 170, 255, 0.08);
+  transform: scale(1.08);
+  box-shadow: 0 0 0.5rem rgba(0, 170, 255, 0.12);
+}
+
+.nav-icon-btn:active {
+  transform: scale(0.94);
+  transition-duration: 0.08s;
+}
+
+.router-link-active.nav-icon-btn {
+  color: var(--primary-blue, #00aaff);
+  background: rgba(0, 170, 255, 0.1);
+  border-color: rgba(0, 170, 255, 0.4);
+}
+
+/* Badge */
+.badge {
+  position: absolute;
+  top:   -0.22rem;
+  right: -0.28rem;
+  background: #ff4444;
+  color: #fff;
+  font-size: 0.48rem;
+  font-weight: 700;
+  font-family: var(--font-family-primary, 'Poppins'), sans-serif;
+  line-height: 1;
+  min-width: 0.95rem;
+  height: 0.95rem;
+  padding: 0 0.18rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 0 1.5px #0e0e0f;
 }
 </style>
-

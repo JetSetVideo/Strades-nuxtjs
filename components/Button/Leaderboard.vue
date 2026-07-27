@@ -1,43 +1,65 @@
-<script setup>
-
+<script setup lang="ts">
+const { playHover, playClick } = useNavSound()
 </script>
+
 <template>
-  <NuxtLink to="/leaderboard" class="button">
-    <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24">
-	    <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 21H9v-8.4a.6.6 0 0 1 .6-.6h4.8a.6.6 0 0 1 .6.6zm5.4 0H15v-2.9a.6.6 0 0 1 .6-.6h4.8a.6.6 0 0 1 .6.6v2.3a.6.6 0 0 1-.6.6M9 21v-4.9a.6.6 0 0 0-.6-.6H3.6a.6.6 0 0 0-.6.6v4.3a.6.6 0 0 0 .6.6zm1.806-15.887l.909-1.927a.312.312 0 0 1 .57 0l.91 1.927l2.032.311c.261.04.365.376.176.568l-1.47 1.5l.347 2.118c.044.272-.228.48-.462.351l-1.818-1l-1.818 1c-.233.128-.506-.079-.462-.351l.347-2.118l-1.47-1.5c-.19-.192-.085-.528.175-.568z" />
+  <NuxtLink
+    to="/leaderboard"
+    class="nav-icon-btn"
+    title="Leaderboard"
+    @mouseenter="playHover"
+    @click="playClick"
+  >
+    <!-- Bar-chart podium icon -->
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <!-- Bars: left (3rd), centre (1st), right (2nd) -->
+      <rect x="3"  y="13" width="4.5" height="8"  rx="1" fill="currentColor" opacity="0.65"/>
+      <rect x="9.75" y="7" width="4.5" height="14" rx="1" fill="currentColor"/>
+      <rect x="16.5" y="10" width="4.5" height="11" rx="1" fill="currentColor" opacity="0.65"/>
+      <!-- Star above the tallest bar -->
+      <path d="M12 1.5l.9 2.6h2.8l-2.3 1.7.9 2.7-2.3-1.7-2.3 1.7.9-2.7L8.3 4.1h2.8z"
+            fill="currentColor" opacity="0.9"/>
     </svg>
-    <span class="btn-label">Leaderboard</span>
   </NuxtLink>
 </template>
+
 <style scoped>
-.button {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: var(--app-border-radius, 0.5rem);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-    background-color: rgba(255, 255, 255, 0.05);
-    text-decoration: none;
-    font-family: 'Poppins', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
+.nav-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width:  var(--nav-icon-btn-size, 2rem);
+  height: var(--nav-icon-btn-size, 2rem);
+  border-radius: var(--radius-md, 0.5rem);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: all var(--transition-fast, 0.2s ease);
 }
 
-.button:hover {
-    background-color: rgba(255, 255, 255, 0.15);
+.nav-icon-btn svg {
+  width:  1.1rem;
+  height: 1.1rem;
 }
 
-.btn-label {
-    display: none;
+.nav-icon-btn:hover {
+  color: #f5a623;
+  border-color: rgba(245, 166, 35, 0.4);
+  background: rgba(245, 166, 35, 0.08);
+  transform: scale(1.08);
+  box-shadow: 0 0 0.5rem rgba(245, 166, 35, 0.12);
 }
 
-@media (min-width: 768px) {
-    .btn-label {
-        display: block;
-    }
+.nav-icon-btn:active {
+  transform: scale(0.94);
+  transition-duration: 0.08s;
+}
+
+.router-link-active.nav-icon-btn {
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.12);
+  border-color: rgba(245, 166, 35, 0.4);
 }
 </style>

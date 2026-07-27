@@ -146,10 +146,10 @@ const navigateToConversation = (conversationId) => {
 </template>
 <style scoped>
 .chat-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: var(--bg-primary);
   color: var(--text-white);
-  padding: 5rem 1rem 6rem 1rem;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -408,10 +408,6 @@ const navigateToConversation = (conversationId) => {
 
 /* Responsive Design Overrides for larger screens */
 @media (min-width: 768px) {
-  .chat-page {
-    padding: 6rem 2rem;
-  }
-  
   .section-header {
     flex-direction: row;
     align-items: center;

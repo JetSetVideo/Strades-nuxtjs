@@ -169,6 +169,7 @@ export const useAuth = () => {
       }
     }
     _clearTokens()
+    useCookie('strades_demo').value = null
     useTracking().stopHeartbeat()
     await navigateTo('/auth')
   }

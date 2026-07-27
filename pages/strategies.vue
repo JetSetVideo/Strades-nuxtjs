@@ -5,6 +5,12 @@ import Filters from '@/components/Filters.vue'
 import Comparator from '@/components/Comparator.vue'
 import { useStrategies } from '@/composables/useStrategies'
 
+definePageMeta({
+  title: 'Strategies',
+  description: 'Trading strategies hub',
+  layout: 'default',
+})
+
 const { strategies, fetchStrategies, updateStrategy, deleteStrategy, toggleStrategyStatus } = useStrategies()
 
 const selectedStrategies = ref<Record<string,any>[]>([])
@@ -226,9 +232,8 @@ onMounted(fetchStrategies)
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  min-height: 100vh;
-  padding-bottom: 80px;
+  padding: 0;
+  min-height: 100%;
 }
 
 /* ── Page header ── */
@@ -256,7 +261,6 @@ onMounted(fetchStrategies)
 
 @media (min-width: 768px) {
   .page-title { font-size: 2rem; }
-  .strategies-page { padding: 1.5rem 2rem; }
 }
 
 .strategy-count {

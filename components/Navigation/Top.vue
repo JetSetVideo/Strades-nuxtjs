@@ -12,18 +12,25 @@ defineProps({
 
 const drawerOpen = ref(false)
 const toggleDrawer = () => { drawerOpen.value = !drawerOpen.value }
+const { playHover, playClick } = useNavSound()
 </script>
 
 <template>
   <header class="top-nav" role="banner">
-    <NuxtLink to="/dashboard" class="brand-link" @click="drawerOpen = false">
+    <NuxtLink
+      to="/dashboard"
+      class="brand-link"
+      @mouseenter="playHover"
+      @click="drawerOpen = false; playClick()"
+    >
       <span class="brand-mark">◈</span>
       <span class="brand-word">STRADES</span>
     </NuxtLink>
     <button
       class="menu-btn"
       aria-label="Open menu"
-      @click="toggleDrawer"
+      @mouseenter="playHover"
+      @click="toggleDrawer(); playClick()"
     >
       <span class="bars"><span /><span /><span /></span>
     </button>
@@ -35,10 +42,10 @@ const toggleDrawer = () => { drawerOpen.value = !drawerOpen.value }
     />
 
     <div class="right-cluster">
+      <NavigationTopCalendarBtn />
       <slot />
     </div>
 
-    <!-- Drawer controlled by the brand button -->
     <DrawerMenu controlled :open="drawerOpen" @update:open="(v) => drawerOpen = v" />
   </header>
 </template>
@@ -58,6 +65,12 @@ const toggleDrawer = () => { drawerOpen.value = !drawerOpen.value }
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), inset 0 -1px 0 rgba(255,255,255,0.02);
   color: #fff;
   z-index: 50;
+  animation: nav-enter 0.35s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+@keyframes nav-enter {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
 }
 
 .brand-link {
@@ -73,9 +86,12 @@ const toggleDrawer = () => { drawerOpen.value = !drawerOpen.value }
   border-radius: var(--app-border-radius, 8px);
   text-decoration: none;
   flex-shrink: 0;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
-.brand-link:hover { background: rgba(255,255,255,0.03); }
+.brand-link:hover {
+  background: rgba(255,255,255,0.03);
+  color: var(--primary-green, #00ff88);
+}
 
 .menu-btn {
   display: inline-flex;
@@ -134,7 +150,6 @@ const toggleDrawer = () => { drawerOpen.value = !drawerOpen.value }
 
 @media (min-width: 1024px) {
   .top-nav { padding: 0.5rem var(--page-gutter, 1.5rem); height: 3.75rem; gap: 1rem; }
-  .brand-trigger { font-size: 0.85rem; padding: 0.45rem 0.7rem; }
   .search-bar { max-width: 36rem; }
 }
 

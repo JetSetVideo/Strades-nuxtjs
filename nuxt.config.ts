@@ -19,6 +19,8 @@ export default defineNuxtConfig({
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
       // Google Client ID for frontend Google Sign-In SDK
       googleClientId: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+      // Set to 'true' to enable demo mode (bypasses auth, no real backend needed)
+      demoMode: process.env.NUXT_PUBLIC_DEMO_MODE || 'false',
     }
   }
 })

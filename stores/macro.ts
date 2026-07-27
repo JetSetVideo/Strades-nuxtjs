@@ -20,9 +20,14 @@ export interface MacroState {
   dominant_geo_stress_region: GeoPoint
   active_flows: ActiveFlow[]
   last_updated: string
-  // pipeline metadata
   hydrated: boolean
   tick: number
+  // Derived from live price ticker (updated by prices.vue)
+  gainers_count: number
+  losers_count: number
+  avg_change_pct: number
+  top_gainer_pct: number
+  top_loser_pct: number
 }
 
 const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v))
@@ -44,7 +49,12 @@ export const useMacroStore = defineStore('macro', {
     active_flows: [],
     last_updated: new Date().toISOString(),
     hydrated: false,
-    tick: 0
+    tick: 0,
+    gainers_count: 0,
+    losers_count: 0,
+    avg_change_pct: 0,
+    top_gainer_pct: 0,
+    top_loser_pct: 0,
   }),
   actions: {
     async fetchMacroState() {
@@ -73,7 +83,6 @@ export const useMacroStore = defineStore('macro', {
         console.error('Failed to load macro state', e)
       }
     },
-    // Batched patch from the pipeline plugin; called via RAF
     applyTick(patch: Partial<MacroState>) {
       this.$patch({ ...patch, tick: this.tick + 1, last_updated: new Date().toISOString() })
     },
@@ -85,14 +94,30 @@ export const useMacroStore = defineStore('macro', {
     },
     pushFlow(flow: ActiveFlow) {
       this.active_flows = [flow, ...this.active_flows].slice(0, 8)
+    },
+    updateFromPriceChanges(changes: Record<string, number>) {
+      const vals = Object.values(changes).filter(v => Number.isFinite(v))
+      if (!vals.length) return
+      const gainers = vals.filter(v => v > 0)
+      const losers  = vals.filter(v => v < 0)
+      const avg     = vals.reduce((s, v) => s + v, 0) / vals.length
+
+      this.gainers_count  = gainers.length
+      this.losers_count   = losers.length
+      this.avg_change_pct = +avg.toFixed(3)
+      this.top_gainer_pct = gainers.length ? +Math.max(...gainers).toFixed(2) : 0
+      this.top_loser_pct  = losers.length  ? +Math.min(...losers).toFixed(2)  : 0
+
+      this.market_sentiment = Math.max(-1, Math.min(1, avg / 8))
+
+      const variance = vals.reduce((s, v) => s + (v - avg) ** 2, 0) / vals.length
+      const stdDev   = Math.sqrt(variance)
+      this.global_volatility_index = Math.min(1, stdDev / 15)
     }
   },
   getters: {
-    // Animation speed: high volatility = fast (0.3s), low = slow (2s)
     appAnimationSpeed: (state) => Math.max(0.3, 2.0 - state.global_volatility_index * 1.7),
-    // Lighting hue: stress shifts blue → red
     appLightingHue: (state) => 240 - state.geopolitical_stress * 210,
-    // Border radius: dominant class determines sharpness
     appBorderRadius: (state) => {
       switch (state.dominant_asset_class) {
         case 'crypto': return '4px'
@@ -101,33 +126,26 @@ export const useMacroStore = defineStore('macro', {
         default: return '16px'
       }
     },
-    // Density: derived from volatility AND dominant class (crypto + high vol = compact)
     appDensityScale: (state) => {
       const volContribution = state.global_volatility_index * 0.3
       const classContribution = state.dominant_asset_class === 'crypto' ? 0.2 : 0
       return clamp(1 - volContribution - classContribution, 0.6, 1)
     },
-    // Glow radius for liquid assets: higher liquidity = bigger soft halo
     glowRadiusPx: (state) => Math.round(4 + state.liquidity_index * 20),
-    // News pulse: count drives icon urgency
     newsPulseHz: (state) => clamp(state.news_pulse_count / 30, 0.05, 1),
-    // oklch fragment for tinting backgrounds
     ambientOklch(): string {
       const sentimentShift = (this as any).market_sentiment as number
       const lightness = 0.22 + sentimentShift * 0.06
       const hue = (this as any).appLightingHue as number
       return `oklch(${lightness.toFixed(3)} 0.05 ${hue.toFixed(1)})`
     },
-    // Weight (0..1) for each asset class — components use this to scale themselves
     classWeights: (state) => {
       const vols = state.volatility_by_class
       const sents = state.sentiment_by_class
       const out: Record<AssetClass, number> = { fiat: 0, crypto: 0, stocks: 0, commodities: 0 }
       ;(Object.keys(vols) as AssetClass[]).forEach(k => {
-        // Weight combines class volatility and sentiment magnitude
         out[k] = clamp(0.4 + vols[k] * 0.4 + Math.abs(sents[k]) * 0.2, 0.2, 1)
       })
-      // Dominant class gets a boost
       out[state.dominant_asset_class] = clamp(out[state.dominant_asset_class] + 0.15, 0.2, 1)
       return out
     }

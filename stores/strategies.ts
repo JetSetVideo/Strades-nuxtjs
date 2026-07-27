@@ -129,6 +129,37 @@ export const useStrategiesStore = defineStore('strategies', {
         .slice(0, 10)
     },
 
+    /**
+     * Up to 8 non-stopped strategies for the StrategyOrbitIcon widget.
+     * Each dot is colored by the strategy's dominant asset class (category),
+     * and dimmed if paused.
+     */
+    activeStrategiesForOrbit: (state) => {
+      const CLASS_COLOR: Record<string, string> = {
+        crypto:      '#F5A623',
+        bitcoin:     '#F5A623',
+        ethereum:    '#F5A623',
+        stocks:      '#00ff88',
+        stock:       '#00ff88',
+        equity:      '#00ff88',
+        fiat:        '#4A90E2',
+        forex:       '#4A90E2',
+        currency:    '#4A90E2',
+        commodities: '#F8E71C',
+        commodity:   '#F8E71C',
+        gold:        '#F8E71C',
+      }
+      return state.strategies
+        .filter(s => s.status !== 'stopped')
+        .slice(0, 8)
+        .map(s => ({
+          id:     s.id,
+          color:  CLASS_COLOR[s.category?.toLowerCase()] ?? '#aaaaaa',
+          status: s.status,
+          return_pct: s.total_return_percentage,
+        }))
+    },
+
     getRange: (state) => (key: keyof Strategy) => {
       if (state.strategies.length === 0) return { min: 0, max: 0 };
       

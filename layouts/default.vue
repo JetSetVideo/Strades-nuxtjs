@@ -22,7 +22,7 @@ const { data: notifications } = await useAsyncData<Notification[]>(
 )
 
 const unreadCount = computed(() => {
-  if (!notifications.value) return 0
+  if (!Array.isArray(notifications.value)) return 0
   return notifications.value.filter(n => !n.read).length
 })
 </script>
@@ -52,9 +52,9 @@ const unreadCount = computed(() => {
   max-width: 1320px;
   margin: 0 auto;
   padding:
-    calc(3.25rem + var(--page-gutter))
+    calc(3.25rem + 0.5rem)
     var(--page-gutter)
-    calc(4rem + var(--page-gutter))
+    calc(4rem + 0.5rem)
     var(--page-gutter);
   font-family: var(--font-family-secondary, 'Kanit', sans-serif);
   line-height: 1.45;
@@ -62,8 +62,17 @@ const unreadCount = computed(() => {
   box-sizing: border-box;
 }
 
+@media (min-width: 640px) {
+  .page-frame {
+    padding-top: calc(3.5rem + 0.5rem);
+  }
+}
+
 @media (min-width: 1024px) {
-  .page-frame { max-width: 1440px; }
+  .page-frame {
+    max-width: 1440px;
+    padding-top: calc(3.75rem + 0.5rem);
+  }
 }
 @media (min-width: 1536px) {
   .page-frame { max-width: 1680px; }

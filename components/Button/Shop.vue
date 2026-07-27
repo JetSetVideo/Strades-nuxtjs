@@ -1,29 +1,66 @@
-<script setup>
-
+<script setup lang="ts">
+const { playHover, playClick } = useNavSound()
 </script>
+
 <template>
-  <NuxtLink to="/shop" class="button">
-    <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24">
-        <path fill="white" d="M15.55 13c.75 0 1.41-.41 1.75-1.03l3.58-6.49A.996.996 0 0 0 20.01 4H5.21l-.94-2H1v2h2l3.6 7.59l-1.35 2.44C4.52 15.37 5.48 17 7 17h12v-2H7l1.1-2zM6.16 6h12.15l-2.76 5H8.53zM7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2s-.9-2-2-2m10 0c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2s2-.9 2-2s-.9-2-2-2" />
-	</svg>
-    <h1>Shop</h1>
+  <NuxtLink
+    to="/Shop"
+    class="nav-icon-btn"
+    title="Shop"
+    @mouseenter="playHover"
+    @click="playClick"
+  >
+    <!-- Shopping bag icon -->
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"
+            stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="3" y1="6" x2="21" y2="6"
+            stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M16 10a4 4 0 0 1-8 0"
+            stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
   </NuxtLink>
 </template>
+
 <style scoped>
-.button {
-    display: flex; /* Use flexbox */
-    justify-content: center; /* Center horizontally */
-    align-items: center; /* Center vertically */
-    gap: 0.5rem; /* Optional: adds space between the icon and the text */
-    
-    /* width: 50%; */
-    height: 2rem;
-    padding: 0.1rem;
-    border-radius: 0.5rem;
-    border: 1px solid rgba(121, 121, 121, 0.1);
-    
-    color: #ffffff;
-    background-color: rgba(121, 121, 121, 0.1);
+.nav-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width:  var(--nav-icon-btn-size, 2rem);
+  height: var(--nav-icon-btn-size, 2rem);
+  border-radius: var(--radius-md, 0.5rem);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: all var(--transition-fast, 0.2s ease);
+}
+
+.nav-icon-btn svg {
+  width:  1.1rem;
+  height: 1.1rem;
+}
+
+.nav-icon-btn:hover {
+  color: var(--primary-green, #00ff88);
+  border-color: rgba(0, 255, 136, 0.35);
+  background: rgba(0, 255, 136, 0.08);
+  transform: scale(1.08);
+  box-shadow: 0 0 0.5rem rgba(0, 255, 136, 0.12);
+}
+
+.nav-icon-btn:active {
+  transform: scale(0.94);
+  transition-duration: 0.08s;
+}
+
+.router-link-active.nav-icon-btn {
+  color: var(--primary-green, #00ff88);
+  background: rgba(0, 255, 136, 0.12);
+  border-color: rgba(0, 255, 136, 0.4);
 }
 </style>
-
