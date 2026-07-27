@@ -21,15 +21,9 @@ import { useWalletStore } from '@/stores/wallet'
 import { useStrategiesStore } from '@/stores/strategies'
 import type { Strategy } from '@/stores/strategies'
 import type { Wallet } from '@/stores/wallet'
+import type { AllocationPie } from '~/types/allocation'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
-
-export interface AllocationPie {
-  fiat: number
-  crypto: number
-  stocks: number
-  commodities: number
-}
 
 export interface PostSummary {
   id: string
@@ -127,7 +121,7 @@ export function useProfile(userId: Ref<string> | string) {
 
   const loadCommunities = async () => {
     try {
-      const allComms = await $fetch<any[]>('/data/Discussions.json')
+      const allComms = await $fetch<any[]>('/data/social/discussions.json')
       const memberIds = user.value?.communities ?? []
       communities.value = allComms.filter(c => memberIds.includes(c.id))
     } catch {

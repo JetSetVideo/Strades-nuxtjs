@@ -13,30 +13,28 @@ Data sources live under `public/data/` and are hydrated into Pinia stores at boo
 | `global/macro_state.json` | `macro.ts` | Global market state |
 | `global/events.json` | `macro.ts` | Calendar events |
 | `global/user_preferences.json` | `userPreferences.ts` | Logged-in user prefs |
-| `core/wallets.json` | `wallet.ts` | Wallet + positions |
+| `core/wallets.json` | `wallet.ts` | Wallet + positions (JSON fallback) |
 | `core/wallet_history.json` | `wallet.ts` | Historical P&L |
-| `core/users.json` | `users.ts` | User profiles (legacy) |
-| `user/users.json` | `users.ts` | Canonical user profiles |
-| `core/strategies.json` + `strategies/**` | `strategies.ts` | Strategy catalog |
+| `core/users.json` / `user/users.json` | `users.ts` | Canonical user profiles |
+| `core/strategies.json` (+ `strategies/index.json` fallback) | `strategies.ts` | Strategy catalog (normalized) |
 | `core/bots.json` | `bots.ts` | Bots (running agents) |
 | `core/community.json` | `community.ts` | Friends / followers |
 | `core/influencers.json` | `influencers.ts` | Signal providers |
 | `core/trading_platforms.json` | `platforms.ts` | Connected platforms |
+| `core/datasources.json` | Selector/CodeView | Datasource catalogue |
 | `agents/avatars.json` | `agents.ts` | AI avatars (swarm nodes) |
 | `agents/training_log.json` | `training.ts` | Avatar training history |
-| `social/posts.json` | (fetched by pages) | Social posts + NLP enrichment |
-| `social/notifications.json` | (via `notifications`) | Notifications |
+| `social/posts.json` | pages / useProfile | Social posts + NLP enrichment |
+| `social/discussions.json` | useProfile | Community discussions |
+| `social/notifications.json` | (via notifications) | Notifications |
 | `social/bookmarks.json` | `news.ts` | Article bookmarks |
-| `chat/conversations.json`, `chat/messages.json` | `chat.ts` | Messaging |
-| `companies/{apple,amazon,tesla}.json` | (per-page) | Corporate deep-dives |
-| `supply_chain/{btc,eth,sol,aapl,amzn,tsla,usd,eur,cny}.json` | (per-page) | Supply chain graphs |
-| `relationships/*.json` | (per-page) | Company/industry/strategy/user graphs |
-| `competitions/*.json` | (per-page) | Leaderboards |
-| `quests/*.json` | (per-page) | Gamification |
-| `tracking/*.json` | `tracking.ts` | Behavior analytics |
-| `predictions.json` | `predictions.ts` | Community predictions |
-| `shared_data.json` | `sharedData.ts` | Cross-user shared items |
-| `search/{suggestions,history}.json` | (per-page) | Search |
+| `chat/conversations.json`, `chat/messages.json` | `chat.ts` | Messaging (API-first) |
+| `user/statistics.json` | profile pages | Trading statistics |
+| `shared_data.json` | `shares.ts` | Cross-user shared items |
+| Django `NUXT_PUBLIC_API_BASE` | auth, assets, chat, portfolio, tracking | Live backend |
+
+Canonical TypeScript domain types live under `types/{asset,strategy,user,allocation,agent}.ts`.
+
 
 ---
 

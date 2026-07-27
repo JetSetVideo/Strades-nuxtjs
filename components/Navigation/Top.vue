@@ -42,6 +42,8 @@ const { playHover, playClick } = useNavSound()
     />
 
     <div class="right-cluster">
+      <NavigationTopContextActions />
+      <NavigationTopGmtClock />
       <NavigationTopCalendarBtn />
       <slot />
     </div>
@@ -55,7 +57,7 @@ const { playHover, playClick } = useNavSound()
   position: fixed; top: 0; left: 0; right: 0;
   display: flex; flex-direction: row; align-items: center;
   width: 100%;
-  height: 3.25rem;
+  height: var(--nav-top-height, 3.25rem);
   padding: 0.35rem var(--page-gutter, 0.75rem);
   gap: 0.5rem;
   background: linear-gradient(180deg, rgba(12,12,16,0.92) 0%, rgba(18,18,24,0.88) 100%);
@@ -141,7 +143,7 @@ const { playHover, playClick } = useNavSound()
 @media (min-width: 640px) {
   .top-nav {
     padding: 0.45rem var(--page-gutter, 1rem);
-    height: 3.5rem;
+    height: var(--nav-top-height-md, 3.5rem);
     gap: 0.75rem;
   }
   .brand-word { display: inline; }
@@ -149,7 +151,7 @@ const { playHover, playClick } = useNavSound()
 }
 
 @media (min-width: 1024px) {
-  .top-nav { padding: 0.5rem var(--page-gutter, 1.5rem); height: 3.75rem; gap: 1rem; }
+  .top-nav { padding: 0.5rem var(--page-gutter, 1.5rem); height: var(--nav-top-height-lg, 3.75rem); gap: 1rem; }
   .search-bar { max-width: 36rem; }
 }
 

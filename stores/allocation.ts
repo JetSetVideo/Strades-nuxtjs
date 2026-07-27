@@ -1,11 +1,8 @@
 import { defineStore } from 'pinia'
+import type { AllocationPie } from '~/types/allocation'
+import { EQUAL_ALLOCATION_PIE } from '~/types/allocation'
 
-export interface AllocationPie {
-  fiat: number
-  crypto: number
-  stocks: number
-  commodities: number
-}
+export type { AllocationPie } from '~/types/allocation'
 
 export interface AllocationState {
   userId: string
@@ -15,17 +12,18 @@ export interface AllocationState {
 }
 
 export const useAllocationStore = defineStore('allocation', {
-  state: (): AllocationState => ({
-    userId: 'user_001',
-    baseCurrency: 'USD',
-    allocationPie: {
-      fiat: 25,
-      crypto: 25,
-      stocks: 25,
-      commodities: 25
-    },
-    flowVelocity: 0.1
-  }),
+  state: (): AllocationState => {
+    let userId = 'user_001'
+    try {
+      userId = useCurrentUser().getUserId()
+    } catch { /* early init */ }
+    return {
+      userId,
+      baseCurrency: 'USD',
+      allocationPie: { ...EQUAL_ALLOCATION_PIE },
+      flowVelocity: 0.1
+    }
+  },
   actions: {
     updateAllocation(category: keyof AllocationPie, newPercentage: number) {
       const oldPercentage = this.allocationPie[category]

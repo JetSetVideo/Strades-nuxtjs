@@ -4,11 +4,12 @@
  * Replaces the old bare-bones Comparator.vue.
  */
 import { computed } from 'vue'
+import type { Strategy } from '~/types/strategy'
 import { useStrategies } from '@/composables/useStrategies'
 import UIPill from '@/components/UI/Pill.vue'
 
 const props = withDefaults(defineProps<{
-  strategies: any[]
+  strategies: Strategy[]
   onClose?: () => void
 }>(), { strategies: () => [], onClose: () => {} })
 
@@ -17,20 +18,22 @@ const emit = defineEmits<{ clone: [id: string] }>()
 const { generateComplementary, generateOpposite } = useStrategies()
 
 const METRICS = [
-  { key: 'total_return_percentage', label: 'Total Return', fmt: (v: number) => `${v >= 0 ? '+' : ''}${(v ?? 0).toFixed(2)}%`, tone: true },
-  { key: 'sharpe_ratio', label: 'Sharpe', fmt: (v: number) => (v ?? 0).toFixed(3), tone: false },
-  { key: 'win_rate', label: 'Win Rate', fmt: (v: number) => `${(v ?? 0).toFixed(1)}%`, tone: false },
-  { key: 'max_drawdown', label: 'Max DD', fmt: (v: number) => `${(v ?? 0).toFixed(1)}%`, tone: 'reverse' },
-  { key: 'total_trades', label: 'Trades', fmt: (v: number) => String(v ?? 0), tone: false },
-  { key: 'annual_return', label: 'Annual Return', fmt: (v: number) => `${v >= 0 ? '+' : ''}${(v ?? 0).toFixed(1)}%`, tone: true, nested: 'performance_metrics' },
-  { key: 'volatility', label: 'Volatility', fmt: (v: number) => `${(v ?? 0).toFixed(1)}%`, tone: 'reverse', nested: 'performance_metrics' },
-  { key: 'alpha', label: 'Alpha', fmt: (v: number) => (v ?? 0).toFixed(3), tone: true, nested: 'performance_metrics' },
-  { key: 'beta', label: 'Beta', fmt: (v: number) => (v ?? 0).toFixed(3), tone: false, nested: 'performance_metrics' },
+  { key: 'total_return_percentage', label: 'Total Return', fmt: (v: number) => `${v >= 0 ? '+' : ''}${(v ?? 0).toFixed(2)}%`, tone: true as boolean | 'reverse' },
+  { key: 'sharpe_ratio', label: 'Sharpe', fmt: (v: number) => (v ?? 0).toFixed(3), tone: false as boolean | 'reverse' },
+  { key: 'win_rate', label: 'Win Rate', fmt: (v: number) => `${(v ?? 0).toFixed(1)}%`, tone: false as boolean | 'reverse' },
+  { key: 'max_drawdown', label: 'Max DD', fmt: (v: number) => `${(v ?? 0).toFixed(1)}%`, tone: 'reverse' as boolean | 'reverse' },
+  { key: 'total_trades', label: 'Trades', fmt: (v: number) => String(v ?? 0), tone: false as boolean | 'reverse' },
+  { key: 'annual_return', label: 'Annual Return', fmt: (v: number) => `${v >= 0 ? '+' : ''}${(v ?? 0).toFixed(1)}%`, tone: true as boolean | 'reverse', nested: 'performance_metrics' },
+  { key: 'volatility', label: 'Volatility', fmt: (v: number) => `${(v ?? 0).toFixed(1)}%`, tone: 'reverse' as boolean | 'reverse', nested: 'performance_metrics' },
+  { key: 'alpha', label: 'Alpha', fmt: (v: number) => (v ?? 0).toFixed(3), tone: true as boolean | 'reverse', nested: 'performance_metrics' },
+  { key: 'beta', label: 'Beta', fmt: (v: number) => (v ?? 0).toFixed(3), tone: false as boolean | 'reverse', nested: 'performance_metrics' },
 ]
 
-function getVal(s: any, metric: typeof METRICS[0]): number {
-  if (metric.nested && s.performance_metrics) return s.performance_metrics[metric.key] ?? 0
-  return s[metric.key] ?? 0
+function getVal(s: Strategy, metric: typeof METRICS[0]): number {
+  if (metric.nested && s.performance_metrics) {
+    return (s.performance_metrics as Record<string, number>)[metric.key] ?? 0
+  }
+  return (s as Record<string, unknown>)[metric.key] as number ?? 0
 }
 
 function toneColor(val: number, toneDef: boolean | 'reverse'): string {

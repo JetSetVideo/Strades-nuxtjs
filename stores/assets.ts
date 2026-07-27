@@ -1,41 +1,8 @@
 import { defineStore } from 'pinia'
 import { usePriceCache } from '~/composables/usePriceCache'
+import type { Asset, AssetRelationship } from '~/types/asset'
 
-// Types for the new data structure
-export interface Asset {
-  id: string
-  symbol: string
-  name: string
-  type: 'cryptocurrency' | 'fiat_currency' | 'stock'
-  category: string
-  description: string
-  location: string
-  industry: string
-  market_cap?: number
-  current_price: number
-  currency: string
-  similar_assets: string[]
-  depends_on: string[]
-  proximity_level: number
-  tags: string[]
-  icon_url: string
-  website: string
-  launch_date: string
-  created_at: string
-  updated_at: string
-}
-
-export interface AssetRelationship {
-  id: string
-  asset_id: string
-  related_asset_id: string
-  relationship_type: 'similar' | 'dependency' | 'competitor' | 'supplier' | 'paired'
-  strength: number
-  description: string
-  correlation_coefficient: number
-  created_at: string
-  updated_at: string
-}
+export type { Asset, AssetRelationship } from '~/types/asset'
 
 export const useAssetsStore = defineStore('assets', {
   state: () => ({
@@ -88,7 +55,24 @@ export const useAssetsStore = defineStore('assets', {
       const { accessToken } = useAuth()
 
       try {
-        // Try backend API first (handles DRF paginated response)
+        // Prefer shared $api (Bearer + 401 refresh) when available
+        const { $api } = useNuxtApp()
+        const raw = await ($api as typeof $fetch)<{ count: number; results: Asset[] } | Asset[]>(
+          '/api/assets/'
+        )
+        const assets: Asset[] = Array.isArray(raw)
+          ? raw
+          : (raw as { results?: Asset[] }).results ?? []
+        this.assets = assets
+        this.fromCache = false
+        this.lastUpdated = new Date()
+        priceCache.saveAssets(assets)
+        return
+      } catch {
+        // Fall through — try raw $fetch then local JSON
+      }
+
+      try {
         const raw = await $fetch<{ count: number; results: Asset[] } | Asset[]>(
           `${apiBase}/api/assets/`,
           {
@@ -97,7 +81,9 @@ export const useAssetsStore = defineStore('assets', {
               : undefined,
           }
         )
-        const assets: Asset[] = Array.isArray(raw) ? raw : (raw as any).results ?? []
+        const assets: Asset[] = Array.isArray(raw)
+          ? raw
+          : (raw as { results?: Asset[] }).results ?? []
         this.assets = assets
         this.fromCache = false
         this.lastUpdated = new Date()

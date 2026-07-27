@@ -12,6 +12,7 @@ import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import NewsCard from '@/components/Widget/NewsCard.vue'
 import SocialArticlePost from '@/components/Social/ArticlePost.vue'
 import NewsInfluencerRail from '@/components/News/InfluencerRail.vue'
+import NewsComposerModal from '@/components/News/ComposerModal.vue'
 import MapButton from '@/components/Map/MapButton.vue'
 import type { MapMarker } from '@/components/Map/WorldMap.vue'
 import type { TabItem } from '@/components/UI/SectionTabs.vue'
@@ -54,12 +55,24 @@ onMounted(async () => {
 
   // Seed opinion profiler from existing posts for a first-use profile
   const opinionProfile = useOpinionProfileStore()
-  if (opinionProfile.getProfile('user_001').sample_count < 3 && postsRes.length > 0) {
+  const { getUserId } = useCurrentUser()
+  const uid = getUserId()
+  if (opinionProfile.getProfile(uid).sample_count < 3 && postsRes.length > 0) {
     postsRes.slice(0, 5).forEach((p: any) => {
-      opinionProfile.recordRead('user_001', { id: p.id, author_id: p.author_id, category: p.category, political_leaning: p.political_leaning, economic_leaning: p.economic_leaning, sentiment: p.sentiment, weight: p.weight })
+      opinionProfile.recordRead(uid, { id: p.id, author_id: p.author_id, category: p.category, political_leaning: p.political_leaning, economic_leaning: p.economic_leaning, sentiment: p.sentiment, weight: p.weight })
     })
   }
 })
+
+// Top-bar "Post" action opens the composer
+const composerOpen = ref(false)
+usePageAction().onPageAction('news:compose', () => { composerOpen.value = true })
+
+const handlePublish = (post: Record<string, unknown>) => {
+  posts.value.unshift(post)
+  tab.value = 'sentiment'
+  sortMode.value = 'time'
+}
 
 const sortedPosts = computed(() => {
   const list = [...posts.value]
@@ -135,6 +148,8 @@ const newsMapMarkers = computed<MapMarker[]>(() =>
     <template v-else>
       <NewsInfluencerRail :influencers="influencers.latestSignals" />
     </template>
+
+    <NewsComposerModal :open="composerOpen" @update:open="composerOpen = $event" @publish="handlePublish" />
   </UIScreenShell>
 </template>
 

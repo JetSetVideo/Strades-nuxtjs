@@ -39,6 +39,7 @@ const allocation = useAllocationStore()
 const platforms = usePlatformsStore()
 const bots = useBotsStore()
 const opinions = useOpinionsStore()
+const { userId } = useCurrentUser()
 
 const selectedWalletId = ref<string>('wallet_001')
 const period = ref<'1d' | '7d' | '30d' | '90d' | '1y'>('30d')
@@ -48,7 +49,7 @@ onMounted(async () => {
   if (!platforms.hydrated) await platforms.fetchPlatforms()
   if (!bots.hydrated) await bots.fetchBots()
   if (!selectedWalletId.value || !walletStore.getWalletById(selectedWalletId.value)) {
-    const def = walletStore.getDefaultWallet('user_001')
+    const def = walletStore.getDefaultWallet(userId.value)
     selectedWalletId.value = def?.id ?? walletStore.wallets[0]?.id
   }
 })

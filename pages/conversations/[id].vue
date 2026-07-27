@@ -9,6 +9,7 @@ import DatabaseButton from '@/components/Button/Database.vue';
 import ChatShareBar from '@/components/Chat/ShareBar.vue';
 import ChatSharePayload from '@/components/Chat/SharePayload.vue';
 import ChatSharedContextPanel from '@/components/Chat/SharedContextPanel.vue';
+import ChatNewMessageModal from '@/components/Chat/NewMessageModal.vue';
 
 const route = useRoute();
 const conversationId = route.params.id;
@@ -24,8 +25,11 @@ const isLoading = ref(true);
 const editingMessage = ref(null)
 const fileAttachment = ref(null)
 
-// Assuming current user is user_001
-const currentUserId = 'user_001';
+const { userId: currentUserId, getUserId } = useCurrentUser();
+
+// Top-bar "Message" action opens the new-message modal
+const newMessageModalOpen = ref(false);
+usePageAction().onPageAction('chat:new-message', () => { newMessageModalOpen.value = true; });
 
 onMounted(async () => {
   try {
@@ -37,7 +41,7 @@ onMounted(async () => {
     messages.value = chatStore.getConversationMessages(conversationId);
 
     // Mark messages as read
-    chatStore.markMessagesAsRead(conversationId, currentUserId);
+    chatStore.markMessagesAsRead(conversationId, getUserId());
   } catch (error) {
     console.error('Failed to load conversation:', error);
   } finally {
@@ -47,7 +51,7 @@ onMounted(async () => {
 
 const getOtherParticipant = computed(() => {
   if (!conversation.value) return null;
-  return conversation.value.participants.find(p => p !== currentUserId);
+  return conversation.value.participants.find(p => p !== getUserId());
 });
 
 const getOtherParticipantInfo = computed(() => {
@@ -81,10 +85,11 @@ const refreshMessages = () => {
 const sendMessage = () => {
   if (!newMessage.value.trim()) return;
 
+  const uid = getUserId();
   const messageData = {
     conversation_id: conversationId,
-    sender_id: currentUserId,
-    recipient_ids: conversation.value.participants.filter(p => p !== currentUserId),
+    sender_id: uid,
+    recipient_ids: conversation.value.participants.filter(p => p !== uid),
     content: newMessage.value,
     message_type: 'text',
     attachments: [],
@@ -108,14 +113,15 @@ const sendMessage = () => {
 
 const shareContent = (kind) => {
   if (!conversation.value) return;
-  const recipients = conversation.value.participants.filter(p => p !== currentUserId);
+  const uid = getUserId();
+  const recipients = conversation.value.participants.filter(p => p !== uid);
   const opinion = agents.personal?.opinion_vector;
 
   const record = sharesStore.share({
     kind,
     conversation_id: String(conversationId),
     recipient_ids: recipients,
-    sender_id: currentUserId,
+    sender_id: uid,
     asset_symbol: kind === 'asset' ? 'BTC' : undefined,
     asset_id: kind === 'asset' ? 'btc' : undefined,
     strategy_id: kind === 'strategy' ? 'strategy_001' : undefined,
@@ -130,7 +136,7 @@ const shareContent = (kind) => {
 
   chatStore.sendMessage({
     conversation_id: conversationId,
-    sender_id: currentUserId,
+    sender_id: uid,
     recipient_ids: recipients,
     content: newMessage.value.trim() || `Shared ${kind}`,
     message_type: 'text',
@@ -157,7 +163,7 @@ const scrollToBottom = () => {
 };
 
 const addReaction = (messageId, reaction) => {
-  chatStore.addReaction(messageId, currentUserId, reaction);
+  chatStore.addReaction(messageId, getUserId(), reaction);
 };
 
 const startReply = (messageId) => {
@@ -345,6 +351,8 @@ const handleFile = (e) => {
         </div>
       </div>
     </div>
+
+    <ChatNewMessageModal :open="newMessageModalOpen" @update:open="newMessageModalOpen = $event" />
   </div>
 </template>
 

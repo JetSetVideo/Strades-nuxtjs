@@ -39,7 +39,7 @@ const CATS = [
 ]
 
 onMounted(async () => {
-  try { sources.value = await $fetch<DataSource[]>('/data/Datasources.json') }
+  try { sources.value = await $fetch<DataSource[]>('/data/core/datasources.json') }
   catch { sources.value = [] }
 })
 

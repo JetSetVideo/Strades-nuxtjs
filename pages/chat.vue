@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { navigateTo } from '#app';
 import { useChatStore } from '@/stores/chat';
 import { useUsersStore } from '@/stores/users';
+import ChatNewMessageModal from '@/components/Chat/NewMessageModal.vue';
 
 definePageMeta({
     title: "Messages",
@@ -14,8 +15,7 @@ const chatStore = useChatStore();
 const usersStore = useUsersStore();
 const isLoading = ref(true);
 
-// Assuming current user is user_001 (the main user)
-const currentUserId = 'user_001';
+const { userId: currentUserId, getUserId } = useCurrentUser();
 
 onMounted(async () => {
   try {
@@ -29,11 +29,11 @@ onMounted(async () => {
 });
 
 const userConversations = computed(() => {
-  return chatStore.getRecentConversations(currentUserId);
+  return chatStore.getRecentConversations(getUserId());
 });
 
 const getOtherParticipant = (conversation) => {
-  return conversation.participants.find(p => p !== currentUserId);
+  return conversation.participants.find(p => p !== getUserId());
 };
 
 const getUserInfo = (userId) => {
@@ -55,13 +55,17 @@ const formatLastMessageTime = (timestamp) => {
 };
 
 const getUnreadCount = (conversation) => {
-  const unreadKey = `unread_count_${currentUserId}`;
+  const unreadKey = `unread_count_${getUserId()}`;
   return conversation[unreadKey] || 0;
 };
 
 const navigateToConversation = (conversationId) => {
   navigateTo(`/conversations/${conversationId}`);
 };
+
+// Top-bar "Message" action opens the new-message modal
+const newMessageOpen = ref(false);
+usePageAction().onPageAction('chat:new-message', () => { newMessageOpen.value = true; });
 </script>
 <template>
   <div class="chat-page">
@@ -94,6 +98,7 @@ const navigateToConversation = (conversationId) => {
         <div class="empty-icon">💭</div>
         <h3>No conversations yet</h3>
         <p>Start chatting with other traders to discuss strategies and market insights.</p>
+        <button class="start-btn" @click="newMessageOpen = true">+ New message</button>
       </div>
 
       <div v-else class="conversations-list">
@@ -142,6 +147,8 @@ const navigateToConversation = (conversationId) => {
         </div>
       </div>
     </div>
+
+    <ChatNewMessageModal :open="newMessageOpen" @update:open="newMessageOpen = $event" />
   </div>
 </template>
 <style scoped>
@@ -152,7 +159,7 @@ const navigateToConversation = (conversationId) => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--page-gap, 0.6rem);
 }
 
 .loading-state {
@@ -182,14 +189,14 @@ const navigateToConversation = (conversationId) => {
 .chatbot {
   background: var(--card-bg);
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
+  padding: var(--card-pad, 0.85rem);
   border: 1px solid var(--border-primary);
   box-shadow: var(--shadow-primary);
 }
 
 .chatbot-header {
   text-align: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.6rem;
 }
 
 .chatbot-header h3 {
@@ -209,7 +216,12 @@ const navigateToConversation = (conversationId) => {
 .chatbot-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .chatbot-actions { flex-direction: row; }
+  .chatbot-btn { flex: 1; }
 }
 
 .chatbot-btn {
@@ -240,8 +252,8 @@ const navigateToConversation = (conversationId) => {
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
-  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  gap: 0.25rem;
 }
 
 .section-header h2 {
@@ -286,17 +298,31 @@ const navigateToConversation = (conversationId) => {
   margin: 0 auto;
 }
 
+.start-btn {
+  margin-top: 1rem;
+  background: rgba(0,170,255,0.1);
+  border: 1px solid rgba(0,170,255,0.35);
+  color: var(--primary-blue, #00aaff);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.start-btn:hover { background: rgba(0,170,255,0.2); }
+
 .conversations-list {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: var(--card-gap, 0.5rem);
 }
 
 .conversation-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
   background: var(--card-bg);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-primary);

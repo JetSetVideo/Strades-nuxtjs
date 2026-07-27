@@ -10,7 +10,7 @@ const props = defineProps<{ code: Record<string, any> }>()
 // ── Local datasource catalogue for enriching IDs ──────────────────────────
 const dsCatalogue = ref<DataSource[]>([])
 onMounted(async () => {
-  try { dsCatalogue.value = await $fetch<DataSource[]>('/data/Datasources.json') } catch { /* ok */ }
+  try { dsCatalogue.value = await $fetch<DataSource[]>('/data/core/datasources.json') } catch { /* ok */ }
 })
 
 const getDsInfo = (id: string) => dsCatalogue.value.find(d => d.id === id)

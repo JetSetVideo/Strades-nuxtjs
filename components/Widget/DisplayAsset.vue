@@ -14,14 +14,14 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from '#app'
+import type { Asset } from '~/types/asset'
+import { useLivingUI } from '~/composables/useLivingUI'
 import PriceIntuition from '@/components/Widget/PriceIntuition.vue'
 import { usePredictionsStore } from '@/stores/predictions'
 
 // ── Props ──────────────────────────────────────────────────────────────────
 const props = defineProps<{
-  // Preferred: full asset object from assetsStore
-  asset?: Record<string, any>
-  // Legacy individual props (backwards-compat)
+  asset?: Asset | Record<string, unknown>
   assetName?: string
   tagName?: string
   nominalPrice?: string | number
@@ -29,13 +29,17 @@ const props = defineProps<{
   profileIcon?: string
   assetId?: string
   liquidityDepth?: number
-  // Stable % change (pre-computed by parent, avoids re-render jitter)
   priceChangePct?: number
-  // Current user ID for predictions
   userId?: string
 }>()
 
 defineEmits<{ click: [id: string] }>()
+
+const livingAsset = computed(() => props.asset as Asset | undefined)
+const { dynamicStyles } = useLivingUI({
+  liquidity: props.liquidityDepth ?? livingAsset.value?.liquidity_depth ?? 0.5,
+  confidence: 0.65,
+})
 
 // Navigate to the asset detail page
 function goToAssetPage(e: MouseEvent) {
@@ -74,11 +78,24 @@ const changePct = computed((): number => {
 })
 
 // Psychology fields from asset JSON
-const volatility   = computed<number>(() => props.asset?.psychology_profile?.volatility_index ?? props.asset?.volatility ?? 0.3)
-const confidence   = computed<number>(() => props.asset?.psychology_profile?.investor_confidence ?? 0.6)
-const sentiment    = computed<string>(() => props.asset?.psychology_profile?.market_sentiment ?? 'neutral')
-const marketCap    = computed<number>(() => props.asset?.market_cap ?? 0)
-const liquidity    = computed<number>(() => props.liquidityDepth ?? props.asset?.liquidity_depth ?? 0.5)
+const volatility = computed<number>(() => {
+  const a = livingAsset.value
+  return a?.fluctuation_velocity
+    ?? (a?.psychology_profile?.volatility_affinity as number | undefined)
+    ?? (props.asset as Record<string, any> | undefined)?.psychology_profile?.volatility_index
+    ?? (props.asset as Record<string, any> | undefined)?.volatility
+    ?? 0.3
+})
+const confidence = computed<number>(() =>
+  (props.asset as Record<string, any> | undefined)?.psychology_profile?.investor_confidence ?? 0.6
+)
+const sentiment = computed<string>(() =>
+  (props.asset as Record<string, any> | undefined)?.psychology_profile?.market_sentiment ?? 'neutral'
+)
+const marketCap = computed<number>(() => livingAsset.value?.market_cap ?? 0)
+const liquidity = computed<number>(() =>
+  props.liquidityDepth ?? livingAsset.value?.liquidity_depth ?? 0.5
+)
 
 // ── Design.md visual mappings ─────────────────────────────────────────────
 
@@ -206,6 +223,7 @@ const assetAlerts = computed(() =>
   <div
     class="widget-asset"
     :style="{
+      ...dynamicStyles,
       borderRadius: cardRadius,
       boxShadow: cardGlow,
       '--da-pulse': pulseSpeed,

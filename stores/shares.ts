@@ -47,16 +47,24 @@ export const useSharesStore = defineStore('shares', {
       title: string
       description?: string
       type: string
+      sharedBy?: string
       sharedById: string
       sharedAt: string
       relatedAssets: string[]
+      tags?: string[]
+      source?: string
       discussionId: string
       url?: string
+      engagement?: { likes: number; comments: number; shares: number }
     }>,
     hydrated: false
   }),
 
   getters: {
+    getLibraryByDiscussion: (state) => (discussionId: string) => {
+      return state.library.filter(item => item.discussionId === discussionId)
+    },
+
     forConversation: (state) => (conversationId: string): ShareContextItem[] => {
       const fromSession = state.sessionShares
         .filter(s => s.conversation_id === conversationId)

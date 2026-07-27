@@ -35,8 +35,8 @@ defineEmits<{ (e: 'update:modelValue', id: string): void }>()
 .section-tabs {
   display: flex;
   gap: 0.25rem;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--edge-soft, rgba(255,255,255,0.06));
+  padding-bottom: 0.35rem;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -64,9 +64,10 @@ button {
 button:hover { color: #fff; }
 
 button.active {
-  background: rgba(0,255,136,0.08);
+  background: linear-gradient(180deg, rgba(0,255,136,0.12) 0%, rgba(0,255,136,0.03) 100%);
   color: var(--primary-green, #00ff88);
   border-color: rgba(0,255,136,0.25);
+  box-shadow: var(--shadow-depth-1, 0 1px 2px rgba(0,0,0,0.4));
 }
 
 .tab-count {

@@ -261,24 +261,15 @@ export const useChatStore = defineStore('chat', {
       this.loading = true
       this.error = null
 
-      // Try backend first
+      // Try backend first via $api (Bearer + 401 refresh)
       try {
-        const { accessToken } = useAuth()
-        const config = useRuntimeConfig()
-        const apiBase = config.public.apiBase as string
-
-        const data = await $fetch<BackendConversation[]>('/api/social/conversations/', {
-          baseURL: apiBase,
-          headers: accessToken.value
-            ? { Authorization: `Bearer ${accessToken.value}` }
-            : {},
-        })
+        const { $api } = useNuxtApp()
+        const data = await ($api as typeof $fetch)<BackendConversation[]>('/api/social/conversations/')
         this.conversations = data.map(mapBackendConversation)
+        this.loading = false
         return
       } catch (backendError) {
         console.warn('Backend conversations fetch failed, falling back to local JSON:', backendError)
-      } finally {
-        this.loading = false
       }
 
       // Fall back to local JSON
@@ -288,6 +279,8 @@ export const useChatStore = defineStore('chat', {
       } catch (error) {
         this.error = error as Error
         console.error('Failed to fetch conversations from local JSON:', error)
+      } finally {
+        this.loading = false
       }
     },
 

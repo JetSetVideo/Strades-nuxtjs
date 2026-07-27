@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useStrategies } from '@/composables/useStrategies'
+import { useStrategiesStore } from '@/stores/strategies'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
@@ -20,17 +20,19 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const { getStrategyById } = useStrategies()
+const strategiesStore = useStrategiesStore()
 
-const strategy = ref<any>(null)
+const strategy = ref<ReturnType<typeof strategiesStore.getStrategyById>>(null)
 const isLoading = ref(true)
 const isTesting = ref(false)
 
-onMounted(() => {
-  // Strategy ids in this app are strings; tolerate both via coercion.
+onMounted(async () => {
+  if (strategiesStore.strategies.length === 0) {
+    await strategiesStore.fetchStrategies()
+  }
   const raw = route.params.id
-  const lookup = Array.isArray(raw) ? raw[0] : raw
-  strategy.value = getStrategyById(lookup as any) || getStrategyById(parseInt(lookup as string) as any)
+  const lookup = Array.isArray(raw) ? raw[0] : String(raw)
+  strategy.value = strategiesStore.getStrategyById(lookup) ?? null
   isLoading.value = false
   if (!strategy.value) {
     setTimeout(() => router.push('/strategies'), 1200)

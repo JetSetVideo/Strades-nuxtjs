@@ -72,7 +72,7 @@ const counterparties = computed<Counterparty[]>(() => {
 })
 
 const riskByRole = computed(() => {
-  const volByClass = macroStore.macroState?.volatility_by_class ?? {}
+  const volByClass = macroStore.volatility_by_class ?? {}
   const map: Record<string, number> = { supplier: 0, customer: 0, facility: 0, commodity: 0 }
   for (const c of counterparties.value) {
     map[c.role] += c.weight

@@ -58,13 +58,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useLivingUI } from '~/composables/useLivingUI'
 import { useOpinionProfileStore } from '~/stores/opinionProfile'
 import { useAgentTracker } from '~/composables/useAgentTracker'
-
-export interface AllocationPie {
-  fiat: number
-  crypto: number
-  stocks: number
-  commodities: number
-}
+import type { AllocationPie } from '~/types/allocation'
 
 export interface Post {
   id: string
@@ -89,6 +83,7 @@ const { dynamicStyles } = useLivingUI({ confidence: 1 - props.post.controversy_i
 // ── Opinion tracking (Phase 23): record article read + political view ────
 const opinionStore = useOpinionProfileStore()
 const tracker = useAgentTracker()
+const { getUserId } = useCurrentUser()
 let recorded = false
 let dwellStart = 0
 
@@ -97,7 +92,7 @@ const recordView = () => {
   recorded = true
   const dwell = Date.now() - dwellStart
   // Feed the opinion profiler (political / economic / sentiment leaning)
-  opinionStore.recordRead('user_001', {
+  opinionStore.recordRead(getUserId(), {
     id: props.post.id,
     author_id: props.post.author_id,
     category: props.post.category,
@@ -126,7 +121,7 @@ const toggleLike = () => { liked.value = !liked.value }
 
 const onShare = () => {
   // Share carries 2× weight in the opinion profiler (stronger signal than read)
-  opinionStore.recordShare('user_001', {
+  opinionStore.recordShare(getUserId(), {
     id: props.post.id,
     author_id: props.post.author_id,
     category: props.post.category,

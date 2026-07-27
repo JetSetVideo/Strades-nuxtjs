@@ -8,23 +8,9 @@
  *  - Automatic token refresh on 401
  */
 
-export interface AuthUser {
-  id: string
-  email: string
-  username: string | null
-  first_name: string
-  last_name: string
-  display_name: string
-  full_name: string
-  avatar_url: string | null
-  bio: string
-  role: 'user' | 'premium' | 'admin'
-  auth_provider: 'email' | 'google'
-  email_verified: boolean
-  preferences: Record<string, unknown>
-  created_at: string
-  updated_at: string
-}
+import type { AuthUser } from '~/types/user'
+
+export type { AuthUser } from '~/types/user'
 
 interface AuthResponse {
   user: AuthUser
@@ -170,6 +156,9 @@ export const useAuth = () => {
     }
     _clearTokens()
     useCookie('strades_demo').value = null
+    try {
+      usePriceCache().clearAll()
+    } catch { /* ignore */ }
     useTracking().stopHeartbeat()
     await navigateTo('/auth')
   }

@@ -7,7 +7,6 @@ import { useUserPreferencesStore } from '@/stores/userPreferences'
 import { useTrainingStore } from '@/stores/training'
 import { useActivityLogStore } from '@/stores/activityLog'
 import { useBotsStore } from '@/stores/bots'
-import { useRoute } from 'vue-router'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
@@ -22,7 +21,6 @@ import ProfileTradingRecords from '@/components/Profile/TradingRecords.vue'
 
 definePageMeta({ title: 'Profile', layout: 'default' })
 
-const route = useRoute()
 const usersStore = useUsersStore()
 const walletStore = useWalletStore()
 const agents = useAgentsStore()
@@ -30,8 +28,13 @@ const prefs = useUserPreferencesStore()
 const training = useTrainingStore()
 const activityLog = useActivityLogStore()
 const bots = useBotsStore()
+const { user: authUser, isAuthenticated } = useAuth()
+const { portfolio, loading: portfolioLoading, error: portfolioError, refresh: refreshPortfolio } = usePortfolio()
 
-const userId = computed<string>(() => (route.params.id as string) || 'user_001')
+const userId = computed<string>(() => {
+  const { userId: uid } = useCurrentUser()
+  return authUser.value?.id || uid.value
+})
 
 const loading = ref(true)
 const statistics = ref<any>(null)
@@ -45,9 +48,10 @@ onMounted(async () => {
     !prefs.hydrated ? prefs.fetchPreferences() : Promise.resolve(),
     !bots.hydrated ? bots.fetchBots() : Promise.resolve(),
     activityLog.hydrate(),
+    isAuthenticated.value ? refreshPortfolio() : Promise.resolve(),
   ])
   try {
-    const statsData = await $fetch<any[]>('/data/user_statistics.json')
+    const statsData = await $fetch<any[]>('/data/user/statistics.json')
     statistics.value = statsData.find(s => s.user_id === userId.value) || {}
   } catch {
     statistics.value = {}
@@ -55,9 +59,28 @@ onMounted(async () => {
   loading.value = false
 })
 
-const user = computed(() => usersStore.getUserById(userId.value))
+const user = computed(() => usersStore.getUserById(userId.value) || (
+  authUser.value ? {
+    id: authUser.value.id,
+    username: authUser.value.username || authUser.value.display_name || authUser.value.email,
+    bio: authUser.value.bio || '',
+    total_portfolio_value: portfolio.value?.total_value,
+    total_returns: undefined,
+  } as any : null
+))
 const wallet = computed(() => walletStore.getWalletByUserId(userId.value))
 const personalAgent = computed(() => agents.personal)
+
+const backendPnl = computed(() => {
+  if (!portfolio.value) return 0
+  return portfolio.value.holdings.reduce((sum, h) => sum + (h.unrealized_pnl ?? 0), 0)
+})
+
+const formatCurrency = (value: number, currency = 'USD') =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 2 }).format(value)
+
+const formatPct = (value: number) =>
+  `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
 
 const evolution24h = computed(() => {
   const pct = wallet.value?.performance_history?.['1d']?.change_percentage
@@ -74,7 +97,6 @@ const winRate = computed(() => statistics.value?.performance?.win_rate ?? 0)
 const netProfit = computed(() => statistics.value?.performance?.net_profit ?? 0)
 const tradingStyle = computed(() => statistics.value?.psychology?.trading_style ?? prefs.trading_style ?? '—')
 
-// Recent activity captured by the training pipeline + durable activity journal
 const recentEvents = computed(() => training.recentEvents.slice(0, 6))
 const tradingRecord = computed(() => activityLog.tradingRecords)
 const activityFeed = computed(() => activityLog.recentFeed)
@@ -98,6 +120,10 @@ const relTime = (ts: number) => {
 
 const liveBots = computed(() => bots.live.length)
 const totalBots = computed(() => bots.list.length)
+
+const displayPortfolioValue = computed(() =>
+  portfolio.value?.total_value ?? user.value?.total_portfolio_value ?? 0
+)
 </script>
 
 <template>
@@ -134,11 +160,53 @@ const totalBots = computed(() => bots.list.length)
         :trading-style="tradingStyle"
         :total-trades="totalTrades"
         :win-rate="winRate"
-        :portfolio-value="user.total_portfolio_value ?? 0"
+        :portfolio-value="displayPortfolioValue"
         :total-return="user.total_returns ?? 0"
         :evolution24h="evolution24h"
         :evolution30d="evolution30d"
       />
+
+      <!-- Backend portfolio (API) when authenticated -->
+      <UICard v-if="portfolio" title="Live portfolio">
+        <template #action>
+          <UIPill tone="success" show-dot>Backend</UIPill>
+        </template>
+        <div v-if="portfolioError" class="muted">{{ portfolioError }}</div>
+        <UIMetricRow :cols="4">
+          <UIStat label="Total value" :value="portfolio.total_value" :precision="0" suffix="USD" size="md" />
+          <UIStat label="Cash" :value="portfolio.cash_balance" :precision="0" suffix="USD" size="md" />
+          <UIStat label="Unrealized P&L" :value="backendPnl" tone="auto" :precision="0" suffix="USD" size="md" />
+          <UIStat label="Holdings" :value="portfolio.holdings.length" size="md" />
+        </UIMetricRow>
+        <div v-if="portfolio.holdings.length" class="holdings-table-wrap">
+          <table class="holdings-table">
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th class="text-right">Qty</th>
+                <th class="text-right">Value</th>
+                <th class="text-right">P&amp;L</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="h in portfolio.holdings" :key="h.asset.id">
+                <td>{{ h.asset.symbol }}</td>
+                <td class="text-right">{{ h.quantity }}</td>
+                <td class="text-right">{{ formatCurrency(h.current_value, portfolio.currency) }}</td>
+                <td class="text-right" :class="h.unrealized_pnl >= 0 ? 'pos' : 'neg'">
+                  {{ formatPct(h.unrealized_pnl_pct) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <UIEmptyState
+          v-else-if="!portfolioLoading"
+          size="sm"
+          icon="◯"
+          message="No holdings yet — paper-trade or connect a platform."
+        />
+      </UICard>
 
       <!-- 3-col: Personality / Performance / Avatar-link -->
       <div class="grid-3">
@@ -295,6 +363,25 @@ const totalBots = computed(() => bots.list.length)
   min-width: 0;
 }
 .grid-3 > * { min-width: 0; }
+
+.holdings-table-wrap {
+  margin-top: 0.6rem;
+  overflow-x: auto;
+}
+.holdings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+.holdings-table th,
+.holdings-table td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  text-align: left;
+}
+.holdings-table .text-right { text-align: right; }
+.holdings-table .pos { color: var(--primary-green, #00ff88); }
+.holdings-table .neg { color: var(--error-red, #ff4444); }
 
 /* Event list */
 .event-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }

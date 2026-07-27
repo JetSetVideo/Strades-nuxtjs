@@ -423,19 +423,18 @@ export function useBacktest() {
       cursor.setDate(cursor.getDate() + 1)
     }
 
-    // Get real asset data for volatility
-    const macroState = macroStore.macroState
+    // Get real asset data for volatility (Pinia flattens state onto the store root)
     const assetData = config.targetAssets.map(id => assetsStore.getAssetBySymbol(id) || assetsStore.getAssetById(id))
     const basePrices = assetData.map(a => a?.current_price ?? 100)
     const classVolByAsset: Record<string, number> = {
-      btc: macroState?.volatility_by_class?.crypto ?? 0.6,
-      eth: macroState?.volatility_by_class?.crypto ?? 0.6,
-      sol: macroState?.volatility_by_class?.crypto ?? 0.6,
-      usd: macroState?.volatility_by_class?.fiat ?? 0.05,
-      eur: macroState?.volatility_by_class?.fiat ?? 0.05,
-      appl: macroState?.volatility_by_class?.stocks ?? 0.3,
-      amzn: macroState?.volatility_by_class?.stocks ?? 0.3,
-      tsla: macroState?.volatility_by_class?.stocks ?? 0.35,
+      btc: macroStore.volatility_by_class?.crypto ?? 0.6,
+      eth: macroStore.volatility_by_class?.crypto ?? 0.6,
+      sol: macroStore.volatility_by_class?.crypto ?? 0.6,
+      usd: macroStore.volatility_by_class?.fiat ?? 0.05,
+      eur: macroStore.volatility_by_class?.fiat ?? 0.05,
+      appl: macroStore.volatility_by_class?.stocks ?? 0.3,
+      amzn: macroStore.volatility_by_class?.stocks ?? 0.3,
+      tsla: macroStore.volatility_by_class?.stocks ?? 0.35,
     }
     const assetVol = (assetData[0]?.symbol?.toLowerCase() ?? 'btc')
     const annualVol = classVolByAsset[assetVol] ?? 0.5
@@ -461,7 +460,7 @@ export function useBacktest() {
           for (let s = 0; s < batchSize && batch + s < simulations; s++) {
             const basePrice = basePrices[0] || 100
             // Base drift from market sentiment
-            let drift = (macroState?.market_sentiment ?? 0) * 0.15
+            let drift = (macroStore.market_sentiment ?? 0) * 0.15
 
             // Swarm opinion bias: if the community consensus favors this asset class,
             // add a positive drift; if it underweights, add negative drift.

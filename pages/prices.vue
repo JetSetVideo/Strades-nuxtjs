@@ -43,10 +43,18 @@ const hasData      = computed(() => assetsStore.assets.length > 0)
 // Uses a reactive plain object keyed by asset id
 const priceChanges = reactive<Record<string, number>>({})
 
+import type { Asset } from '~/types/asset'
+
+function assetVolatility(asset: Asset): number {
+  return asset.psychology_profile?.volatility_affinity
+    ?? asset.fluctuation_velocity
+    ?? 0.3
+}
+
 function seedChanges() {
   assetsStore.assets.forEach(asset => {
     if (priceChanges[asset.id] !== undefined) return
-    const vol = (asset as any).psychology_profile?.volatility_index ?? 0.3
+    const vol = assetVolatility(asset)
     priceChanges[asset.id] = +(((Math.random() - 0.5) * 2 * vol * 12)).toFixed(2)
   })
   macroStore.updateFromPriceChanges(priceChanges)
@@ -58,7 +66,7 @@ let ticker: ReturnType<typeof setInterval>
 function startTicker() {
   ticker = setInterval(() => {
     assetsStore.assets.forEach(asset => {
-      const vol  = (asset as any).psychology_profile?.volatility_index ?? 0.3
+      const vol  = assetVolatility(asset)
       const prev = priceChanges[asset.id] ?? 0
       const nudge = (Math.random() - 0.5) * vol * 0.8
       priceChanges[asset.id] = +(prev + nudge).toFixed(2)
@@ -135,8 +143,8 @@ const filtered = computed(() => {
     case 'gainers': withChange.sort((a, b) => b.pct - a.pct); break
     case 'losers':  withChange.sort((a, b) => a.pct - b.pct); break
     case 'vol_high': withChange.sort((a, b) =>
-      ((b.asset as any).psychology_profile?.volatility_index ?? 0) -
-      ((a.asset as any).psychology_profile?.volatility_index ?? 0)); break
+      (b.asset.fluctuation_velocity ?? b.asset.psychology_profile?.volatility_affinity ?? 0) -
+      (a.asset.fluctuation_velocity ?? a.asset.psychology_profile?.volatility_affinity ?? 0)); break
     case 'cap': withChange.sort((a, b) => (b.asset.market_cap ?? 0) - (a.asset.market_cap ?? 0)); break
   }
   return withChange.map(x => x.asset)

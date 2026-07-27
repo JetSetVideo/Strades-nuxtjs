@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useStrategiesStore } from '~/stores/strategies'
+import { computed, onMounted } from 'vue'
+import { useAgentsStore } from '~/stores/agents'
+import type { AgentStatus } from '~/types/agent'
 
 const props = defineProps({ size: { type: Number, default: 22 } })
-const stratStore = useStrategiesStore()
+const agentsStore = useAgentsStore()
+
+// Hydrate lazily so the orbit reflects the real agent roster
+onMounted(() => {
+  if (!agentsStore.hydrated && !agentsStore.loading) {
+    agentsStore.fetchAgents().catch(() => {/* fallback dots below */})
+  }
+})
 
 // Orbit ring radii
 const INNER_R = computed(() => props.size * 0.27)
@@ -13,54 +21,81 @@ const OUTER_R = computed(() => props.size * 0.43)
 const DOT_R = 2.5   // radius = half the 5px dot
 
 // Hub geometry
-const HUB_RING = computed(() => props.size * 0.135)
-const HUB_CORE = computed(() => props.size * 0.07)
+const HUB_RING = computed(() => props.size * 0.155)
 
-// Asset-class → color lookup (matches strategies.ts activeStrategiesForOrbit)
-const CLASS_COLOR: Record<string, string> = {
-  crypto:      '#F5A623',   // orange/gold
-  stocks:      '#00ff88',   // green
-  fiat:        '#4A90E2',   // blue
-  commodities: '#F8E71C',   // yellow
+// Activity → color: what each agent is doing right now
+const STATUS_COLOR: Record<AgentStatus, string> = {
+  live:     '#00ff88',   // trading live
+  training: '#00aaff',   // learning
+  paused:   '#ffaa00',   // on hold
+  idle:     'rgba(255,255,255,0.4)',
+  error:    '#ff4444',
 }
 
-// Build orbit dots from the store getter
-// Each dot: {id, color (by asset class), opacity (paused=dim), r (ring), dur (orbit period), delay}
-const liveDots = computed(() => {
-  const strats = stratStore.activeStrategiesForOrbit
-  if (!strats.length) return []
+// Activity → orbit period: busier agents orbit faster
+const STATUS_SPEED: Record<AgentStatus, number> = {
+  live: 8, training: 12, paused: 22, idle: 26, error: 18,
+}
 
-  const inner = strats.filter((_, i) => i % 2 === 0)
-  const outer = strats.filter((_, i) => i % 2 !== 0)
+interface OrbitDot {
+  id: string
+  color: string
+  opacity: number
+  r: number
+  dur: number
+  delay: number
+  pulsing: boolean
+}
 
-  const build = (list: typeof strats, r: number, baseDur: number) =>
-    list.map((s, i) => ({
-      id:      s.id,
-      color:   s.color,               // already resolved to hex by the getter
-      opacity: s.status === 'paused' ? 0.3 : 1,
-      r,
-      dur:     s.status === 'paused' ? baseDur * 2.0 : baseDur,
-      delay:   -(i / Math.max(list.length, 1)) * baseDur,
-    }))
+const MAX_DOTS = 8
 
-  // Orbit periods: inner 16 s, outer 11 s (noticeably slow)
-  return [
-    ...build(inner, INNER_R.value, 16),
-    ...build(outer, OUTER_R.value, 11),
-  ]
+const liveDots = computed<OrbitDot[]>(() => {
+  const agents = agentsStore.ids
+    .map(id => agentsStore.byId[id])
+    .filter(Boolean)
+    .slice(0, MAX_DOTS)
+  if (!agents.length) return []
+
+  const inner = agents.filter((_, i) => i % 2 === 0)
+  const outer = agents.filter((_, i) => i % 2 !== 0)
+
+  const build = (list: typeof agents, r: number) =>
+    list.map((a, i) => {
+      const status = a.training_state?.status ?? 'idle'
+      const dur = STATUS_SPEED[status] ?? 18
+      return {
+        id: a.id,
+        color: STATUS_COLOR[status] ?? STATUS_COLOR.idle,
+        opacity: status === 'idle' || status === 'paused' ? 0.45 : 1,
+        r,
+        dur,
+        delay: -(i / Math.max(list.length, 1)) * dur,
+        pulsing: status === 'training',
+      }
+    })
+
+  return [...build(inner, INNER_R.value), ...build(outer, OUTER_R.value)]
 })
 
-const hasDots = computed(() => liveDots.value.length > 0)
-
-// Fallback: one dot per asset class, one on each ring, very slow
-const fallbackDots = computed(() => [
-  { id: 'f-crypto', color: CLASS_COLOR.crypto,      opacity: 1, r: INNER_R.value, dur: 16, delay: 0 },
-  { id: 'f-stocks', color: CLASS_COLOR.stocks,       opacity: 1, r: OUTER_R.value, dur: 11, delay: -2.8 },
-  { id: 'f-fiat',   color: CLASS_COLOR.fiat,         opacity: 1, r: INNER_R.value, dur: 16, delay: -8 },
-  { id: 'f-comm',   color: CLASS_COLOR.commodities,  opacity: 1, r: OUTER_R.value, dur: 11, delay: -6 },
+// Fallback before hydration: one calm dot per activity kind
+const fallbackDots = computed<OrbitDot[]>(() => [
+  { id: 'f-live',  color: STATUS_COLOR.live,     opacity: 1,    r: INNER_R.value, dur: 16, delay: 0,    pulsing: false },
+  { id: 'f-train', color: STATUS_COLOR.training, opacity: 1,    r: OUTER_R.value, dur: 11, delay: -2.8, pulsing: true  },
+  { id: 'f-pause', color: STATUS_COLOR.paused,   opacity: 0.45, r: INNER_R.value, dur: 16, delay: -8,   pulsing: false },
+  { id: 'f-idle',  color: STATUS_COLOR.idle,     opacity: 0.45, r: OUTER_R.value, dur: 11, delay: -6,   pulsing: false },
 ])
 
-const activeDots = computed(() => hasDots.value ? liveDots.value : fallbackDots.value)
+const activeDots = computed(() => liveDots.value.length ? liveDots.value : fallbackDots.value)
+
+/** Number of agents actually working (live or training) — shown in the hub. */
+const runningCount = computed(() => {
+  return agentsStore.ids.reduce((n, id) => {
+    const s = agentsStore.byId[id]?.training_state?.status
+    return n + (s === 'live' || s === 'training' ? 1 : 0)
+  }, 0)
+})
+
+const hubColor = computed(() => runningCount.value > 0 ? '#00ff88' : 'rgba(255,255,255,0.65)')
 </script>
 
 <template>
@@ -68,7 +103,7 @@ const activeDots = computed(() => hasDots.value ? liveDots.value : fallbackDots.
     class="orbit-icon"
     :style="{ width: `${size}px`, height: `${size}px` }"
   >
-    <!-- SVG layer: orbit guide rings + bullseye hub -->
+    <!-- SVG layer: orbit guide rings + hub counter -->
     <svg :viewBox="`0 0 ${size} ${size}`" fill="none" class="hub-svg">
       <!-- Outer dashed guide ring -->
       <circle
@@ -85,28 +120,32 @@ const activeDots = computed(() => hasDots.value ? liveDots.value : fallbackDots.
       <!-- Hub ring -->
       <circle
         :cx="size / 2" :cy="size / 2" :r="HUB_RING"
-        fill="none"
-        stroke="rgba(255,255,255,0.30)" stroke-width="0.75"
+        fill="rgba(0,0,0,0.45)"
+        :stroke="hubColor" stroke-width="0.75"
+        :class="{ working: runningCount > 0 }"
+        class="hub-ring"
       />
-      <!-- Hub center core -->
-      <circle
-        :cx="size / 2" :cy="size / 2" :r="HUB_CORE"
-        fill="rgba(255,255,255,0.65)"
-      />
+      <!-- Running agent count -->
+      <text
+        :x="size / 2"
+        :y="size / 2 + size * 0.115"
+        text-anchor="middle"
+        :font-size="size * 0.3"
+        font-weight="700"
+        font-family="Poppins, sans-serif"
+        :fill="hubColor"
+      >{{ runningCount }}</text>
     </svg>
 
     <!--
-      Orbiting dots.
-      Each dot uses the CSS transform-origin trick:
-        • positioned at the top of its orbit circle
-        • transform-origin points back to the icon center
-        • rotating 360° orbits the dot around the center
-      Color = asset class of the strategy.
+      Orbiting agent dots — color = what the agent is doing right now
+      (green live, blue training, amber paused, grey idle, red error).
     -->
     <span
       v-for="dot in activeDots"
       :key="dot.id"
       class="orbit-dot"
+      :class="{ pulsing: dot.pulsing }"
       :style="{
         '--dot-color': dot.color,
         opacity:             dot.opacity,
@@ -136,6 +175,14 @@ const activeDots = computed(() => hasDots.value ? liveDots.value : fallbackDots.
   height: 100%;
 }
 
+.hub-ring.working {
+  animation: hub-glow 2.4s ease-in-out infinite;
+}
+@keyframes hub-glow {
+  0%, 100% { filter: drop-shadow(0 0 0px rgba(0,255,136,0)); }
+  50%      { filter: drop-shadow(0 0 3px rgba(0,255,136,0.7)); }
+}
+
 .orbit-dot {
   position: absolute;
   width:  5px;
@@ -149,8 +196,15 @@ const activeDots = computed(() => hasDots.value ? liveDots.value : fallbackDots.
   will-change: transform;
   transition: opacity 0.5s ease;
 }
+.orbit-dot.pulsing {
+  animation: orbit-spin linear infinite, dot-pulse 1.4s ease-in-out infinite;
+}
 
 @keyframes orbit-spin {
   to { transform: rotate(360deg); }
+}
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 3px 1px var(--dot-color), 0 0 7px 2px var(--dot-color); }
+  50%      { box-shadow: 0 0 5px 2px var(--dot-color), 0 0 11px 4px var(--dot-color); }
 }
 </style>

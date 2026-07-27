@@ -47,14 +47,33 @@ const unreadCount = computed(() => {
   position: relative;
 }
 
+/* Ambient depth field: two very faint color pools behind all content
+   pull the eye toward the top (fresh data) and give the page a sense
+   of volume instead of a flat black sheet. */
+.app-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 45% at 18% -8%, rgba(0, 255, 136, 0.05), transparent 60%),
+    radial-gradient(ellipse 70% 40% at 88% 4%, rgba(0, 170, 255, 0.05), transparent 60%),
+    radial-gradient(ellipse 100% 55% at 50% 108%, rgba(0, 0, 0, 0.55), transparent 62%);
+}
+
+.app-shell > * { position: relative; z-index: 1; }
+
 .page-frame {
   width: 100%;
   max-width: 1320px;
   margin: 0 auto;
+  /* Content starts exactly one page-gap below the fixed top bar and
+     ends one page-gap above the fixed bottom bar (incl. iOS safe area). */
   padding:
-    calc(3.25rem + 0.5rem)
+    calc(var(--nav-top-height, 3.25rem) + var(--page-gap, 0.5rem))
     var(--page-gutter)
-    calc(4rem + 0.5rem)
+    calc(var(--nav-bottom-height, 4.1rem) + var(--page-gap, 0.5rem) + env(safe-area-inset-bottom, 0px))
     var(--page-gutter);
   font-family: var(--font-family-secondary, 'Kanit', sans-serif);
   line-height: 1.45;
@@ -64,14 +83,20 @@ const unreadCount = computed(() => {
 
 @media (min-width: 640px) {
   .page-frame {
-    padding-top: calc(3.5rem + 0.5rem);
+    padding-top: calc(var(--nav-top-height-md, 3.5rem) + var(--page-gap, 0.6rem));
+  }
+}
+
+@media (min-width: 768px) {
+  .page-frame {
+    padding-bottom: calc(var(--nav-bottom-height-md, 4.4rem) + var(--page-gap, 0.6rem) + env(safe-area-inset-bottom, 0px));
   }
 }
 
 @media (min-width: 1024px) {
   .page-frame {
     max-width: 1440px;
-    padding-top: calc(3.75rem + 0.5rem);
+    padding-top: calc(var(--nav-top-height-lg, 3.75rem) + var(--page-gap, 0.75rem));
   }
 }
 @media (min-width: 1536px) {

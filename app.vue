@@ -1,10 +1,4 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount } from 'vue'
-import { useAssetsStore } from '~/stores/assets'
-import { useAssetEventsStore } from '~/stores/assetEvents'
-import type { PriceUpdate, Activity, NewsItem } from '#imports'
-import { Socket } from 'socket.io-client';
-
 useHead({
   titleTemplate: (titleChunk) => {
     return titleChunk ? `${titleChunk} - Strades` : 'Strades';
@@ -19,36 +13,6 @@ useHead({
   ],
   link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.ico' }],
 });
-
-const { $socket } = useNuxtApp()
-const assetsStore = useAssetsStore()
-const assetEventsStore = useAssetEventsStore()
-
-onMounted(() => {
-  $socket.connect()
-  
-  $socket.on('price_update', (data: PriceUpdate) => {
-    assetEventsStore.handlePriceUpdate(data)
-  })
-  
-  $socket.on('social_activity', (activity: Activity) => {
-    assetEventsStore.addActivity(activity)
-  })
-  
-  $socket.on('news_update', (news: NewsItem) => {
-    assetEventsStore.addNews(news)
-  })
-})
-
-onBeforeUnmount(() => {
-  $socket.disconnect()
-})
-
-declare module '#app' {
-  interface NuxtApp {
-    $socket: Socket;
-  }
-}
 </script>
 
 <template>
@@ -60,31 +24,6 @@ declare module '#app' {
 </template>
 
 <style>
-/* @font-face {
-  font-family: Ethnocentric;
-  src: url("@/assets/fonts/ethnocentric-rg.otf") format("opentype");
-}
-
-@font-face {
-  font-family: Poppin;
-  src: url("@/assets/fonts/Poppins-Regular.ttf");
-}
-
-@font-face {
-  font-family: Kanit;
-  src: url("@/assets/fonts/Kanit-Regular.ttf");
-}
-
-@font-face {
-  font-family: MediumFont;
-  src: url("@/assets/fonts/Medium.ttf");
-}
-
-@font-face {
-  font-family: SemiBoldItalic;
-  src: url("@/assets/fonts/SemiBoldItalic.ttf");
-} */
-
 .stroke-shadow {
   box-shadow: rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset,
     rgba(0, 0, 0, 0.15) 0px -36px 30px 0px inset,
@@ -121,18 +60,15 @@ declare module '#app' {
   width: 15px;
 }
 
-/* Track */
 ::-webkit-scrollbar-track {
   background: #3e3e42;
 }
 
-/* Handle */
 ::-webkit-scrollbar-thumb {
   border-radius: 10px;
   background: #555;
 }
 
-/* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
   background: #5f5f5f;
 }

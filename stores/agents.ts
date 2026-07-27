@@ -1,74 +1,20 @@
 import { defineStore } from 'pinia'
-import type { AssetClass } from '~/stores/macro'
+import type {
+  Agent,
+  PersonalityMatrix,
+} from '~/types/agent'
 
-export type AgentKind = 'personal' | 'public' | 'forked' | 'private'
-export type AgentStatus = 'idle' | 'training' | 'live' | 'paused' | 'error'
-
-export interface PersonalityMatrix {
-  risk: number
-  aggression: number
-  reaction_speed: number
-  patience: number
-  contrarian: number
-}
-
-export interface OpinionVector {
-  fiat: number
-  crypto: number
-  stocks: number
-  commodities: number
-}
-
-export interface TrainingState {
-  version: number
-  epochs: number
-  last_trained_at: string
-  samples_observed: number
-  samples_since_last_train: number
-  reward_ema_pnl: number
-  loss_ema: number
-  status: AgentStatus
-}
-
-export interface AgentPerformance {
-  live_pnl_pct: number
-  backtest_pnl_pct: number
-  win_rate: number
-  sharpe: number
-  max_drawdown_pct: number
-  trades_total: number
-  last_30d_curve: number[]
-}
-
-export interface AgentLineage {
-  parent_id: string | null
-  forked_at: string | null
-}
-
-export interface AgentShareState {
-  is_public: boolean
-  price_credits: number
-  license: 'private' | 'swarm-readonly' | 'open' | string
-}
-
-export interface Agent {
-  id: string
-  name: string
-  owner_id: string
-  kind: AgentKind
-  avatar_url: string
-  tagline: string
-  specialization: AssetClass[]
-  trading_style: string
-  personality_matrix: PersonalityMatrix
-  opinion_vector: OpinionVector
-  confidence: number
-  training_state: TrainingState
-  performance: AgentPerformance
-  lineage: AgentLineage
-  share_state: AgentShareState
-  created_at: string
-}
+export type {
+  Agent,
+  AgentKind,
+  AgentStatus,
+  PersonalityMatrix,
+  OpinionVector,
+  TrainingState,
+  AgentPerformance,
+  AgentLineage,
+  AgentShareState,
+} from '~/types/agent'
 
 export interface AgentsState {
   byId: Record<string, Agent>
@@ -207,8 +153,12 @@ export const useAgentsStore = defineStore('agents', {
     personal: (state): Agent | null => state.personalId ? state.byId[state.personalId] : null,
     publicAgents(): Agent[] { return this.all.filter(a => a.kind === 'public') },
     myRoster(): Agent[] {
-      // Personal + forks owned by user_001
-      return this.all.filter(a => a.owner_id === 'user_001')
+      // Prefer authenticated user; fall back to demo owner for JSON data
+      let ownerId = 'user_001'
+      try {
+        ownerId = useCurrentUser().getUserId()
+      } catch { /* SSR / early pinia */ }
+      return this.all.filter(a => a.owner_id === ownerId || a.owner_id === 'user_001')
     },
     byPnL(): Agent[] {
       return [...this.publicAgents].sort((a, b) => b.performance.live_pnl_pct - a.performance.live_pnl_pct)

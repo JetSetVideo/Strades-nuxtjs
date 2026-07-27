@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useWorldProjection } from '~/composables/useWorldProjection'
+import { LAND_PATHS, LAND_W, LAND_H } from '~/components/Map/worldLand'
 
 export interface MapMarker {
   id: string
@@ -97,15 +98,19 @@ const clampPan = () => {
   panY.value = Math.max(0, Math.min(H.value - vh, panY.value))
 }
 
-const zoomAt = (delta: number, anchorX = W.value / 2, anchorY = H.value / 2) => {
+const setZoom = (next: number, anchorX = W.value / 2, anchorY = H.value / 2) => {
   const oldZoom = zoom.value
-  const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, oldZoom + delta))
+  next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, next))
   if (next === oldZoom) return
   const factor = oldZoom / next
   panX.value = anchorX - (anchorX - panX.value) * factor
   panY.value = anchorY - (anchorY - panY.value) * factor
   zoom.value = next
   clampPan()
+}
+
+const zoomAt = (delta: number, anchorX = W.value / 2, anchorY = H.value / 2) => {
+  setZoom(zoom.value + delta, anchorX, anchorY)
 }
 
 const reset = () => { zoom.value = 1; panX.value = 0; panY.value = 0 }
@@ -168,17 +173,49 @@ const onWheel = (e: WheelEvent) => {
   zoomAt(delta, pt.x, pt.y)
 }
 
-// Drag-to-pan
+// Drag-to-pan + two-finger pinch-zoom
 const dragging = ref(false)
 const dragStart = ref({ x: 0, y: 0, panX: 0, panY: 0 })
+const activePointers = new Map<number, { x: number; y: number }>()
+let pinchStart: { dist: number; zoom: number } | null = null
+
+const pinchInfo = () => {
+  const pts = Array.from(activePointers.values())
+  const dx = pts[0].x - pts[1].x
+  const dy = pts[0].y - pts[1].y
+  return {
+    dist: Math.hypot(dx, dy),
+    midX: (pts[0].x + pts[1].x) / 2,
+    midY: (pts[0].y + pts[1].y) / 2
+  }
+}
+
 const onPointerDown = (e: PointerEvent) => {
-  if (e.button !== 0) return
-  dragging.value = true
-  dragStart.value = { x: e.clientX, y: e.clientY, panX: panX.value, panY: panY.value }
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
   ;(e.target as Element)?.setPointerCapture?.(e.pointerId)
+  if (activePointers.size === 2) {
+    dragging.value = false
+    pinchStart = { dist: pinchInfo().dist, zoom: zoom.value }
+  } else if (activePointers.size === 1) {
+    dragging.value = true
+    dragStart.value = { x: e.clientX, y: e.clientY, panX: panX.value, panY: panY.value }
+  }
 }
 const onPointerMove = (e: PointerEvent) => {
-  if (!dragging.value || !svgRef.value) return
+  if (!activePointers.has(e.pointerId) || !svgRef.value) return
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+  if (activePointers.size === 2 && pinchStart) {
+    const { dist, midX, midY } = pinchInfo()
+    if (pinchStart.dist > 0) {
+      const anchor = clientToSvg(midX, midY)
+      setZoom(pinchStart.zoom * (dist / pinchStart.dist), anchor.x, anchor.y)
+    }
+    return
+  }
+
+  if (!dragging.value) return
   const rect = svgRef.value.getBoundingClientRect()
   const dx = (e.clientX - dragStart.value.x) * (W.value / zoom.value) / rect.width
   const dy = (e.clientY - dragStart.value.y) * (H.value / zoom.value) / rect.height
@@ -186,7 +223,11 @@ const onPointerMove = (e: PointerEvent) => {
   panY.value = dragStart.value.panY - dy
   clampPan()
 }
-const onPointerUp = () => { dragging.value = false }
+const onPointerUp = (e: PointerEvent) => {
+  activePointers.delete(e.pointerId)
+  if (activePointers.size < 2) pinchStart = null
+  if (activePointers.size === 0) dragging.value = false
+}
 
 const onDoubleClick = (e: MouseEvent) => {
   if (zoom.value > 1) { reset(); return }
@@ -194,51 +235,10 @@ const onDoubleClick = (e: MouseEvent) => {
   zoomAt(1.5, pt.x, pt.y)
 }
 
-// ─── Refined continent silhouettes (640×320 reference) ────────────────
-const SILHOUETTES = [
-  // North America (mainland + Florida tail)
-  'M 90 95 Q 90 70 130 60 Q 175 55 200 80 Q 220 100 218 130 Q 215 165 195 180 Q 175 195 145 185 Q 120 175 105 155 Q 92 130 90 110 Z',
-  // Central America strip
-  'M 165 170 Q 180 180 178 195 Q 173 205 162 200 Q 158 188 165 170 Z',
-  // South America
-  'M 180 195 Q 210 195 218 215 Q 222 250 208 280 Q 195 300 178 295 Q 168 270 168 240 Q 170 215 180 195 Z',
-  // Greenland
-  'M 230 60 Q 250 55 260 70 Q 258 88 245 92 Q 232 85 230 60 Z',
-  // Europe mainland
-  'M 295 85 Q 320 75 350 78 Q 372 85 372 105 Q 365 130 340 138 Q 320 142 305 132 Q 290 115 295 85 Z',
-  // UK + Ireland
-  'M 286 92 Q 295 90 296 102 Q 290 110 282 105 Q 278 98 286 92 Z',
-  // Africa
-  'M 305 145 Q 345 140 370 160 Q 385 185 378 220 Q 365 250 340 255 Q 320 252 308 235 Q 295 210 300 180 Q 300 160 305 145 Z',
-  // Middle East / Arabia
-  'M 380 155 Q 405 152 410 175 Q 405 190 390 188 Q 378 178 380 155 Z',
-  // Russia / Northern Asia
-  'M 370 60 Q 430 50 510 55 Q 555 60 575 75 Q 580 95 555 100 Q 510 105 460 102 Q 410 100 380 95 Q 370 80 370 60 Z',
-  // Mainland Asia south of Russia
-  'M 395 105 Q 440 105 480 115 Q 510 125 520 145 Q 510 162 480 165 Q 440 162 410 155 Q 395 135 395 105 Z',
-  // India
-  'M 440 158 Q 460 158 470 175 Q 465 195 450 197 Q 438 188 440 158 Z',
-  // SE Asia mainland
-  'M 485 165 Q 500 170 502 188 Q 495 198 485 195 Q 480 178 485 165 Z',
-  // Indonesia
-  'M 505 198 Q 525 195 540 205 Q 545 218 530 222 Q 510 218 505 198 Z',
-  // Philippines
-  'M 525 175 Q 535 178 535 188 Q 528 195 521 190 Q 520 180 525 175 Z',
-  // Japan
-  'M 555 115 Q 565 115 568 130 Q 562 138 553 132 Q 550 122 555 115 Z',
-  // Australia
-  'M 530 225 Q 580 220 600 235 Q 605 255 585 265 Q 555 268 535 258 Q 525 245 530 225 Z',
-  // New Zealand
-  'M 612 270 Q 620 270 622 282 Q 617 288 610 285 Q 608 278 612 270 Z',
-  // Madagascar
-  'M 372 230 Q 380 232 380 248 Q 374 252 369 245 Q 368 235 372 230 Z',
-  // Iceland
-  'M 280 80 Q 287 78 289 86 Q 285 91 278 88 Q 277 83 280 80 Z'
-]
-
-const silhouetteTransform = computed(() => {
-  const sx = W.value / 640
-  const sy = H.value / 320
+// ─── Real land geometry (projected from GeoJSON, 640×320 reference) ────
+const landTransform = computed(() => {
+  const sx = W.value / LAND_W
+  const sy = H.value / LAND_H
   return `scale(${sx} ${sy})`
 })
 
@@ -360,10 +360,17 @@ watch(() => props.highlightId, (val) => {
     >
       <defs>
         <radialGradient id="map-bg" cx="50%" cy="40%" r="80%">
-          <stop offset="0%" stop-color="rgba(0, 170, 255, 0.07)" />
+          <stop offset="0%" stop-color="rgba(0, 170, 255, 0.10)" />
+          <stop offset="55%" stop-color="rgba(0, 90, 160, 0.05)" />
           <stop offset="100%" stop-color="rgba(0, 0, 0, 0)" />
         </radialGradient>
+        <linearGradient id="map-depth" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgba(10, 20, 34, 0.35)" />
+          <stop offset="50%" stop-color="rgba(6, 14, 26, 0.1)" />
+          <stop offset="100%" stop-color="rgba(2, 6, 12, 0.45)" />
+        </linearGradient>
       </defs>
+      <rect :x="0" :y="0" :width="W" :height="H" fill="url(#map-depth)" />
       <rect :x="0" :y="0" :width="W" :height="H" fill="url(#map-bg)" />
 
       <g v-if="showGrid" class="grid">
@@ -372,8 +379,14 @@ watch(() => props.highlightId, (val) => {
         <line :x1="0" :y1="gridLines.equator" :x2="W" :y2="gridLines.equator" class="equator" />
       </g>
 
-      <g class="silhouettes" :transform="silhouetteTransform">
-        <path v-for="(d, i) in SILHOUETTES" :key="`s${i}`" :d="d" />
+      <g class="land" :transform="landTransform">
+        <path
+          v-for="(d, i) in LAND_PATHS"
+          :key="`land${i}`"
+          :d="d"
+          fill-rule="evenodd"
+          vector-effect="non-scaling-stroke"
+        />
       </g>
 
       <g v-if="showRegionLabels" class="regions" :class="{ zoomed: zoom > 2 }">
@@ -425,7 +438,7 @@ watch(() => props.highlightId, (val) => {
           <circle :cx="m.x" :cy="m.y" :r="(m.r + 4) / Math.max(1, zoom * 0.6)" class="halo" />
           <circle :cx="m.x" :cy="m.y" :r="m.r / Math.max(1, zoom * 0.6)" :fill="toneToColor(m.tone)" class="dot" />
           <text
-            v-if="showLabels && m.label"
+            v-if="(showLabels || zoom >= 2.2) && m.label"
             :x="m.x + (m.r / Math.max(1, zoom * 0.6)) + 4"
             :y="m.y + 3"
             class="label"
@@ -450,6 +463,7 @@ watch(() => props.highlightId, (val) => {
     <div v-if="showControls" class="controls" aria-label="Map controls">
       <button @click="zoomAt(0.5)" title="Zoom in (or scroll up)">＋</button>
       <button @click="zoomAt(-0.5)" :disabled="zoom <= MIN_ZOOM" title="Zoom out (or scroll down)">−</button>
+      <button @click="fitToMarkers" :disabled="!markers.length" title="Fit to markers">⌖</button>
       <button @click="reset" :disabled="zoom === 1 && panX === 0 && panY === 0" title="Reset (or double-click)">⟲</button>
       <span class="zoom-pill">{{ zoom.toFixed(1) }}×</span>
     </div>
@@ -484,12 +498,14 @@ watch(() => props.highlightId, (val) => {
   stroke-dasharray: 2 6;
 }
 
-.silhouettes path {
-  fill: rgba(255,255,255,0.05);
-  stroke: rgba(255,255,255,0.09);
-  stroke-width: 0.6;
+.land path {
+  fill: rgba(148, 178, 214, 0.10);
+  stroke: rgba(160, 195, 235, 0.28);
+  stroke-width: 0.5;
   stroke-linejoin: round;
+  transition: fill 0.3s ease;
 }
+.map-svg:hover .land path { fill: rgba(148, 178, 214, 0.13); }
 
 .regions .region-label {
   fill: rgba(255,255,255,0.35);

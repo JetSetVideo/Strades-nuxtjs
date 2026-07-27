@@ -98,7 +98,7 @@ const worstStrat = computed(() => {
 // ─── Live simulated P&L (adds a small random tick) ───────────────────────────
 const liveStrategies = computed(() =>
   filteredStrategies.value.map(s => {
-    const vol = macro.macroState?.volatility_by_class?.crypto ?? 0.5
+    const vol = macro.volatility_by_class?.crypto ?? 0.5
     const noise = (tick.value * vol * (s.current_capital ?? 10000)) / 100
     return { ...s, livePnl: (s.total_return ?? 0) + noise, liveReturnPct: (s.total_return_percentage ?? 0) + tick.value * vol * 0.5 }
   })

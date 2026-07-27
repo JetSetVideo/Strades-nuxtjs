@@ -29,8 +29,9 @@ defineProps<{
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
+  gap: 0.75rem;
+  /* ScreenShell already spaces sections via --page-gap; avoid double gaps */
+  margin-bottom: 0;
   flex-wrap: wrap;
 }
 .title-stack { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1; }

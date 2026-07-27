@@ -66,12 +66,15 @@ function unplug() {
 
 function fork() {
   if (!agent.value) return
-  const fk = agents.forkAgent(agent.value.id, 'user_001')
+  const { getUserId } = useCurrentUser()
+  const fk = agents.forkAgent(agent.value.id, getUserId())
   if (fk) {
     tracker.track('agent_fork', { source_id: agent.value.id })
     navigateTo(`/agents/${fk.id}`)
   }
 }
+
+const { userId: currentUserId } = useCurrentUser()
 </script>
 
 <template>
@@ -83,7 +86,7 @@ function fork() {
         <button v-if="!isPlugged" class="cta primary" @click="plug">Plug into swarm</button>
         <button v-else class="cta unplug" @click="unplug">Unplug</button>
         <button
-          v-if="agent.share_state.is_public && agent.owner_id !== 'user_001'"
+          v-if="agent.share_state.is_public && agent.owner_id !== currentUserId"
           class="cta secondary"
           @click="fork"
         >⑂ Fork ({{ agent.share_state.price_credits }} cr)</button>

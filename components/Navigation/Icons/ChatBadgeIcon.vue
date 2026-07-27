@@ -30,15 +30,18 @@ const emotionalUrgency = computed(() => chat.getEmotionalUrgency(userId))
         stroke-linejoin="round"
       />
 
-      <g class="dots">
+      <!-- Typing dots animate only when something is actually waiting -->
+      <g class="dots" :class="{ live: unreadCount > 0 }">
         <circle cx="9" cy="9" r="1" fill="currentColor" class="dot dot-1" />
         <circle cx="12" cy="9" r="1" fill="currentColor" class="dot dot-2" />
         <circle cx="15" cy="9" r="1" fill="currentColor" class="dot dot-3" />
       </g>
 
+      <!-- Unread counter — sized to be readable at nav-bar scale -->
       <g v-if="unreadCount > 0" class="badge" :class="{ urgent: emotionalUrgency > 0.7 }">
-        <circle cx="19" cy="5" r="3.5" :fill="emotionalUrgency > 0.7 ? 'var(--error-red, #ff4444)' : 'url(#chat-gradient)'" />
-        <text x="19" y="6.5" text-anchor="middle" font-size="3.5" font-weight="700" :fill="emotionalUrgency > 0.7 ? '#fff' : '#000'" font-family="Poppins, sans-serif">
+        <circle cx="19" cy="4.5" r="4.6" fill="var(--bg-primary, #0e0e0f)" opacity="0.9" />
+        <circle cx="19" cy="4.5" r="4" :fill="emotionalUrgency > 0.7 ? 'var(--error-red, #ff4444)' : 'url(#chat-gradient)'" />
+        <text x="19" y="6" text-anchor="middle" font-size="4.6" font-weight="800" :fill="emotionalUrgency > 0.7 ? '#fff' : '#001a0d'" font-family="Poppins, sans-serif">
           {{ unreadCount > 9 ? '9+' : unreadCount }}
         </text>
       </g>
@@ -55,7 +58,8 @@ const emotionalUrgency = computed(() => chat.getEmotionalUrgency(userId))
 }
 svg { overflow: visible; }
 
-.dots .dot {
+.dots .dot { opacity: 0.55; }
+.dots.live .dot {
   animation: dot-blink 1.4s infinite ease-in-out;
 }
 .dot-1 { animation-delay: 0s; }
@@ -69,7 +73,7 @@ svg { overflow: visible; }
 
 .badge.urgent {
   animation: badge-pulse 1.1s infinite ease-out;
-  transform-origin: 19px 5px;
+  transform-origin: 19px 4.5px;
 }
 @keyframes badge-pulse {
   0% { transform: scale(1); }

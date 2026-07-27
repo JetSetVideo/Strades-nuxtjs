@@ -1,65 +1,55 @@
-<script setup>
-import { ref, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Strategy from '@/components/Strategy/Card.vue'
 import SharedData from '@/components/Card/SharedData.vue'
 import { useStrategiesStore } from '@/stores/strategies'
 import { useChatStore } from '@/stores/chat'
 import { useUsersStore } from '@/stores/users'
-import { useSharedDataStore } from '@/stores/sharedData'
+import { useSharesStore } from '@/stores/shares'
 
-// Store instances
 const strategiesStore = useStrategiesStore()
 const chatStore = useChatStore()
 const usersStore = useUsersStore()
-const sharedDataStore = useSharedDataStore()
+const sharesStore = useSharesStore()
 
-// Data stores
-const strategies = ref([])
-const sharedData = ref([])
-const conversations = ref([])
-const users = ref([])
+const strategies = ref<any[]>([])
+const sharedData = ref<any[]>([])
+const conversations = ref<any[]>([])
+const users = ref<any[]>([])
 
 const route = useRoute()
 const discussionId = route.params.id
 
-// Panel state
 const isOpen = ref(false)
-const activeTab = ref('strategies') // 'strategies' or 'data'
+const activeTab = ref('strategies')
 const selectedUser = ref(null)
 
-// Load data on mount
 onMounted(async () => {
   try {
-    // Initialize stores
     await Promise.all([
       strategiesStore.initializeStore(),
       chatStore.initializeStore(),
       usersStore.initializeStore(),
-      sharedDataStore.initializeStore()
+      sharesStore.hydrate(),
     ])
 
-    // Get data from stores
     strategies.value = strategiesStore.strategies
     conversations.value = chatStore.conversations
     users.value = usersStore.users
-    sharedData.value = sharedDataStore.sharedData
+    sharedData.value = sharesStore.library
 
-    // Filter data for this discussion
-    const currentConversation = conversations.value.find(conv => conv.id === discussionId)
+    const currentConversation = conversations.value.find((conv: any) => conv.id === discussionId)
 
     if (currentConversation) {
-      // Filter shared data by discussion ID
-      sharedData.value = sharedDataStore.getSharedDataByDiscussion(discussionId)
+      sharedData.value = sharesStore.getLibraryByDiscussion(String(discussionId))
 
-      // Filter strategies by shared strategies in conversation metadata
       if (currentConversation.metadata?.shared_strategies) {
-        const discussionStrategies = strategies.value.filter(strategy =>
+        const discussionStrategies = strategies.value.filter((strategy: any) =>
           currentConversation.metadata.shared_strategies.includes(strategy.id)
         )
         strategies.value = discussionStrategies
       } else {
-        // Fallback - show some strategies if no metadata
         strategies.value = strategies.value.slice(0, 3)
       }
     }
@@ -68,17 +58,16 @@ onMounted(async () => {
   }
 })
 
-// Computed properties
 const filteredStrategies = computed(() => {
   if (selectedUser.value) {
-    return strategies.value.filter(strategy => strategy.creator_id === selectedUser.value)
+    return strategies.value.filter((strategy: any) => strategy.creator_id === selectedUser.value)
   }
   return strategies.value
 })
 
 const filteredSharedData = computed(() => {
   if (selectedUser.value) {
-    return sharedData.value.filter(item => item.sharedById === selectedUser.value)
+    return sharedData.value.filter((item: any) => item.sharedById === selectedUser.value)
   }
   return sharedData.value
 })
@@ -86,35 +75,21 @@ const filteredSharedData = computed(() => {
 const totalStrategies = computed(() => filteredStrategies.value.length)
 const totalSharedData = computed(() => filteredSharedData.value.length)
 
-// Methods
-const openPanel = () => {
-  isOpen.value = true
+const openPanel = () => { isOpen.value = true }
+const closePanel = () => { isOpen.value = false }
+
+const handleOverlayClick = (event: MouseEvent) => {
+  if (event.target === event.currentTarget) closePanel()
 }
 
-const closePanel = () => {
-  isOpen.value = false
+const handleEscapeKey = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && isOpen.value) closePanel()
 }
 
-const handleOverlayClick = (event) => {
-  // Only close if clicking the overlay itself, not its contents
-  if (event.target === event.currentTarget) {
-    closePanel()
-  }
-}
-
-const handleEscapeKey = (event) => {
-  if (event.key === 'Escape' && isOpen.value) {
-    closePanel()
-  }
-}
-
-// Add escape key listener
 onMounted(() => {
   document.addEventListener('keydown', handleEscapeKey)
 })
 
-// Remove listener on unmount
-import { onUnmounted } from 'vue'
 onUnmounted(() => {
   document.removeEventListener('keydown', handleEscapeKey)
 })

@@ -7,11 +7,11 @@ const savingState    = useState<'idle' | 'saving' | 'saved' | 'error'>('creator:
 
 const statusMeta = computed(() => {
   const m: Record<string, { label: string; color: string }> = {
-    draft:   { label: 'Draft',   color: '#607d8b' },
-    saved:   { label: 'Saved',   color: '#2196f3' },
-    active:  { label: 'Active',  color: '#4caf50' },
-    paused:  { label: 'Paused',  color: '#ff9800' },
-    stopped: { label: 'Stopped', color: '#9e9e9e' },
+    draft:   { label: 'Draft',   color: 'var(--status-draft)' },
+    saved:   { label: 'Saved',   color: 'var(--status-saved)' },
+    active:  { label: 'Active',  color: 'var(--status-active)' },
+    paused:  { label: 'Paused',  color: 'var(--status-paused)' },
+    stopped: { label: 'Stopped', color: 'var(--status-stopped)' },
   }
   return m[strategyStatus.value] ?? m.draft
 })

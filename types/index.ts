@@ -1,18 +1,8 @@
-// Shared types between frontend and backend
-export interface Asset {
-  id: string
-  symbol: string
-  name: string
-  price: number
-  change24h: number
-}
+/** Shared types barrel — domain modules are the source of truth. */
 
-export interface Strategy {
-  id: string
-  name: string
-  description: string
-  creator: string
-  performance: number
-}
-
-export * from './quests'; 
+export * from './quests'
+export * from './asset'
+export * from './strategy'
+export * from './user'
+export * from './allocation'
+export * from './agent'

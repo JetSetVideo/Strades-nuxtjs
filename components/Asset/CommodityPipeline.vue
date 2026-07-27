@@ -57,7 +57,7 @@ const strategyCommodityMap = computed(() => {
   for (const s of strategies.value) {
     const related = s.target_assets.filter(a => commoditySymbols.includes(a.toUpperCase()))
     if (related.length > 0) {
-      const volByClass = macroStore.macroState?.volatility_by_class ?? {}
+      const volByClass = macroStore.volatility_by_class ?? {}
       const avgVol = related.reduce((sum, a) => {
         const asset = assetsStore.getAssetBySymbol(a)
         const cls = asset?.type === 'cryptocurrency' ? 'crypto' : asset?.type === 'stock' ? 'stocks' : 'fiat'
@@ -90,7 +90,7 @@ const commodityExposure = computed(() => {
 
 /** Commodity price simulation from macro volatility */
 const commodityPrices = computed(() => {
-  const volByClass = macroStore.macroState?.volatility_by_class ?? {}
+  const volByClass = macroStore.volatility_by_class ?? {}
   return commodityExposure.value.map(c => {
     const asset = assetsStore.getAssetBySymbol(c.symbol)
     const basePrice = asset?.current_price ?? 100

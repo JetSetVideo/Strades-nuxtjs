@@ -2,7 +2,7 @@
   <component
     :is="tag"
     class="ui-card"
-    :class="[`pad-${padding}`, { hoverable, dominant, danger }]"
+    :class="[`pad-${padding}`, `depth-${depth}`, { hoverable, dominant, danger }]"
     :style="dynamicStyles"
   >
     <header v-if="title || $slots.header" class="card-head">
@@ -33,9 +33,12 @@ const props = withDefaults(defineProps<{
   assetClass?: AssetClass
   confidence?: number
   liquidity?: number
+  /** Visual elevation: sunken = background info, raised = focal data */
+  depth?: 'sunken' | 'base' | 'raised'
 }>(), {
   tag: 'section',
-  padding: 'normal'
+  padding: 'normal',
+  depth: 'base'
 })
 
 const { dynamicStyles } = useLivingUI({
@@ -61,6 +64,18 @@ const { dynamicStyles } = useLivingUI({
 }
 .ui-card.pad-tight { padding: 0.5rem 0.65rem !important; }
 .ui-card.pad-loose { padding: 1.2rem 1.4rem !important; }
+
+/* Depth levels: layered gradients pull focal data forward */
+.ui-card.depth-sunken {
+  background: var(--surface-sunken, linear-gradient(135deg, rgba(6,7,10,0.92), rgba(9,10,14,0.95)));
+  border-color: var(--edge-soft, rgba(255,255,255,0.05));
+}
+.ui-card.depth-raised {
+  background: var(--surface-raised, linear-gradient(135deg, rgba(27,29,38,0.92), rgba(16,17,24,0.95)));
+  border-color: var(--edge-raised, rgba(255,255,255,0.09));
+  border-top-color: var(--edge-lit, rgba(255,255,255,0.14));
+  box-shadow: var(--shadow-depth-2, 0 4px 14px rgba(0,0,0,0.45));
+}
 
 .ui-card.hoverable { cursor: pointer; }
 .ui-card.hoverable:hover {

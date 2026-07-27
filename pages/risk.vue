@@ -38,7 +38,7 @@ onMounted(async () => {
 const pie = computed(() => allocation.allocationPie)
 
 // ─── Asset class risk (volatility × allocation) ──────────────────────────────
-const volatilityByClass = computed(() => macro.macroState?.volatility_by_class ?? {
+const volatilityByClass = computed(() => macro.volatility_by_class ?? {
   fiat: 0.05, crypto: 0.7, stocks: 0.3, commodities: 0.35
 })
 

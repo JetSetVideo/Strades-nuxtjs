@@ -1,29 +1,7 @@
 import { defineStore } from 'pinia'
+import type { PriceUpdate, Activity, NewsItem } from '~/types/asset'
 
-// Types for real-time asset events
-export interface PriceUpdate {
-  symbol: string
-  price: number
-  change24h: number
-  timestamp: number
-}
-
-export interface Activity {
-  id: string
-  type: string
-  symbol: string
-  message: string
-  timestamp: number
-}
-
-export interface NewsItem {
-  id: string
-  title: string
-  content: string
-  source: string
-  timestamp: number
-  url?: string
-}
+export type { PriceUpdate, Activity, NewsItem } from '~/types/asset'
 
 export const useAssetEventsStore = defineStore('assetEvents', {
   state: () => ({

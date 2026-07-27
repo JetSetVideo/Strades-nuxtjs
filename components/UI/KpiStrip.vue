@@ -49,10 +49,26 @@ function format(v: string | number | null | undefined) {
   flex-direction: column;
   gap: 0.05rem;
   padding: 0.35rem 0.5rem;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: var(--surface-raised, rgba(255,255,255,0.02));
+  border: 1px solid var(--edge-raised, rgba(255,255,255,0.05));
+  border-top-color: var(--edge-lit, rgba(255,255,255,0.14));
   border-radius: 6px;
   min-width: 0;
+  box-shadow: var(--shadow-depth-1, 0 1px 2px rgba(0,0,0,0.4));
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.kpi:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-depth-2, 0 4px 14px rgba(0,0,0,0.45));
+}
+/* Signal-carrying KPIs surface higher than neutral ones */
+.kpi.positive {
+  background: linear-gradient(180deg, rgba(0,255,136,0.08) 0%, rgba(16,17,24,0.95) 100%);
+  border-top-color: rgba(0,255,136,0.3);
+}
+.kpi.negative {
+  background: linear-gradient(180deg, rgba(255,77,106,0.08) 0%, rgba(16,17,24,0.95) 100%);
+  border-top-color: rgba(255,77,106,0.3);
 }
 .kpi-label {
   font-size: 0.55rem;

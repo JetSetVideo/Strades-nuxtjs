@@ -75,7 +75,7 @@ const deals = computed<DealData[]>(() =>
   strategies.value.map(s => {
     const targetSym = (s.target_assets?.[0] ?? '').toUpperCase()
     const sc = supplyChainCache.value[targetSym]
-    const vol = macro.macroState?.volatility_by_class ?? {}
+    const vol = macro.volatility_by_class ?? {}
 
     // Extract counterparties from supply chain
     const counterparties: DealData['counterparties'] = []

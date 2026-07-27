@@ -50,9 +50,57 @@ export interface Wallet {
   updated_at: string
 }
 
+/** Backend portfolio shape from GET /api/portfolio/ */
+export interface PortfolioAsset {
+  id: string
+  symbol: string
+  name: string
+  current_price: number
+  icon_url?: string | null
+}
+
+export interface PortfolioHolding {
+  asset: PortfolioAsset
+  quantity: number
+  average_buy_price: number
+  current_value: number
+  unrealized_pnl: number
+  unrealized_pnl_pct: number
+}
+
+export interface PortfolioTransaction {
+  id: number
+  type: 'buy' | 'sell'
+  asset_id: string
+  asset_symbol: string
+  quantity: number
+  price: number
+  total_value: number
+  fee: number
+  timestamp: string
+  status: string
+}
+
+export interface Portfolio {
+  id: number
+  name: string
+  cash_balance: number
+  currency: string
+  total_value: number
+  total_invested: number
+  holdings: PortfolioHolding[]
+  transactions: PortfolioTransaction[]
+  created_at?: string
+  updated_at?: string
+}
+
 export interface WalletState {
   wallets: Wallet[]
   walletHistory: Record<string, Record<string, unknown>>
+  /** Live backend portfolio (API-first); null when unauthenticated / demo JSON only. */
+  portfolio: Portfolio | null
+  portfolioLoading: boolean
+  portfolioError: string | null
   hydrated: boolean
   loading: boolean
   error: Error | null
@@ -62,6 +110,9 @@ export const useWalletStore = defineStore('wallet', {
   state: (): WalletState => ({
     wallets: [],
     walletHistory: {},
+    portfolio: null,
+    portfolioLoading: false,
+    portfolioError: null,
     hydrated: false,
     loading: false,
     error: null
@@ -128,6 +179,78 @@ export const useWalletStore = defineStore('wallet', {
       } finally {
         this.loading = false
       }
+    },
+
+    /**
+     * API-first portfolio fetch. Falls back to synthesizing a Portfolio
+     * from the default JSON wallet when the backend is unavailable.
+     */
+    async fetchPortfolio() {
+      const { accessToken, isAuthenticated } = useAuth()
+      const config = useRuntimeConfig()
+      const apiBase = config.public.apiBase as string
+
+      this.portfolioLoading = true
+      this.portfolioError = null
+
+      if (isAuthenticated.value && accessToken.value) {
+        try {
+          const { $api } = useNuxtApp()
+          const data = await ($api as typeof $fetch)<Portfolio>('/api/portfolio/')
+          this.portfolio = data
+          this.portfolioLoading = false
+          return data
+        } catch (err: unknown) {
+          const detail = (err as { data?: { detail?: string }; message?: string })?.data?.detail
+            || (err as { message?: string })?.message
+            || 'Failed to load portfolio.'
+          console.warn('[wallet] portfolio API failed, falling back to JSON wallets:', detail)
+          this.portfolioError = detail
+        }
+      }
+
+      // JSON fallback — synthesize Portfolio from default wallet
+      if (!this.hydrated) {
+        await this.fetchWallets()
+      }
+      const defaultWallet = this.wallets.find(w => w.is_default) || this.wallets[0]
+      if (defaultWallet) {
+        this.portfolio = {
+          id: 0,
+          name: defaultWallet.name,
+          cash_balance: defaultWallet.available_balance,
+          currency: defaultWallet.currency,
+          total_value: defaultWallet.total_value,
+          total_invested: defaultWallet.invested_amount,
+          holdings: defaultWallet.assets.map(a => ({
+            asset: {
+              id: a.asset_id,
+              symbol: a.symbol,
+              name: a.symbol,
+              current_price: a.current_price,
+            },
+            quantity: a.amount,
+            average_buy_price: a.average_price,
+            current_value: a.current_value,
+            unrealized_pnl: a.return_amount,
+            unrealized_pnl_pct: a.return_percentage,
+          })),
+          transactions: defaultWallet.transactions.map((t, i) => ({
+            id: i,
+            type: t.type,
+            asset_id: t.asset_id,
+            asset_symbol: t.asset_symbol,
+            quantity: t.amount,
+            price: t.price,
+            total_value: t.total_value,
+            fee: t.fee,
+            timestamp: t.timestamp,
+            status: t.status,
+          })),
+        }
+      }
+      this.portfolioLoading = false
+      return this.portfolio
     },
 
     async initializeStore() {

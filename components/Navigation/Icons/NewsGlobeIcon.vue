@@ -16,17 +16,21 @@ function tick() {
 onMounted(() => { tick(); timerId = setInterval(tick, 10_000) })
 onUnmounted(() => clearInterval(timerId))
 
-// 24-hour clock: 0 h = top, 12 h = bottom. −90° so 0 h points straight up.
-const hourAngle = computed(() => ((utcH.value + utcM.value / 60) / 24) * 360 - 90)
+// 24-hour dial with the red hand pointing UP at 12:00 GMT (noon)
+// and DOWN at midnight — one full revolution per day.
+const hourAngle = computed(() => {
+  const frac = (utcH.value + utcM.value / 60) / 24   // 0…1 through the day
+  return -90 + (frac - 0.5) * 360                     // −90° (screen up) at 12 h
+})
 
 const CX = 12; const CY = 12; const R = 9.5
 
-// Full-diameter GMT bar: both endpoints on the circle edge
+// Single-radius GMT hand from the globe center to the rim
 const bar = computed(() => {
   const rad = (hourAngle.value * Math.PI) / 180
   return {
-    x1: (CX - R * Math.cos(rad)).toFixed(2),
-    y1: (CY - R * Math.sin(rad)).toFixed(2),
+    x1: CX.toFixed(2),
+    y1: CY.toFixed(2),
     x2: (CX + R * Math.cos(rad)).toFixed(2),
     y2: (CY + R * Math.sin(rad)).toFixed(2),
   }
@@ -123,14 +127,20 @@ const clipId = computed(() => `globe-clip-${props.size}`)
       <line x1="2.5" y1="12" x2="21.5" y2="12"
             stroke="currentColor" stroke-width="0.45" opacity="0.3"/>
 
-      <!-- ── GMT hour bar — full diameter, red, fixed (not rotating) ─── -->
+      <!-- Noon marker at the top of the dial -->
+      <line
+        :x1="CX" :y1="CY - R" :x2="CX" :y2="CY - R + 1.6"
+        stroke="#ff4444" stroke-width="1" stroke-linecap="round" opacity="0.6"
+      />
+
+      <!-- ── GMT hand — points up at 12:00 GMT, down at midnight ─── -->
       <!-- Glow -->
       <line
         :x1="bar.x1" :y1="bar.y1" :x2="bar.x2" :y2="bar.y2"
         stroke="#ff4444" stroke-width="3" stroke-linecap="round"
         opacity="0.22"
       />
-      <!-- Crisp bar -->
+      <!-- Crisp hand -->
       <line
         :x1="bar.x1" :y1="bar.y1" :x2="bar.x2" :y2="bar.y2"
         stroke="#ff4444" stroke-width="1.5" stroke-linecap="round"

@@ -9,13 +9,15 @@ import { useOpinionProfileStore, type ArticleSnapshot } from '~/stores/opinionPr
  * Also exposes `trackShare()` for explicit share actions.
  *
  * @param article  Getter returning the article snapshot (or null if not loaded)
- * @param userId   ID of the user doing the reading (defaults to 'user_001')
+ * @param userId   ID of the user doing the reading (defaults to current session user)
  */
 export const useArticleTracker = (
   article: () => ArticleSnapshot | null,
-  userId: string = 'user_001'
+  userId?: string
 ) => {
   const opinionStore = useOpinionProfileStore()
+  const { getUserId } = useCurrentUser()
+  const resolvedUserId = () => userId || getUserId()
   let mountedAt = 0
   let recorded = false
 
@@ -27,14 +29,14 @@ export const useArticleTracker = (
     if (!a) return
     const dwell = Date.now() - mountedAt
     if (dwell < DWELL_THRESHOLD_MS) return
-    opinionStore.recordRead(userId, a)
+    opinionStore.recordRead(resolvedUserId(), a)
     recorded = true
   }
 
   const trackShare = () => {
     const a = article()
     if (!a) return
-    opinionStore.recordShare(userId, a)
+    opinionStore.recordShare(resolvedUserId(), a)
   }
 
   onMounted(() => {

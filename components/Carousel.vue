@@ -1,34 +1,32 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import type { StrategySummary } from '~/types/strategy'
 import StrategyCard from '@/components/Card/Strategy.vue'
 
 const props = defineProps<{
-  strategies: Record<string, any>[]
-  selectedStrategies?: Record<string, any>[]
+  strategies: StrategySummary[]
+  selectedStrategies?: StrategySummary[]
 }>()
 
 const emit = defineEmits<{
-  'select-strategy': [s: Record<string, any>]
-  'copy': [s: Record<string, any>]
-  'share': [s: Record<string, any>]
-  'view': [s: Record<string, any>]
-  'toggle': [s: Record<string, any>]
-  'delete': [s: Record<string, any>]
+  'select-strategy': [s: StrategySummary]
+  'copy': [s: StrategySummary]
+  'share': [s: StrategySummary]
+  'view': [s: StrategySummary]
+  'toggle': [s: StrategySummary]
+  'delete': [s: StrategySummary]
 }>()
 
-// The featured index is the highlighted strategy
 const featuredIdx = ref(0)
 
-// Reset when strategies list changes
 watch(() => props.strategies.length, () => { featuredIdx.value = 0 })
 
 const featured = computed(() => props.strategies[featuredIdx.value] ?? null)
 const others   = computed(() => props.strategies.filter((_, i) => i !== featuredIdx.value))
 
-const isSelected = (s: Record<string, any>) =>
+const isSelected = (s: StrategySummary) =>
   (props.selectedStrategies ?? []).some(sel => sel.id === s.id)
 
-function promote(strategy: Record<string, any>) {
+function promote(strategy: StrategySummary) {
   const idx = props.strategies.findIndex(s => s.id === strategy.id)
   if (idx > -1) featuredIdx.value = idx
 }

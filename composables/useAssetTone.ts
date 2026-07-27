@@ -57,7 +57,7 @@ export function useAssetTone(change: Ref<number | undefined> | (() => number | u
   const hex = computed(() => {
     // For places that need a single color string (badge, sparkline)
     const positive = isPositive.value
-    return positive ? '#00ff88' : '#ff4d6a'
+    return positive ? 'var(--primary-green, #00ff88)' : 'var(--error-red, #ff4444)'
   })
 
   return { styles, level, isPositive, hex }

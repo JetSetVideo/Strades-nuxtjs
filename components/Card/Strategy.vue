@@ -2,7 +2,17 @@
 import { computed } from 'vue'
 
 const props = defineProps<{
-  strategy: Record<string, any>
+  strategy: Record<string, unknown> & {
+    id?: string
+    name?: string
+    monthlyGain?: number
+    monthlyDrawdown?: number
+    winRate?: number
+    riskScore?: number
+    total_return_percentage?: number
+    max_drawdown?: number
+    win_rate?: number
+  }
   variant?: 'featured' | 'compact'
   selected?: boolean
 }>()

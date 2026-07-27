@@ -156,9 +156,10 @@ const trainedness = computed(() => {
 })
 const ringOffset = computed(() => ringCircumference * (1 - trainedness.value))
 
-const canFork = computed(() =>
-  props.agent.share_state.is_public && props.agent.owner_id !== 'user_001'
-)
+const canFork = computed(() => {
+  const { getUserId } = useCurrentUser()
+  return props.agent.share_state.is_public && props.agent.owner_id !== getUserId()
+})
 
 const togglePlug = () => {
   if (opinions.isPlugged(props.agent.id)) {
@@ -170,7 +171,8 @@ const togglePlug = () => {
 }
 
 const fork = () => {
-  const fk = agents.forkAgent(props.agent.id, 'user_001')
+  const { getUserId } = useCurrentUser()
+  const fk = agents.forkAgent(props.agent.id, getUserId())
   if (fk) tracker.track('agent_fork', { source_id: props.agent.id })
 }
 </script>

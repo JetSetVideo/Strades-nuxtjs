@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useStrategiesStore } from '@/stores/strategies'
-import { useTrackingStore } from '@/stores/tracking'
+import { useActivityLog } from '@/composables/useActivityLog'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UIPill from '@/components/UI/Pill.vue'
@@ -22,21 +22,18 @@ interface Strategy {
   is_public?: boolean
   description?: string
   price?: number
-  [key: string]: any
+  [key: string]: unknown
 }
 
 const strategiesStore = useStrategiesStore()
-const trackingStore = useTrackingStore()
+const activityLog = useActivityLog()
 
 const loading = ref(true)
 const category = ref<'all' | string>('all')
 const tier = ref<'all' | 'free' | 'premium'>('all')
 
 onMounted(async () => {
-  await Promise.all([
-    strategiesStore.initializeStore(),
-    trackingStore.initializeStore()
-  ])
+  await strategiesStore.initializeStore()
   loading.value = false
 })
 
@@ -85,16 +82,11 @@ const stats = computed(() => {
 })
 
 function openStrategy(id: string) {
-  trackingStore.trackUserInteraction({
-    user_id: 'user_001',
-    session_id: 'session_123',
-    event_type: 'component_interaction',
-    component: 'shop_card',
+  activityLog.interact({
     action: 'open',
-    target: 'strategy_detail',
-    context: { strategy_id: id },
-    duration_ms: 0,
-    metadata: {}
+    target: id,
+    category: 'content',
+    why: { intent: 'browse_shop', component: 'shop_card' },
   })
   navigateTo(`/strategy/${id}`)
 }

@@ -165,3 +165,13 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **22.1 Swarm ghost overlay** on wallet page when `opinions.mode === 'advisory'`: pulsing banner inside `Wallet/Hero.vue` showing `SWARM ×N` chip, top divergence message ("Agents want +X% class"), and "Match" button. Ghost allocation bar below shows the swarm vector split. Driven by `opinions.swarmVector` vs `allocation.allocationPie`.
 - [x] **22.2 Avatar personality shape encoding** in `Agent/AvatarCard.vue`: hexagon clip-path for aggressive (`risk + aggression > 0.65`), circle for conservative (`< 0.35`), rounded square for balanced. Frame glow color matches personality (red for aggressive, blue for conservative).
 - [x] **22.3 Training progress ring** around the avatar image driven by `training_state.loss_ema`. SVG ring with `stroke-dashoffset` bound to `1 - (loss / 0.5)`, transitioning smoothly as training improves.
+
+## Phase 30: Codebase Cleanup & Data-Flow Consolidation
+- [x] **30.0** Committed in-flight auth/API/price-cache/nav work as foundation commit.
+- [x] **30.1** Fixed broken runtime: `macroStore.macroState` → direct fields, removed dead `$socket`, summarizer uses strategies store, chat loading fix, merged `/profile` conflict.
+- [x] **30.2** Canonical types in `types/{asset,strategy,user,allocation,agent}.ts`; stores re-export.
+- [x] **30.3** Merged strategies/portfolio parallel paths; deleted `sharedData` + JSON `tracking` stores; `useCurrentUser` resolves auth.
+- [x] **30.4** `$api` 401 refresh/retry; prefetch stores bodies; price cache cleared on logout.
+- [x] **30.5** Deleted dead server routes, ~20 orphaned components, legacy root JSONs, unused currency store.
+- [x] **30.6** Design tokens + typed props + `useLivingUI` on DisplayAsset.
+- [x] **30.7** `npm run build` passes (1.81 MB, 0 errors).

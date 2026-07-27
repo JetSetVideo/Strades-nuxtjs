@@ -39,12 +39,12 @@ const filteredMarkers = computed(() => {
 
 const filteredRoutes = computed(() => {
   if (!groupFilter.value) return props.routes
-  // Only show routes whose markers are in the filtered group (best effort)
-  const visibleIds = new Set(filteredMarkers.value.map(m => m.id))
-  return props.routes.filter(r => {
-    // Match routes whose endpoints are at any visible marker (lat/lng equal)
-    return Array.from(visibleIds).length > 0
-  })
+  // Keep only routes with at least one endpoint at a visible marker position
+  const key = (lat: number, lng: number) => `${lat.toFixed(3)},${lng.toFixed(3)}`
+  const visible = new Set(filteredMarkers.value.map(m => key(m.lat, m.lng)))
+  return props.routes.filter(r =>
+    visible.has(key(r.from.lat, r.from.lng)) || visible.has(key(r.to.lat, r.to.lng))
+  )
 })
 
 // Group counts for filter chips
