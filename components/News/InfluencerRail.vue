@@ -21,6 +21,10 @@ withDefaults(defineProps<{
   influencers: Influencer[]
   limit?: number
 }>(), { limit: 5 })
+
+const emit = defineEmits<{
+  (e: 'follow', id: string): void
+}>()
 </script>
 
 <template>
@@ -34,10 +38,15 @@ withDefaults(defineProps<{
       <div class="inf-body">
         <div class="inf-head">
           <span class="handle">{{ inf.handle }}</span>
-          <UIPill
-            :tone="inf.latest_signal.type === 'bullish' ? 'success' : inf.latest_signal.type === 'bearish' ? 'danger' : 'neutral'"
-            show-dot
-          >{{ inf.latest_signal.asset }}</UIPill>
+          <div class="signal-actions">
+            <UIPill
+              :tone="inf.latest_signal.type === 'bullish' ? 'success' : inf.latest_signal.type === 'bearish' ? 'danger' : 'neutral'"
+              show-dot
+            >{{ inf.latest_signal.asset }}</UIPill>
+            <button class="follow-btn" type="button" @click="emit('follow', inf.id)">
+              {{ inf.followed_by_user ? 'Following' : 'Follow' }}
+            </button>
+          </div>
         </div>
         <p class="thesis">{{ inf.latest_signal.thesis }}</p>
         <div class="inf-meta">
@@ -61,6 +70,7 @@ withDefaults(defineProps<{
 .inf-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 .inf-body { min-width: 0; }
 .inf-head { display: flex; justify-content: space-between; align-items: center; gap: 0.35rem; }
+.signal-actions { display: inline-flex; gap: 0.35rem; align-items: center; }
 .handle { font-size: 0.78rem; font-weight: 600; }
 .thesis {
   margin: 0.2rem 0 0.25rem 0;
@@ -79,5 +89,20 @@ withDefaults(defineProps<{
   color: rgba(255,255,255,0.4);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+.follow-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.78);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.25rem 0.55rem;
+  cursor: pointer;
+}
+.follow-btn:hover {
+  border-color: rgba(0,255,136,0.35);
+  color: var(--primary-green, #00ff88);
 }
 </style>

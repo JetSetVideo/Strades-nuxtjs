@@ -1,3 +1,28 @@
+## News Intelligence Workspace
+
+### Primary components
+- `components/News/FilterToolbar.vue`
+  - sticky search, view selection, sort selection, high-value facets, date range, import/write actions
+- `components/News/ItemCard.vue`
+  - canonical story presentation for social, editorial, and imported links
+  - includes provenance, axis/sentiment labels, allocation, prediction context, save/share/comment/judgment actions
+- `components/News/ExternalImportModal.vue`
+  - manual provenance capture for external URLs
+- `components/News/ComposerModal.vue`
+  - user-authored signal/article creation with category, sentiment, optional assets, optional geography, optional allocation
+
+### Adapted legacy components
+- `components/Social/ArticlePost.vue`
+  - now acts as a thin adapter around the canonical news card
+- `components/Widget/NewsCard.vue`
+  - now acts as a thin adapter around the canonical news card for editorial items
+- `components/News/InfluencerRail.vue`
+  - read-mostly signal rail with follow action
+
+### Interaction contract
+- Save, comment, share, like/dislike, and political judgment all dispatch through the news store.
+- History events are created for read/save/share/comment/judge/publish/import actions.
+- Story cards must not mutate props directly.
 # Components Data Usage Analysis & Visual Mapping
 
 This document maps **every data key from `Data.md` to the Vue component that consumes it**, and specifically how each key drives form, size, color, or animation of the living UI.

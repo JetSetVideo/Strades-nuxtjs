@@ -1,3 +1,33 @@
+## News Intelligence Workspace
+
+### Layout hierarchy
+- The news page is a two-layer workspace: a sticky command/filter surface above a primary result stream, with a contextual rail on wide screens.
+- Use the depth tokens from `assets/css/variables.css` consistently:
+  - page canvas: `--surface-sunken`
+  - toolbar and rails: `--surface-base`
+  - focal story cards: `--surface-raised`
+  - dialogs/import/compose: `--surface-overlay`
+- Shadows must follow the same hierarchy: `--shadow-depth-1` for passive rail rows, `--shadow-depth-2` for sticky/filter surfaces, `--shadow-depth-3` for modal overlays.
+
+### Story card language
+- Political leaning remains a subtle tint, never a heavy opaque wash.
+- Economic stance, sentiment, provenance, geography, assets, and prediction context must each have a textual label. Color is reinforcement, never the only cue.
+- Allocation bars use the canonical mapping:
+  - fiat: blue
+  - crypto: amber
+  - stocks: blue-family
+  - commodities: gold
+- The judgment control shows **analyzed leaning** and **user judgment** as separate concepts.
+
+### Filter UX
+- Filters must be dense, fast, and reversible: clear-all, chip removal, result counts, and deterministic URL state.
+- Mobile behavior collapses the secondary rail but does not hide command actions for import or writing.
+- Saved and History are first-class views, not ad hoc badges.
+
+### Motion and accessibility
+- `prefers-reduced-motion` must suppress persistent movement, shimmer, and repeat animations.
+- Dialogs restore focus to the invoking control.
+- Buttons for save/share/comment/judge must be functional controls with labels and pressed states; no decorative counters.
 # Design & User Experience Guidelines
 
 This document is the designer's contract with the codebase. It describes how the user journeys through Strades and how **every data point — primary or secondary — physically manifests** in form, size, color, or animation. If a piece of data exists in `Data.md`, it must visibly influence the UI somewhere.

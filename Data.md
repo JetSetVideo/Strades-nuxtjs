@@ -306,3 +306,62 @@ tracking[] ─────┬─> Avatar training pipeline
                 ├─> Opinion profiler
                 └─> Prefetch engine
 ```
+
+---
+
+## 11. News Intelligence Workspace
+
+### Canonical `NewsItem`
+The news workspace now normalizes social posts, editorial articles, and imported external links into one client shape:
+
+```ts
+interface NewsItem {
+  id: string
+  kind: 'social' | 'editorial' | 'external'
+  title: string
+  content: string
+  excerpt: string
+  category: string
+  type: string
+  assets: string[]
+  currencies: string[]
+  commodities: string[]
+  tags: string[]
+  source: NewsSource
+  author: NewsAuthor
+  geographicOrigin?: { lat: number; lng: number; name?: string; area?: string }
+  politicalLeaning: number
+  economicLeaning: number | null
+  sentiment: number | null
+  controversyIndex: number
+  weight: number
+  publishedAt: string
+  allocation?: AllocationPie
+  savedByUser: boolean
+  readByUser: boolean
+  userReaction: { liked: boolean; disliked: boolean; politicalJudgment: NewsPoliticalScale | null }
+  comments: NewsComment[]
+  shares: NewsShare[]
+  counters: { likes: number; dislikes: number; comments: number; shares: number; bookmarks: number; judgments: number }
+  predictionSummary: PredictionSummary[]
+}
+```
+
+### User state and persistence
+- Demo persistence lives in browser storage under a versioned news workspace key.
+- Persisted per-user state includes bookmarks, read history, reactions, comments, shares, imported links, published notes, and followed authors.
+- Only deliberate reads, shares, saves, comments, and judgments may feed the opinion profile or avatar training loops.
+
+### Query semantics
+- Filter logic is **AND across facets** and **OR within a facet**.
+- Route query is the source of truth for shareable views:
+  - `q`
+  - `companies`, `currencies`, `commodities`, `owners`, `users`, `sources`, `kinds`, `categories`, `political`, `economic`, `sentiment`, `areas`
+  - `saved=1`, `history=1`, `predictions=1`
+  - `from`, `to`, `view`, `sort`
+- Supported views: `feed`, `editorial`, `signals`, `saved`, `history`
+- Supported sorts: `top`, `hot`, `new`
+
+### External links
+- Browser import is **manual provenance only**: URL validation, source label, summary, optional company/assets, optional geography, optional sentiment/axis hints.
+- The frontend must not claim it scraped or enriched a remote article unless a backend service performed that work and recorded the provenance.

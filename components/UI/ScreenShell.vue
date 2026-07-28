@@ -1,6 +1,6 @@
 <template>
   <div class="screen-shell">
-    <UIPageHeader :title="title" :subtitle="subtitle">
+    <UIPageHeader v-if="!hideHeader" :title="title" :subtitle="subtitle">
       <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>
@@ -30,6 +30,7 @@ defineProps<{
   kpis?: KpiItem[]
   tabs?: TabItem[]
   tab?: string
+  hideHeader?: boolean
 }>()
 
 const emit = defineEmits<{ (e: 'update:tab', v: string): void }>()

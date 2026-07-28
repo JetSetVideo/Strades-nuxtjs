@@ -15,7 +15,7 @@
     "weight": 0.85,
     "embedded_allocation": { "fiat": 15, "crypto": 65, "stocks": 15, "commodities": 5 },
     "published_at": "2026-03-24T07:30:00Z",
-    "interactions": { "likes": 142, "comments": 23, "shares": 18, "bookmarks": 47 },
+    "interactions": { "likes": 142, "dislikes": 7, "comments": 23, "shares": 18, "bookmarks": 47 },
     "tags": ["BTC", "ETH", "swing_trade", "crypto"],
     "is_pinned": false
   },
@@ -35,7 +35,7 @@
     "weight": 0.72,
     "embedded_allocation": { "fiat": 5, "crypto": 80, "stocks": 10, "commodities": 5 },
     "published_at": "2026-03-23T14:00:00Z",
-    "interactions": { "likes": 387, "comments": 64, "shares": 92, "bookmarks": 128 },
+    "interactions": { "likes": 387, "dislikes": 14, "comments": 64, "shares": 92, "bookmarks": 128 },
     "tags": ["BTC", "on_chain", "accumulation", "bullish"],
     "is_pinned": false
   },
@@ -55,7 +55,7 @@
     "weight": 0.9,
     "embedded_allocation": { "fiat": 10, "crypto": 5, "stocks": 80, "commodities": 5 },
     "published_at": "2026-03-22T10:00:00Z",
-    "interactions": { "likes": 521, "comments": 89, "shares": 143, "bookmarks": 215 },
+    "interactions": { "likes": 521, "dislikes": 31, "comments": 89, "shares": 143, "bookmarks": 215 },
     "tags": ["TSLA", "EV", "fundamental", "long"],
     "is_pinned": true
   },
@@ -75,7 +75,7 @@
     "weight": 0.6,
     "embedded_allocation": { "fiat": 40, "crypto": 20, "stocks": 20, "commodities": 20 },
     "published_at": "2026-03-24T08:05:00Z",
-    "interactions": { "likes": 98, "comments": 12, "shares": 7, "bookmarks": 34 },
+    "interactions": { "likes": 98, "dislikes": 4, "comments": 12, "shares": 7, "bookmarks": 34 },
     "tags": ["EUR/USD", "scalp", "forex", "london_session"],
     "is_pinned": false
   },
@@ -95,7 +95,7 @@
     "weight": 0.74,
     "embedded_allocation": { "fiat": 20, "crypto": 0, "stocks": 75, "commodities": 5 },
     "published_at": "2026-03-21T09:15:00Z",
-    "interactions": { "likes": 74, "comments": 41, "shares": 22, "bookmarks": 18 },
+    "interactions": { "likes": 74, "dislikes": 19, "comments": 41, "shares": 22, "bookmarks": 18 },
     "tags": ["equities", "macro", "bonds", "opinion"],
     "is_pinned": false
   },
@@ -115,7 +115,7 @@
     "weight": 0.95,
     "embedded_allocation": { "fiat": 20, "crypto": 10, "stocks": 30, "commodities": 40 },
     "published_at": "2026-03-24T06:55:00Z",
-    "interactions": { "likes": 1422, "comments": 384, "shares": 612, "bookmarks": 289 },
+    "interactions": { "likes": 1422, "dislikes": 117, "comments": 384, "shares": 612, "bookmarks": 289 },
     "tags": ["Brent", "energy", "geopolitical", "commodities"],
     "is_pinned": true
   },
@@ -135,7 +135,7 @@
     "weight": 0.55,
     "embedded_allocation": { "fiat": 60, "crypto": 5, "stocks": 25, "commodities": 10 },
     "published_at": "2026-03-24T07:10:00Z",
-    "interactions": { "likes": 188, "comments": 22, "shares": 14, "bookmarks": 56 },
+    "interactions": { "likes": 188, "dislikes": 9, "comments": 22, "shares": 14, "bookmarks": 56 },
     "tags": ["JPY", "Nikkei", "carry_trade"],
     "is_pinned": false
   },
@@ -155,7 +155,7 @@
     "weight": 0.62,
     "embedded_allocation": { "fiat": 15, "crypto": 15, "stocks": 20, "commodities": 50 },
     "published_at": "2026-03-24T06:30:00Z",
-    "interactions": { "likes": 233, "comments": 41, "shares": 36, "bookmarks": 91 },
+    "interactions": { "likes": 233, "dislikes": 12, "comments": 41, "shares": 36, "bookmarks": 91 },
     "tags": ["copper", "china", "commodities", "restock"],
     "is_pinned": false
   }

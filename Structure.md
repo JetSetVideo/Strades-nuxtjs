@@ -1,3 +1,27 @@
+## News workspace architecture
+
+### State boundary
+- `stores/news.ts` is the source of truth for:
+  - normalized `NewsItem[]`
+  - per-user persisted state
+  - filters and route-query synchronization
+  - workflow mutations: save, reaction, judgment, comment, share, import, compose, history
+- `pages/news.vue` orchestrates layout and route sync only; it must not own shadow copies of posts or editorial arrays.
+
+### Data adapters
+- Seed sources:
+  - `public/data/social/posts.json`
+  - `public/news.json`
+  - `public/data/social/bookmarks.json`
+  - `public/data/user/users.json`
+  - `public/data/core/influencers.json`
+  - `public/data/predictions.json`
+- All of them are adapted at the store boundary into the canonical `NewsItem` domain before UI rendering.
+
+### Persistence boundary
+- Demo mode persists browser-only state in localStorage.
+- Backend contracts are documented as explicit `/api/news/*` placeholders, but this repository does not contain the ingestion/NLP backend.
+- External URLs are stored as manual provenance entries unless a backend later enriches them.
 # Application Structure & Data Inheritance
 
 This document defines the highly optimized, methodical top-to-bottom architecture of Strades. To support a living UI reflecting perpetual financial fluctuations and the 100% wallet allocation system, data flow must be strictly controlled to avoid over-calling, unnecessary re-renders, and memory bloat.

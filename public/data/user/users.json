@@ -31,6 +31,7 @@
     "followers_count": 284,
     "following_count": 97,
     "friends_count": 42,
+    "friends": ["user_002", "user_003", "user_004", "user_005", "user_006", "user_007"],
     "joined_date": "2025-06-01T12:00:00Z",
     "last_login": "2026-03-24T10:00:00Z",
     "is_active": true,

@@ -1,22 +1,31 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
   (e: 'update:open', v: boolean): void
-  (e: 'publish', post: Record<string, unknown>): void
+  (e: 'publish', post: {
+    title?: string
+    content: string
+    category: string
+    sentiment: number
+    allocation?: { fiat: number; crypto: number; stocks: number; commodities: number }
+    assets?: string[]
+    geographicOrigin?: { lat: number; lng: number; name?: string; area?: string }
+  }): void
 }>()
 
-const CATEGORIES = ['macro', 'crypto', 'stocks', 'commodities', 'geopolitics', 'tech']
-
+const CATEGORIES = ['macro', 'crypto', 'stocks', 'commodities', 'forex']
+const title = ref('')
 const content = ref('')
 const category = ref<string>('macro')
-const sentiment = ref(0)          // −1 … +1
+const sentiment = ref(0)
 const attachAllocation = ref(false)
-
-const maxLen = 500
+const assets = ref('')
+const locationName = ref('')
+const maxLen = 700
 const remaining = computed(() => maxLen - content.value.length)
-const canPublish = computed(() => content.value.trim().length >= 3 && remaining.value >= 0)
+const canPublish = computed(() => content.value.trim().length >= 12 && remaining.value >= 0)
 
 const sentimentLabel = computed(() => {
   if (sentiment.value > 0.33) return 'Bullish'
@@ -25,41 +34,44 @@ const sentimentLabel = computed(() => {
 })
 const sentimentColor = computed(() => {
   if (sentiment.value > 0.33) return 'var(--primary-green, #00ff88)'
-  if (sentiment.value < -0.33) return 'var(--error-red, #ff4d6a)'
+  if (sentiment.value < -0.33) return '#ff667a'
   return 'var(--primary-blue, #00aaff)'
 })
 
 const close = () => emit('update:open', false)
 
+const reset = () => {
+  title.value = ''
+  content.value = ''
+  category.value = 'macro'
+  sentiment.value = 0
+  attachAllocation.value = false
+  assets.value = ''
+  locationName.value = ''
+}
+
 const publish = () => {
   if (!canPublish.value) return
-  const { getUserId } = useCurrentUser()
   const alloc = useAllocationStore().allocationPie
-  const post: Record<string, unknown> = {
-    id: `post_local_${Date.now()}`,
-    author_id: getUserId(),
+  emit('publish', {
+    title: title.value.trim() || undefined,
     content: content.value.trim(),
     category: category.value,
     sentiment: sentiment.value,
-    political_leaning: 0,
-    economic_leaning: sentiment.value * 0.5,
-    controversy_index: Math.abs(sentiment.value) * 0.4,
-    weight: 0.6,
-    published_at: new Date().toISOString(),
-    interactions: { likes: 0, comments: 0, shares: 0 },
-    ...(attachAllocation.value
-      ? { embedded_allocation: {
+    assets: assets.value.split(',').map(value => value.trim().toUpperCase()).filter(Boolean),
+    geographicOrigin: locationName.value.trim()
+      ? { lat: 0, lng: 0, name: locationName.value.trim(), area: locationName.value.trim() }
+      : undefined,
+    allocation: attachAllocation.value
+      ? {
           fiat: Math.round(alloc.fiat),
           crypto: Math.round(alloc.crypto),
           stocks: Math.round(alloc.stocks),
-          commodities: Math.round(alloc.commodities)
-        } }
-      : {})
-  }
-  emit('publish', post)
-  content.value = ''
-  sentiment.value = 0
-  attachAllocation.value = false
+          commodities: Math.round(alloc.commodities),
+        }
+      : undefined,
+  })
+  reset()
   close()
 }
 
@@ -69,9 +81,10 @@ const onKey = (e: KeyboardEvent) => {
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
-watch(() => props.open, (v) => {
+watch(() => props.open, v => {
   if (typeof document === 'undefined') return
   document.body.style.overflow = v ? 'hidden' : ''
+  if (!v) reset()
 })
 </script>
 
@@ -79,18 +92,26 @@ watch(() => props.open, (v) => {
   <Teleport to="body">
     <Transition name="composer-fade">
       <div v-if="open" class="composer-backdrop" @click="close">
-        <div class="composer-modal" role="dialog" aria-label="Publish a note" @click.stop>
+        <div class="composer-modal" role="dialog" aria-modal="true" aria-label="Publish a note" @click.stop>
           <header class="head">
-            <h3>Publish a note</h3>
+            <h3>Write an article or signal</h3>
             <button class="close" aria-label="Close" @click="close">✕</button>
           </header>
+
+          <input
+            v-model="title"
+            class="body-input"
+            type="text"
+            maxlength="120"
+            placeholder="Headline or thesis"
+          >
 
           <textarea
             v-model="content"
             class="body-input"
             :maxlength="maxLen"
             rows="5"
-            placeholder="Your market take, signal or note…"
+            placeholder="Your market take, source summary, note or analysis..."
             autofocus
           />
           <div class="meta-row">
@@ -107,6 +128,17 @@ watch(() => props.open, (v) => {
                 @click="category = c"
               >{{ c }}</button>
             </div>
+          </div>
+
+          <div class="grid">
+            <label class="field">
+              <span class="section-label">Assets</span>
+              <input v-model="assets" class="body-input compact" type="text" placeholder="BTC, TSLA, EUR/USD" />
+            </label>
+            <label class="field">
+              <span class="section-label">Area</span>
+              <input v-model="locationName" class="body-input compact" type="text" placeholder="New York, Singapore..." />
+            </label>
           </div>
 
           <div class="section">
@@ -143,7 +175,7 @@ watch(() => props.open, (v) => {
   inset: 0;
   background: rgba(0,0,0,0.7);
   backdrop-filter: blur(5px);
-  z-index: 220;
+  z-index: var(--z-modal-backdrop, 1040);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -151,10 +183,10 @@ watch(() => props.open, (v) => {
 }
 .composer-modal {
   width: min(560px, 100%);
-  background: linear-gradient(180deg, rgba(18,20,26,0.98), rgba(10,12,16,0.98));
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.65);
+  background: var(--surface-overlay, linear-gradient(180deg, rgba(35,38,50,0.97), rgba(20,22,30,0.98)));
+  border: 1px solid var(--edge-lit, rgba(255,255,255,0.14));
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: var(--shadow-depth-3, 0 24px 60px rgba(0,0,0,0.65));
   padding: 0.9rem;
   display: flex;
   flex-direction: column;
@@ -199,6 +231,17 @@ watch(() => props.open, (v) => {
   padding: 0.6rem 0.7rem;
   outline: none;
   transition: border-color 0.2s;
+}
+.compact { min-height: auto; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 .body-input:focus { border-color: var(--primary-green, #00ff88); }
 
@@ -314,4 +357,16 @@ watch(() => props.open, (v) => {
 .composer-fade-enter-active, .composer-fade-leave-active { transition: opacity 0.18s ease; }
 .composer-fade-enter-from .composer-modal { transform: translateY(12px); }
 .composer-fade-enter-active .composer-modal { transition: transform 0.22s cubic-bezier(0.22,1,0.36,1); }
+
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-fade-enter-active,
+  .composer-fade-leave-active,
+  .composer-fade-enter-active .composer-modal {
+    transition: none;
+  }
+}
 </style>

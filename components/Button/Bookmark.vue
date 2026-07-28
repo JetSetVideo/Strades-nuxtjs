@@ -1,59 +1,75 @@
-<script setup>
-import { ref } from 'vue';
+<script setup lang="ts">
+const props = withDefaults(defineProps<{
+  modelValue?: boolean
+  label?: string
+}>(), {
+  modelValue: false,
+  label: 'Save article',
+})
 
-// Simple state to toggle bookmark status
-const isBookmarked = ref(false);
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: boolean): void
+  (e: 'toggle', value: boolean): void
+}>()
 
-function toggleBookmark() {
-    isBookmarked.value = !isBookmarked.value;
+const toggleBookmark = () => {
+  const next = !props.modelValue
+  emit('update:modelValue', next)
+  emit('toggle', next)
 }
 </script>
 
 <template>
-<button class="bookmark-btn" @click="toggleBookmark">
-<!-- SVG for a bookmark icon (bookmarked state) -->
-<svg v-if="isBookmarked"
-    xmlns="http://www.w3.org/2000/svg"
-    width="1.2em"
-    height="1.2em"
-    viewBox="0 0 24 24"
-    fill="currentColor" ><!-- Adjusted fill to use currentColor for dynamic coloring -->
-
-    <path fill="white" d="M5 21V5q0-.825.588-1.412T7 3h10q.825 0 1.413.588T19 5v16l-7-3z" />
-</svg>
-<!-- SVG for a bookmark icon (unbookmarked state) -->
-<svg
-    v-else
-    xmlns="http://www.w3.org/2000/svg"
-    width="1.2em"
-    height="1.2em"
-    viewBox="0 0 24 24"
-    fill="currentColor" 
-><!-- Adjusted fill to use currentColor for dynamic coloring -->
-    <path fill="white" d="M5 21V5q0-.825.588-1.412T7 3h6v2H7v12.95l5-2.15l5 2.15V11h2v10l-7-3zM7 5h6zm10 4V7h-2V5h2V3h2v2h2v2h-2v2z" />
-</svg>
-</button>
+  <button
+    class="bookmark-btn"
+    type="button"
+    :aria-pressed="modelValue"
+    :aria-label="modelValue ? 'Remove from saved articles' : label"
+    @click.stop="toggleBookmark"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="1.15em"
+      height="1.15em"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        v-if="modelValue"
+        d="M5 21V5q0-.825.588-1.412T7 3h10q.825 0 1.413.588T19 5v16l-7-3z"
+      />
+      <path
+        v-else
+        d="M5 21V5q0-.825.588-1.412T7 3h10q.825 0 1.413.588T19 5v16l-7-3zm2-3.05l5-2.15l5 2.15V5H7z"
+      />
+    </svg>
+    <span>{{ modelValue ? 'Saved' : 'Save' }}</span>
+  </button>
 </template>
 
 <style scoped>
 .bookmark-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 10px;
-    display: flex;
-    align-items: center;
-    color: white; /* Set your preferred icon color */
-    background-color: rgba(24, 24, 24, 0.5);
-    border-radius: 0.5rem;
-    transition: background-color 0.3s;
-}
-.bookmark-btn:hover {
-    background-color: rgba(24, 24, 24, 0.7);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  transition: background-color var(--transition-fast, 0.2s ease), border-color var(--transition-fast, 0.2s ease);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
 }
 
-.icon {
-    display: block;
-    margin-right: 5px;
+.bookmark-btn:hover,
+.bookmark-btn[aria-pressed='true'] {
+  border-color: rgba(0, 255, 136, 0.35);
+  background: rgba(0, 255, 136, 0.12);
+  color: var(--primary-green, #00ff88);
 }
 </style>

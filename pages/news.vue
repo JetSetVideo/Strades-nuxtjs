@@ -1,176 +1,270 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useNewsStore } from '@/stores/news'
-import { useInfluencersStore } from '@/stores/influencers'
-import { useMacroStore } from '@/stores/macro'
-import { useOpinionProfileStore } from '~/stores/opinionProfile'
-
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import UIScreenShell from '@/components/UI/ScreenShell.vue'
 import UIPill from '@/components/UI/Pill.vue'
+import UICard from '@/components/UI/Card.vue'
 import UIEmptyState from '@/components/UI/EmptyState.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
-import NewsCard from '@/components/Widget/NewsCard.vue'
-import SocialArticlePost from '@/components/Social/ArticlePost.vue'
-import NewsInfluencerRail from '@/components/News/InfluencerRail.vue'
-import NewsComposerModal from '@/components/News/ComposerModal.vue'
 import MapButton from '@/components/Map/MapButton.vue'
 import type { MapMarker } from '@/components/Map/WorldMap.vue'
-import type { TabItem } from '@/components/UI/SectionTabs.vue'
+
+type FacetKey = 'companies' | 'currencies' | 'commodities' | 'owners' | 'users' | 'friends' | 'sources' | 'categories' | 'areas'
+type EnumFacetKey = 'kinds' | 'political' | 'economic' | 'sentiment'
 
 definePageMeta({ title: 'News', layout: 'default' })
 
 const newsStore = useNewsStore()
 const influencers = useInfluencersStore()
 const macro = useMacroStore()
+const route = useRoute()
+const router = useRouter()
+const composerOpen = ref(false)
+const importOpen = ref(false)
 
-const loading = ref(true)
-const posts = ref<any[]>([])
-const tab = ref<'sentiment' | 'editorial' | 'signals'>('sentiment')
-const sortMode = ref<'weight' | 'time' | 'controversy'>('weight')
-const editorialCategory = ref<string | null>(null)
-
-const tabs = computed<TabItem[]>(() => [
-  { id: 'sentiment', label: 'Feed', count: posts.value.length },
-  { id: 'editorial', label: 'Editorial' },
-  { id: 'signals', label: 'Signals', count: influencers.latestSignals.length }
+await Promise.all([
+  newsStore.initializeStore(),
+  influencers.fetchInfluencers(),
 ])
+
+newsStore.applyQuery(route.query as Record<string, string | string[] | undefined>)
 
 const kpis = computed(() => [
-  { label: 'Pulse', value: macro.news_pulse_count },
-  { label: 'Followed', value: influencers.followed.length },
-  { label: 'Stress', value: Math.round(macro.geopolitical_stress * 100), suffix: '%' }
+  { label: 'Results', value: newsStore.filteredItems.length },
+  { label: 'Saved', value: newsStore.currentUserState.bookmarks.length },
+  { label: 'Stress', value: Math.round(macro.geopolitical_stress * 100), suffix: '%' },
+  { label: 'Followed', value: newsStore.currentUserState.followedAuthors.length + influencers.followed.length },
 ])
 
-onMounted(async () => {
-  const [, postsRes] = await Promise.all([
-    newsStore.initializeStore(),
-    fetch('/data/social/posts.json').then(r => r.ok ? r.json() : []).catch(() => [])
-  ])
-  if (!influencers.hydrated) await influencers.fetchInfluencers()
-  posts.value = postsRes
-  loading.value = false
-  if (newsStore.news?.categories?.length > 0) {
-    editorialCategory.value = newsStore.news.categories[0].name
-  }
+const mapMarkers = computed<MapMarker[]>(() =>
+  newsStore.filteredItems
+    .filter(item => item.geographicOrigin && (item.geographicOrigin.lat !== 0 || item.geographicOrigin.lng !== 0))
+    .map(item => ({
+      id: item.id,
+      lat: item.geographicOrigin!.lat,
+      lng: item.geographicOrigin!.lng,
+      label: item.geographicOrigin?.name || item.title,
+      tone: item.controversyIndex > 0.7 ? 'negative' : item.sentiment && item.sentiment > 0 ? 'positive' : 'info',
+      weight: Math.min(1, item.weight),
+      group: item.kind,
+    }))
+)
 
-  // Seed opinion profiler from existing posts for a first-use profile
-  const opinionProfile = useOpinionProfileStore()
-  const { getUserId } = useCurrentUser()
-  const uid = getUserId()
-  if (opinionProfile.getProfile(uid).sample_count < 3 && postsRes.length > 0) {
-    postsRes.slice(0, 5).forEach((p: any) => {
-      opinionProfile.recordRead(uid, { id: p.id, author_id: p.author_id, category: p.category, political_leaning: p.political_leaning, economic_leaning: p.economic_leaning, sentiment: p.sentiment, weight: p.weight })
-    })
-  }
-})
+const shareableQuery = computed(() => newsStore.toQuery())
 
-// Top-bar "Post" action opens the composer
-const composerOpen = ref(false)
+watch(
+  shareableQuery,
+  query => {
+    router.replace({ query })
+  },
+  { deep: true }
+)
+
 usePageAction().onPageAction('news:compose', () => { composerOpen.value = true })
 
-const handlePublish = (post: Record<string, unknown>) => {
-  posts.value.unshift(post)
-  tab.value = 'sentiment'
-  sortMode.value = 'time'
+const toggleFlag = (key: 'savedOnly' | 'historyOnly' | 'predictionOnly') => {
+  newsStore.updateFilter(key, !newsStore.filters[key] as never)
 }
 
-const sortedPosts = computed(() => {
-  const list = [...posts.value]
-  if (sortMode.value === 'weight') return list.sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0))
-  if (sortMode.value === 'controversy') return list.sort((a, b) => (b.controversy_index ?? 0) - (a.controversy_index ?? 0))
-  return list.sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())
-})
+const toggleFacet = (payload: { key: FacetKey; value: string }) => {
+  newsStore.toggleFilterValue(payload.key, payload.value)
+}
 
-const newsMapMarkers = computed<MapMarker[]>(() =>
-  posts.value.filter(p => p.geographic_origin).map(p => ({
-    id: `post-${p.id}`,
-    lat: p.geographic_origin.lat,
-    lng: p.geographic_origin.lng,
-    label: p.geographic_origin.name || 'Post',
-    tone: p.controversy_index > 0.7 ? 'negative' : 'info',
-    weight: Math.min(1, p.weight ?? 0.5),
-    group: 'Posts'
-  }))
-)
+const toggleEnumFacet = (payload: { key: EnumFacetKey; value: string }) => {
+  newsStore.toggleEnumFilterValue(payload.key, payload.value)
+}
+
+const importArticle = (payload: Parameters<typeof newsStore.importExternalLink>[0]) => {
+  newsStore.importExternalLink(payload)
+  newsStore.setView('feed')
+  newsStore.setSortMode('new')
+}
+
+const publishPost = (payload: Parameters<typeof newsStore.publishPost>[0]) => {
+  newsStore.publishPost(payload)
+  newsStore.setView('feed')
+  newsStore.setSortMode('new')
+}
 </script>
 
 <template>
   <UIScreenShell
-    title="News"
-    subtitle="Sentiment · editorial · influencer signals"
+    title="News Intelligence Workspace"
+    hide-header
     :kpis="kpis"
-    :tabs="tabs"
-    :tab="tab"
-    @update:tab="tab = $event as typeof tab"
   >
-    <template #actions>
-      <MapButton v-if="newsMapMarkers.length" :markers="newsMapMarkers" title="Origins" :subtitle="`${newsMapMarkers.length} stories`" />
-      <UIPill v-if="influencers.consensusBias > 0.15" tone="success" show-dot>BULL</UIPill>
-      <UIPill v-else-if="influencers.consensusBias < -0.15" tone="danger" show-dot>BEAR</UIPill>
-      <UIPill v-else tone="neutral" show-dot>MIXED</UIPill>
-    </template>
-
-    <div v-if="loading" class="loading">
-      <AppSkeletonLoader height="56px" />
-      <AppSkeletonLoader height="80px" />
+    <div v-if="newsStore.loading" class="loading">
+      <AppSkeletonLoader height="110px" />
+      <AppSkeletonLoader height="140px" />
+      <AppSkeletonLoader height="140px" />
     </div>
 
-    <template v-else-if="tab === 'sentiment'">
-      <div class="sort-row">
-        <button :class="{ active: sortMode === 'weight' }" @click="sortMode = 'weight'">Top</button>
-        <button :class="{ active: sortMode === 'controversy' }" @click="sortMode = 'controversy'">Hot</button>
-        <button :class="{ active: sortMode === 'time' }" @click="sortMode = 'time'">New</button>
-      </div>
-      <div class="feed">
-        <SocialArticlePost v-for="p in sortedPosts" :key="p.id" :post="p" />
-        <UIEmptyState v-if="sortedPosts.length === 0" icon="◴" message="No posts yet." />
-      </div>
-    </template>
-
-    <template v-else-if="tab === 'editorial'">
-      <div class="sort-row">
-        <button
-          v-for="cat in newsStore.news?.categories || []"
-          :key="cat.name"
-          :class="{ active: cat.name === editorialCategory }"
-          @click="editorialCategory = cat.name"
-        >{{ cat.name }}</button>
-      </div>
-      <div class="feed">
-        <NewsCard
-          v-for="article in newsStore.news?.categories?.find(c => c.name === editorialCategory)?.articles || []"
-          :key="article.id"
-          :article="article"
+    <div v-else class="workspace">
+      <div class="main-column">
+        <NewsFilterToolbar
+          :filters="newsStore.filters"
+          :facets="newsStore.facetSummary"
+          :sort-mode="newsStore.sortMode"
+          :view="newsStore.view"
+          :active-filter-count="newsStore.activeFilterCount"
+          @update:view="newsStore.setView($event)"
+          @update:sort="newsStore.setSortMode($event)"
+          @toggle-filter="toggleFacet"
+          @toggle-enum-filter="toggleEnumFacet"
+          @toggle-flag="toggleFlag"
+          @update-date="newsStore.updateFilter($event.key, $event.value)"
+          @clear="newsStore.resetFilters()"
+          @open-import="importOpen = true"
         />
+
+        <div class="summary-row">
+          <UIPill tone="info">{{ newsStore.filteredItems.length }} results</UIPill>
+          <UIPill v-if="newsStore.activeFilterCount" tone="neutral" ghost>{{ newsStore.activeFilterCount }} active filters</UIPill>
+          <UIPill v-if="newsStore.filters.predictionOnly" tone="success" ghost>Prediction-linked</UIPill>
+          <MapButton
+            v-if="mapMarkers.length"
+            :markers="mapMarkers"
+            title="Origins"
+            :subtitle="`${mapMarkers.length} mapped stories`"
+          />
+        </div>
+
+        <div class="feed">
+          <template v-if="newsStore.view === 'signals'">
+            <NewsInfluencerRail :influencers="influencers.latestSignals" :limit="12" @follow="influencers.toggleFollow($event)" />
+          </template>
+          <template v-else>
+            <NewsItemCard
+              v-for="item in newsStore.filteredItems"
+              :key="item.id"
+              :item="item"
+              :followed="newsStore.isAuthorFollowed(item.author.id)"
+              @bookmark="newsStore.toggleBookmark(item.id)"
+              @reaction="newsStore.setReaction(item.id, $event)"
+              @judge="newsStore.setPoliticalJudgment(item.id, $event)"
+              @comment="newsStore.addComment(item.id, $event)"
+              @share="newsStore.shareItem(item.id, $event.recipients, $event.note)"
+              @follow-author="newsStore.toggleFollowAuthor(item.author.id)"
+              @read="newsStore.recordRead(item.id, 5000)"
+            />
+          </template>
+
+          <UIEmptyState
+            v-if="newsStore.view !== 'signals' && newsStore.filteredItems.length === 0"
+            icon="◴"
+            title="No matching stories"
+            message="Adjust the filters, import an external source, or write a new article."
+          />
+        </div>
       </div>
-    </template>
 
-    <template v-else>
-      <NewsInfluencerRail :influencers="influencers.latestSignals" />
-    </template>
+      <aside class="rail">
+        <UICard title="Filter coverage" depth="sunken">
+          <div class="rail-list">
+            <div><span>Companies</span><strong>{{ newsStore.facetSummary.companies.length }}</strong></div>
+            <div><span>Currencies</span><strong>{{ newsStore.facetSummary.currencies.length }}</strong></div>
+            <div><span>Commodities</span><strong>{{ newsStore.facetSummary.commodities.length }}</strong></div>
+            <div><span>Owners</span><strong>{{ newsStore.facetSummary.owners.length }}</strong></div>
+            <div><span>Areas</span><strong>{{ newsStore.facetSummary.areas.length }}</strong></div>
+          </div>
+        </UICard>
 
-    <NewsComposerModal :open="composerOpen" @update:open="composerOpen = $event" @publish="handlePublish" />
+        <UICard title="Recent history" depth="sunken">
+          <div v-if="newsStore.history.length" class="history-list">
+            <div v-for="entry in newsStore.history.slice(0, 8)" :key="entry.id" class="history-entry">
+              <span>{{ entry.kind }}</span>
+              <strong>{{ entry.itemId }}</strong>
+              <small>{{ new Date(entry.createdAt).toLocaleString() }}</small>
+            </div>
+          </div>
+          <UIEmptyState v-else size="sm" icon="◌" message="Reading, saving and sharing will appear here." />
+        </UICard>
+
+        <UICard title="Design boundary" depth="sunken">
+          <p class="rail-copy">
+            External links are stored with explicit manual provenance. This demo does not pretend to scrape or enrich remote URLs in-browser.
+          </p>
+        </UICard>
+      </aside>
+    </div>
+
+    <NewsComposerModal :open="composerOpen" @update:open="composerOpen = $event" @publish="publishPost" />
+    <NewsExternalImportModal :open="importOpen" @update:open="importOpen = $event" @submit="importArticle" />
   </UIScreenShell>
 </template>
 
 <style scoped>
-.loading { display: flex; flex-direction: column; gap: 0.4rem; }
-.sort-row { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-.sort-row button {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  color: rgba(255,255,255,0.7);
-  padding: 0.25rem 0.55rem;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 0.65rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.loading,
+.feed,
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap, 0.6rem);
 }
-.sort-row button.active {
-  border-color: var(--primary-green, #00ff88);
-  color: var(--primary-green, #00ff88);
-  background: rgba(0,255,136,0.08);
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.8fr);
+  gap: var(--page-gap, 0.85rem);
+  align-items: start;
 }
-.feed { display: flex; flex-direction: column; gap: 0.45rem; }
+
+.main-column,
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--page-gap, 0.85rem);
+  min-width: 0;
+}
+
+.summary-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.rail-list,
+.history-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.rail-list > div,
+.history-entry {
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-md, 8px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rail-list > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.75rem;
+}
+
+.history-entry span,
+.rail-copy {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.history-entry strong {
+  font-size: 0.76rem;
+}
+
+.history-entry small {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+@media (max-width: 1024px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
