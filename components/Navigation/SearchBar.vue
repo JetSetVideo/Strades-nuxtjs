@@ -54,6 +54,42 @@ const PAGES: Result[] = [
   { type: 'page', id: 'p-shop', label: 'Shop', to: '/shop', icon: '◫' }
 ]
 
+/**
+ * Forgiving match score: exact substrings rank by how early they start;
+ * anything else falls back to an in-order subsequence match (so "cgnprm"
+ * still finds "Cognis Prime", or a typo'd ticker still finds its asset).
+ * Returns -1 when there's no match at all.
+ */
+function fuzzyScore(term: string, target: string): number {
+  if (!term) return 0
+  const t = target.toLowerCase()
+  const q = term.toLowerCase()
+  const idx = t.indexOf(q)
+  if (idx !== -1) return idx
+  let cursor = 0
+  let first = -1
+  for (const ch of q) {
+    const found = t.indexOf(ch, cursor)
+    if (found === -1) return -1
+    if (first === -1) first = found
+    cursor = found + 1
+  }
+  // Fuzzy subsequence matches always rank behind any substring match, and
+  // among themselves a tighter spread (fewer skipped characters) wins.
+  return 1000 + (cursor - first)
+}
+
+/** Best (lowest, non-negative) score across several candidate strings for one record. */
+function bestScore(term: string, ...candidates: (string | undefined)[]): number {
+  let best = -1
+  for (const c of candidates) {
+    if (!c) continue
+    const s = fuzzyScore(term, c)
+    if (s !== -1 && (best === -1 || s < best)) best = s
+  }
+  return best
+}
+
 const TYPE_LABELS: Record<ResultType, string> = {
   asset: 'Assets',
   agent: 'Agents',
@@ -68,12 +104,18 @@ const groups = computed<ResultGroup[]>(() => {
 
   if (!term) {
     const out: ResultGroup[] = []
-    const history = (props.searchHistory ?? []).slice(0, 4).map((h: any) => ({
+    // Defensive: searchHistory/searchSuggestions can arrive as a non-array
+    // during the SSR->client payload hydration window — never let a
+    // shape mismatch upstream crash the whole search modal.
+    const historySource = Array.isArray(props.searchHistory) ? props.searchHistory : []
+    const suggestionSource = Array.isArray(props.searchSuggestions) ? props.searchSuggestions : []
+
+    const history = historySource.slice(0, 4).map((h: any) => ({
       type: 'history' as const, id: 'h-' + h.id, label: h.term, hint: 'Recent', to: '/prices', icon: '↺'
     }))
     if (history.length) out.push({ type: 'history', label: TYPE_LABELS.history, results: history })
 
-    const sugg = (props.searchSuggestions ?? []).slice(0, 6).map((s: any) => ({
+    const sugg = suggestionSource.slice(0, 6).map((s: any) => ({
       type: 'suggestion' as const, id: 's-' + s.id, label: s.term, hint: 'Suggested', to: '/prices', icon: '✦'
     }))
     if (sugg.length) out.push({ type: 'suggestion', label: TYPE_LABELS.suggestion, results: sugg })
@@ -83,9 +125,11 @@ const groups = computed<ResultGroup[]>(() => {
   }
 
   const assetMatches: Result[] = assets.assets
-    .filter(a => a.name?.toLowerCase().includes(term) || a.symbol?.toLowerCase().includes(term))
+    .map(a => ({ a, score: bestScore(term, a.name, a.symbol) }))
+    .filter(x => x.score !== -1)
+    .sort((x, y) => x.score - y.score)
     .slice(0, 6)
-    .map(a => ({
+    .map(({ a }) => ({
       type: 'asset' as const,
       id: 'a-' + a.id,
       label: `${a.symbol} — ${a.name}`,
@@ -95,9 +139,11 @@ const groups = computed<ResultGroup[]>(() => {
     }))
 
   const agentMatches: Result[] = agents.all
-    .filter(a => a.name.toLowerCase().includes(term) || a.trading_style.toLowerCase().includes(term))
+    .map(a => ({ a, score: bestScore(term, a.name, a.trading_style) }))
+    .filter(x => x.score !== -1)
+    .sort((x, y) => x.score - y.score)
     .slice(0, 5)
-    .map(a => ({
+    .map(({ a }) => ({
       type: 'agent' as const,
       id: 'ag-' + a.id,
       label: a.name,
@@ -107,13 +153,11 @@ const groups = computed<ResultGroup[]>(() => {
     }))
 
   const personMatches: Result[] = community.list
-    .filter(u =>
-      u.username.toLowerCase().includes(term) ||
-      u.trading_style.toLowerCase().includes(term) ||
-      u.specialization.some(s => s.includes(term))
-    )
+    .map(u => ({ u, score: bestScore(term, u.username, u.trading_style, ...u.specialization) }))
+    .filter(x => x.score !== -1)
+    .sort((x, y) => x.score - y.score)
     .slice(0, 5)
-    .map(u => ({
+    .map(({ u }) => ({
       type: 'person' as const,
       id: 'u-' + u.id,
       label: u.username,
@@ -122,12 +166,19 @@ const groups = computed<ResultGroup[]>(() => {
       icon: u.is_friend ? '◉' : '◌'
     }))
 
-  const pageMatches = PAGES.filter(p => p.label.toLowerCase().includes(term)).slice(0, 5)
+  const pageMatches = PAGES
+    .map(p => ({ p, score: fuzzyScore(term, p.label) }))
+    .filter(x => x.score !== -1)
+    .sort((x, y) => x.score - y.score)
+    .slice(0, 5)
+    .map(x => x.p)
 
-  const suggestionMatches = (props.searchSuggestions ?? [])
-    .filter((s: any) => s.term.toLowerCase().includes(term))
+  const suggestionMatches = (Array.isArray(props.searchSuggestions) ? props.searchSuggestions : [])
+    .map((s: any) => ({ s, score: fuzzyScore(term, s.term) }))
+    .filter(x => x.score !== -1)
+    .sort((x, y) => x.score - y.score)
     .slice(0, 3)
-    .map((s: any) => ({ type: 'suggestion' as const, id: 's-' + s.id, label: s.term, hint: 'Suggested', to: '/prices', icon: '✦' }))
+    .map(({ s }) => ({ type: 'suggestion' as const, id: 's-' + s.id, label: s.term, hint: 'Suggested', to: '/prices', icon: '✦' }))
 
   const out: ResultGroup[] = []
   if (assetMatches.length) out.push({ type: 'asset', label: TYPE_LABELS.asset, results: assetMatches })
@@ -191,7 +242,11 @@ const indexOfResult = (r: Result) => flatResults.value.findIndex(x => x.id === r
 <template>
   <div class="search-bar-root" :class="{ open: isOpen }">
     <button class="search-trigger" @click="open" aria-label="Search">
-      <span class="icon">⌕</span>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2" />
+        <path d="M20 20 15.3 15.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <circle cx="10.5" cy="10.5" r="2.4" fill="currentColor" opacity="0.35" />
+      </svg>
       <span class="placeholder">Search assets, agents, people, pages…</span>
       <kbd class="kbd">⌘K</kbd>
     </button>
@@ -201,7 +256,10 @@ const indexOfResult = (r: Result) => flatResults.value.findIndex(x => x.id === r
         <div v-if="isOpen" class="search-backdrop" @click="close">
           <div class="search-modal" @click.stop>
             <header class="modal-head">
-              <span class="head-icon">⌕</span>
+              <svg class="head-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2" />
+                <path d="M20 20 15.3 15.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
               <input
                 ref="inputRef"
                 v-model="q"
@@ -285,7 +343,16 @@ const indexOfResult = (r: Result) => flatResults.value.findIndex(x => x.id === r
   background: rgba(0,255,136,0.03);
   color: rgba(255,255,255,0.85);
 }
-.search-trigger .icon { font-size: 0.95rem; color: rgba(255,255,255,0.6); }
+.search-trigger .icon {
+  width: 1rem; height: 1rem; flex-shrink: 0;
+  color: rgba(255,255,255,0.6);
+  transition: color 0.2s ease, filter 0.2s ease;
+}
+.search-trigger:hover .icon,
+.search-trigger:focus-visible .icon {
+  color: var(--primary-green, #00ff88);
+  filter: drop-shadow(0 0 4px rgba(0,255,136,0.45));
+}
 .search-trigger .placeholder { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .search-trigger .kbd {
   background: rgba(255,255,255,0.06);
@@ -325,7 +392,7 @@ const indexOfResult = (r: Result) => flatResults.value.findIndex(x => x.id === r
   padding: 0.55rem 0.85rem;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-.head-icon { font-size: 1rem; color: rgba(255,255,255,0.55); }
+.head-icon { width: 1.15rem; height: 1.15rem; flex-shrink: 0; color: var(--primary-green, #00ff88); }
 .search-input {
   flex: 1; background: none; border: none; outline: none;
   color: #fff; font-size: 0.95rem; font-family: inherit;
