@@ -28,7 +28,7 @@ const loading = ref(true)
 onMounted(async () => {
   await Promise.all([
     wallet.hydrated ? Promise.resolve() : wallet.initializeStore(),
-    agents.hydrated ? Promise.resolve() : agents.fetchAvatars().catch(() => {}),
+    agents.hydrated ? Promise.resolve() : agents.fetchAgents().catch(() => {}),
   ])
   paper.hydrate()
   loading.value = false

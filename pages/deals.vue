@@ -42,7 +42,7 @@ const allCommoditySymbols = ['btc', 'eth', 'sol', 'aapl', 'amzn', 'tsla', 'usd',
 onMounted(async () => {
   await Promise.all([
     fetchStrategies(),
-    macro.initializeStore(),
+    macro.fetchMacroState(),
     walletStore.initializeStore(),
     assetsStore.initializeStore(),
   ])

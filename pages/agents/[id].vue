@@ -15,6 +15,8 @@ import AgentOpinionVector from '@/components/Agent/OpinionVector.vue'
 import AgentPersonalityRadar from '@/components/Agent/PersonalityRadar.vue'
 import AgentTrainingTimeline from '@/components/Agent/TrainingTimeline.vue'
 import ProfilePersonalityMatrix from '@/components/Profile/PersonalityMatrix.vue'
+import AgentRegimeClassifier from '@/components/Agent/RegimeClassifier.vue'
+import { useAgentGlyph } from '~/composables/useAgentGlyph'
 
 definePageMeta({ title: 'Agent', layout: 'default' })
 
@@ -75,6 +77,9 @@ function fork() {
 }
 
 const { userId: currentUserId } = useCurrentUser()
+
+const glyph = computed(() => agent.value ? useAgentGlyph(agent.value) : null)
+const isClassifier = computed(() => agent.value?.model_type === 'classifier')
 </script>
 
 <template>
@@ -100,13 +105,14 @@ const { userId: currentUserId } = useCurrentUser()
     <!-- Hero card -->
     <UICard padding="loose">
       <div class="hero">
-        <img :src="agent.avatar_url" :alt="agent.name" class="hero-avatar" />
+        <div class="hero-avatar glyph" :style="glyph?.style" aria-hidden="true">{{ glyph?.initials }}</div>
         <div class="hero-stack">
           <h2>{{ agent.name }}</h2>
           <p class="tagline">{{ agent.tagline }}</p>
           <div class="specs">
             <span v-for="s in agent.specialization" :key="s" :class="['spec', `spec-${s}`]">{{ s }}</span>
             <span class="spec spec-style">{{ agent.trading_style }}</span>
+            <span v-if="isClassifier" class="spec spec-model">classifier · not an LLM</span>
           </div>
         </div>
         <div class="hero-meta">
@@ -139,7 +145,9 @@ const { userId: currentUserId } = useCurrentUser()
         <AgentOpinionVector :vector="agent.opinion_vector" variant="full" />
         <template #footer>
           <span class="muted">
-            Refreshed on each pipeline tick (~4s) · Confidence {{ Math.round(agent.confidence * 100) }}%
+            {{ isClassifier
+              ? `Derived from the regime→allocation map, not authored · Confidence ${Math.round(agent.confidence * 100)}%`
+              : `Refreshed on each pipeline tick (~4s) · Confidence ${Math.round(agent.confidence * 100)}%` }}
           </span>
         </template>
       </UICard>
@@ -167,8 +175,8 @@ const { userId: currentUserId } = useCurrentUser()
       </UICard>
     </div>
 
-    <!-- Personality matrix -->
-    <UICard title="Trader DNA — Personality matrix">
+    <!-- Personality matrix (generative agents) or regime classifier internals (Jev-type) -->
+    <UICard v-if="!isClassifier" title="Trader DNA — Personality matrix">
       <template #action>
         <UIPill tone="info">v{{ agent.training_state.version }}</UIPill>
       </template>
@@ -176,6 +184,13 @@ const { userId: currentUserId } = useCurrentUser()
         <AgentPersonalityRadar :matrix="agent.personality_matrix" :size="220" />
         <ProfilePersonalityMatrix :matrix="agent.personality_matrix" />
       </div>
+    </UICard>
+
+    <UICard v-else title="Classifier internals — how Jev decides">
+      <template #action>
+        <UIPill tone="info">v{{ agent.training_state.version }}</UIPill>
+      </template>
+      <AgentRegimeClassifier :classifier="agent.classifier_state!" />
     </UICard>
 
     <!-- Training stream — live feed of tracked interactions -->
@@ -237,9 +252,18 @@ const { userId: currentUserId } = useCurrentUser()
   width: 88px;
   height: 88px;
   border-radius: 50%;
-  object-fit: cover;
   border: 3px solid rgba(0,255,136,0.3);
   box-shadow: 0 0 20px rgba(0,255,136,0.18);
+  flex-shrink: 0;
+}
+.hero-avatar.glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.92);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
 @media (max-width: 720px) {
   .hero-avatar { width: 60px; height: 60px; border-width: 2px; }
@@ -273,6 +297,7 @@ const { userId: currentUserId } = useCurrentUser()
 .spec-stocks      { background: rgba(126,211,33,0.18);  color: #7ED321; }
 .spec-commodities { background: rgba(248,231,28,0.18);  color: #F8E71C; }
 .spec-style       { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); }
+.spec-model       { background: rgba(150,150,255,0.16);  color: #b3b3ff; }
 
 .hero-meta {
   display: flex;

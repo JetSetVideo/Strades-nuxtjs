@@ -24,6 +24,8 @@ export type TrainingEventType =
   | 'share_opinion'
   | 'share_strategy'
   | 'share_article'
+  | 'data_challenge_posted'
+  | 'data_bet_placed'
 
 export interface TrainingEvent {
   id: string
@@ -136,7 +138,23 @@ const EVENT_DELTA_MAP: Record<TrainingEventType, (payload: any) => Partial<Perso
   share_article: (p) => ({
     patience: 0.004,
     contrarian: (p.controversy ?? 0) * 0.003
-  })
+  }),
+  data_challenge_posted: () => ({
+    // Publishing your own data/claim for others to bet against = curation + conviction
+    patience: 0.003,
+    contrarian: 0.003,
+    reaction_speed: 0.001
+  }),
+  data_bet_placed: (p) => {
+    // Free-credit prediction-market wagers: sizing relative to bankroll reads as risk
+    // appetite; betting against the pool's current majority reads as contrarian.
+    const stakeFraction = Math.min(1, Math.abs(p.stake_fraction ?? 0))
+    return {
+      risk: stakeFraction * 0.01,
+      aggression: stakeFraction * 0.006,
+      contrarian: p.against_majority ? 0.005 : -0.001
+    }
+  }
 }
 
 const sumDeltas = (deltas: Partial<PersonalityMatrix>[]): Partial<PersonalityMatrix> => {

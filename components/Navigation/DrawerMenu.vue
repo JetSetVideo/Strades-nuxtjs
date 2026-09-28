@@ -43,6 +43,7 @@ const items: MenuItem[] = [
   { label: 'Avatars', to: '/agents', icon: '☰', group: 'discover' },
   { label: 'Leaderboard', to: '/leaderboard', icon: '☷', group: 'discover' },
   { label: 'Data Catalog', to: '/data', icon: '▦', group: 'discover' },
+  { label: 'Arena', to: '/arena', icon: '⚔', group: 'discover', hint: 'Post data, bet free credits' },
   { label: 'Quests', to: '/quest', icon: '◈', group: 'discover' },
   { label: 'Calendar', to: '/calendar', icon: '▦', group: 'discover' },
   { label: 'Deal Pipeline', to: '/deals', icon: '⟷', group: 'discover' },

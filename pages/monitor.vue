@@ -39,7 +39,7 @@ let tickerInterval: ReturnType<typeof setInterval> | null = null
 onMounted(async () => {
   await Promise.all([
     fetchStrategies(),
-    macro.initializeStore(),
+    macro.fetchMacroState(),
     walletStore.initializeStore(),
   ])
   loading.value = false

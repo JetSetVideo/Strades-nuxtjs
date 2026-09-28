@@ -19,10 +19,11 @@ const opinions = useOpinionsStore()
 const loading = ref(true)
 const sortKey = ref<'performance' | 'confidence' | 'popular'>('performance')
 const filterStyle = ref<string>('all')
+const filterModel = ref<'all' | 'generative' | 'classifier'>('all')
 const search = ref('')
 
 onMounted(async () => {
-  if (!agents.hydrated) await agents.fetchAvatars()
+  if (!agents.hydrated) await agents.fetchAgents()
   loading.value = false
 })
 
@@ -38,6 +39,9 @@ const filtered = computed(() => {
   // Filter by trading style
   if (filterStyle.value !== 'all')
     list = list.filter(a => a.trading_style === filterStyle.value)
+  // Filter by model type — generative (personality-authored) vs classifier (Jev-style)
+  if (filterModel.value !== 'all')
+    list = list.filter(a => a.model_type === filterModel.value)
   // Search by name/tagline/tags
   const q = search.value.trim().toLowerCase()
   if (q) {
@@ -64,6 +68,7 @@ const filtered = computed(() => {
 
 const kpis = computed(() => [
   { label: 'Total agents', value: catalog.value.length },
+  { label: 'Classifiers', value: catalog.value.filter(a => a.model_type === 'classifier').length },
   { label: 'Plugged by you', value: opinions.activeCount },
   { label: 'Top PnL', value: catalog.value.length ? Math.max(...catalog.value.map(a => a.performance.live_pnl_pct)).toFixed(1) : '—', suffix: '%' },
   { label: 'Avg confidence', value: catalog.value.length ? (catalog.value.reduce((s, a) => s + a.confidence, 0) / catalog.value.length * 100).toFixed(0) : '—', suffix: '%' },
@@ -104,6 +109,14 @@ const isPlugged = (id: string) => opinions.isPlugged(id)
           :class="['style-chip', { active: filterStyle === s }]"
           @click="filterStyle = s"
         >{{ s.replace(/_/g, ' ') }}</button>
+      </div>
+      <div class="filter-chips" role="group" aria-label="Filter by model type">
+        <button
+          v-for="m in (['all', 'generative', 'classifier'] as const)"
+          :key="m"
+          :class="['style-chip', 'model-chip', { active: filterModel === m }]"
+          @click="filterModel = m"
+        >{{ m === 'all' ? 'any model' : m }}</button>
       </div>
       <div class="sort-row">
         <span class="sort-label">Sort:</span>

@@ -23,7 +23,7 @@ const supplyData = ref<Record<string, any>>({})
 onMounted(async () => {
   await Promise.all([
     assetsStore.initializeStore(),
-    macroStore.initializeStore(),
+    macroStore.fetchMacroState(),
   ])
 
   // Load supply chain data for target assets

@@ -54,6 +54,21 @@ export interface PaperLedgerState {
 
 const STORAGE_KEY = 'strades_paper_ledger_v1'
 
+export const MIN_WALLET_PCT = 0.1
+export const MAX_WALLET_PCT = 50
+
+/** Clamp a requested bet size to [0.1, 50]% of wallet — never let one paper bet exceed half the wallet. */
+export function clampWalletPct(raw: number): number {
+  if (!Number.isFinite(raw)) return MIN_WALLET_PCT
+  return Math.max(MIN_WALLET_PCT, Math.min(MAX_WALLET_PCT, raw))
+}
+
+/** Notional value in wallet currency for a given (already-clamped) wallet_pct. Never negative. */
+export function computeNotional(walletPct: number, totalWalletValue: number): number {
+  const safeTotal = Number.isFinite(totalWalletValue) && totalWalletValue > 0 ? totalWalletValue : 0
+  return (walletPct / 100) * safeTotal
+}
+
 /** Deterministic pseudo-random walk for marking paper P&L */
 const markPrice = (entryPrice: number, ageHours: number, seed: number): number => {
   // Simple sinusoidal + noise model: prices drift ±3% per 24h
@@ -159,8 +174,8 @@ export const usePaperStore = defineStore('paper', {
       const defaultWallet = walletStore.wallets.find(w => w.is_default) ?? walletStore.wallets[0]
       const totalValue = defaultWallet?.total_value ?? 100_000
 
-      const pct = Math.max(0.1, Math.min(50, args.wallet_pct))
-      const notional = (pct / 100) * totalValue
+      const pct = clampWalletPct(args.wallet_pct)
+      const notional = computeNotional(pct, totalValue)
 
       const trade: PaperTrade = {
         id: `paper_${String(this.nextId++).padStart(4, '0')}`,

@@ -47,6 +47,8 @@ const CATEGORY_FOR: Partial<Record<TrainingEventType, ActivityCategory>> = {
   share_opinion: 'share',
   share_strategy: 'share',
   share_article: 'share',
+  data_challenge_posted: 'trading',
+  data_bet_placed: 'trading',
 }
 
 export function useAgentTracker(target?: Ref<HTMLElement | null>, auto?: TrackerAutoConfig): AgentTracker {

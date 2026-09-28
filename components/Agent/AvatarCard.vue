@@ -7,8 +7,14 @@
   >
     <header class="card-head">
       <!-- Avatar frame: shape encodes personality (hexagon = aggressive, circle = conservative) -->
-      <div class="avatar-frame" :class="frameShape" :title="`Risk ${(agent.personality_matrix.risk * 100).toFixed(0)}% · Aggression ${(agent.personality_matrix.aggression * 100).toFixed(0)}%`">
-        <img :src="agent.avatar_url" :alt="agent.name" class="avatar" loading="lazy" />
+      <div
+        class="avatar-frame"
+        :class="frameShape"
+        :title="glyph.isClassifier
+          ? `Calibration ${((agent.classifier_state?.calibration ?? 0) * 100).toFixed(0)}% · Predicted ${agent.classifier_state?.predicted_regime}`
+          : `Risk ${(agent.personality_matrix.risk * 100).toFixed(0)}% · Aggression ${(agent.personality_matrix.aggression * 100).toFixed(0)}%`"
+      >
+        <div class="avatar glyph" :style="glyph.style" aria-hidden="true">{{ glyph.initials }}</div>
         <!-- Training progress ring driven by loss_ema -->
         <svg class="training-ring" viewBox="0 0 56 56">
           <circle class="ring-bg" cx="28" cy="28" r="26" />
@@ -23,7 +29,9 @@
       <div class="head-text">
         <div class="name-line">
           <h3 class="name">{{ agent.name }}</h3>
-          <span class="kind-pill">{{ agent.kind }}</span>
+          <span class="kind-pill" :class="{ 'model-classifier': glyph.isClassifier }">
+            {{ glyph.isClassifier ? 'classifier' : agent.kind }}
+          </span>
         </div>
         <p class="tagline">{{ agent.tagline }}</p>
         <div class="spec-row">
@@ -31,6 +39,19 @@
         </div>
       </div>
     </header>
+
+    <!-- Classifier agents surface a regime simplex instead of an authored opinion -->
+    <div v-if="glyph.isClassifier && agent.classifier_state" class="regime-strip" title="Regime probability simplex (sums to 100%)">
+      <div
+        v-for="r in regimeBars"
+        :key="r.key"
+        class="regime-seg"
+        :class="[`regime-${r.key}`, { predicted: r.key === agent.classifier_state.predicted_regime }]"
+        :style="{ width: `${r.pct}%` }"
+      >
+        <span v-if="r.pct >= 12" class="regime-label">{{ r.key }} {{ Math.round(r.pct) }}%</span>
+      </div>
+    </div>
 
     <div class="metrics-row">
       <div class="metric" :class="{ positive: agent.performance.live_pnl_pct >= 0, negative: agent.performance.live_pnl_pct < 0 }">
@@ -41,9 +62,13 @@
         <span class="m-label">Sharpe</span>
         <span class="m-value">{{ agent.performance.sharpe.toFixed(2) }}</span>
       </div>
-      <div class="metric">
+      <div class="metric" v-if="!glyph.isClassifier">
         <span class="m-label">Win</span>
         <span class="m-value">{{ Math.round(agent.performance.win_rate * 100) }}%</span>
+      </div>
+      <div class="metric" v-else :title="'1 - Brier score against realized regimes'">
+        <span class="m-label">Calib.</span>
+        <span class="m-value">{{ Math.round((agent.classifier_state?.calibration ?? 0) * 100) }}%</span>
       </div>
       <div class="metric">
         <span class="m-label">DD</span>
@@ -96,6 +121,7 @@ import { useAgentsStore } from '~/stores/agents'
 import { useOpinionsStore } from '~/stores/opinions'
 import { useAgentTracker } from '~/composables/useAgentTracker'
 import { useLivingUI } from '~/composables/useLivingUI'
+import { useAgentGlyph } from '~/composables/useAgentGlyph'
 
 const props = defineProps<{ agent: Agent }>()
 defineEmits<{
@@ -130,6 +156,15 @@ const sparkPoints = computed(() => {
   }).join(' ')
 })
 
+const glyph = computed(() => useAgentGlyph(props.agent))
+
+const REGIME_ORDER = ['bull', 'chop', 'bear', 'crisis'] as const
+const regimeBars = computed(() => {
+  const probs = props.agent.classifier_state?.regime_probs
+  if (!probs) return []
+  return REGIME_ORDER.map(key => ({ key, pct: probs[key] * 100 }))
+})
+
 const trainingFill = computed(() => {
   const samples = props.agent.training_state.samples_since_last_train
   return Math.min(1, samples / 100)
@@ -139,6 +174,7 @@ const trainingFill = computed(() => {
 // Hexagon = aggressive (sharp edges), Circle = conservative (soft edges),
 // Rounded square = balanced.  Driven by risk + aggression average.
 const frameShape = computed(() => {
+  if (glyph.value.isClassifier) return 'frame-diamond'
   const agg = (props.agent.personality_matrix.risk + props.agent.personality_matrix.aggression) / 2
   if (agg > 0.65) return 'frame-hexagon'
   if (agg < 0.35) return 'frame-circle'
@@ -207,9 +243,19 @@ const fork = () => {
 }
 .avatar {
   width: 100%; height: 100%;
-  object-fit: cover;
   border: 2px solid rgba(255,255,255,0.12);
   transition: border-radius 0.3s ease;
+}
+.avatar.glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: rgba(255,255,255,0.92);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55);
+  user-select: none;
 }
 .frame-circle   .avatar { border-radius: 50%; }
 .frame-rounded  .avatar { border-radius: 18%; }
@@ -217,8 +263,13 @@ const fork = () => {
   border-radius: 0;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
 }
-.frame-hexagon { filter: drop-shadow(0 0 4px rgba(255, 80, 80, 0.3)); }
-.frame-circle  { filter: drop-shadow(0 0 4px rgba(80, 180, 255, 0.3)); }
+.frame-diamond  .avatar {
+  border-radius: 4px;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+.frame-hexagon  { filter: drop-shadow(0 0 4px rgba(255, 80, 80, 0.3)); }
+.frame-circle   { filter: drop-shadow(0 0 4px rgba(80, 180, 255, 0.3)); }
+.frame-diamond  { filter: drop-shadow(0 0 4px rgba(180, 180, 255, 0.35)); }
 
 /* Training progress ring (Phase 22.3) */
 .training-ring {
@@ -284,6 +335,41 @@ const fork = () => {
 .spec-crypto { background: rgba(245,166,35,0.18); color: #F5A623; }
 .spec-stocks { background: rgba(126,211,33,0.18); color: #7ED321; }
 .spec-commodities { background: rgba(248,231,28,0.18); color: #F8E71C; }
+
+.kind-pill.model-classifier {
+  background: rgba(150,150,255,0.16);
+  color: #b3b3ff;
+}
+
+/* Regime probability simplex — classifier agents only (Phase: Jev) */
+.regime-strip {
+  display: flex;
+  width: 100%;
+  height: 18px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.regime-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2px;
+  transition: width 0.4s ease;
+}
+.regime-label {
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: rgba(0,0,0,0.65);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.regime-bull    { background: var(--success-green, #00ff88); }
+.regime-chop    { background: rgba(255,255,255,0.25); }
+.regime-bear    { background: var(--error-red, #ff4444); }
+.regime-crisis  { background: #7a1fd6; }
+.regime-seg.predicted { outline: 2px solid rgba(255,255,255,0.7); outline-offset: -2px; }
 
 .metrics-row {
   display: grid;

@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<{
 const predStore = usePredictionsStore()
 
 const consensus = computed(() => {
-  const all = predStore.allPredictions.filter(p =>
+  const all = predStore.predictions.filter(p =>
     p.assetId === props.assetId && p.status === 'pending'
   )
   if (all.length === 0) return null

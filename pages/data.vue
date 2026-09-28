@@ -20,8 +20,23 @@ interface DataSource {
   description: string
 }
 
+interface MarketProvider {
+  id: string
+  name: string
+  category: string
+  icon: string
+  description: string
+  latency: string
+  cost: number
+  reliability: number
+  supported_assets: string[]
+  tags: string[]
+}
+
 const loading = ref(true)
+const view = ref<'providers' | 'internal'>('providers')
 const sources = ref<DataSource[]>([])
+const providers = ref<MarketProvider[]>([])
 const search = ref('')
 const activeCategory = ref<string | null>(null)
 
@@ -38,47 +53,29 @@ const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   quests: { label: 'Quests', icon: '🎯' },
   search: { label: 'Search', icon: '🔍' },
   user: { label: 'Users', icon: '👤' },
+  companies: { label: 'Companies', icon: '🏢' },
+  tracking: { label: 'Behavior Tracking', icon: '👣' },
+  root: { label: 'Misc', icon: '📁' },
+}
+
+const PROVIDER_CATEGORY_META: Record<string, { label: string; icon: string }> = {
+  market: { label: 'Market Data', icon: '📈' },
+  blockchain: { label: 'Blockchain', icon: '⛓' },
+  sentiment: { label: 'Sentiment', icon: '💬' },
+  macro: { label: 'Macro', icon: '🌍' },
+  ai: { label: 'AI-Derived', icon: '🤖' },
+  derivatives: { label: 'Derivatives', icon: '📐' },
+  fundamental: { label: 'Fundamental', icon: '🏛' },
+  community: { label: 'Community', icon: '🎯' },
 }
 
 onMounted(async () => {
-  // Scan public/data for all JSON files
-  try {
-    const manifest = await $fetch<{ path: string; category: string; type: string; itemCount: number; keys: string[]; sizeKB: number; description: string }[]>('/api/data-catalog')
-    sources.value = manifest
-  } catch {
-    // Fallback: load from static data (no API available)
-    const macroKeys = ['global_volatility_index', 'market_sentiment', 'geopolitical_stress', 'dominant_asset_class', 'flow_velocity', 'liquidity_index', 'news_pulse_count', 'fear_greed', 'lighting_source_angle', 'volatility_by_class', 'sentiment_by_class', 'active_flows']
-    const supplyKeys = ['asset_id', 'asset_kind', 'headquarters', 'facilities', 'suppliers', 'customers', 'shipments']
-    const strategyKeys = ['id', 'name', 'description', 'creator_id', 'category', 'type', 'status', 'risk_level', 'target_assets', 'indicators', 'win_rate', 'sharpe_ratio', 'max_drawdown', 'total_return_percentage']
-
-    sources.value = [
-      { path: 'global/macro_state.json', category: 'global', type: 'Object', itemCount: 14, keys: macroKeys, sizeKB: 1, description: 'Live market health — volatility, sentiment, geopolitical stress, capital flows.' },
-      { path: 'global/events.json', category: 'global', type: 'Array', itemCount: 7, keys: ['id', 'title', 'category', 'starts_at', 'impact', 'consensus', 'actual'], sizeKB: 1, description: 'Scheduled macro events (Fed, CPI, earnings) with consensus forecasts.' },
-      { path: 'global/user_preferences.json', category: 'global', type: 'Object', itemCount: 7, keys: ['user_id', 'base_currency', 'personality_matrix', 'trading_style', 'ui_density_preference', 'behavioral_history', 'favorite_assets'], sizeKB: 1, description: 'User profile & preferences — risk tolerance, UI density, favorite assets.' },
-      { path: 'core/wallets.json', category: 'core', type: 'Array', itemCount: 2, keys: ['id', 'user_id', 'name', 'total_value', 'available_balance', 'assets', 'transactions', 'performance_history'], sizeKB: 6, description: 'User wallets with asset allocations, transactions, and performance history.' },
-      { path: 'core/strategies.json', category: 'strategies', type: 'Array', itemCount: 5, keys: strategyKeys, sizeKB: 5, description: 'All strategies with backtest metrics, P&L, Sharpe, drawdown, risk level.' },
-      { path: 'core/bots.json', category: 'strategies', type: 'Array', itemCount: 4, keys: ['id', 'owner_id', 'name', 'agent_id', 'strategy_id', 'platform_id', 'status', 'started_at'], sizeKB: 2, description: 'Deployed bot instances running strategies on connected platforms.' },
-      { path: 'core/community.json', category: 'core', type: 'Array', itemCount: 6, keys: ['id', 'username', 'bio', 'is_friend', 'online', 'specialization', 'trading_style', 'win_rate', 'match_score'], sizeKB: 2, description: 'Community members — friends, discoverable traders, swarm intelligence targets.' },
-      { path: 'core/influencers.json', category: 'core', type: 'Array', itemCount: 4, keys: ['id', 'handle', 'name', 'followers', 'credibility_score', 'specialization'], sizeKB: 2, description: 'Market influencers with credibility scores for signal weighting.' },
-      { path: 'core/trading_platforms.json', category: 'core', type: 'Array', itemCount: 6, keys: ['id', 'user_id', 'name', 'type', 'status', 'api_health'], sizeKB: 3, description: 'Connected trading platforms (exchanges, brokers) with API health status.' },
-      { path: 'predictions.json', category: 'social', type: 'Array', itemCount: 200, keys: ['id', 'userId', 'assetId', 'direction', 'timeframe', 'confidence', 'status', 'accuracyScore'], sizeKB: 8, description: 'Community price predictions — bullish/bearish per asset, with outcome accuracy.' },
-      { path: 'social/posts.json', category: 'social', type: 'Array', itemCount: 50, keys: ['id', 'author_id', 'title', 'category', 'political_leaning', 'controversy_index', 'embedded_allocation', 'timestamp'], sizeKB: 8, description: 'Social posts with political bias scores, controversy metrics, embedded allocation opinions.' },
-      { path: 'social/notifications.json', category: 'social', type: 'Array', itemCount: 3, keys: ['id', 'message', 'timestamp', 'read'], sizeKB: 1, description: 'User notifications — price alerts, strategy triggers, social activity.' },
-      { path: 'supply_chain/apple.json', category: 'supply_chain', type: 'Object', itemCount: 8, keys: supplyKeys, sizeKB: 6, description: 'Apple supply chain — HQ, facilities, suppliers (TSMC, Foxconn), customers, shipments.' },
-      { path: 'supply_chain/amazon.json', category: 'supply_chain', type: 'Object', itemCount: 8, keys: supplyKeys, sizeKB: 5, description: 'Amazon supply chain — warehouses, AWS data centers, logistics partners.' },
-      { path: 'supply_chain/tesla.json', category: 'supply_chain', type: 'Object', itemCount: 8, keys: supplyKeys, sizeKB: 5, description: 'Tesla supply chain — Gigafactories, battery suppliers (Panasonic, CATL), material flows.' },
-      { path: 'supply_chain/btc.json', category: 'supply_chain', type: 'Object', itemCount: 8, keys: supplyKeys, sizeKB: 5, description: 'Bitcoin network — mining pools, hashrate distribution, energy sources, exchange flows.' },
-      { path: 'supply_chain/usd.json', category: 'supply_chain', type: 'Object', itemCount: 8, keys: ['asset_id', 'headquarters', 'facilities', 'suppliers', 'customers', 'shipments'], sizeKB: 3, description: 'USD/Fiat infrastructure — central banks, treasury markets, payment rails.' },
-      { path: 'agents/avatars.json', category: 'agents', type: 'Array', itemCount: 5, keys: ['id', 'name', 'owner_id', 'kind', 'tagline', 'specialization', 'trading_style', 'personality_matrix', 'opinion_vector', 'confidence_score'], sizeKB: 6, description: 'AI Avatars with personality matrices, opinion vectors (allocation preferences), confidence, and execution frequency.' },
-      { path: 'agents/training_log.json', category: 'agents', type: 'Array', itemCount: 5, keys: ['id', 'agent_id', 'ts', 'event', 'delta', 'reward'], sizeKB: 1, description: 'Reinforcement learning training log — events, rewards, behavioral deltas.' },
-      { path: 'agents/marketplace.json', category: 'agents', type: 'Object', itemCount: 4, keys: ['featured', 'trending_24h', 'categories', 'recently_listed'], sizeKB: 1, description: 'Avatar marketplace — featured, trending, categorized agent listings.' },
-      { path: 'chat/conversations.json', category: 'chat', type: 'Array', itemCount: 6, keys: ['id', 'participants', 'type', 'title', 'last_message_at', 'message_count', 'unread_count'], sizeKB: 3, description: 'Chat conversations with participant lists, unread counts, last activity.' },
-      { path: 'chat/messages.json', category: 'chat', type: 'Array', itemCount: 400, keys: ['id', 'conversation_id', 'sender_id', 'text', 'timestamp', 'emotional_urgency'], sizeKB: 9, description: 'Chat messages with emotional urgency scores for swarm pulse detection.' },
-      { path: 'relationships/industry_dependencies.json', category: 'relationships', type: 'Object', itemCount: 7, keys: ['technology_supply_chain', 'automotive_supply_chain', 'cloud_computing_ecosystem', 'retail_ecommerce', 'cross_industry_dependencies', 'geopolitical_risks', 'market_interdependencies'], sizeKB: 6, description: 'Cross-industry dependency graph — which sectors rely on each other and geopolitical risk multipliers.' },
-      { path: 'competitions/competitions.json', category: 'competitions', type: 'Array', itemCount: 1, keys: ['id', 'name', 'description', 'pot'], sizeKB: 1, description: 'Trading competitions with prize pools, leaderboards, and rankings.' },
-      { path: 'quests/quests.json', category: 'quests', type: 'Array', itemCount: 5, keys: ['id', 'title', 'description', 'category_id', 'reward_credits', 'completed', 'progress'], sizeKB: 1, description: 'Gamified quests — educational and challenge-based tasks with credit rewards.' },
-    ]
-  }
+  const [providerRes, catalogRes] = await Promise.allSettled([
+    $fetch<MarketProvider[]>('/data/core/datasources.json'),
+    $fetch<DataSource[]>('/data/meta/catalog.json')
+  ])
+  providers.value = providerRes.status === 'fulfilled' ? providerRes.value : []
+  sources.value = catalogRes.status === 'fulfilled' ? catalogRes.value : []
   loading.value = false
 })
 
@@ -98,16 +95,93 @@ const filtered = computed(() => {
 })
 
 const catCount = (cat: string) => sources.value.filter(s => s.category === cat).length
+
+const providerCategories = computed(() => {
+  const cats = new Set(providers.value.map(p => p.category))
+  return Array.from(cats).sort()
+})
+
+const filteredProviders = computed(() => {
+  let list = providers.value
+  if (activeCategory.value) list = list.filter(p => p.category === activeCategory.value)
+  if (search.value.trim()) {
+    const q = search.value.toLowerCase()
+    list = list.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q) ||
+      p.tags.some(t => t.toLowerCase().includes(q))
+    )
+  }
+  return list
+})
+
+const providerCatCount = (cat: string) => providers.value.filter(p => p.category === cat).length
+
+// Switching tabs clears a category filter that wouldn't apply to the other list.
+function setView(v: 'providers' | 'internal') {
+  view.value = v
+  activeCategory.value = null
+}
 </script>
 
 <template>
   <div class="data-catalog">
-    <UIPageHeader title="Data Catalog" subtitle="Browse every data source available for your strategies — macro state, supply chains, social sentiment, predictions, and more." />
+    <UIPageHeader title="Data Catalog" subtitle="Access to markets, data providers, and every internal data source available to your strategies." />
+
+    <div class="view-tabs" role="tablist">
+      <button :class="{ active: view === 'providers' }" @click="setView('providers')">Market &amp; Data Providers</button>
+      <button :class="{ active: view === 'internal' }" @click="setView('internal')">Internal App Data</button>
+    </div>
 
     <template v-if="loading">
       <AppSkeletonLoader height="60px" />
       <div class="skel-grid">
         <AppSkeletonLoader v-for="i in 6" :key="i" height="120px" />
+      </div>
+    </template>
+
+    <template v-else-if="view === 'providers'">
+      <div class="toolbar">
+        <input v-model="search" type="text" class="search-input" placeholder="Search providers by name, tag, or description..." />
+        <div class="category-strip">
+          <button class="cat-btn" :class="{ active: !activeCategory }" @click="activeCategory = null">All ({{ providers.length }})</button>
+          <button
+            v-for="cat in providerCategories"
+            :key="cat"
+            class="cat-btn" :class="{ active: activeCategory === cat }"
+            @click="activeCategory = activeCategory === cat ? null : cat"
+          >
+            {{ PROVIDER_CATEGORY_META[cat]?.icon ?? '📁' }} {{ PROVIDER_CATEGORY_META[cat]?.label ?? cat }} ({{ providerCatCount(cat) }})
+          </button>
+        </div>
+      </div>
+
+      <div v-if="filteredProviders.length === 0" class="empty">No providers match your search.</div>
+
+      <div v-else class="source-grid">
+        <UICard v-for="p in filteredProviders" :key="p.id" :padding="'compact'">
+          <div class="source-card">
+            <div class="sc-top">
+              <span class="sc-path">{{ p.icon }} {{ p.name }}</span>
+              <UIPill :tone="p.cost === 0 ? 'success' : 'neutral'" size="sm">{{ p.cost === 0 ? 'free' : `${p.cost} cr` }}</UIPill>
+            </div>
+
+            <p class="sc-desc">{{ p.description }}</p>
+
+            <div class="sc-meta">
+              <span class="sc-stat"><strong>{{ p.latency }}</strong> latency</span>
+              <span class="sc-stat"><strong>{{ Math.round(p.reliability * 100) }}%</strong> reliable</span>
+              <span class="sc-cat">{{ PROVIDER_CATEGORY_META[p.category]?.icon }} {{ PROVIDER_CATEGORY_META[p.category]?.label ?? p.category }}</span>
+            </div>
+
+            <div class="sc-keys">
+              <span v-for="a in p.supported_assets" :key="a" class="key-chip">{{ a }}</span>
+            </div>
+            <div class="sc-keys">
+              <span v-for="t in p.tags" :key="t" class="key-chip more">{{ t }}</span>
+            </div>
+          </div>
+        </UICard>
       </div>
     </template>
 
@@ -182,6 +256,23 @@ const catCount = (cat: string) => sources.value.filter(s => s.category === cat).
   flex-direction: column;
   gap: var(--page-gap, 0.6rem);
   min-width: 0;
+}
+
+.view-tabs { display: flex; gap: 0.4rem; }
+.view-tabs button {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-secondary);
+  background: transparent;
+  color: var(--text-gray);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.view-tabs button.active {
+  background: rgba(0,255,136,0.1);
+  border-color: var(--primary-green);
+  color: var(--primary-green);
 }
 
 .skel-grid {

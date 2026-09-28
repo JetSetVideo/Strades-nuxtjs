@@ -61,7 +61,10 @@ h1 {
   color: rgba(255,255,255,0.55);
   line-height: 1.35;
 }
-.actions { display: flex; gap: 0.4rem; flex-shrink: 0; align-items: center; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+@media (max-width: 480px) {
+  .actions { width: 100%; }
+}
 
 @media (min-width: 768px) {
   h1 { font-size: 1.4rem; }

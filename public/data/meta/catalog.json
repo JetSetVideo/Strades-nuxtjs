@@ -1,0 +1,1119 @@
+[
+  {
+    "path": "predictions.json",
+    "category": "root",
+    "type": "Array",
+    "itemCount": 21,
+    "keys": [
+      "accuracyScore",
+      "actualPrice",
+      "assetId",
+      "assetName",
+      "confidence",
+      "currentPrice",
+      "direction",
+      "id",
+      "note",
+      "predictedChangePct",
+      "predictedPrice",
+      "status"
+    ],
+    "sizeKB": 9,
+    "description": "Community price predictions \u2014 bullish/bearish per asset, with outcome accuracy."
+  },
+  {
+    "path": "shared_data.json",
+    "category": "root",
+    "type": "Array",
+    "itemCount": 12,
+    "keys": [
+      "description",
+      "discussionId",
+      "engagement",
+      "id",
+      "relatedAssets",
+      "sharedAt",
+      "sharedBy",
+      "sharedById",
+      "source",
+      "tags",
+      "title",
+      "type"
+    ],
+    "sizeKB": 8,
+    "description": "Cross-store shared reference data used to keep multiple pages in sync."
+  },
+  {
+    "path": "search/history.json",
+    "category": "search",
+    "type": "Array",
+    "itemCount": 2,
+    "keys": [
+      "id",
+      "term"
+    ],
+    "sizeKB": 1,
+    "description": "A user's recent searches, used to power quick re-search suggestions."
+  },
+  {
+    "path": "search/suggestions.json",
+    "category": "search",
+    "type": "Array",
+    "itemCount": 2,
+    "keys": [
+      "id",
+      "term"
+    ],
+    "sizeKB": 1,
+    "description": "Trending and recommended search terms surfaced on the search bar."
+  },
+  {
+    "path": "global/events.json",
+    "category": "global",
+    "type": "Array",
+    "itemCount": 7,
+    "keys": [
+      "actual",
+      "category",
+      "consensus",
+      "id",
+      "impact",
+      "starts_at",
+      "title"
+    ],
+    "sizeKB": 1,
+    "description": "Scheduled macro events (Fed, CPI, earnings) with consensus forecasts."
+  },
+  {
+    "path": "global/macro_state.json",
+    "category": "global",
+    "type": "Object",
+    "itemCount": 14,
+    "keys": [
+      "active_flows",
+      "dominant_asset_class",
+      "dominant_geo_stress_region",
+      "fear_greed",
+      "flow_velocity",
+      "geopolitical_stress",
+      "global_volatility_index",
+      "last_updated",
+      "lighting_source_angle",
+      "liquidity_index",
+      "market_sentiment",
+      "news_pulse_count"
+    ],
+    "sizeKB": 1,
+    "description": "Live market health \u2014 volatility, sentiment, geopolitical stress, capital flows. Drives the living UI theme."
+  },
+  {
+    "path": "global/user_preferences.json",
+    "category": "global",
+    "type": "Object",
+    "itemCount": 7,
+    "keys": [
+      "base_currency",
+      "behavioral_history",
+      "favorite_assets",
+      "personality_matrix",
+      "trading_style",
+      "ui_density_preference",
+      "user_id"
+    ],
+    "sizeKB": 1,
+    "description": "User profile & preferences \u2014 risk tolerance, UI density, favorite assets."
+  },
+  {
+    "path": "core/bots.json",
+    "category": "core",
+    "type": "Array",
+    "itemCount": 4,
+    "keys": [
+      "agent_id",
+      "capital_allocated_usd",
+      "id",
+      "name",
+      "next_action_at",
+      "owner_id",
+      "platform_id",
+      "pnl_30d_pct",
+      "pnl_30d_usd",
+      "pnl_today_usd",
+      "started_at",
+      "status"
+    ],
+    "sizeKB": 2,
+    "description": "Deployed bot instances running strategies on connected platforms."
+  },
+  {
+    "path": "core/community.json",
+    "category": "core",
+    "type": "Array",
+    "itemCount": 6,
+    "keys": [
+      "avatar_url",
+      "bio",
+      "followers",
+      "id",
+      "is_friend",
+      "last_30d_pnl_pct",
+      "last_active_at",
+      "match_score",
+      "online",
+      "specialization",
+      "timezone",
+      "trading_style"
+    ],
+    "sizeKB": 3,
+    "description": "Community members \u2014 friends, discoverable traders, swarm intelligence targets."
+  },
+  {
+    "path": "core/datasources.json",
+    "category": "core",
+    "type": "Array",
+    "itemCount": 13,
+    "keys": [
+      "category",
+      "cost",
+      "description",
+      "icon",
+      "id",
+      "latency",
+      "name",
+      "reliability",
+      "supported_assets",
+      "tags"
+    ],
+    "sizeKB": 6,
+    "description": "Market & data provider catalog \u2014 price/order-flow/on-chain/sentiment/macro feeds with cost, latency, and reliability. The \"access to markets\" layer strategies plug into."
+  },
+  {
+    "path": "core/influencers.json",
+    "category": "core",
+    "type": "Array",
+    "itemCount": 4,
+    "keys": [
+      "avatar_url",
+      "credibility_score",
+      "followed_by_user",
+      "followers",
+      "handle",
+      "id",
+      "last_30d_pnl_pct",
+      "latest_signal",
+      "name",
+      "platforms",
+      "specialization",
+      "win_rate_calls_30d"
+    ],
+    "sizeKB": 2,
+    "description": "Market influencers with credibility scores for signal weighting."
+  },
+  {
+    "path": "core/strategies.json",
+    "category": "core",
+    "type": "Array",
+    "itemCount": 5,
+    "keys": [
+      "agent_id",
+      "average_trade_duration",
+      "backtest_period",
+      "category",
+      "comments_count",
+      "created_at",
+      "creator_id",
+      "current_capital",
+      "description",
+      "entry_conditions",
+      "exit_conditions",
+      "followers_count"
+    ],
+    "sizeKB": 5,
+    "description": "All strategies with backtest metrics, P&L, Sharpe, drawdown, risk level."
+  },
+  {
+    "path": "core/trading_platforms.json",
+    "category": "core",
+    "type": "Array",
+    "itemCount": 6,
+    "keys": [
+      "api_health",
+      "asset_classes",
+      "asset_count",
+      "available_usd",
+      "balance_usd",
+      "color",
+      "daily_pnl_pct",
+      "daily_pnl_usd",
+      "fees_30d_usd",
+      "id",
+      "last_sync_at",
+      "logo"
+    ],
+    "sizeKB": 3,
+    "description": "Connected trading platforms (exchanges, brokers, banks, vaults) with API health status \u2014 the centralized wallet hub."
+  },
+  {
+    "path": "core/users.json",
+    "category": "core",
+    "type": "Array",
+    "itemCount": 2,
+    "keys": [
+      "achievements",
+      "avatar_url",
+      "bio",
+      "id",
+      "notification_preferences",
+      "privacy_settings",
+      "total_portfolio_value",
+      "total_returns",
+      "total_trades",
+      "username",
+      "win_rate"
+    ],
+    "sizeKB": 1,
+    "description": "Canonical user records \u2014 identity, auth, profile linkage."
+  },
+  {
+    "path": "core/wallet_history.json",
+    "category": "core",
+    "type": "Object",
+    "itemCount": 2,
+    "keys": [
+      "wallet_001",
+      "wallet_002"
+    ],
+    "sizeKB": 4,
+    "description": "Historical snapshots of each wallet's total value and allocation over time."
+  },
+  {
+    "path": "core/wallets.json",
+    "category": "core",
+    "type": "Array",
+    "itemCount": 2,
+    "keys": [
+      "assets",
+      "available_balance",
+      "created_at",
+      "currency",
+      "daily_change",
+      "daily_change_percentage",
+      "description",
+      "id",
+      "invested_amount",
+      "is_active",
+      "is_default",
+      "name"
+    ],
+    "sizeKB": 6,
+    "description": "User wallets with asset allocations, transactions, and performance history."
+  },
+  {
+    "path": "user/session.json",
+    "category": "user",
+    "type": "Object",
+    "itemCount": 1,
+    "keys": [
+      "current_user_id"
+    ],
+    "sizeKB": 1,
+    "description": "The current session's auth/session state."
+  },
+  {
+    "path": "user/statistics.json",
+    "category": "user",
+    "type": "Array",
+    "itemCount": 1,
+    "keys": [
+      "achievements",
+      "bank_accounts",
+      "historics",
+      "performance",
+      "preferences",
+      "psychology",
+      "trades",
+      "trading_platforms",
+      "user_id"
+    ],
+    "sizeKB": 1,
+    "description": "Aggregate lifetime stats for a user's profile page."
+  },
+  {
+    "path": "user/users.json",
+    "category": "user",
+    "type": "Array",
+    "itemCount": 5,
+    "keys": [
+      "account_balance",
+      "achievements",
+      "active_strategies_count",
+      "ai_avatars",
+      "avatar_url",
+      "bio",
+      "city",
+      "communities",
+      "country",
+      "cover_url",
+      "created_at",
+      "date_of_birth"
+    ],
+    "sizeKB": 28,
+    "description": "Full user directory \u2014 profiles, personality matrices, achievements."
+  },
+  {
+    "path": "companies/amazon.json",
+    "category": "companies",
+    "type": "Object",
+    "itemCount": 23,
+    "keys": [
+      "category",
+      "company_details",
+      "competitors",
+      "currency",
+      "current_price",
+      "description",
+      "financial_reports",
+      "id",
+      "industry",
+      "innovation_pipeline",
+      "key_metrics",
+      "location"
+    ],
+    "sizeKB": 9,
+    "description": "Amazon's fundamentals and supply-chain-adjacent company profile."
+  },
+  {
+    "path": "companies/apple.json",
+    "category": "companies",
+    "type": "Object",
+    "itemCount": 22,
+    "keys": [
+      "category",
+      "company_details",
+      "competitors",
+      "currency",
+      "current_price",
+      "description",
+      "financial_reports",
+      "id",
+      "industry",
+      "innovation_pipeline",
+      "location",
+      "market_cap"
+    ],
+    "sizeKB": 8,
+    "description": "Apple's fundamentals and supply-chain-adjacent company profile."
+  },
+  {
+    "path": "companies/tesla.json",
+    "category": "companies",
+    "type": "Object",
+    "itemCount": 23,
+    "keys": [
+      "category",
+      "company_details",
+      "competitors",
+      "currency",
+      "current_price",
+      "description",
+      "financial_reports",
+      "id",
+      "industry",
+      "innovation_pipeline",
+      "key_metrics",
+      "location"
+    ],
+    "sizeKB": 10,
+    "description": "Tesla's fundamentals and supply-chain-adjacent company profile."
+  },
+  {
+    "path": "competitions/competitions.json",
+    "category": "competitions",
+    "type": "Array",
+    "itemCount": 1,
+    "keys": [
+      "description",
+      "id",
+      "name",
+      "pot"
+    ],
+    "sizeKB": 1,
+    "description": "Trading competitions with prize pools, leaderboards, and rankings."
+  },
+  {
+    "path": "competitions/contributions.json",
+    "category": "competitions",
+    "type": "Array",
+    "itemCount": 1,
+    "keys": [
+      "amount",
+      "competitionId",
+      "id",
+      "userId"
+    ],
+    "sizeKB": 1,
+    "description": "Per-user contributions/entries feeding competition leaderboards."
+  },
+  {
+    "path": "chat/conversations.json",
+    "category": "chat",
+    "type": "Array",
+    "itemCount": 6,
+    "keys": [
+      "created_at",
+      "created_by",
+      "description",
+      "id",
+      "is_active",
+      "last_message_at",
+      "message_count",
+      "metadata",
+      "participants",
+      "title",
+      "type",
+      "unread_count_user_001"
+    ],
+    "sizeKB": 3,
+    "description": "Chat conversations with participant lists, unread counts, last activity."
+  },
+  {
+    "path": "chat/messages.json",
+    "category": "chat",
+    "type": "Array",
+    "itemCount": 14,
+    "keys": [
+      "attachments",
+      "content",
+      "conversation_id",
+      "edited_at",
+      "id",
+      "is_edited",
+      "is_read",
+      "message_type",
+      "metadata",
+      "reactions",
+      "recipient_ids",
+      "reply_to"
+    ],
+    "sizeKB": 10,
+    "description": "Chat messages with emotional urgency scores for swarm pulse detection."
+  },
+  {
+    "path": "supply_chain/aapl.json",
+    "category": "supply_chain",
+    "type": "Object",
+    "itemCount": 8,
+    "keys": [
+      "asset_id",
+      "asset_kind",
+      "customers",
+      "facilities",
+      "headquarters",
+      "label_overrides",
+      "shipments",
+      "suppliers"
+    ],
+    "sizeKB": 7,
+    "description": "Apple supply chain \u2014 HQ, facilities, suppliers (TSMC, Foxconn), customers, shipments."
+  },
+  {
+    "path": "supply_chain/amzn.json",
+    "category": "supply_chain",
+    "type": "Object",
+    "itemCount": 8,
+    "keys": [
+      "asset_id",
+      "asset_kind",
+      "customers",
+      "facilities",
+      "headquarters",
+      "label_overrides",
+      "shipments",
+      "suppliers"
+    ],
+    "sizeKB": 6,
+    "description": "Amazon supply chain \u2014 warehouses, AWS data centers, logistics partners."
+  },
+  {
+    "path": "supply_chain/btc.json",
+    "category": "supply_chain",
+    "type": "Object",
+    "itemCount": 8,
+    "keys": [
+      "asset_id",
+      "asset_kind",
+      "customers",
+      "facilities",
+      "headquarters",
+      "label_overrides",
+      "shipments",
+      "suppliers"
+    ],
+    "sizeKB": 5,
+    "description": "Bitcoin network \u2014 mining pools, hashrate distribution, energy sources, exchange flows."
+  },
+  {
+    "path": "supply_chain/cny.json",
+    "category": "supply_chain",
+    "type": "Object",
+    "itemCount": 8,
+    "keys": [
+      "asset_id",
+      "asset_kind",
+      "customers",
+      "facilities",
+      "headquarters",
+      "label_overrides",
+      "shipments",
+      "suppliers"
+    ],
+    "sizeKB": 3,
+    "description": "Chinese Yuan / PBOC infrastructure \u2014 reserve mechanics, trade settlement rails."
+  },
+  {
+    "path": "supply_chain/eth.json",
+    "category": "supply_chain",
+    "type": "Object",
+    "itemCount": 8,
+    "keys": [
+      "asset_id",
+      "asset_kind",
+      "customers",
+      "facilities",
+      "headquarters",
+      "label_overrides",
+      "shipments",
+      "suppliers"
+    ],
+    "sizeKB": 4,
+    "description": "Ethereum network \u2014 validators, staking flows, L2 bridges, gas markets."
+  },
+  {
+    "path": "supply_chain/eur.json",
+    "category": "supply_chain",
+    "type": "Object",
+    "itemCount": 8,
+    "keys": [
+      "asset_id",
+      "asset_kind",
+      "customers",
+      "facilities",
+      "headquarters",
+      "label_overrides",
+      "shipments",
+      "suppliers"
+    ],
+    "sizeKB": 2,
+    "description": "Euro / ECB infrastructure \u2014 central bank, treasury markets, payment rails."
+  },
+  {
+    "path": "supply_chain/sol.json",
+    "category": "supply_chain",
+    "type": "Object",
+    "itemCount": 8,
+    "keys": [
+      "asset_id",
+      "asset_kind",
+      "customers",
+      "facilities",
+      "headquarters",
+      "label_overrides",
+      "shipments",
+      "suppliers"
+    ],
+    "sizeKB": 3,
+    "description": "Solana network \u2014 validators, staking flows, ecosystem liquidity."
+  },
+  {
+    "path": "supply_chain/tsla.json",
+    "category": "supply_chain",
+    "type": "Object",
+    "itemCount": 8,
+    "keys": [
+      "asset_id",
+      "asset_kind",
+      "customers",
+      "facilities",
+      "headquarters",
+      "label_overrides",
+      "shipments",
+      "suppliers"
+    ],
+    "sizeKB": 5,
+    "description": "Tesla supply chain \u2014 Gigafactories, battery suppliers (Panasonic, CATL), material flows."
+  },
+  {
+    "path": "supply_chain/usd.json",
+    "category": "supply_chain",
+    "type": "Object",
+    "itemCount": 8,
+    "keys": [
+      "asset_id",
+      "asset_kind",
+      "customers",
+      "facilities",
+      "headquarters",
+      "label_overrides",
+      "shipments",
+      "suppliers"
+    ],
+    "sizeKB": 3,
+    "description": "USD/Fiat infrastructure \u2014 central banks, treasury markets, payment rails."
+  },
+  {
+    "path": "tracking/activity_log.json",
+    "category": "tracking",
+    "type": "Array",
+    "itemCount": 7,
+    "keys": [
+      "duration_ms",
+      "id",
+      "session_id",
+      "what",
+      "when",
+      "where",
+      "why"
+    ],
+    "sizeKB": 4,
+    "description": "Where/when/who/what/why activity journal \u2014 every tracked interaction, human-readable."
+  },
+  {
+    "path": "tracking/analytics.json",
+    "category": "tracking",
+    "type": "Array",
+    "itemCount": 8,
+    "keys": [
+      "calculated_at",
+      "change_percentage",
+      "date",
+      "id",
+      "metadata",
+      "metric_name",
+      "metric_type",
+      "previous_value",
+      "value"
+    ],
+    "sizeKB": 3,
+    "description": "Aggregated usage analytics feeding personalization and dashboards."
+  },
+  {
+    "path": "tracking/component_usage.json",
+    "category": "tracking",
+    "type": "Array",
+    "itemCount": 8,
+    "keys": [
+      "action",
+      "component_name",
+      "component_type",
+      "id",
+      "interaction_count",
+      "metadata",
+      "page",
+      "props",
+      "render_time_ms",
+      "session_id",
+      "timestamp",
+      "user_id"
+    ],
+    "sizeKB": 4,
+    "description": "Per-component interaction counts, used to spot dead or over-used UI."
+  },
+  {
+    "path": "tracking/user_interactions.json",
+    "category": "tracking",
+    "type": "Array",
+    "itemCount": 8,
+    "keys": [
+      "action",
+      "component",
+      "context",
+      "duration_ms",
+      "event_type",
+      "id",
+      "metadata",
+      "session_id",
+      "target",
+      "timestamp",
+      "user_id"
+    ],
+    "sizeKB": 4,
+    "description": "Raw behavioral events \u2014 the feed the Avatar training pipeline drains."
+  },
+  {
+    "path": "agents/avatars.json",
+    "category": "agents",
+    "type": "Array",
+    "itemCount": 11,
+    "keys": [
+      "avatar_url",
+      "confidence",
+      "created_at",
+      "id",
+      "kind",
+      "lineage",
+      "model_type",
+      "name",
+      "opinion_vector",
+      "owner_id",
+      "performance",
+      "personality_matrix"
+    ],
+    "sizeKB": 19,
+    "description": "AI Avatars \u2014 personality-driven (the \"famous\" archetypes) and classifier-driven (Jev) \u2014 with opinion vectors, confidence, training state, and performance."
+  },
+  {
+    "path": "agents/marketplace.json",
+    "category": "agents",
+    "type": "Object",
+    "itemCount": 4,
+    "keys": [
+      "categories",
+      "featured",
+      "recently_listed",
+      "trending_24h"
+    ],
+    "sizeKB": 1,
+    "description": "Avatar marketplace \u2014 featured, trending, categorized agent listings."
+  },
+  {
+    "path": "agents/training_log.json",
+    "category": "agents",
+    "type": "Array",
+    "itemCount": 5,
+    "keys": [
+      "agent_id",
+      "delta",
+      "event",
+      "id",
+      "loss",
+      "reward",
+      "samples",
+      "ts"
+    ],
+    "sizeKB": 1,
+    "description": "Reinforcement learning training log \u2014 events, rewards, behavioral deltas."
+  },
+  {
+    "path": "strategies/index.json",
+    "category": "strategies",
+    "type": "Array",
+    "itemCount": 5,
+    "keys": [
+      "averageTradeDuration",
+      "category",
+      "creationDate",
+      "creator",
+      "description",
+      "equity_preview",
+      "frequency",
+      "fromAsset",
+      "id",
+      "is_public",
+      "monthlyDrawdown",
+      "monthlyGain"
+    ],
+    "sizeKB": 4,
+    "description": "Strategy summary index \u2014 the lightweight list used for the Trading Lab grid."
+  },
+  {
+    "path": "strategies/profiles.json",
+    "category": "strategies",
+    "type": "Array",
+    "itemCount": 4,
+    "keys": [
+      "avatar_url",
+      "description",
+      "id",
+      "name",
+      "pnl",
+      "traits"
+    ],
+    "sizeKB": 1,
+    "description": "Extended per-strategy profile data \u2014 creator notes, target assets, tags."
+  },
+  {
+    "path": "strategies/ratings/strategy_001.json",
+    "category": "strategies",
+    "type": "Object",
+    "itemCount": 3,
+    "keys": [
+      "complexity",
+      "computationalCost",
+      "risk"
+    ],
+    "sizeKB": 1,
+    "description": "Community rating breakdown for strategy_001."
+  },
+  {
+    "path": "strategies/ratings/strategy_002.json",
+    "category": "strategies",
+    "type": "Object",
+    "itemCount": 3,
+    "keys": [
+      "complexity",
+      "computationalCost",
+      "risk"
+    ],
+    "sizeKB": 1,
+    "description": "Community rating breakdown for strategy_002."
+  },
+  {
+    "path": "strategies/ratings/strategy_003.json",
+    "category": "strategies",
+    "type": "Object",
+    "itemCount": 3,
+    "keys": [
+      "complexity",
+      "computationalCost",
+      "risk"
+    ],
+    "sizeKB": 1,
+    "description": "Community rating breakdown for strategy_003."
+  },
+  {
+    "path": "strategies/codes/strategy_001.json",
+    "category": "strategies",
+    "type": "Object",
+    "itemCount": 11,
+    "keys": [
+      "assets",
+      "conditions",
+      "frequency",
+      "id",
+      "name",
+      "parameters",
+      "period",
+      "profiles",
+      "rights",
+      "statements",
+      "variables"
+    ],
+    "sizeKB": 1,
+    "description": "strategy_001's executable condition/action block graph."
+  },
+  {
+    "path": "strategies/codes/strategy_002.json",
+    "category": "strategies",
+    "type": "Object",
+    "itemCount": 11,
+    "keys": [
+      "assets",
+      "conditions",
+      "frequency",
+      "id",
+      "name",
+      "parameters",
+      "period",
+      "profiles",
+      "rights",
+      "statements",
+      "variables"
+    ],
+    "sizeKB": 1,
+    "description": "strategy_002's executable condition/action block graph."
+  },
+  {
+    "path": "strategies/codes/strategy_003.json",
+    "category": "strategies",
+    "type": "Object",
+    "itemCount": 11,
+    "keys": [
+      "assets",
+      "conditions",
+      "frequency",
+      "id",
+      "name",
+      "parameters",
+      "period",
+      "profiles",
+      "rights",
+      "statements",
+      "variables"
+    ],
+    "sizeKB": 1,
+    "description": "strategy_003's executable condition/action block graph."
+  },
+  {
+    "path": "quests/categories.json",
+    "category": "quests",
+    "type": "Array",
+    "itemCount": 4,
+    "keys": [
+      "description",
+      "id",
+      "name"
+    ],
+    "sizeKB": 1,
+    "description": "Quest category taxonomy \u2014 educational vs. challenge-based groupings."
+  },
+  {
+    "path": "quests/quests.json",
+    "category": "quests",
+    "type": "Array",
+    "itemCount": 5,
+    "keys": [
+      "category_id",
+      "completed",
+      "description",
+      "id",
+      "progress",
+      "reward_credits",
+      "title"
+    ],
+    "sizeKB": 1,
+    "description": "Gamified quests \u2014 educational and challenge-based tasks with credit rewards."
+  },
+  {
+    "path": "social/bookmarks.json",
+    "category": "social",
+    "type": "Array",
+    "itemCount": 3,
+    "keys": [],
+    "sizeKB": 1,
+    "description": "A user's saved/bookmarked posts and articles."
+  },
+  {
+    "path": "social/discussions.json",
+    "category": "social",
+    "type": "Array",
+    "itemCount": 3,
+    "keys": [
+      "category",
+      "created_at",
+      "created_by",
+      "data_affiliated",
+      "description",
+      "id",
+      "is_active",
+      "last_message",
+      "members",
+      "message_count",
+      "name",
+      "pinned_message"
+    ],
+    "sizeKB": 4,
+    "description": "Threaded discussion metadata attached to posts and assets."
+  },
+  {
+    "path": "social/news_comments.json",
+    "category": "social",
+    "type": "Array",
+    "itemCount": 16,
+    "keys": [
+      "authorAvatarUrl",
+      "authorName",
+      "content",
+      "createdAt",
+      "id",
+      "itemId",
+      "userId"
+    ],
+    "sizeKB": 5,
+    "description": "Comments on news items, with controversy/sentiment scoring."
+  },
+  {
+    "path": "social/notifications.json",
+    "category": "social",
+    "type": "Array",
+    "itemCount": 3,
+    "keys": [
+      "id",
+      "message",
+      "read",
+      "timestamp"
+    ],
+    "sizeKB": 1,
+    "description": "User notifications \u2014 price alerts, strategy triggers, social activity."
+  },
+  {
+    "path": "social/posts.json",
+    "category": "social",
+    "type": "Array",
+    "itemCount": 8,
+    "keys": [
+      "assets",
+      "author_id",
+      "category",
+      "content",
+      "controversy_index",
+      "economic_leaning",
+      "embedded_allocation",
+      "geographic_origin",
+      "id",
+      "interactions",
+      "is_pinned",
+      "political_leaning"
+    ],
+    "sizeKB": 7,
+    "description": "Social posts with political/economic bias scores, controversy metrics, embedded allocation opinions."
+  },
+  {
+    "path": "relationships/company_relationships.json",
+    "category": "relationships",
+    "type": "Array",
+    "itemCount": 20,
+    "keys": [
+      "dependency_level",
+      "description",
+      "financial_impact",
+      "last_updated",
+      "products_involved",
+      "relationship_type",
+      "risk_level",
+      "source_company",
+      "strategic_importance",
+      "strength",
+      "target_company"
+    ],
+    "sizeKB": 9,
+    "description": "Company-to-company relationship graph (suppliers, customers, competitors)."
+  },
+  {
+    "path": "relationships/industry_dependencies.json",
+    "category": "relationships",
+    "type": "Object",
+    "itemCount": 7,
+    "keys": [
+      "automotive_supply_chain",
+      "cloud_computing_ecosystem",
+      "cross_industry_dependencies",
+      "geopolitical_risks",
+      "market_interdependencies",
+      "retail_ecommerce",
+      "technology_supply_chain"
+    ],
+    "sizeKB": 7,
+    "description": "Cross-industry dependency graph \u2014 which sectors rely on each other and geopolitical risk multipliers."
+  },
+  {
+    "path": "relationships/strategy_assets.json",
+    "category": "relationships",
+    "type": "Array",
+    "itemCount": 0,
+    "keys": [],
+    "sizeKB": 1,
+    "description": "Strategy-to-asset target mapping (which strategies trade which assets)."
+  },
+  {
+    "path": "relationships/user_assets.json",
+    "category": "relationships",
+    "type": "Array",
+    "itemCount": 2,
+    "keys": [
+      "asset_id",
+      "average_purchase_price",
+      "created_at",
+      "current_value",
+      "first_purchase_date",
+      "id",
+      "is_favorite",
+      "is_watchlisted",
+      "last_transaction_date",
+      "notes",
+      "quantity",
+      "relationship_type"
+    ],
+    "sizeKB": 1,
+    "description": "User-to-asset watch/hold relationships."
+  }
+]

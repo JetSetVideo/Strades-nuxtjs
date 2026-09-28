@@ -29,7 +29,7 @@ const commoditySymbols = ['BTC', 'ETH', 'SOL', 'AAPL', 'AMZN', 'TSLA', 'USD', 'E
 
 onMounted(async () => {
   await Promise.all([
-    macroStore.initializeStore(),
+    macroStore.fetchMacroState(),
     strategiesStore.fetchStrategies(),
     assetsStore.initializeStore(),
   ])

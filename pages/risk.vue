@@ -27,7 +27,7 @@ const stressRunning = ref(false)
 
 onMounted(async () => {
   await Promise.all([
-    macro.initializeStore(),
+    macro.fetchMacroState(),
     walletStore.initializeStore(),
     assetsStore.initializeStore()
   ])
