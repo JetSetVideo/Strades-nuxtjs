@@ -41,7 +41,7 @@ h1 {
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  font-family: var(--font-family-primary, 'Poppins', sans-serif);
+  font-family: var(--font-chrome, var(--font-family-primary, 'Poppins', sans-serif));
   line-height: 1.1;
 }
 .badge {

@@ -13,6 +13,10 @@ export default defineNuxtConfig({
   alias: {
     '@public/data': '/public/data'
   },
+  // Font loading: @nuxt/ui already pulls in @nuxt/fonts, which auto-detects any
+  // font-family referenced in our CSS (Poppins, Sora, IBM Plex Mono, Inter — the
+  // curated choices in stores/appearance.ts) and self-hosts it — no manual
+  // Google Fonts <link> needed.
   runtimeConfig: {
     public: {
       // Django REST backend base URL — override with NUXT_PUBLIC_API_BASE env var

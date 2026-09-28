@@ -3,8 +3,31 @@ import { ref } from 'vue'
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
 import UIPill from '@/components/UI/Pill.vue'
+import {
+  useAppearanceStore, TIMEZONE_LABELS,
+  type FontScaleKey, type ChromeFontKey, type MarketDataFontKey, type ColorSchemeKey, type TimezoneKey
+} from '~/stores/appearance'
 
 definePageMeta({ title: 'Settings', description: 'Account, security, preferences.', layout: 'default' })
+
+const appearance = useAppearanceStore()
+appearance.hydrate()
+
+const FONT_SCALE_OPTIONS: { key: FontScaleKey; label: string }[] = [
+  { key: 'small', label: 'Small' }, { key: 'medium', label: 'Medium' }, { key: 'large', label: 'Large' }
+]
+const CHROME_FONT_OPTIONS: { key: ChromeFontKey; label: string }[] = [
+  { key: 'poppins', label: 'Poppins' }, { key: 'sora', label: 'Sora' }
+]
+const MARKET_FONT_OPTIONS: { key: MarketDataFontKey; label: string }[] = [
+  { key: 'plex-mono', label: 'IBM Plex Mono' }, { key: 'inter', label: 'Inter' }
+]
+const COLOR_SCHEME_OPTIONS: { key: ColorSchemeKey; label: string }[] = [
+  { key: 'default', label: 'Green up / Red down' },
+  { key: 'colorblind', label: 'Colorblind-safe' },
+  { key: 'swapped', label: 'Red up / Green down' }
+]
+const TIMEZONE_OPTIONS = (Object.keys(TIMEZONE_LABELS) as TimezoneKey[]).map(key => ({ key, label: TIMEZONE_LABELS[key] }))
 
 const apiKeys = ref([
   { exchange: 'Binance', key: '', secret: '' },
@@ -35,8 +58,71 @@ const saveSettings = () => { /* persist later */ }
       </template>
     </UICard>
 
-    <UICard title="Preferences" padding="tight">
-      <p class="muted">Per-class trading defaults, theme density, hover-intent thresholds — coming soon.</p>
+    <UICard title="Appearance">
+      <template #action><UIPill tone="info" show-dot>Live</UIPill></template>
+
+      <div class="appearance-grid">
+        <div class="setting-row">
+          <span class="setting-label">Text size</span>
+          <div class="chip-row">
+            <button
+              v-for="opt in FONT_SCALE_OPTIONS" :key="opt.key"
+              :class="['chip', { active: appearance.fontScaleKey === opt.key }]"
+              @click="appearance.setFontScale(opt.key)"
+            >{{ opt.label }}</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-label">Menu &amp; title font <em>(chrome)</em></span>
+          <div class="chip-row">
+            <button
+              v-for="opt in CHROME_FONT_OPTIONS" :key="opt.key"
+              :class="['chip', { active: appearance.chromeFontKey === opt.key }]"
+              :style="{ fontFamily: opt.key === 'poppins' ? `'Poppins', sans-serif` : `'Sora', sans-serif` }"
+              @click="appearance.setChromeFont(opt.key)"
+            >{{ opt.label }}</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-label">Prices &amp; asset-name font <em>(market data)</em></span>
+          <div class="chip-row">
+            <button
+              v-for="opt in MARKET_FONT_OPTIONS" :key="opt.key"
+              :class="['chip', { active: appearance.marketDataFontKey === opt.key }]"
+              :style="{ fontFamily: opt.key === 'plex-mono' ? `'IBM Plex Mono', monospace` : `'Inter', sans-serif` }"
+              @click="appearance.setMarketDataFont(opt.key)"
+            >{{ opt.label }}</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-label">Up / down colors</span>
+          <div class="chip-row">
+            <button
+              v-for="opt in COLOR_SCHEME_OPTIONS" :key="opt.key"
+              :class="['chip', { active: appearance.colorSchemeKey === opt.key }]"
+              @click="appearance.setColorScheme(opt.key)"
+            >
+              <span class="swatch" :style="{ background: opt.key === 'default' ? '#00ff88' : opt.key === 'colorblind' ? '#00ff88' : '#ff4444' }" />
+              <span class="swatch" :style="{ background: opt.key === 'default' ? '#ff4444' : opt.key === 'colorblind' ? '#3b82f6' : '#00ff88' }" />
+              {{ opt.label }}
+            </button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-label">Clock timezone</span>
+          <select
+            class="tz-select"
+            :value="appearance.timezone"
+            @change="appearance.setTimezone(($event.target as HTMLSelectElement).value as TimezoneKey)"
+          >
+            <option v-for="opt in TIMEZONE_OPTIONS" :key="opt.key" :value="opt.key">{{ opt.label }}</option>
+          </select>
+        </div>
+      </div>
     </UICard>
 
     <UICard title="Security" padding="tight">
@@ -75,6 +161,45 @@ input:focus { outline: none; border-color: var(--primary-green, #00ff88); }
 
 .muted { color: rgba(255,255,255,0.55); font-size: 0.8rem; margin: 0; }
 .muted a { color: var(--primary-green, #00ff88); }
+
+.appearance-grid { display: flex; flex-direction: column; gap: 0.85rem; }
+.setting-row { display: flex; flex-direction: column; gap: 0.35rem; }
+.setting-label { font-size: 0.75rem; font-weight: 700; color: rgba(255,255,255,0.75); }
+.setting-label em { font-style: normal; font-weight: 400; color: rgba(255,255,255,0.4); }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.75);
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.chip:hover { border-color: rgba(255,255,255,0.25); color: #fff; }
+.chip.active {
+  background: rgba(0,255,136,0.12);
+  border-color: var(--primary-green, #00ff88);
+  color: var(--primary-green, #00ff88);
+}
+.swatch { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+.tz-select {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  max-width: 220px;
+}
+.tz-select:focus { outline: none; border-color: var(--primary-green, #00ff88); }
 
 button { font-family: inherit; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 0.4rem 0.85rem; border-radius: 5px; }
 .ghost { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); }

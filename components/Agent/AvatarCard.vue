@@ -385,9 +385,9 @@ const fork = () => {
   padding: 0.35rem 0.2rem;
 }
 .m-label { font-size: 0.55rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.45); text-transform: uppercase; }
-.m-value { font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.metric.positive .m-value { color: var(--success-green, #00ff88); }
-.metric.negative .m-value { color: var(--error-red, #ff4444); }
+.m-value { font-family: var(--font-market-data, inherit); font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.metric.positive .m-value { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.metric.negative .m-value { color: var(--app-color-down, var(--error-red, #ff4444)); }
 
 .sparkline {
   width: 100%;

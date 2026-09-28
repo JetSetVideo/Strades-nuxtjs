@@ -120,8 +120,8 @@ const cardGlow = computed(() => `0 0 ${glowRadius.value} ${glowColor.value}`)
 
 // Left accent border color from sentiment
 const accentColor = computed(() => {
-  if (sentiment.value === 'bullish' || changePct.value > 1) return 'var(--success-green)'
-  if (sentiment.value === 'bearish' || changePct.value < -1) return 'var(--error-red)'
+  if (sentiment.value === 'bullish' || changePct.value > 1) return 'var(--app-color-up, var(--success-green))'
+  if (sentiment.value === 'bearish' || changePct.value < -1) return 'var(--app-color-down, var(--error-red))'
   return 'var(--text-gray)'
 })
 
@@ -184,7 +184,7 @@ const sparkPoints = computed(() => {
   }).join(' ')
 })
 
-const sparkColor = computed(() => changePct.value >= 0 ? 'var(--success-green)' : 'var(--error-red)')
+const sparkColor = computed(() => changePct.value >= 0 ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))')
 
 // ── PriceIntuition expand ─────────────────────────────────────────────────
 const showIntuition = ref(false)
@@ -282,8 +282,8 @@ const assetAlerts = computed(() =>
         <!-- Multi-TF prediction badge -->
         <div v-if="predSummary" class="da-pred-badge"
           :style="{
-            color: predDominantDir === 'bullish' ? 'var(--success-green)' :
-                   predDominantDir === 'bearish' ? 'var(--error-red)' : 'var(--text-gray)'
+            color: predDominantDir === 'bullish' ? 'var(--app-color-up, var(--success-green))' :
+                   predDominantDir === 'bearish' ? 'var(--app-color-down, var(--error-red))' : 'var(--text-gray)'
           }">
           <span>🎯 {{ predSummary }}</span>
         </div>
@@ -443,6 +443,7 @@ const assetAlerts = computed(() =>
 }
 
 .da-name {
+  font-family: var(--font-market-data, inherit);
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--text-white);
@@ -472,7 +473,8 @@ const assetAlerts = computed(() =>
   font-size: 1rem;
   font-weight: 800;
   color: var(--text-white);
-  font-family: var(--font-family-primary);
+  font-family: var(--font-market-data, var(--font-family-primary));
+  font-variant-numeric: tabular-nums;
 }
 
 .da-change {
@@ -482,16 +484,21 @@ const assetAlerts = computed(() =>
   border-radius: 999px;
 }
 
+.da-change {
+  font-family: var(--font-market-data, inherit);
+  font-variant-numeric: tabular-nums;
+}
+
 .da-change.pos {
-  color: var(--success-green);
-  background: rgba(0,255,136,0.1);
-  border: 1px solid rgba(0,255,136,0.25);
+  color: var(--app-color-up, var(--success-green));
+  background: color-mix(in oklch, var(--app-color-up, var(--success-green)) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--app-color-up, var(--success-green)) 30%, transparent);
 }
 
 .da-change.neg {
-  color: var(--error-red);
-  background: rgba(255,68,68,0.1);
-  border: 1px solid rgba(255,68,68,0.25);
+  color: var(--app-color-down, var(--error-red));
+  background: color-mix(in oklch, var(--app-color-down, var(--error-red)) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--app-color-down, var(--error-red)) 30%, transparent);
 }
 
 /* Last prediction badge */

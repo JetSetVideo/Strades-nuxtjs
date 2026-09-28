@@ -6,9 +6,11 @@
 import { watchEffect, onMounted } from 'vue'
 import { useMacroStore } from '~/stores/macro'
 import { useUserPreferencesStore } from '~/stores/userPreferences'
+import { useAppearanceStore } from '~/stores/appearance'
 
 const macro = useMacroStore()
 const prefs = useUserPreferencesStore()
+const appearance = useAppearanceStore()
 
 const applyTheme = () => {
   if (typeof document === 'undefined') return
@@ -39,12 +41,21 @@ const applyTheme = () => {
 
   // Lighting source angle (for shadows / radial gradients)
   root.style.setProperty('--app-light-angle', `${macro.lighting_source_angle}deg`)
+
+  // User-tunable design system (stores/appearance.ts): text scale, the
+  // chrome/market-data typography split, and the up/down color mapping.
+  root.style.setProperty('--app-font-scale', String(appearance.fontScale))
+  root.style.setProperty('--font-chrome', appearance.chromeFontFamily)
+  root.style.setProperty('--font-market-data', appearance.marketDataFontFamily)
+  root.style.setProperty('--app-color-up', appearance.upColor)
+  root.style.setProperty('--app-color-down', appearance.downColor)
 }
 
 onMounted(() => {
   // Plugin already hydrated macro, but fall back if it didn't
   if (!macro.hydrated) macro.fetchMacroState()
   if (!prefs.hydrated) prefs.fetchPreferences()
+  appearance.hydrate()
   watchEffect(applyTheme)
 })
 </script>
