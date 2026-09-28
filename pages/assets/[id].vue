@@ -5,6 +5,7 @@ import { navigateTo } from "#app";
 import { useAssetsStore } from "@/stores/assets";
 import { usePredictionsStore } from "@/stores/predictions";
 import PriceIntuition from "@/components/Widget/PriceIntuition.vue";
+import PriceChart from "@/components/Asset/PriceChart.vue";
 import AssetCommodityPipeline from "@/components/Asset/CommodityPipeline.vue";
 import AssetQuickPaperBet from "@/components/Asset/QuickPaperBet.vue";
 
@@ -327,6 +328,16 @@ const getVolatilityDescription = (volatilityIndex) => {
             <span class="value">{{ formatCurrency(asset?.stock_price_usd) }}</span>
           </div>
         </div>
+      </div>
+
+      <!-- ── Interactive price chart: drag to set alerts, switch period/type ── -->
+      <div class="asset-chart-section">
+        <PriceChart
+          v-if="asset"
+          :asset-id="asset.id"
+          :current-price="asset.current_price"
+          :volatility="volatility"
+        />
       </div>
 
       <!-- ── Price Intuition Section (always visible) ── -->
@@ -784,6 +795,14 @@ const getVolatilityDescription = (volatilityIndex) => {
 /* ── Intuition Section (above tabs) ─────────────────────────────── */
 .asset-intuition-section {
   margin: var(--spacing-lg) 0;
+}
+
+.asset-chart-section {
+  margin: var(--spacing-lg) 0;
+  padding: var(--spacing-md);
+  background: var(--card-bg, rgba(255,255,255,0.02));
+  border: 1px solid var(--border-primary, rgba(255,255,255,0.08));
+  border-radius: var(--app-border-radius, 10px);
 }
 
 /* ── Paper Trade Tab Content ── */

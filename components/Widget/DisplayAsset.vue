@@ -443,13 +443,14 @@ const assetAlerts = computed(() =>
 }
 
 .da-name {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--text-white);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-light-gray, rgba(255,255,255,0.75));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 160px;
+  font-family: var(--font-market-data, var(--font-family-secondary));
 }
 
 .da-cat-badge {
@@ -469,17 +470,20 @@ const assetAlerts = computed(() =>
 }
 
 .da-price {
-  font-size: 1rem;
+  font-size: 1.4rem;
   font-weight: 800;
   color: var(--text-white);
-  font-family: var(--font-family-primary);
+  font-family: var(--font-market-data, var(--font-family-primary));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .da-change {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
+  font-variant-numeric: tabular-nums;
 }
 
 .da-change.pos {
@@ -506,16 +510,26 @@ const assetAlerts = computed(() =>
 
 .da-pred-status { font-size: 0.7rem; }
 
-/* ── Sparkline ── */
+/* ── Sparkline ──
+ * Flexes to soak up the row's remaining width instead of leaving a dead
+ * gap between the info column and the predict button on wide screens. */
 .da-spark {
-  flex-shrink: 0;
-  width: 80px;
+  flex: 1 1 140px;
+  min-width: 90px;
+  max-width: 320px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
 }
 
 .da-spark-svg {
-  width: 80px;
-  height: 30px;
+  width: 100%;
+  height: 40px;
   display: block;
+}
+
+@media (max-width: 640px) {
+  .da-spark { flex-basis: 70px; max-width: 100px; }
 }
 
 /* ── Alert ribbon ── */

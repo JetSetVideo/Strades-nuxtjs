@@ -17,6 +17,8 @@ import { usePredictionsStore } from '@/stores/predictions'
 import { useMacroStore } from '@/stores/macro'
 import DisplayAsset from '@/components/Widget/DisplayAsset.vue'
 import Heatmap from '@/components/Asset/Heatmap.vue'
+import PricesMap from '@/components/Map/PricesMap.vue'
+import { regionOf } from '~/composables/useAssetRegion'
 
 definePageMeta({
   title: 'Market Prices',
@@ -33,6 +35,8 @@ const selectedAssetId  = ref<string | null>(null)
 const showMoreAssets   = ref(false)
 const sortBy           = ref<'default' | 'gainers' | 'losers' | 'vol_high' | 'cap'>('default')
 const searchQuery      = ref('')
+const viewMode         = ref<'list' | 'map'>('list')
+const selectedRegionIso = ref<string | null>(null)
 
 // Aliases to store reactive state
 const loading      = computed(() => assetsStore.loading)
@@ -126,6 +130,10 @@ const filtered = computed(() => {
   // Type filter
   if (selectedType.value !== 'all')
     list = list.filter(a => a.type === selectedType.value)
+
+  // Region filter (from the map view)
+  if (selectedRegionIso.value)
+    list = list.filter(a => regionOf(a).iso === selectedRegionIso.value)
 
   // Text search
   if (searchQuery.value.trim()) {
@@ -264,6 +272,12 @@ function navigateToAsset(assetId: string) {
         </button>
       </div>
 
+      <!-- List / Map view toggle -->
+      <div class="view-toggle" role="group" aria-label="View mode">
+        <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="List view">☰ List</button>
+        <button :class="{ active: viewMode === 'map' }" @click="viewMode = 'map'" title="Map view">🌍 Map</button>
+      </div>
+
       <!-- Sort -->
       <div class="sort-wrap">
         <select v-model="sortBy" class="sort-select">
@@ -290,6 +304,15 @@ function navigateToAsset(assetId: string) {
     <!-- ── Asset list ────────────────────────────────────────────────── -->
     <div v-if="hasData" class="assets-section">
 
+      <!-- Map view -->
+      <PricesMap
+        v-if="viewMode === 'map'"
+        :assets="filtered"
+        :price-changes="priceChanges"
+        :selected-iso="selectedRegionIso"
+        @select="selectedRegionIso = $event"
+      />
+
       <!-- Heatmap panel for selected asset -->
       <Transition name="fade">
         <Heatmap v-if="selectedAssetId" :companyId="selectedAssetId" class="heatmap-panel" />
@@ -299,6 +322,9 @@ function navigateToAsset(assetId: string) {
       <div class="results-meta">
         <span>{{ filtered.length }} assets</span>
         <span v-if="searchQuery" class="search-term">for "{{ searchQuery }}"</span>
+        <button v-if="selectedRegionIso" class="region-chip" @click="selectedRegionIso = null">
+          📍 {{ selectedRegionIso }} ✕
+        </button>
       </div>
 
       <!-- Primary grid -->
@@ -352,6 +378,11 @@ function navigateToAsset(assetId: string) {
   padding: 0;
   min-height: 100%;
   color: var(--text-white);
+  /* Cap reading width on large/ultrawide screens — an uncapped single-column
+   * list stretches into an uncomfortable half-empty row on wide viewports. */
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* ── Market overview bar ── */
@@ -584,6 +615,34 @@ function navigateToAsset(assetId: string) {
   color: var(--text-gray);
 }
 .search-term { font-style: italic; }
+.region-chip {
+  margin-left: auto;
+  background: rgba(0,170,255,0.1);
+  border: 1px solid rgba(0,170,255,0.3);
+  color: var(--primary-blue, #00aaff);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.view-toggle { display: flex; gap: 2px; }
+.view-toggle button {
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary);
+  background: transparent;
+  color: var(--text-gray);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.view-toggle button.active {
+  background: rgba(0,255,136,0.08);
+  border-color: var(--primary-green);
+  color: var(--primary-green);
+}
 
 .asset-grid {
   display: flex;
