@@ -5,10 +5,13 @@ import { useAllocationStore } from '@/stores/allocation'
 import { usePlatformsStore } from '@/stores/platforms'
 import { useBotsStore } from '@/stores/bots'
 import { useOpinionsStore } from '@/stores/opinions'
+import { useMacroStore } from '@/stores/macro'
+import { useAgentsStore } from '@/stores/agents'
 
 import UIScreenShell from '@/components/UI/ScreenShell.vue'
 import UICard from '@/components/UI/Card.vue'
 import UIPill from '@/components/UI/Pill.vue'
+import AgentAvatarCard from '@/components/Agent/AvatarCard.vue'
 import WalletSwitcher from '@/components/Wallet/Switcher.vue'
 import WalletHero from '@/components/Wallet/Hero.vue'
 import WalletPositions from '@/components/Wallet/Positions.vue'
@@ -39,6 +42,8 @@ const allocation = useAllocationStore()
 const platforms = usePlatformsStore()
 const bots = useBotsStore()
 const opinions = useOpinionsStore()
+const macro = useMacroStore()
+const agents = useAgentsStore()
 const { userId } = useCurrentUser()
 
 const selectedWalletId = ref<string>('wallet_001')
@@ -48,11 +53,27 @@ onMounted(async () => {
   if (!walletStore.hydrated) await walletStore.initializeStore()
   if (!platforms.hydrated) await platforms.fetchPlatforms()
   if (!bots.hydrated) await bots.fetchBots()
+  if (!agents.hydrated) await agents.fetchAgents().catch(() => {})
   if (!selectedWalletId.value || !walletStore.getWalletById(selectedWalletId.value)) {
     const def = walletStore.getDefaultWallet(userId.value)
     selectedWalletId.value = def?.id ?? walletStore.wallets[0]?.id
   }
 })
+
+// ── Market pulse (merged from the former Dashboard page) ─────────────────
+const marketPulse = computed(() => {
+  const bullish = macro.market_sentiment > 0.15
+  const stress = macro.geopolitical_stress > 0.5
+  return {
+    mood: bullish ? 'Bullish' : 'Bearish',
+    moodTone: bullish ? ('success' as const) : ('danger' as const),
+    stress: stress ? 'Elevated' : 'Normal',
+    stressTone: stress ? ('danger' as const) : ('success' as const),
+    volLabel: macro.global_volatility_index > 0.6 ? 'High' : 'Low',
+  }
+})
+
+const personalAvatar = computed(() => agents.personal)
 
 const currentWallet = computed<any>(() => walletStore.getWalletById(selectedWalletId.value))
 const positions = computed(() => currentWallet.value?.assets ?? [])
@@ -95,6 +116,9 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
       :kpis="kpis"
     >
       <template #actions>
+        <UIPill :tone="marketPulse.moodTone" show-dot>{{ marketPulse.mood }}</UIPill>
+        <UIPill :tone="marketPulse.stressTone">Stress: {{ marketPulse.stress }}</UIPill>
+        <UIPill :tone="marketPulse.volLabel === 'High' ? 'danger' : 'success'">Vol: {{ marketPulse.volLabel }}</UIPill>
         <MapButton v-if="walletMapMarkers.length" :markers="walletMapMarkers" title="Platforms" :subtitle="`${walletMapMarkers.length} connected`" />
         <UIPill :tone="allocation.is100Percent ? 'success' : 'warning'" show-dot>
           {{ allocation.is100Percent ? '100%' : 'REBAL' }}
@@ -134,6 +158,10 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 
         <UICard title="Bots & platforms">
           <WalletBotContribution :total-today="currentWallet?.daily_change ?? 0" />
+        </UICard>
+
+        <UICard v-if="personalAvatar" title="Your avatar" padding="tight">
+          <AgentAvatarCard :agent="personalAvatar" @select="(id) => navigateTo(`/agents/${id}`)" />
         </UICard>
       </div>
 
