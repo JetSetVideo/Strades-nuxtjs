@@ -114,6 +114,24 @@
   --font-family-primary: 'Poppins', sans-serif;
   --font-family-secondary: 'Kanit', sans-serif;
 
+  /* ── Two-tier typography (stores/appearance.ts sets these at runtime) ──
+     --font-chrome: the app's own voice — menus, titles, labels.
+     --font-market-data: anything that originates outside the app — prices,
+     tickers, company/asset names. Kept separate so a user's font choice for
+     one never drags the other along. */
+  --font-chrome: 'Poppins', sans-serif;
+  --font-market-data: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* User-tunable text scale (small/medium/large) — see html rule below */
+  --app-font-scale: 1;
+
+  /* Up/down color mapping — NEVER alias to --success-green/--error-red
+     directly in components; those are also used decoratively (buttons,
+     glows, live-dots) and must not shift when a user picks a colorblind
+     or swapped scheme. */
+  --app-color-up: var(--success-green);
+  --app-color-down: var(--error-red);
+
   /* Spacing — deliberately tight; data density over whitespace */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -234,3 +252,14 @@
   0%, 100% { box-shadow: 0 0 0 0 var(--shadow-accent); }
   50% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
 }
+
+/* ── Appearance settings (stores/appearance.ts) ──────────────────────────
+   Text-scale: most component CSS is authored in rem, so scaling the root
+   font-size scales the whole app proportionally without touching every
+   component individually. 100% preserves the browser/OS zoom baseline. */
+html { font-size: calc(100% * var(--app-font-scale, 1)); }
+
+/* Chrome font is the app's default voice everywhere; components that
+   display externally-sourced data (prices, tickers, asset names) opt into
+   --font-market-data explicitly. */
+body { font-family: var(--font-chrome, var(--font-family-primary)); }

@@ -65,6 +65,7 @@ defineExpose({ autoTone })
 .ui-stat.size-lg { padding: 0.7rem 0.9rem; gap: 0.2rem; }
 
 .stat-label {
+  font-family: var(--font-chrome, inherit);
   font-size: 0.55rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -76,6 +77,7 @@ defineExpose({ autoTone })
 .size-lg .stat-label { font-size: 0.65rem; }
 
 .stat-value {
+  font-family: var(--font-market-data, inherit);
   font-size: 0.85rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -106,6 +108,6 @@ defineExpose({ autoTone })
   color: rgba(255,255,255,0.4);
 }
 
-.positive .stat-value { color: var(--success-green, #00ff88); }
-.negative .stat-value { color: var(--error-red, #ff4444); }
+.positive .stat-value { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.negative .stat-value { color: var(--app-color-down, var(--error-red, #ff4444)); }
 </style>
