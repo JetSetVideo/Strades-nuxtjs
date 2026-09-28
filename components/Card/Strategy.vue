@@ -66,6 +66,38 @@ const STATUS = {
 }
 const statusMeta = computed(() => STATUS[props.strategy.status as keyof typeof STATUS] ?? STATUS.stopped)
 
+// ── Strategy archetype badge — real trader vocabulary, not just asset class ──
+const ARCHETYPE_KEYWORDS: Record<string, string> = {
+  'mean-reversion': 'Mean Reversion',
+  'mean_reversion': 'Mean Reversion',
+  'trend-follow': 'Trend Following',
+  'trend-following': 'Trend Following',
+  'momentum': 'Momentum',
+  'breakout': 'Breakout',
+  'scalp': 'Scalper',
+  'scalping': 'Scalper',
+  'swing': 'Swing Trade',
+  'arbitrage': 'Arbitrage',
+  'macro': 'Macro Overlay',
+  'macro-overlay': 'Macro Overlay',
+  'market-making': 'Market Making',
+  'grid': 'Grid Trading',
+  'dca': 'DCA',
+}
+const archetype = computed(() => {
+  const tags: string[] = (props.strategy.tags as string[] | undefined) ?? []
+  for (const t of tags) {
+    const hit = ARCHETYPE_KEYWORDS[t.toLowerCase()]
+    if (hit) return hit
+  }
+  const indicators: string[] = (props.strategy.indicators as string[] | undefined) ?? []
+  const ind = indicators.map(i => i.toUpperCase())
+  if (ind.includes('RSI') && !ind.includes('MACD')) return 'Mean Reversion'
+  if (ind.includes('MACD') || ind.includes('EMA')) return 'Trend Following'
+  if (ind.includes('BB') || ind.includes('BOLLINGER')) return 'Breakout'
+  return 'Systematic'
+})
+
 // Category accent color
 const CAT_COLOR: Record<string, string> = {
   crypto: '#f7931a', stocks: '#2196f3', forex: '#4caf50',
@@ -138,10 +170,10 @@ const freqLabel = (f: string) => {
             :class="{ beating: strategy.status === 'active' }" />
         </div>
         <div class="feat-meta-row">
+          <span class="feat-archetype-tag">{{ archetype }}</span>
           <span class="feat-cat-tag" :style="{ color: catColor, borderColor: catColor + '44', background: catColor + '18' }">
             {{ strategy.category }}
           </span>
-          <span v-for="tag in (strategy.tags ?? []).slice(0,2)" :key="tag" class="feat-tag">{{ tag }}</span>
         </div>
       </div>
 
@@ -407,12 +439,14 @@ const freqLabel = (f: string) => {
   flex-shrink: 0;
 }
 
-.feat-tag {
-  font-size: 0.55rem;
-  color: var(--text-gray);
-  background: rgba(255,255,255,0.05);
-  padding: 1px 5px;
+.feat-archetype-tag {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-white);
+  background: rgba(255,255,255,0.08);
+  padding: 2px 7px;
   border-radius: 999px;
+  white-space: nowrap;
 }
 
 /* Sparkline */

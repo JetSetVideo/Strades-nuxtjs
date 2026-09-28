@@ -52,7 +52,10 @@ const filteredStrategies = computed(() => {
     const gain = s.monthlyGain ?? 0
     if (gain < f.profitMin || gain > f.profitMax) return false
 
-    const dd = s.monthlyDrawdown ?? 0
+    // monthlyDrawdown is stored as a positive magnitude (e.g. 12 meaning "12% drawdown"),
+    // but the filter range is negative (min -100, max 0, worse = more negative) — normalize
+    // before comparing or every strategy fails the default filter and the page looks empty.
+    const dd = -Math.abs(s.monthlyDrawdown ?? 0)
     if (dd < f.drawdownMin || dd > f.drawdownMax) return false
 
     const wr = s.winRate ?? 0
@@ -175,7 +178,7 @@ onMounted(fetchStrategies)
         @select-strategy="handleStrategySelect"
         @toggle="s => handleToggleStatus(s.id)"
         @delete="s => handleDelete(s.id)"
-        @view="s => navigateTo(`/profile/${s.creator}`)"
+        @view="s => navigateTo(`/strategy/${s.id}`)"
         @share="() => {}"
         @copy="() => {}"
       />

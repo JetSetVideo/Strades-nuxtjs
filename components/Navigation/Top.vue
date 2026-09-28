@@ -19,7 +19,7 @@ const { playHover, playClick } = useNavSound()
   <header class="top-nav" role="banner">
     <div class="brand-cluster">
       <NuxtLink
-        to="/dashboard"
+        to="/wallet"
         class="brand-link"
         @mouseenter="playHover"
         @click="drawerOpen = false; playClick()"
