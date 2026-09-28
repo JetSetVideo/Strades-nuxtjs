@@ -17,23 +17,26 @@ const { playHover, playClick } = useNavSound()
 
 <template>
   <header class="top-nav" role="banner">
-    <NuxtLink
-      to="/dashboard"
-      class="brand-link"
-      @mouseenter="playHover"
-      @click="drawerOpen = false; playClick()"
-    >
-      <span class="brand-mark">◈</span>
-      <span class="brand-word">STRADES</span>
-    </NuxtLink>
-    <button
-      class="menu-btn"
-      aria-label="Open menu"
-      @mouseenter="playHover"
-      @click="toggleDrawer(); playClick()"
-    >
-      <span class="bars"><span /><span /><span /></span>
-    </button>
+    <div class="brand-cluster">
+      <NuxtLink
+        to="/dashboard"
+        class="brand-link"
+        @mouseenter="playHover"
+        @click="drawerOpen = false; playClick()"
+      >
+        <span class="brand-mark">◈</span>
+        <span class="brand-word">STRADES</span>
+      </NuxtLink>
+      <span class="brand-divider" aria-hidden="true" />
+      <button
+        class="menu-btn"
+        aria-label="Open menu"
+        @mouseenter="playHover"
+        @click="toggleDrawer(); playClick()"
+      >
+        <span class="bars"><span /><span /><span /></span>
+      </button>
+    </div>
 
     <SearchBar
       class="search-bar"
@@ -43,6 +46,7 @@ const { playHover, playClick } = useNavSound()
 
     <div class="right-cluster">
       <NavigationTopContextActions />
+      <span class="right-divider" aria-hidden="true" />
       <NavigationTopGmtClock />
       <NavigationTopCalendarBtn />
       <slot />
@@ -75,6 +79,18 @@ const { playHover, playClick } = useNavSound()
   to   { transform: translateY(0);     opacity: 1; }
 }
 
+/* One cohesive unit: brand identity (plain, no button chrome) + a thin
+   divider + the menu trigger (the only actual "button" in this cluster).
+   Previously both brand-link and menu-btn had independent box/border/hover-bg
+   styling, which at ≥1024px read as two competing, near-identical buttons
+   sitting side by side. */
+.brand-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
 .brand-link {
   display: inline-flex;
   align-items: center;
@@ -84,15 +100,23 @@ const { playHover, playClick } = useNavSound()
   letter-spacing: 0.16em;
   font-size: 0.78rem;
   font-family: 'Poppins', sans-serif;
-  padding: 0.4rem 0.5rem;
-  border-radius: var(--app-border-radius, 8px);
   text-decoration: none;
   flex-shrink: 0;
-  transition: background 0.2s, color 0.2s;
+  transition: color 0.2s, filter 0.2s;
 }
 .brand-link:hover {
-  background: rgba(255,255,255,0.03);
   color: var(--primary-green, #00ff88);
+}
+.brand-link:hover .brand-mark {
+  filter: drop-shadow(0 0 9px rgba(0,255,136,0.6));
+}
+
+.brand-divider {
+  display: none;
+  width: 1px;
+  height: 1.1rem;
+  background: rgba(255,255,255,0.1);
+  flex-shrink: 0;
 }
 
 .menu-btn {
@@ -136,8 +160,19 @@ const { playHover, playClick } = useNavSound()
 }
 
 .right-cluster {
-  display: flex; align-items: center; gap: 0.3rem;
+  display: flex; align-items: center; gap: 0.4rem;
   flex-shrink: 0;
+}
+.right-divider {
+  width: 1px;
+  height: 1.1rem;
+  background: rgba(255,255,255,0.1);
+  flex-shrink: 0;
+}
+/* The contextual action pill only exists on some pages — don't leave a
+   floating divider with nothing to its left when it's absent. */
+.right-cluster:not(:has(.ctx-btn)) .right-divider {
+  display: none;
 }
 
 @media (min-width: 640px) {
@@ -147,6 +182,7 @@ const { playHover, playClick } = useNavSound()
     gap: 0.75rem;
   }
   .brand-word { display: inline; }
+  .brand-divider { display: block; }
   .search-bar { max-width: 32rem; margin: 0 auto; }
 }
 

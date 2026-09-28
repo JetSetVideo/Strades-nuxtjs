@@ -24,23 +24,17 @@ onUnmounted(() => clearInterval(timerId))
 </template>
 
 <style scoped>
+/* Plain, boxless read-out — this is passive information, not a control, so it
+   must not compete visually with the real buttons (calendar, notifications,
+   the contextual action pill) that sit right next to it. */
 .gmt-clock {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.2rem 0.55rem;
-  border-radius: var(--radius-md, 0.5rem);
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.04);
+  padding: 0.2rem 0.3rem;
   font-variant-numeric: tabular-nums;
   cursor: default;
   user-select: none;
-  transition: border-color var(--transition-fast, 0.2s ease),
-              background var(--transition-fast, 0.2s ease);
-}
-.gmt-clock:hover {
-  border-color: rgba(0,255,136,0.3);
-  background: rgba(0,255,136,0.06);
 }
 .lbl {
   font-family: var(--font-family-secondary, 'Kanit', sans-serif);

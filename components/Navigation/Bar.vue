@@ -59,10 +59,13 @@ const navItems = [
   height: var(--nav-bottom-height, 4rem);
   padding: 0 0.25rem;
   padding-bottom: env(safe-area-inset-bottom, 0);
-  background: linear-gradient(180deg, rgba(17,17,17,0.85) 0%, rgba(17,17,17,0.97) 100%);
+  background: linear-gradient(180deg, rgba(17,17,17,0.9) 0%, rgba(15,15,15,0.98) 100%);
   backdrop-filter: blur(14px);
-  border-top: 1px solid rgba(255,255,255,0.05);
-  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.45);
+  border-top: 1px solid rgba(255,255,255,0.09);
+  /* A hair more separation from page content than before — this bar is the
+     app's primary wayfinding surface and was reading as too easy to lose
+     against busy pages. */
+  box-shadow: 0 -1px 0 rgba(0,255,136,0.06), 0 -8px 22px rgba(0, 0, 0, 0.5);
   animation: bar-enter 0.4s cubic-bezier(0.22,1,0.36,1) 0.1s both;
 }
 
@@ -82,7 +85,7 @@ const navItems = [
   flex: 1;
   overflow: hidden;
   text-decoration: none;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.55);
   border-radius: var(--radius-md, 0.5rem);
   margin: 0.3rem 0.1rem;
   transition:
