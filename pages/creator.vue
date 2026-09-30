@@ -13,6 +13,7 @@ import CountdownModal from '@/components/Overlay/CountdownModal.vue'
 import AvatarCard from '@/components/Card/Avatar.vue'
 import StrategySwarmPlugs from '@/components/Strategy/SwarmPlugs.vue'
 import { useOpinionsStore } from '@/stores/opinions'
+import { useCreditsStore } from '@/stores/credits'
 import { useBacktest } from '@/composables/useBacktest'
 
 definePageMeta({
@@ -54,6 +55,7 @@ function onSwarmChange() {
 }
 
 onMounted(async () => {
+  creditsStore.hydrate()
   try { profiles.value = await $fetch('/data/strategies/profiles.json') } catch { /* ok */ }
 })
 
@@ -139,7 +141,9 @@ const filteredProfiles = computed(() => {
 })
 
 // ── Credits & validation ──────────────────────────────────────────────────────
-const credit = ref(1000)
+// Same house-credit bankroll as the Arena / Quests / Leaderboard (was a hard-coded 1000).
+const creditsStore = useCreditsStore()
+const credit = computed(() => creditsStore.balance)
 
 const neededCredit = computed(() => {
   const blocksCost   = strategy.value.blocks.length * 100
@@ -406,7 +410,7 @@ async function onCountdownFinish() {
           <div
             class="credit-fill"
             :style="{
-              width: Math.min(100, (neededCredit / credit) * 100) + '%',
+              width: Math.min(100, (neededCredit / Math.max(1, credit)) * 100) + '%',
               background: hasEnoughCredit ? 'var(--success-green)' : 'var(--error-red)',
             }"
           />
