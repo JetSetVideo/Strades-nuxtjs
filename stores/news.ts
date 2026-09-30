@@ -3,6 +3,7 @@ import { normalizeAllocationPie, type AllocationPie } from '~/types/allocation'
 import type { Prediction } from '~/stores/predictions'
 import type { UserProfile } from '~/types/user'
 import type { Influencer } from '~/stores/influencers'
+import type { CommunityUser } from '~/stores/community'
 import {
   type NewsApiContract,
   type NewsAuthor,
@@ -502,7 +503,7 @@ export const useNewsStore = defineStore('newsStore', {
       this.error = null
       try {
         this.hydratePersisted()
-        const [posts, editorial, users, influencers, predictions, bookmarkSeed, seededComments] = await Promise.all([
+        const [posts, editorial, users, influencers, predictions, bookmarkSeed, seededComments, community] = await Promise.all([
           $fetch<SocialPostSeed[]>('/data/social/posts.json'),
           $fetch<EditorialFeedSeed>('/news.json'),
           $fetch<UserProfile[]>('/data/user/users.json').catch(() => []),
@@ -510,6 +511,7 @@ export const useNewsStore = defineStore('newsStore', {
           $fetch<Prediction[]>('/data/predictions.json').catch(() => []),
           $fetch<string[]>('/data/social/bookmarks.json').catch(() => []),
           $fetch<NewsComment[]>('/data/social/news_comments.json').catch(() => []),
+          $fetch<CommunityUser[]>('/data/core/community.json').catch(() => []),
         ])
         const currentUserId = useCurrentUser().getUserId()
         const currentUser = users.find(user => user.id === currentUserId)
@@ -521,6 +523,17 @@ export const useNewsStore = defineStore('newsStore', {
         }
 
         const userAuthors = buildUserAuthorIndex(users)
+        // Some post authors (user_006, user_007) exist only in the community roster.
+        for (const member of community) {
+          if (userAuthors.has(member.id)) continue
+          userAuthors.set(member.id, normalizeAuthor({
+            id: member.id,
+            handle: `@${member.username.toLowerCase()}`,
+            displayName: member.username,
+            avatarUrl: member.avatar_url,
+            kind: 'user',
+          }, member.id, member.username))
+        }
         const influencerAuthors = buildInfluencerAuthorIndex(influencers)
         const normalizedSocial = posts.map(post => {
           const author = influencerAuthors.get(post.author_id) ?? userAuthors.get(post.author_id) ?? normalizeAuthor({}, post.author_id, post.author_id)
