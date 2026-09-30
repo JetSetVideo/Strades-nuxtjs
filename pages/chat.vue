@@ -3,7 +3,10 @@ import { ref, onMounted, computed } from 'vue';
 import { navigateTo } from '#app';
 import { useChatStore } from '@/stores/chat';
 import { useUsersStore } from '@/stores/users';
+import { useCommunityStore } from '@/stores/community';
 import ChatNewMessageModal from '@/components/Chat/NewMessageModal.vue';
+import UIScreenShell from '@/components/UI/ScreenShell.vue';
+import CommunityPersonCard from '@/components/Community/PersonCard.vue';
 
 definePageMeta({
     title: "Messages",
@@ -13,14 +16,18 @@ definePageMeta({
 
 const chatStore = useChatStore();
 const usersStore = useUsersStore();
+const community = useCommunityStore();
 const isLoading = ref(true);
 
 const { userId: currentUserId, getUserId } = useCurrentUser();
 
 onMounted(async () => {
   try {
-    await chatStore.initializeStore();
-    await usersStore.initializeStore();
+    await Promise.all([
+      chatStore.initializeStore(),
+      usersStore.initializeStore(),
+      community.hydrated ? Promise.resolve() : community.fetchCommunity(),
+    ]);
   } catch (error) {
     console.error('Failed to load chat data:', error);
   } finally {
@@ -66,95 +73,160 @@ const navigateToConversation = (conversationId) => {
 // Top-bar "Message" action opens the new-message modal
 const newMessageOpen = ref(false);
 usePageAction().onPageAction('chat:new-message', () => { newMessageOpen.value = true; });
+
+// ── Conversations / Friends / Discover ─────────────────────────────────
+const tab = ref('conversations');
+const tabs = [
+  { id: 'conversations', label: 'Conversations' },
+  { id: 'friends', label: 'Friends' },
+  { id: 'discover', label: 'Discover' },
+];
+
+const kpis = computed(() => [
+  { label: 'Conversations', value: userConversations.value.length },
+  { label: 'Friends', value: community.friends.length },
+  { label: 'Online now', value: community.online.length },
+]);
+
+function onAddFriend(user) {
+  community.toggleFriend(user.id);
+}
+function onViewProfile(id) {
+  navigateTo(`/profile/${id}`);
+}
 </script>
 <template>
-  <div class="chat-page">
+  <UIScreenShell
+    title="Chat"
+    subtitle="Talk trades with your circle, or find your next one"
+    :kpis="kpis"
+    :tabs="tabs"
+    :tab="tab"
+    @update:tab="tab = $event"
+  >
+    <template #actions>
+      <button class="start-btn compact" @click="newMessageOpen = true">+ New message</button>
+    </template>
+
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
       <div class="loading-spinner"></div>
       <p>Loading conversations...</p>
     </div>
 
-    <!-- Chat Bot Widget -->
-    <div v-else class="chatbot">
-      <div class="chatbot-header">
-        <h3>💬 AI Trading Assistant</h3>
-        <p>Get instant insights and market analysis</p>
-      </div>
-      <div class="chatbot-actions">
-        <button class="chatbot-btn">Ask about market trends</button>
-        <button class="chatbot-btn">Strategy recommendations</button>
-      </div>
-    </div>
+    <template v-else>
+      <!-- ── Conversations tab ── -->
+      <div v-if="tab === 'conversations'" class="chat-page">
+        <div class="chatbot">
+          <div class="chatbot-header">
+            <h3>💬 AI Trading Assistant</h3>
+            <p>Get instant insights and market analysis</p>
+          </div>
+          <div class="chatbot-actions">
+            <button class="chatbot-btn">Ask about market trends</button>
+            <button class="chatbot-btn">Strategy recommendations</button>
+          </div>
+        </div>
 
-    <!-- Conversations List -->
-    <div class="conversations-section">
-      <div class="section-header">
-        <h2>Recent Conversations</h2>
-        <span class="conversation-count">{{ userConversations.length }} conversations</span>
-      </div>
-
-      <div v-if="userConversations.length === 0" class="empty-state">
-        <div class="empty-icon">💭</div>
-        <h3>No conversations yet</h3>
-        <p>Start chatting with other traders to discuss strategies and market insights.</p>
-        <button class="start-btn" @click="newMessageOpen = true">+ New message</button>
-      </div>
-
-      <div v-else class="conversations-list">
-        <div
-          v-for="conversation in userConversations"
-          :key="conversation.id"
-          class="conversation-item"
-          @click="navigateToConversation(conversation.id)"
-        >
-          <div class="conversation-avatar">
-            <NuxtLink
-              :to="`/profile/${getOtherParticipant(conversation)}`"
-              @click.stop
-            >
-              <img
-                :src="getUserInfo(getOtherParticipant(conversation))?.avatar_url || '/avatars/Ellipse5.png'"
-                :alt="getUserInfo(getOtherParticipant(conversation))?.username || 'User'"
-                class="avatar-link-img"
-              />
-            </NuxtLink>
+        <div class="conversations-section">
+          <div v-if="userConversations.length === 0" class="empty-state">
+            <div class="empty-icon">💭</div>
+            <h3>No conversations yet</h3>
+            <p>Start chatting with other traders to discuss strategies and market insights.</p>
+            <button class="start-btn" @click="newMessageOpen = true">+ New message</button>
           </div>
 
-          <div class="conversation-content">
-            <div class="conversation-header">
-              <h4 class="conversation-name">
-                {{ getUserInfo(getOtherParticipant(conversation))?.username || 'Unknown User' }}
-              </h4>
-              <span class="conversation-time">
-                {{ formatLastMessageTime(conversation.last_message_at) }}
-              </span>
-            </div>
-
-            <div class="conversation-preview">
-              <p class="conversation-topic">{{ conversation.metadata?.topic || 'General discussion' }}</p>
-              <div class="conversation-meta">
-                <span class="message-count">{{ conversation.message_count }} messages</span>
-                <span
-                  v-if="getUnreadCount(conversation) > 0"
-                  class="unread-badge"
+          <div v-else class="conversations-list">
+            <div
+              v-for="conversation in userConversations"
+              :key="conversation.id"
+              class="conversation-item"
+              @click="navigateToConversation(conversation.id)"
+            >
+              <div class="conversation-avatar">
+                <NuxtLink
+                  :to="`/profile/${getOtherParticipant(conversation)}`"
+                  @click.stop
                 >
-                  {{ getUnreadCount(conversation) }}
-                </span>
+                  <img
+                    :src="getUserInfo(getOtherParticipant(conversation))?.avatar_url || '/avatars/Ellipse5.png'"
+                    :alt="getUserInfo(getOtherParticipant(conversation))?.username || 'User'"
+                    class="avatar-link-img"
+                  />
+                </NuxtLink>
+              </div>
+
+              <div class="conversation-content">
+                <div class="conversation-header">
+                  <h4 class="conversation-name">
+                    {{ getUserInfo(getOtherParticipant(conversation))?.username || 'Unknown User' }}
+                  </h4>
+                  <span class="conversation-time">
+                    {{ formatLastMessageTime(conversation.last_message_at) }}
+                  </span>
+                </div>
+
+                <div class="conversation-preview">
+                  <p class="conversation-topic">{{ conversation.metadata?.topic || 'General discussion' }}</p>
+                  <div class="conversation-meta">
+                    <span class="message-count">{{ conversation.message_count }} messages</span>
+                    <span
+                      v-if="getUnreadCount(conversation) > 0"
+                      class="unread-badge"
+                    >
+                      {{ getUnreadCount(conversation) }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <!-- ── Friends tab ── -->
+      <div v-else-if="tab === 'friends'" class="person-grid">
+        <div v-if="!community.friends.length" class="empty-state">
+          <div class="empty-icon">👥</div>
+          <h3>No friends yet</h3>
+          <p>Add traders from Discover to build your circle — their trades and reads train your avatar too.</p>
+        </div>
+        <CommunityPersonCard
+          v-for="u in community.friends"
+          :key="u.id"
+          :user="u"
+          variant="friend"
+          @message="newMessageOpen = true"
+          @profile="onViewProfile"
+          @add="onAddFriend"
+        />
+      </div>
+
+      <!-- ── Discover tab ── -->
+      <div v-else class="person-grid">
+        <div v-if="!community.suggestions.length" class="empty-state">
+          <div class="empty-icon">🔎</div>
+          <h3>No suggestions right now</h3>
+          <p>Check back soon — new traders join the desk all the time.</p>
+        </div>
+        <CommunityPersonCard
+          v-for="u in community.suggestions"
+          :key="u.id"
+          :user="u"
+          variant="discover"
+          @message="newMessageOpen = true"
+          @profile="onViewProfile"
+          @add="onAddFriend"
+        />
+      </div>
+    </template>
 
     <ChatNewMessageModal :open="newMessageOpen" @update:open="newMessageOpen = $event" />
-  </div>
+  </UIScreenShell>
 </template>
 <style scoped>
 .chat-page {
   min-height: 100%;
-  background: var(--bg-primary);
   color: var(--text-white);
   padding: 0;
   display: flex;
@@ -202,7 +274,7 @@ usePageAction().onPageAction('chat:new-message', () => { newMessageOpen.value = 
 .chatbot-header h3 {
   color: var(--primary-green);
   margin: 0 0 0.5rem 0;
-  font-family: var(--font-family-primary);
+  font-family: var(--font-chrome, var(--font-family-primary));
   font-size: 1.2rem;
 }
 
@@ -247,34 +319,13 @@ usePageAction().onPageAction('chat:new-message', () => { newMessageOpen.value = 
   flex: 1;
 }
 
-.section-header {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.5rem;
-  gap: 0.25rem;
-}
-
-.section-header h2 {
-  color: var(--primary-green);
-  margin: 0;
-  font-family: var(--font-family-primary);
-  font-size: 1.4rem;
-}
-
-.conversation-count {
-  color: var(--text-gray);
-  font-size: 0.85rem;
-  font-family: var(--font-family-secondary);
-}
-
 .empty-state {
   text-align: center;
   padding: 2rem 1rem;
   background: var(--card-bg);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-primary);
+  grid-column: 1 / -1;
 }
 
 .empty-icon {
@@ -285,176 +336,115 @@ usePageAction().onPageAction('chat:new-message', () => { newMessageOpen.value = 
 .empty-state h3 {
   color: var(--text-white);
   margin: 0 0 0.5rem 0;
-  font-family: var(--font-family-primary);
-  font-size: 1.1rem;
+  font-family: var(--font-chrome, var(--font-family-primary));
 }
 
 .empty-state p {
   color: var(--text-gray);
-  margin: 0;
-  font-family: var(--font-family-secondary);
-  font-size: 0.9rem;
-  max-width: 400px;
-  margin: 0 auto;
+  margin: 0 0 1rem 0;
+  font-size: 0.85rem;
 }
 
 .start-btn {
-  margin-top: 1rem;
-  background: rgba(0,170,255,0.1);
-  border: 1px solid rgba(0,170,255,0.35);
-  color: var(--primary-blue, #00aaff);
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 0.5rem 1.1rem;
+  background: var(--primary-gradient);
+  color: var(--secondary-darker);
+  border: none;
+  padding: 0.6rem 1.2rem;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.15s ease;
+  font-weight: 700;
+  font-size: 0.85rem;
 }
-.start-btn:hover { background: rgba(0,170,255,0.2); }
+.start-btn.compact { padding: 0.4rem 0.85rem; font-size: 0.75rem; white-space: nowrap; }
 
 .conversations-list {
   display: flex;
   flex-direction: column;
-  gap: var(--card-gap, 0.5rem);
+  gap: 0.4rem;
 }
 
 .conversation-item {
   display: flex;
+  gap: 0.7rem;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.65rem 0.8rem;
+  padding: 0.6rem;
   background: var(--card-bg);
-  border-radius: var(--radius-lg);
   border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: var(--transition-normal);
-  box-shadow: var(--shadow-primary);
+  transition: var(--transition-fast);
 }
+.conversation-item:hover { border-color: var(--primary-green); transform: translateY(-1px); }
 
-.conversation-item:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-accent);
-  box-shadow: var(--shadow-accent);
-}
-
-.conversation-avatar {
-  flex-shrink: 0;
-}
-
-.conversation-avatar a {
-  display: block;
-}
-
-.conversation-avatar img,
+.conversation-avatar { flex-shrink: 0; }
 .avatar-link-img {
-  width: 48px;
-  height: 48px;
+  width: 44px; height: 44px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--border-secondary);
-  transition: border-color 0.2s ease, transform 0.2s ease;
-  display: block;
+  border: 2px solid var(--border-primary);
 }
 
-.avatar-link-img:hover {
-  border-color: var(--primary-green);
-  transform: scale(1.05);
-}
-
-.conversation-content {
-  flex: 1;
-  min-width: 0;
-}
-
+.conversation-content { flex: 1; min-width: 0; }
 .conversation-header {
   display: flex;
-  flex-direction: column;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.25rem;
+  align-items: baseline;
+  gap: 0.5rem;
 }
-
 .conversation-name {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
   color: var(--text-white);
-  margin: 0;
-  font-family: var(--font-family-primary);
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.conversation-time {
-  color: var(--text-gray);
-  font-size: 0.75rem;
-  font-family: var(--font-family-secondary);
-}
-
-.conversation-preview {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.25rem;
-}
-
-.conversation-topic {
-  color: var(--text-gray);
-  margin: 0;
-  font-family: var(--font-family-secondary);
-  font-size: 0.85rem;
+  font-family: var(--font-chrome, var(--font-family-primary));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  width: 100%;
 }
-
+.conversation-time {
+  font-size: 0.68rem;
+  color: var(--text-gray);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.conversation-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2px;
+}
+.conversation-topic {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-light-gray);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 .conversation-meta {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
-
-.message-count {
-  color: var(--text-gray);
-  font-size: 0.75rem;
-  font-family: var(--font-family-secondary);
-}
-
+.message-count { font-size: 0.65rem; color: var(--text-gray); }
 .unread-badge {
   background: var(--error-red);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  font-family: var(--font-family-secondary);
-  min-width: 18px;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  min-width: 1.1rem;
   text-align: center;
 }
 
-/* Responsive Design Overrides for larger screens */
-@media (min-width: 768px) {
-  .section-header {
-    flex-direction: row;
-    align-items: center;
-  }
-  
-  .section-header h2 {
-    font-size: 1.8rem;
-  }
-  
-  .conversation-header {
-    flex-direction: row;
-    align-items: center;
-  }
-  
-  .conversation-preview {
-    flex-direction: row;
-    align-items: center;
-  }
-  
-  .conversation-topic {
-    width: auto;
-  }
+/* Friends / Discover grid */
+.person-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 0.5rem;
 }
 </style>
