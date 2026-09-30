@@ -8,6 +8,7 @@
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStrategies } from '@/composables/useStrategies'
+import { useStrategiesStore } from '@/stores/strategies'
 import { useMacroStore } from '@/stores/macro'
 import { useWalletStore } from '@/stores/wallet'
 import { useAllocationStore } from '@/stores/allocation'
@@ -22,7 +23,12 @@ import StrategyConsensusMeter from '@/components/Strategy/ConsensusMeter.vue'
 
 definePageMeta({ title: 'Strategy Monitor', layout: 'default' })
 
-const { strategies, fetchStrategies, toggleStrategyStatus, fetchStrategyDetail } = useStrategies()
+// useStrategies() exposes a summary-shaped list for legacy list pages — this
+// page needs the full canonical Strategy (current_capital, sharpe_ratio,
+// max_drawdown, total_trades), so it reads the store's raw array directly.
+const { fetchStrategies, toggleStrategyStatus, fetchStrategyDetail } = useStrategies()
+const strategiesStore = useStrategiesStore()
+const strategies = computed(() => strategiesStore.strategies)
 const macro = useMacroStore()
 const walletStore = useWalletStore()
 const allocation = useAllocationStore()

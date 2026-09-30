@@ -4,6 +4,7 @@ import Carousel from '@/components/Carousel.vue'
 import Filters from '@/components/Filters.vue'
 import Comparator from '@/components/Comparator.vue'
 import { useStrategies } from '@/composables/useStrategies'
+import { useStrategiesStore } from '@/stores/strategies'
 
 definePageMeta({
   title: 'Strategies',
@@ -12,6 +13,7 @@ definePageMeta({
 })
 
 const { strategies, fetchStrategies, updateStrategy, deleteStrategy, toggleStrategyStatus } = useStrategies()
+const strategiesStore = useStrategiesStore()
 
 const selectedStrategies = ref<Record<string,any>[]>([])
 const showComparator    = ref(false)
@@ -100,8 +102,15 @@ const sortedStrategies = computed(() => {
 // ── Selection ────────────────────────────────────────────────────────────
 function handleStrategySelect(strategy: Record<string,any>) {
   const idx = selectedStrategies.value.findIndex(s => s.id === strategy.id)
-  if (idx > -1) selectedStrategies.value.splice(idx, 1)
-  else          selectedStrategies.value.push(strategy)
+  if (idx > -1) {
+    selectedStrategies.value.splice(idx, 1)
+  } else {
+    // The grid renders from the summary shape (no current_capital/sharpe_ratio/
+    // max_drawdown/total_trades) — the Comparator needs the full canonical
+    // Strategy, so resolve by id against the store's raw array.
+    const full = strategiesStore.strategies.find(s => s.id === strategy.id)
+    selectedStrategies.value.push(full ?? strategy)
+  }
   showComparator.value = selectedStrategies.value.length === 2
 }
 

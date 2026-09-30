@@ -7,6 +7,7 @@
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStrategies } from '@/composables/useStrategies'
+import { useStrategiesStore } from '@/stores/strategies'
 import { useMacroStore } from '@/stores/macro'
 import { useWalletStore } from '@/stores/wallet'
 import { useAssetsStore } from '@/stores/assets'
@@ -21,7 +22,12 @@ import type { DealData } from '@/components/Strategy/DealRow.vue'
 
 definePageMeta({ title: 'Deal Pipeline', layout: 'default' })
 
-const { strategies, fetchStrategies } = useStrategies()
+// useStrategies() exposes a summary-shaped list for legacy list pages — this
+// page needs the full canonical Strategy (current_capital, sharpe_ratio,
+// max_drawdown), so it reads the store's raw array directly.
+const { fetchStrategies } = useStrategies()
+const strategiesStore = useStrategiesStore()
+const strategies = computed(() => strategiesStore.strategies)
 const macro = useMacroStore()
 const walletStore = useWalletStore()
 const assetsStore = useAssetsStore()
@@ -151,7 +157,7 @@ const allCounterparties = computed(() => {
 // ─── Filter ──────────────────────────────────────────────────────────────────
 const filteredDeals = computed(() => {
   let list = deals.value
-  if (filterStatus !== 'all') list = list.filter(d => d.status === filterStatus)
+  if (filterStatus.value !== 'all') list = list.filter(d => d.status === filterStatus.value)
   if (search.value.trim()) {
     const q = search.value.toLowerCase()
     list = list.filter(d => d.name.toLowerCase().includes(q) || d.targetAssets.some(a => a.toLowerCase().includes(q)))

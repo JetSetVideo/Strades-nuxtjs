@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStrategies } from '@/composables/useStrategies'
+import { useStrategiesStore } from '@/stores/strategies'
 import { useBacktest } from '@/composables/useBacktest'
 import { useAgentsStore } from '@/stores/agents'
 import { useBotsStore } from '@/stores/bots'
@@ -28,7 +29,12 @@ definePageMeta({ title: 'Strategy', layout: 'default' })
 const route = useRoute()
 const strategyId = computed(() => String(route.params.id))
 
-const { strategies, fetchStrategies, toggleStrategyStatus, backtestStrategy, updateStrategy, generateComplementary } = useStrategies()
+// useStrategies() exposes a summary-shaped list for legacy list pages — this
+// page needs the full canonical Strategy (current_capital, sharpe_ratio,
+// max_drawdown, total_trades), so it reads the store's raw array directly.
+const { fetchStrategies, toggleStrategyStatus, backtestStrategy, updateStrategy, generateComplementary } = useStrategies()
+const strategiesStore = useStrategiesStore()
+const strategies = computed(() => strategiesStore.strategies)
 const backtestEngine = useBacktest()
 const opinionsStore = useOpinionsStore()
 const agents = useAgentsStore()
