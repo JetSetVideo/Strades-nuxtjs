@@ -196,3 +196,14 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **32.3** Menu sheet groups You / Together / Desk / Support, names the current page, and clamps its width.
 - [x] **32.4** Layout, spacing, radius, nav, drawer, and font scale publish min and max.
 - [x] **32.5** Activity rows carry where, who, what, when, why, and how. Agents read the markdown briefs before changing a surface.
+
+## Phase 33: Live audit — wrong numbers, dead data loads, leaderboard
+- [x] **33.1 SSR data loads**: `useLocalJson` resolved `/data/*` through Nitro's router during SSR and got the app HTML back, so quests, notifications, and the top-bar search history/suggestions all rendered empty. Now fetched against the request origin.
+- [x] **33.2 Lab cards**: Sharpe was always 0.00 (`sharpeRatio` missing from `strategyToSummary`); cumulative return showed USD profit as "%" ("+2000.0%", "+-120.0%"); own strategies read "by you".
+- [x] **33.3 Leaderboard**: stopped sorting store arrays in place (reordered strategies app-wide); competitions actually load; contributions spend house credits, clamped; design-system rebuild.
+- [x] **33.4 Wallet/History**: paper P&L sign ("-$44.85"), separators, agent/strategy names; History no longer reports a 0.0% win rate for trades with no outcome; symbol search matches "BTC".
+- [x] **33.5 Risk**: portfolio value looked up wallets for `'current_user'` and always fell back to $10,000; now the real wallet ($125,750).
+- [x] **33.6 Creator** credits read the shared house-credit balance (was a hard-coded 1000). **News** authors user_006/007 resolve from the community roster. **/CandleChart** loads its data before drawing.
+- [ ] **33.7 Summarizer code panel**: `Strategy/CodeView` expects the Creator payload (`assetFrom`/`assetTo`/`dataSources`/`conditions`), but canonical strategies carry only `target_assets`/`indicators` and empty conditions, and `data/strategies/codes/*.json` describe different strategies (strategy_001 there is "BTC Momentum", owner user_simon). Needs a decision on the canonical source.
+- [ ] **33.8 Hydration drift**: stores that hydrate only on the client (wallet, macro-driven `useLivingUI` styles) render differently on the server (e.g. /historic "0 trades" SSR vs 8 on client).
+- [ ] **33.9 Dead request**: `stores/assets.ts` fetches `relationships/asset_relationships.json` (removed in d809e3d); `getRelatedAssets` has no consumers.
