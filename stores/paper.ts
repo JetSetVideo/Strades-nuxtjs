@@ -242,7 +242,7 @@ export const usePaperStore = defineStore('paper', {
       const samples = [
         { asset_id: 'bitcoin',  asset_symbol: 'BTC',  side: 'buy'  as const, wallet_pct: 5, simulated_price: 62_500, strategy_id: 'strategy_001' },
         { asset_id: 'ethereum', asset_symbol: 'ETH',  side: 'buy'  as const, wallet_pct: 3, simulated_price: 3_400 },
-        { asset_id: 'apple',    asset_symbol: 'AAPL', side: 'buy'  as const, wallet_pct: 8, simulated_price: 198.50, agent_id: 'agent_002' },
+        { asset_id: 'apple',    asset_symbol: 'AAPL', side: 'buy'  as const, wallet_pct: 8, simulated_price: 198.50, agent_id: 'avatar_pro_momentum' },
         { asset_id: 'gold',     asset_symbol: 'XAU',  side: 'sell' as const, wallet_pct: 2, simulated_price: 2_310 }
       ]
       for (const s of samples) this.placeOrder(s)

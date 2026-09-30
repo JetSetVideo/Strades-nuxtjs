@@ -81,7 +81,7 @@ const transactions = computed(() => currentWallet.value?.transactions ?? [])
 
 const kpis = computed(() => [
   { label: 'Value', value: currentWallet.value ? `$${Math.round(currentWallet.value.total_value).toLocaleString()}` : '—' },
-  { label: 'Today', value: currentWallet.value?.daily_change_percentage ?? 0, suffix: '%', tone: (currentWallet.value?.daily_change_percentage ?? 0) >= 0 ? 'positive' as const : 'negative' as const },
+  { label: 'Today', value: currentWallet.value ? `${currentWallet.value.daily_change_percentage >= 0 ? '+' : ''}${currentWallet.value.daily_change_percentage.toFixed(2)}` : '—', suffix: '%', tone: (currentWallet.value?.daily_change_percentage ?? 0) >= 0 ? 'positive' as const : 'negative' as const },
   { label: 'Platforms', value: platforms.connectedCount }
 ])
 
@@ -112,7 +112,7 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
   <WalletFlowVisualizer>
     <UIScreenShell
       title="Wallet"
-      :subtitle="`${platforms.connectedCount} platforms · ${opinions.activeCount} agents plugged`"
+      :subtitle="`${platforms.connectedCount} platform${platforms.connectedCount === 1 ? '' : 's'} · ${opinions.activeCount} agent${opinions.activeCount === 1 ? '' : 's'} plugged`"
       :kpis="kpis"
     >
       <template #actions>

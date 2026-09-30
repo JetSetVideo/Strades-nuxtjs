@@ -18,6 +18,7 @@ import { usePaperStore } from '~/stores/paper'
  */
 
 const paper = usePaperStore()
+const { signedUsd, notional, sources } = usePaperFormat()
 
 onMounted(() => {
   paper.hydrate()
@@ -31,8 +32,8 @@ let interval: number | undefined
 onUnmounted(() => { if (interval) clearInterval(interval) })
 
 const kpis = computed(() => [
-  { label: 'Open P&L', value: paper.openPnlValue.toFixed(0), prefix: '$', tone: paper.openPnlValue >= 0 ? 'positive' : 'negative' },
-  { label: 'Realized', value: paper.realizedPnlValue.toFixed(0), prefix: '$', tone: paper.realizedPnlValue >= 0 ? 'positive' : 'negative' },
+  { label: 'Open P&L', value: signedUsd(paper.openPnlValue, 0), tone: paper.openPnlValue >= 0 ? 'positive' : 'negative' },
+  { label: 'Realized', value: signedUsd(paper.realizedPnlValue, 0), tone: paper.realizedPnlValue >= 0 ? 'positive' : 'negative' },
   { label: 'Win rate', value: paper.winRate.toFixed(0), suffix: '%' },
   { label: 'Positions', value: paper.openTrades.length }
 ])
@@ -53,7 +54,7 @@ const curvePath = computed(() => {
   }).join(' ')
 })
 
-const formatPnl = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(2)}`
+const formatPnl = (v: number) => signedUsd(v)
 const formatPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`
 const timeAgo = (ts: string) => {
   const m = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
@@ -88,7 +89,7 @@ const timeAgo = (ts: string) => {
       <div v-for="k in kpis" :key="k.label" class="kpi">
         <span class="k-label">{{ k.label }}</span>
         <span class="k-value" :data-tone="k.tone">
-          {{ k.prefix }}{{ k.value }}{{ k.suffix }}
+          {{ k.value }}{{ k.suffix }}
         </span>
       </div>
     </div>
@@ -115,10 +116,13 @@ const timeAgo = (ts: string) => {
         <div class="pos-left">
           <span class="pos-symbol">{{ t.asset_symbol }}</span>
           <span class="pos-meta">
-            {{ t.side.toUpperCase() }} · {{ t.wallet_pct.toFixed(1) }}% wallet · ${{ t.notional_value.toFixed(0) }}
+            {{ t.side.toUpperCase() }} · {{ t.wallet_pct.toFixed(1) }}% wallet · {{ notional(t.notional_value) }}
           </span>
           <span v-if="t.strategy_id || t.agent_id" class="pos-source">
-            {{ t.strategy_id ? `via ${t.strategy_id}` : '' }}{{ t.agent_id ? `via ${t.agent_id}` : '' }}
+            via
+            <template v-for="(s, i) in sources(t)" :key="s.kind">
+              <template v-if="i"> · </template><NuxtLink :to="s.to" class="pos-source-link">{{ s.name }}</NuxtLink>
+            </template>
           </span>
         </div>
         <div class="pos-right">
@@ -256,6 +260,8 @@ const timeAgo = (ts: string) => {
 .pos-symbol { font-weight: 600; font-size: 0.85rem; }
 .pos-meta { font-size: 0.7rem; color: var(--text-gray); }
 .pos-source { font-size: 0.65rem; color: var(--primary-blue); font-style: italic; }
+.pos-source-link { color: inherit; text-decoration: none; }
+.pos-source-link:hover { text-decoration: underline; }
 
 .pos-right {
   display: flex;

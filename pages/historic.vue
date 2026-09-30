@@ -24,6 +24,7 @@ interface Trade {
 
 const walletStore = useWalletStore()
 const paper = usePaperStore()
+const { signedUsd, notional, sources: paperSources } = usePaperFormat()
 
 const tab = ref<'closed' | 'open' | 'upcoming' | 'paper'>('closed')
 const search = ref('')
@@ -49,7 +50,7 @@ const filtered = computed(() => {
   return allTrades.value.filter(t => {
     if (statusOf(t) !== tab.value) return false
     if (!term) return true
-    return (t.asset_id ?? '').toLowerCase().includes(term)
+    return (t.asset_id ?? '').toLowerCase().includes(term) || (t.asset_symbol ?? '').toLowerCase().includes(term)
   })
 })
 
@@ -70,10 +71,12 @@ const tabs = computed<TabItem[]>(() => [
 ])
 
 const stats = computed(() => {
-  const closed = allTrades.value.filter(t => statusOf(t) === 'closed')
-  const totalPnl = closed.reduce((s, t) => s + (t.pnl_usd ?? 0), 0)
-  const winners = closed.filter(t => (t.pnl_usd ?? 0) > 0).length
-  const winRate = closed.length ? (winners / closed.length) * 100 : 0
+  // Only trades that carry a realized outcome count — plain buy fills have no pnl_usd,
+  // and scoring them as 0 reported a false "0.0%" win rate.
+  const settled = allTrades.value.filter(t => statusOf(t) === 'closed' && typeof t.pnl_usd === 'number')
+  const totalPnl = settled.length ? settled.reduce((s, t) => s + (t.pnl_usd as number), 0) : null
+  const winners = settled.filter(t => (t.pnl_usd as number) > 0).length
+  const winRate = settled.length ? (winners / settled.length) * 100 : null
   return {
     total: allTrades.value.length,
     totalPnl,
@@ -96,8 +99,8 @@ const stats = computed(() => {
 
     <UIMetricRow :cols="4">
       <UIStat label="Total trades" :value="stats.total"   :precision="0" size="md" />
-      <UIStat label="Realized PnL" :value="stats.totalPnl" tone="auto" suffix="USD" :precision="0" size="md" />
-      <UIStat label="Win rate"     :value="stats.winRate"  suffix="%" :precision="1" size="md" />
+      <UIStat label="Realized PnL" :value="stats.totalPnl" tone="auto" :suffix="stats.totalPnl === null ? undefined : 'USD'" :precision="0" size="md" />
+      <UIStat label="Win rate"     :value="stats.winRate"  :suffix="stats.winRate === null ? undefined : '%'" :precision="1" size="md" />
       <UIStat label="Currently"    :value="tab"            size="md" />
     </UIMetricRow>
 
@@ -145,25 +148,26 @@ const stats = computed(() => {
             <div class="pr-id">
               <span class="pr-symbol">{{ t.asset_symbol }}</span>
               <span class="pr-meta">
-                {{ t.side.toUpperCase() }} · {{ t.wallet_pct.toFixed(1) }}% wallet · ${{ t.notional_value.toFixed(0) }} notional
+                {{ t.side.toUpperCase() }} · {{ t.wallet_pct.toFixed(1) }}% wallet · {{ notional(t.notional_value) }} notional
               </span>
               <span class="pr-time">{{ new Date(t.timestamp).toLocaleString() }}</span>
               <span v-if="t.strategy_id || t.agent_id" class="pr-source">
-                {{ t.strategy_id ? `strategy: ${t.strategy_id}` : '' }}
-                {{ t.agent_id ? ` agent: ${t.agent_id}` : '' }}
+                <template v-for="(s, i) in paperSources(t)" :key="s.kind">
+                  <template v-if="i"> · </template>{{ s.kind }}: <NuxtLink :to="s.to" class="pr-source-link">{{ s.name }}</NuxtLink>
+                </template>
               </span>
             </div>
           </div>
           <div class="pr-right">
             <template v-if="t.status === 'open'">
               <span class="pr-pnl" :data-tone="t.hypothetical_pnl_value >= 0 ? 'pos' : 'neg'">
-                {{ t.hypothetical_pnl_value >= 0 ? '+' : '' }}${{ t.hypothetical_pnl_value.toFixed(2) }}
+                {{ signedUsd(t.hypothetical_pnl_value) }}
               </span>
               <span class="pr-tag open">open</span>
             </template>
             <template v-else>
               <span class="pr-pnl" :data-tone="(t.realized_pnl_value ?? 0) >= 0 ? 'pos' : 'neg'">
-                {{ (t.realized_pnl_value ?? 0) >= 0 ? '+' : '' }}${{ (t.realized_pnl_value ?? 0).toFixed(2) }}
+                {{ signedUsd(t.realized_pnl_value ?? 0) }}
               </span>
               <span class="pr-tag closed">closed</span>
             </template>
@@ -230,6 +234,8 @@ const stats = computed(() => {
 .pr-meta { font-size: 0.72rem; color: var(--text-gray); }
 .pr-time { font-size: 0.65rem; color: var(--text-gray); opacity: 0.7; }
 .pr-source { font-size: 0.65rem; color: var(--primary-blue); font-style: italic; }
+.pr-source-link { color: inherit; text-decoration: none; }
+.pr-source-link:hover { text-decoration: underline; }
 
 .pr-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 .pr-pnl { font-weight: 600; font-size: 0.9rem; }
