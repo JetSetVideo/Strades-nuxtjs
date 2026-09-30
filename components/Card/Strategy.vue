@@ -28,8 +28,19 @@ const emit = defineEmits<{
 
 const isFeatured = computed(() => props.variant === 'featured')
 
+const { userId } = useCurrentUser()
+const creatorLabel = computed(() => {
+  const c = String(props.strategy.creator ?? props.strategy.creator_id ?? '')
+  return c && (c === userId.value || c === 'current_user') ? 'you' : c
+})
+
 // ── Design.md: PnL saturation drives color intensity ──────────────────────
 const gain = computed(() => props.strategy.monthlyGain ?? 0)
+// totalProfit is absolute USD (current − initial capital), not a percentage
+const cumulativeLabel = computed(() => {
+  const v = Number(props.strategy.totalProfit ?? 0)
+  return `${v < 0 ? '-' : '+'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+})
 const drawdown = computed(() => props.strategy.monthlyDrawdown ?? 0)
 const winRate = computed(() => props.strategy.winRate ?? 0)
 const riskScore = computed(() => props.strategy.riskScore ?? 5)
@@ -202,7 +213,7 @@ const freqLabel = (f: string) => {
         {{ strategy.toAsset ?? '—' }}
       </span>
       <span class="flow-freq" :style="{ color: catColor }">{{ freqLabel(strategy.frequency ?? '1D') }}</span>
-      <span class="flow-creator">by {{ strategy.creator }}</span>
+      <span class="flow-creator">by {{ creatorLabel }}</span>
     </div>
 
     <!-- Metrics grid -->
@@ -261,9 +272,9 @@ const freqLabel = (f: string) => {
     <div class="feat-cum-row">
       <span class="cum-label">Cumulative return</span>
       <div class="cum-track">
-        <div class="cum-fill" :style="{ width: Math.min(100, Math.abs(strategy.totalProfit ?? 0) / 3) + '%', background: gainColor }" />
+        <div class="cum-fill" :style="{ width: Math.min(100, Math.abs(strategy.total_return_percentage ?? 0) * 4) + '%', background: gainColor }" />
       </div>
-      <span class="cum-val" :style="{ color: gainColor }">+{{ (strategy.totalProfit ?? 0).toFixed(1) }}%</span>
+      <span class="cum-val" :style="{ color: gainColor }">{{ cumulativeLabel }}</span>
     </div>
 
     <!-- Asset pills -->
@@ -319,7 +330,7 @@ const freqLabel = (f: string) => {
         <span v-for="a in (strategy.targetAssets ?? []).slice(0,2)" :key="a"
           class="compact-asset" :style="{ color: assetColor(a) }">{{ a }}</span>
         <span class="compact-freq" :style="{ color: catColor }">{{ freqLabel(strategy.frequency ?? '1D') }}</span>
-        <span class="compact-creator">{{ strategy.creator }}</span>
+        <span class="compact-creator">{{ creatorLabel }}</span>
       </div>
 
       <!-- Key metrics row -->

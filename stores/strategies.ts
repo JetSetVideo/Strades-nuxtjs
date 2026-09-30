@@ -116,6 +116,7 @@ export function strategyToSummary(s: Strategy): StrategySummary & {
   monthlyDrawdown: number
   winRate: number
   totalProfit: number
+  sharpeRatio: number
   averageTradeDuration: number
   targetAssets: string[]
   creator: string
@@ -143,6 +144,7 @@ export function strategyToSummary(s: Strategy): StrategySummary & {
     tags: s.tags,
     numberOfTrades: s.total_trades,
     totalProfit: s.total_return,
+    sharpeRatio: s.sharpe_ratio,
     averageTradeDuration: Number(s.average_trade_duration) || 0,
     trades: s.target_assets.map(asset => ({ asset })),
   }
