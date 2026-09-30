@@ -19,6 +19,7 @@ const macro = useMacroStore()
 const walletStore = useWalletStore()
 const assetsStore = useAssetsStore()
 const allocation = useAllocationStore()
+const { userId } = useCurrentUser()
 const backtest = useBacktest()
 
 const loading = ref(true)
@@ -59,8 +60,10 @@ const totalRisk = computed(() =>
 
 // ─── Value at Risk (95% confidence, 1-day horizon) ───────────────────────────
 const portfolioValue = computed(() => {
-  const w = walletStore.getDefaultWallet('current_user')
-  return w?.total_value ?? 10000
+  // Wallets are keyed by the real user id (user_001 in demo), never 'current_user' —
+  // that lookup always missed and the page silently fell back to $10,000.
+  const w = walletStore.getDefaultWallet(userId.value) ?? walletStore.getUserWallets(userId.value)[0]
+  return w?.total_value ?? 0
 })
 
 const var95 = computed(() => {
