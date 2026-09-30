@@ -134,7 +134,7 @@ async function quickBacktest(stratId: string) {
 
 const statusColor = (s: string) =>
   s === 'active' ? 'var(--success-green)' : s === 'paused' ? 'var(--warning-orange)' : 'var(--text-gray)'
-const returnColor = (pct: number) => pct >= 0 ? 'var(--success-green)' : 'var(--error-red)'
+const returnColor = (pct: number) => pct >= 0 ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))'
 </script>
 
 <template>
@@ -307,8 +307,8 @@ const returnColor = (pct: number) => pct >= 0 ? 'var(--success-green)' : 'var(--
 .extreme-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-gray); }
 .extreme-name { flex: 1; font-weight: 600; }
 .extreme-val { font-weight: 800; font-variant-numeric: tabular-nums; }
-.extreme-card.positive .extreme-val { color: var(--success-green); }
-.extreme-card.negative .extreme-val { color: var(--error-red); }
+.extreme-card.positive .extreme-val { color: var(--app-color-up, var(--success-green)); }
+.extreme-card.negative .extreme-val { color: var(--app-color-down, var(--error-red)); }
 
 /* Toolbar */
 .monitor-toolbar {
@@ -398,7 +398,7 @@ const returnColor = (pct: number) => pct >= 0 ? 'var(--success-green)' : 'var(--
 .sc-metric { display: flex; flex-direction: column; gap: 1px; }
 .sc-m-label { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-gray); }
 .sc-m-val { font-size: 0.78rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.sc-m-val.negative { color: var(--error-red); }
+.sc-m-val.negative { color: var(--app-color-down, var(--error-red)); }
 
 .sc-actions {
   display: flex;

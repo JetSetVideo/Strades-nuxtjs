@@ -417,8 +417,8 @@ const desk = computed(() => {
   text-align: left;
 }
 .holdings-table .text-right { text-align: right; }
-.holdings-table .pos { color: var(--primary-green, #00ff88); }
-.holdings-table .neg { color: var(--error-red, #ff4444); }
+.holdings-table .pos { color: var(--app-color-up, var(--primary-green, #00ff88)); }
+.holdings-table .neg { color: var(--app-color-down, var(--error-red, #ff4444)); }
 
 /* Event list */
 .event-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }

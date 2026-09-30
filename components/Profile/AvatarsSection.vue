@@ -17,8 +17,8 @@ const nodeShape = (risk: number): string => {
 }
 
 const pnlColor = (pnl: number): string => {
-  if (pnl >= 0) return 'var(--success-green)'
-  return 'var(--error-red)'
+  if (pnl >= 0) return 'var(--app-color-up, var(--success-green))'
+  return 'var(--app-color-down, var(--error-red))'
 }
 </script>
 

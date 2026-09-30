@@ -37,8 +37,8 @@ function getVal(s: Strategy, metric: typeof METRICS[0]): number {
 }
 
 function toneColor(val: number, toneDef: boolean | 'reverse'): string {
-  if (toneDef === true) return val >= 0 ? 'var(--success-green)' : 'var(--error-red)'
-  if (toneDef === 'reverse') return val >= 0 ? 'var(--error-red)' : 'var(--success-green)'
+  if (toneDef === true) return val >= 0 ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))'
+  if (toneDef === 'reverse') return val >= 0 ? 'var(--app-color-down, var(--error-red))' : 'var(--app-color-up, var(--success-green))'
   return 'var(--text-white)'
 }
 
@@ -47,7 +47,7 @@ function getDiff(a: number, b: number, metric: typeof METRICS[0]): { val: string
   const isGood = metric.tone === true ? diff >= 0 : metric.tone === 'reverse' ? diff <= 0 : true
   return {
     val: `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}${metric.fmt(0).includes('%') ? '%' : ''}`,
-    color: isGood ? 'var(--success-green)' : 'var(--error-red)',
+    color: isGood ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))',
   }
 }
 

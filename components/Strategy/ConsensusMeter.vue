@@ -54,8 +54,8 @@ const consensus = computed(() => {
 const gaugeColor = computed(() => {
   if (!consensus.value) return 'var(--text-gray)'
   const s = consensus.value.sentiment
-  if (s > 0.25) return 'var(--success-green)'
-  if (s < -0.25) return 'var(--error-red)'
+  if (s > 0.25) return 'var(--app-color-up, var(--success-green))'
+  if (s < -0.25) return 'var(--app-color-down, var(--error-red))'
   return 'var(--warning-orange)'
 })
 
@@ -172,7 +172,7 @@ const controversyAnim = computed(() => {
   background: rgba(255,255,255,0.04);
 }
 .gauge-bear {
-  background: var(--error-red);
+  background: var(--app-color-down, var(--error-red));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -184,7 +184,7 @@ const controversyAnim = computed(() => {
   transition: width 0.5s ease;
 }
 .gauge-bull {
-  background: var(--success-green);
+  background: var(--app-color-up, var(--success-green));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -206,8 +206,8 @@ const controversyAnim = computed(() => {
   font-variant-numeric: tabular-nums;
   color: var(--text-gray);
 }
-.label-bear { color: var(--error-red); }
-.label-bull { color: var(--success-green); }
+.label-bear { color: var(--app-color-down, var(--error-red)); }
+.label-bull { color: var(--app-color-up, var(--success-green)); }
 
 /* Stats */
 .stats-row {

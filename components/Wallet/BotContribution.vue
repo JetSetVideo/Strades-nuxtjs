@@ -160,8 +160,8 @@ const fmt = (n: number) => {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
-.legend-item.pos .legend-value { color: var(--success-green, #00ff88); }
-.legend-item.neg .legend-value { color: #ff4d6a; }
+.legend-item.pos .legend-value { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.legend-item.neg .legend-value { color: var(--app-color-down, #ff4d6a); }
 
 .contributors {
   display: flex;
@@ -214,8 +214,8 @@ const fmt = (n: number) => {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.contrib-pnl.pos { color: var(--success-green, #00ff88); }
-.contrib-pnl.neg { color: #ff4d6a; }
+.contrib-pnl.pos { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.contrib-pnl.neg { color: var(--app-color-down, #ff4d6a); }
 
 .other-bots {
   list-style: none;

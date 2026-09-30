@@ -142,8 +142,8 @@ function vote(side: 'yes' | 'no') {
   padding: 0.85rem;
   min-width: 0;
 }
-.status-resolved_yes { border-left: 3px solid var(--success-green, #00ff88); }
-.status-resolved_no  { border-left: 3px solid var(--error-red, #ff4444); }
+.status-resolved_yes { border-left: 3px solid var(--app-color-up, var(--success-green, #00ff88)); }
+.status-resolved_no  { border-left: 3px solid var(--app-color-down, var(--error-red, #ff4444)); }
 .status-void         { border-left: 3px solid rgba(255,255,255,0.25); }
 
 .c-head { display: flex; justify-content: space-between; align-items: center; }
@@ -179,8 +179,8 @@ function vote(side: 'yes' | 'no') {
   overflow: hidden;
   background: rgba(255,255,255,0.06);
 }
-.pool-yes { background: var(--success-green, #00ff88); }
-.pool-no  { background: var(--error-red, #ff4444); }
+.pool-yes { background: var(--app-color-up, var(--success-green, #00ff88)); }
+.pool-no  { background: var(--app-color-down, var(--error-red, #ff4444)); }
 .pool-labels {
   display: flex; justify-content: space-between;
   font-size: 0.6rem; color: rgba(255,255,255,0.5);
@@ -193,8 +193,8 @@ function vote(side: 'yes' | 'no') {
   border-radius: 6px;
   background: rgba(255,255,255,0.04);
 }
-.res-resolved_yes { color: var(--success-green, #00ff88); }
-.res-resolved_no  { color: var(--error-red, #ff4444); }
+.res-resolved_yes { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.res-resolved_no  { color: var(--app-color-down, var(--error-red, #ff4444)); }
 .res-void         { color: rgba(255,255,255,0.6); }
 .my-payout { font-weight: 400; color: rgba(255,255,255,0.55); }
 
@@ -221,8 +221,8 @@ function vote(side: 'yes' | 'no') {
   background: transparent;
 }
 .side-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.side-btn.yes { color: var(--success-green, #00ff88); border-color: var(--success-green, #00ff88); }
-.side-btn.no  { color: var(--error-red, #ff4444); border-color: var(--error-red, #ff4444); }
+.side-btn.yes { color: var(--app-color-up, var(--success-green, #00ff88)); border-color: var(--app-color-up, var(--success-green, #00ff88)); }
+.side-btn.no  { color: var(--app-color-down, var(--error-red, #ff4444)); border-color: var(--app-color-down, var(--error-red, #ff4444)); }
 .side-btn.yes:hover:not(:disabled) { background: rgba(0,255,136,0.1); }
 .side-btn.no:hover:not(:disabled)  { background: rgba(255,68,68,0.1); }
 

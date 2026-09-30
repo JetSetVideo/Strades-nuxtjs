@@ -669,12 +669,12 @@ const assetAlerts = computed(() =>
 .da-predict-btn.has-bull {
   background: rgba(0,255,136,.1);
   border-color: rgba(0,255,136,.4);
-  color: var(--success-green);
+  color: var(--app-color-up, var(--success-green));
 }
 .da-predict-btn.has-bear {
   background: rgba(255,68,68,.1);
   border-color: rgba(255,68,68,.4);
-  color: var(--error-red);
+  color: var(--app-color-down, var(--error-red));
 }
 .da-predict-btn.has-mixed {
   background: rgba(255,200,0,.08);

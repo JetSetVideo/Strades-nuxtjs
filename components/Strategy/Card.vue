@@ -163,8 +163,8 @@ const lastRunRel = computed(() => {
 .strategy-card.status-active { border-color: rgba(0,255,136,0.18); }
 .strategy-card.status-paused { border-color: rgba(255,170,0,0.18); }
 .strategy-card.status-stopped { opacity: 0.7; }
-.strategy-card.positive { box-shadow: inset 2px 0 0 var(--success-green, #00ff88); }
-.strategy-card.negative { box-shadow: inset 2px 0 0 #ff4d6a; }
+.strategy-card.positive { box-shadow: inset 2px 0 0 var(--app-color-up, var(--success-green, #00ff88)); }
+.strategy-card.negative { box-shadow: inset 2px 0 0 var(--app-color-down, #ff4d6a); }
 .strategy-card:hover {
   border-color: var(--primary-green, #00ff88);
   transform: translateY(-1px);
@@ -276,9 +276,9 @@ const lastRunRel = computed(() => {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
-.metric.primary.positive .m-value { color: var(--success-green, #00ff88); }
-.metric.primary.negative .m-value { color: #ff4d6a; }
-.m-value.neg { color: #ff4d6a; }
+.metric.primary.positive .m-value { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.metric.primary.negative .m-value { color: var(--app-color-down, #ff4d6a); }
+.m-value.neg { color: var(--app-color-down, #ff4d6a); }
 
 .foot {
   display: flex;

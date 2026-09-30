@@ -193,8 +193,8 @@ function formatPrice(v: number): string {
     : v >= 1 ? v.toFixed(2) : v.toFixed(4)
 }
 
-const upColor = 'var(--success-green, #00ff88)'
-const downColor = 'var(--error-red, #ff4444)'
+const upColor = 'var(--app-color-up, var(--success-green, #00ff88))'
+const downColor = 'var(--app-color-down, var(--error-red, #ff4444))'
 const lineColor = computed(() =>
   series.value[series.value.length - 1]?.close >= (series.value[0]?.open ?? 0) ? upColor : downColor
 )
@@ -269,11 +269,11 @@ function onPointerUp() {
 .grid-label { font-size: 9px; fill: rgba(255,255,255,0.35); font-family: ui-monospace, monospace; }
 .current-line { stroke: rgba(255,255,255,0.5); stroke-width: 1; stroke-dasharray: 2 3; }
 .trigger-line { stroke-width: 1.5; stroke-dasharray: 5 3; }
-.trigger-line.cross_above { stroke: var(--success-green, #00ff88); }
-.trigger-line.cross_below { stroke: var(--error-red, #ff4444); }
+.trigger-line.cross_above { stroke: var(--app-color-up, var(--success-green, #00ff88)); }
+.trigger-line.cross_below { stroke: var(--app-color-down, var(--error-red, #ff4444)); }
 .trigger-label { font-size: 9px; font-weight: 700; font-family: ui-monospace, monospace; }
-.trigger-label.cross_above { fill: var(--success-green, #00ff88); }
-.trigger-label.cross_below { fill: var(--error-red, #ff4444); }
+.trigger-label.cross_above { fill: var(--app-color-up, var(--success-green, #00ff88)); }
+.trigger-label.cross_below { fill: var(--app-color-down, var(--error-red, #ff4444)); }
 .drag-line { stroke: #fff; stroke-width: 1.5; stroke-dasharray: 3 3; }
 .drag-label { font-size: 10px; font-weight: 800; fill: #fff; font-family: ui-monospace, monospace; }
 
@@ -284,7 +284,7 @@ function onPointerUp() {
   padding: 2px 8px; border-radius: 999px;
   border: 1px solid;
 }
-.alert-chip.cross_above { color: var(--success-green, #00ff88); border-color: rgba(0,255,136,0.35); background: rgba(0,255,136,0.08); }
-.alert-chip.cross_below { color: var(--error-red, #ff4444); border-color: rgba(255,68,68,0.35); background: rgba(255,68,68,0.08); }
+.alert-chip.cross_above { color: var(--app-color-up, var(--success-green, #00ff88)); border-color: rgba(0,255,136,0.35); background: rgba(0,255,136,0.08); }
+.alert-chip.cross_below { color: var(--app-color-down, var(--error-red, #ff4444)); border-color: rgba(255,68,68,0.35); background: rgba(255,68,68,0.08); }
 .alert-chip button { background: none; border: none; color: inherit; cursor: pointer; font-size: 0.7rem; padding: 0; }
 </style>

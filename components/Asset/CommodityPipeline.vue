@@ -145,10 +145,10 @@ const typeColor = (t: string): string => {
       <!-- Commodity price cards -->
       <div class="price-strip">
         <div v-for="c in commodityPrices.slice(0, compact ? 4 : 8)" :key="c.symbol" class="price-chip"
-          :style="{ borderColor: c.change24h >= 0 ? 'var(--success-green)' : 'var(--error-red)' }">
+          :style="{ borderColor: c.change24h >= 0 ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))' }">
           <span class="pc-sym">{{ c.symbol }}</span>
           <span class="pc-price">${{ c.price.toLocaleString() }}</span>
-          <span class="pc-chg" :style="{ color: c.change24h >= 0 ? 'var(--success-green)' : 'var(--error-red)' }">
+          <span class="pc-chg" :style="{ color: c.change24h >= 0 ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))' }">
             {{ c.change24h >= 0 ? '+' : '' }}{{ c.change24h.toFixed(1) }}%
           </span>
         </div>

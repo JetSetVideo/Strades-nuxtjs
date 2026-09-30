@@ -143,8 +143,8 @@ defineEmits<{
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.meta-stat.pos .meta-value { color: var(--success-green, #00ff88); }
-.meta-stat.neg .meta-value { color: var(--error-red, #ff4d6a); }
+.meta-stat.pos .meta-value { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.meta-stat.neg .meta-value { color: var(--app-color-down, var(--error-red, #ff4d6a)); }
 
 .spec-row { display: inline-flex; gap: 0.2rem; flex-wrap: wrap; margin-left: auto; }
 .spec-tag {

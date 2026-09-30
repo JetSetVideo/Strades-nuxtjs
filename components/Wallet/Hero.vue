@@ -280,15 +280,15 @@ const topDelta = computed(() => swarmDeltas.value[0])
   border-radius: 999px;
 }
 
-.pnl-block.pos .pnl-amount { color: var(--success-green, #00ff88); }
+.pnl-block.pos .pnl-amount { color: var(--app-color-up, var(--success-green, #00ff88)); }
 .pnl-block.pos .pnl-pct {
-  color: var(--success-green, #00ff88);
+  color: var(--app-color-up, var(--success-green, #00ff88));
   background: rgba(0,255,136,0.1);
   border: 1px solid rgba(0,255,136,0.3);
 }
-.pnl-block.neg .pnl-amount { color: #ff4d6a; }
+.pnl-block.neg .pnl-amount { color: var(--app-color-down, #ff4d6a); }
 .pnl-block.neg .pnl-pct {
-  color: #ff4d6a;
+  color: var(--app-color-down, #ff4d6a);
   background: rgba(255,77,106,0.1);
   border: 1px solid rgba(255,77,106,0.3);
 }
@@ -358,8 +358,8 @@ const topDelta = computed(() => swarmDeltas.value[0])
   font-weight: 600;
   color: rgba(255,255,255,0.55);
 }
-.sub.pos .sub-value, .sub.pos .sub-pct { color: var(--success-green, #00ff88); }
-.sub.neg .sub-value, .sub.neg .sub-pct { color: #ff4d6a; }
+.sub.pos .sub-value, .sub.pos .sub-pct { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.sub.neg .sub-value, .sub.neg .sub-pct { color: var(--app-color-down, #ff4d6a); }
 
 .sub-divider {
   width: 1px;

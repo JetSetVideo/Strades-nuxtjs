@@ -359,8 +359,8 @@ const colorOf = (sym: string) => COLORS[sym] || '#666'
   white-space: nowrap;
 }
 .c-pnl small { font-size: 0.7rem; font-weight: 600; }
-.c-pnl.pos { color: var(--success-green, #00ff88); }
-.c-pnl.neg { color: #ff4d6a; }
+.c-pnl.pos { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.c-pnl.neg { color: var(--app-color-down, #ff4d6a); }
 
 .c-today {
   font-size: 0.85rem;
@@ -372,8 +372,8 @@ const colorOf = (sym: string) => COLORS[sym] || '#666'
   white-space: nowrap;
   justify-self: end;
 }
-.c-today.pos { color: var(--success-green, #00ff88); background: rgba(0,255,136,0.08); }
-.c-today.neg { color: #ff4d6a; background: rgba(255,77,106,0.08); }
+.c-today.pos { color: var(--app-color-up, var(--success-green, #00ff88)); background: rgba(0,255,136,0.08); }
+.c-today.neg { color: var(--app-color-down, #ff4d6a); background: rgba(255,77,106,0.08); }
 
 /* ─── Tablet ─── */
 @media (max-width: 960px) {

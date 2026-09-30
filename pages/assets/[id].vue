@@ -72,9 +72,9 @@ const getRiskColor = (tolerance) => {
 
 const getSentimentColor = (sentiment) => {
   const colors = {
-    bullish: 'var(--success-green)',
+    bullish: 'var(--app-color-up, var(--success-green))',
     neutral: 'var(--warning-orange)',
-    bearish: 'var(--error-red)'
+    bearish: 'var(--app-color-down, var(--error-red))'
   };
   return colors[sentiment] || 'var(--text-gray)';
 };
@@ -195,7 +195,7 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 function predDirColor(dir) {
-  return dir === 'bullish' ? 'var(--success-green)' : dir === 'bearish' ? 'var(--error-red)' : 'var(--text-gray)';
+  return dir === 'bullish' ? 'var(--app-color-up, var(--success-green))' : dir === 'bearish' ? 'var(--app-color-down, var(--error-red))' : 'var(--text-gray)';
 }
 
 const riskToleranceLabel = computed(() => {
@@ -698,7 +698,7 @@ const getVolatilityDescription = (volatilityIndex) => {
                   <div class="tfc-bar-fill bear" :style="{ width: (100 - item.data.bullPct) + '%' }" />
                 </div>
                 <div class="tfc-stats">
-                  <span :style="{ color: 'var(--success-green)' }">↑{{ item.data.bullPct.toFixed(0) }}%</span>
+                  <span :style="{ color: 'var(--app-color-up, var(--success-green))' }">↑{{ item.data.bullPct.toFixed(0) }}%</span>
                   <span class="tfc-avg">{{ fmtPct(item.data.avgChangePct) }}</span>
                   <span class="tfc-count">{{ item.data.count }} preds</span>
                 </div>
@@ -870,8 +870,8 @@ const getVolatilityDescription = (volatilityIndex) => {
   height: 100%;
   transition: width 0.4s;
 }
-.tfc-bar-fill.bull { background: var(--success-green); }
-.tfc-bar-fill.bear { background: var(--error-red); }
+.tfc-bar-fill.bull { background: var(--app-color-up, var(--success-green)); }
+.tfc-bar-fill.bear { background: var(--app-color-down, var(--error-red)); }
 
 .tfc-stats {
   display: flex;
@@ -1439,11 +1439,11 @@ const getVolatilityDescription = (volatilityIndex) => {
 }
 
 .indicator-value.positive {
-  color: var(--success-green);
+  color: var(--app-color-up, var(--success-green));
 }
 
 .indicator-value.negative {
-  color: var(--error-red);
+  color: var(--app-color-down, var(--error-red));
 }
 
 /* Relationships Tab */

@@ -180,8 +180,8 @@ const metrics = computed(() => [
   margin: 0 0 4px;
 }
 
-.list-title.positive { color: var(--success-green); }
-.list-title.negative { color: var(--error-red); }
+.list-title.positive { color: var(--app-color-up, var(--success-green)); }
+.list-title.negative { color: var(--app-color-down, var(--error-red)); }
 
 .tag-list {
   display: flex;
@@ -198,12 +198,12 @@ const metrics = computed(() => [
 .tag-pos {
   background: rgba(0,255,136,0.08);
   border: 1px solid rgba(0,255,136,0.25);
-  color: var(--success-green);
+  color: var(--app-color-up, var(--success-green));
 }
 
 .tag-neg {
   background: rgba(255,68,68,0.08);
   border: 1px solid rgba(255,68,68,0.25);
-  color: var(--error-red);
+  color: var(--app-color-down, var(--error-red));
 }
 </style>

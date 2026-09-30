@@ -86,6 +86,6 @@ function format(v: string | number | null | undefined) {
   white-space: nowrap;
 }
 .kpi-suffix { font-size: 0.65rem; font-weight: 600; opacity: 0.6; margin-left: 0.15rem; }
-.kpi.positive .kpi-value { color: var(--primary-green, #00ff88); }
-.kpi.negative .kpi-value { color: var(--error-red, #ff4d6a); }
+.kpi.positive .kpi-value { color: var(--app-color-up, var(--primary-green, #00ff88)); }
+.kpi.negative .kpi-value { color: var(--app-color-down, var(--error-red, #ff4d6a)); }
 </style>

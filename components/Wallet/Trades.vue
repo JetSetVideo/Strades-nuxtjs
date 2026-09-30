@@ -201,12 +201,12 @@ const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 
 }
 .row.type-buy .type-pill {
   background: rgba(0,255,136,0.12);
-  color: var(--success-green, #00ff88);
+  color: var(--app-color-up, var(--success-green, #00ff88));
   border: 1px solid rgba(0,255,136,0.3);
 }
 .row.type-sell .type-pill {
   background: rgba(255,77,106,0.12);
-  color: #ff4d6a;
+  color: var(--app-color-down, #ff4d6a);
   border: 1px solid rgba(255,77,106,0.3);
 }
 

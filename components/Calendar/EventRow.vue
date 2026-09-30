@@ -172,8 +172,8 @@ const fmtTime = (ts: number) =>
   align-items: center;
   gap: 0.3rem;
 }
-.actual.beat   { color: var(--success-green, #00ff88); }
-.actual.miss   { color: #ff4d6a; }
+.actual.beat   { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.actual.miss   { color: var(--app-color-down, #ff4d6a); }
 .actual.inline { color: rgba(255,255,255,0.55); }
 .surprise {
   font-size: 0.5rem;

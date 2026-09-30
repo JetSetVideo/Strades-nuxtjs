@@ -15,7 +15,7 @@ const getAvatarUrl = () => {
 
 const pnlColor = (pnl: number | undefined) => {
   if (!pnl) return 'var(--text-gray)'
-  return pnl >= 0 ? 'var(--success-green)' : 'var(--error-red)'
+  return pnl >= 0 ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))'
 }
 </script>
 

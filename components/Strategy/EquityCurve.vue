@@ -64,7 +64,7 @@ const svg = computed(() => {
 })
 
 const gradId = computed(() => `equity-grad-${props.seed.replace(/[^a-zA-Z0-9]/g, '')}`)
-const lineColor = computed(() => isPositive.value ? 'var(--success-green, #00ff88)' : '#ff4d6a')
+const lineColor = computed(() => isPositive.value ? 'var(--app-color-up, var(--success-green, #00ff88))' : 'var(--app-color-down, #ff4d6a)')
 const fillTop = computed(() => isPositive.value ? 'rgba(0,255,136,0.25)' : 'rgba(255,77,106,0.25)')
 </script>
 

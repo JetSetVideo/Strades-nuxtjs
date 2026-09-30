@@ -80,7 +80,7 @@
       <polyline
         :points="sparkPoints"
         fill="none"
-        :stroke="agent.performance.live_pnl_pct >= 0 ? 'var(--success-green, #00ff88)' : 'var(--error-red, #ff4444)'"
+        :stroke="agent.performance.live_pnl_pct >= 0 ? 'var(--app-color-up, var(--success-green, #00ff88))' : 'var(--app-color-down, var(--error-red, #ff4444))'"
         stroke-width="1.5"
       />
     </svg>

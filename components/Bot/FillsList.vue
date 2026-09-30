@@ -68,8 +68,8 @@ function fmtRelTime(ts: number) {
   border-radius: 3px;
   text-align: center;
 }
-.side.buy  { background: rgba(0,255,136,0.12); color: var(--success-green, #00ff88); border: 1px solid rgba(0,255,136,0.3); }
-.side.sell { background: rgba(255,77,106,0.12); color: #ff4d6a;                       border: 1px solid rgba(255,77,106,0.3); }
+.side.buy  { background: rgba(0,255,136,0.12); color: var(--app-color-up, var(--success-green, #00ff88)); border: 1px solid rgba(0,255,136,0.3); }
+.side.sell { background: rgba(255,77,106,0.12); color: var(--app-color-down, #ff4d6a);                     border: 1px solid rgba(255,77,106,0.3); }
 .fill-row .asset { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; }
 .fill-row .size  { font-size: 0.7rem; color: rgba(255,255,255,0.75); font-variant-numeric: tabular-nums; }
 .fill-row .size em {
@@ -90,8 +90,8 @@ function fmtRelTime(ts: number) {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.fill-row .pnl.pos { color: var(--success-green, #00ff88); }
-.fill-row .pnl.neg { color: #ff4d6a; }
+.fill-row .pnl.pos { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.fill-row .pnl.neg { color: var(--app-color-down, #ff4d6a); }
 .fill-row .when {
   font-size: 0.62rem;
   color: rgba(255,255,255,0.45);

@@ -36,7 +36,7 @@ const statusTone = computed(() => {
   }
 })
 
-const returnColor = (pct: number) => pct >= 0 ? 'var(--success-green)' : 'var(--error-red)'
+const returnColor = (pct: number) => pct >= 0 ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))'
 
 const totalExposure = computed(() =>
   props.deal.counterparties.reduce((s, c) => s + c.weight, 0)

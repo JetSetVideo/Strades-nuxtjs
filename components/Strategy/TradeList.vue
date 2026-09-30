@@ -64,8 +64,8 @@ function fmtRelTime(ts: number) {
   align-items: center;
   justify-content: center;
 }
-.kind.win  { color: var(--success-green, #00ff88); background: rgba(0,255,136,0.1); }
-.kind.loss { color: #ff4d6a;                       background: rgba(255,77,106,0.1); }
+.kind.win  { color: var(--app-color-up, var(--success-green, #00ff88)); background: rgba(0,255,136,0.1); }
+.kind.loss { color: var(--app-color-down, #ff4d6a);                     background: rgba(255,77,106,0.1); }
 .trade-row .asset {
   font-weight: 700;
   font-size: 0.78rem;
@@ -77,8 +77,8 @@ function fmtRelTime(ts: number) {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
-.trade-row.win  .pct, .trade-row.win  .usd { color: var(--success-green, #00ff88); }
-.trade-row.loss .pct, .trade-row.loss .usd { color: #ff4d6a; }
+.trade-row.win  .pct, .trade-row.win  .usd { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.trade-row.loss .pct, .trade-row.loss .usd { color: var(--app-color-down, #ff4d6a); }
 .trade-row .when {
   font-size: 0.62rem;
   color: rgba(255,255,255,0.45);

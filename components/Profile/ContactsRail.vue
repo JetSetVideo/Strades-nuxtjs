@@ -7,7 +7,7 @@ const props = defineProps<{
 
 const perfColor = (pct: number | undefined): string => {
   if (!pct) return 'var(--text-gray)'
-  return pct >= 0 ? 'var(--success-green)' : 'var(--error-red)'
+  return pct >= 0 ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))'
 }
 </script>
 

@@ -230,19 +230,19 @@ function navigateToAsset(assetId: string) {
       <div class="market-stats">
         <!-- Gainers/Losers -->
         <div class="mstat">
-          <span class="mstat-icon" style="color:var(--success-green)">↑</span>
+          <span class="mstat-icon" style="color:var(--app-color-up, var(--success-green))">↑</span>
           <span class="mstat-val">{{ gainers }}</span>
         </div>
         <div class="mstat">
-          <span class="mstat-icon" style="color:var(--error-red)">↓</span>
+          <span class="mstat-icon" style="color:var(--app-color-down, var(--error-red))">↓</span>
           <span class="mstat-val">{{ losers }}</span>
         </div>
 
         <!-- Top gainer / loser -->
-        <div v-if="topGainer" class="mstat highlight" style="color:var(--success-green)">
+        <div v-if="topGainer" class="mstat highlight" style="color:var(--app-color-up, var(--success-green))">
           ↑ {{ topGainer.symbol }} +{{ topGainer.pct.toFixed(1) }}%
         </div>
-        <div v-if="topLoser" class="mstat highlight" style="color:var(--error-red)">
+        <div v-if="topLoser" class="mstat highlight" style="color:var(--app-color-down, var(--error-red))">
           ↓ {{ topLoser.symbol }} {{ topLoser.pct.toFixed(1) }}%
         </div>
       </div>
@@ -397,8 +397,8 @@ function navigateToAsset(assetId: string) {
   flex-shrink: 0;
 }
 
-.market-sentiment.bull { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: var(--success-green); }
-.market-sentiment.bear { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: var(--error-red); }
+.market-sentiment.bull { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: var(--app-color-up, var(--success-green)); }
+.market-sentiment.bear { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: var(--app-color-down, var(--error-red)); }
 
 .ms-icon  { font-size: 0.65rem; }
 .ms-label { font-size: 0.65rem; }

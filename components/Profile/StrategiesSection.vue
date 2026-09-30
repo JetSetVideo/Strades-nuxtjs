@@ -179,6 +179,6 @@ const riskBadge = (r: string) => {
   color: var(--text-white);
 }
 
-.stat-val.pos { color: var(--success-green); }
-.stat-val.neg { color: var(--error-red); }
+.stat-val.pos { color: var(--app-color-up, var(--success-green)); }
+.stat-val.neg { color: var(--app-color-down, var(--error-red)); }
 </style>

@@ -347,8 +347,8 @@ const pageStyle = computed(() => ({
   font-weight: 600;
 }
 
-.snap-pct.pos { color: var(--success-green); }
-.snap-pct.neg { color: var(--error-red); }
+.snap-pct.pos { color: var(--app-color-up, var(--success-green)); }
+.snap-pct.neg { color: var(--app-color-down, var(--error-red)); }
 
 .wallet-alloc {
   display: flex;
@@ -400,8 +400,8 @@ const pageStyle = computed(() => ({
   text-align: right;
 }
 
-.alloc-ret.pos { color: var(--success-green); }
-.alloc-ret.neg { color: var(--error-red); }
+.alloc-ret.pos { color: var(--app-color-up, var(--success-green)); }
+.alloc-ret.neg { color: var(--app-color-down, var(--error-red)); }
 
 /* ── Self-analyse tabs ──────────────────────────────────────────────── */
 .self-analyse { gap: 0; }

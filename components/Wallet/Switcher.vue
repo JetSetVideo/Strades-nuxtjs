@@ -109,9 +109,9 @@ const fmt = (n: number) => {
 .pct {
   font-size: 0.65rem;
   font-weight: 700;
-  color: var(--success-green, #00ff88);
+  color: var(--app-color-up, var(--success-green, #00ff88));
 }
-.chip.neg .pct { color: #ff4d6a; }
+.chip.neg .pct { color: var(--app-color-down, #ff4d6a); }
 
 .chip.add {
   border-style: dashed;

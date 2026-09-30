@@ -162,6 +162,6 @@ const fmtPct = (n?: number) => n === undefined ? '—' : `${n >= 0 ? '+' : ''}${
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.bot-pnl.pos { color: var(--success-green, #00ff88); }
-.bot-pnl.neg { color: #ff4d6a; }
+.bot-pnl.pos { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.bot-pnl.neg { color: var(--app-color-down, #ff4d6a); }
 </style>

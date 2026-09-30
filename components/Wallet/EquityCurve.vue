@@ -153,7 +153,7 @@ const isPositive = computed(() => {
   return (perf?.change_percentage ?? 0) >= 0
 })
 
-const stroke = computed(() => isPositive.value ? 'var(--success-green, #00ff88)' : '#ff4d6a')
+const stroke = computed(() => isPositive.value ? 'var(--app-color-up, var(--success-green, #00ff88))' : 'var(--app-color-down, #ff4d6a)')
 const fillFrom = computed(() => isPositive.value ? 'rgba(0,255,136,0.18)' : 'rgba(255,77,106,0.18)')
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
@@ -208,9 +208,9 @@ const periodLabel = computed(() => {
 
       <!-- min / max markers -->
       <g v-if="projected.length">
-        <circle :cx="maxPoint.x" :cy="maxPoint.y" r="3.5" fill="var(--success-green, #00ff88)" />
+        <circle :cx="maxPoint.x" :cy="maxPoint.y" r="3.5" fill="var(--app-color-up, var(--success-green, #00ff88))" />
         <text :x="maxPoint.x + 6" :y="maxPoint.y" dominant-baseline="middle" class="lbl pos">${{ fmt(maxPoint.value) }}</text>
-        <circle :cx="minPoint.x" :cy="minPoint.y" r="3.5" fill="#ff4d6a" />
+        <circle :cx="minPoint.x" :cy="minPoint.y" r="3.5" fill="var(--app-color-down, #ff4d6a)" />
         <text :x="minPoint.x + 6" :y="minPoint.y" dominant-baseline="middle" class="lbl neg">${{ fmt(minPoint.value) }}</text>
       </g>
     </svg>
@@ -266,8 +266,8 @@ const periodLabel = computed(() => {
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.85);
 }
-.stat strong.pos { color: var(--success-green, #00ff88); }
-.stat strong.neg { color: #ff4d6a; }
+.stat strong.pos { color: var(--app-color-up, var(--success-green, #00ff88)); }
+.stat strong.neg { color: var(--app-color-down, #ff4d6a); }
 
 .curve-svg {
   display: block;
@@ -280,6 +280,6 @@ const periodLabel = computed(() => {
   font-family: ui-monospace, Menlo, monospace;
   font-weight: 700;
 }
-.lbl.pos { fill: var(--success-green, #00ff88); }
-.lbl.neg { fill: #ff4d6a; }
+.lbl.pos { fill: var(--app-color-up, var(--success-green, #00ff88)); }
+.lbl.neg { fill: var(--app-color-down, #ff4d6a); }
 </style>
