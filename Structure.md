@@ -135,3 +135,10 @@ components/
 - **UI primitives** (`UI/*`) are pure presentation — no store access, no data fetches. Inputs are props only.
 - **Naming**: PascalCase files inside PascalCase folders. The folder name is implicit in Nuxt's auto-import key (`WalletPlatformList`, `UIPageHeader`, `StrategyBotCard`). Never repeat the folder prefix in the filename (`Strategy/Card.vue` not `Strategy/StrategyCard.vue`).
 - **No loose root-level components**. If a component does not belong in an existing folder, create a new folder rather than dropping a `.vue` at the root.
+
+## Profile and menu
+
+- `/profile` is the signed-in desk (`pages/profile/index.vue`). It resolves identity with `useCurrentUser()` in setup, then loads `user_001` in demo mode from `public/data/user/users.json`.
+- `/profile/:id` is someone else's public page (`pages/profile/[id].vue`). It is a different surface and stays separate.
+- The menu sheet groups those routes into You, Together, Desk, and Support. Connections still routes to `/apis`. History still routes to `/historic`.
+- Layout density lives in `assets/css/variables.css` as min, preferred, and max. Do not add a second gutter scale in a page.

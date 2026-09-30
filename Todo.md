@@ -189,3 +189,10 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **31.10 Responsive fix**: `UI/PageHeader.vue` — the `.actions` slot (pill/button row) didn't wrap, so pages with 3+ header actions (e.g. agent detail's Fork button) overflowed the viewport on phone width. Now wraps.
 - [x] **31.11 Boundary + multi-run tests**: `tests/dataBet.test.ts`, `tests/agentClassifier.test.ts`, `tests/paperTrading.test.ts` — min/max clamps for stakes, wallet_pct, and regime probabilities, plus seeded multi-run simulations (200–1000 iterations each) verifying credit-conservation and bounds invariants never break under random adversarial input.
 - [x] **31.12 Build + test verified**: `npm run build` passes, `npx vitest run` — 43/43 tests green.
+
+## Phase 32: Profile, menu, and bounded tokens
+- [x] **32.1** `/profile` calls `useCurrentUser()` in setup. The page renders the demo user instead of an empty main.
+- [x] **32.2** Wallet top bar no longer sends Trade to Prices.
+- [x] **32.3** Menu sheet groups You / Together / Desk / Support, names the current page, and clamps its width.
+- [x] **32.4** Layout, spacing, radius, nav, drawer, and font scale publish min and max.
+- [x] **32.5** Activity rows carry where, who, what, when, why, and how. Agents read the markdown briefs before changing a surface.

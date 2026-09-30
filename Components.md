@@ -23,6 +23,12 @@
 - Save, comment, share, like/dislike, and political judgment all dispatch through the news store.
 - History events are created for read/save/share/comment/judge/publish/import actions.
 - Story cards must not mutate props directly.
+## Menu sheet
+
+`components/Navigation/DrawerMenu.vue` is the right-hand sheet opened from the brand button. It does not fetch. It renders four groups (You, Together, Desk, Support) from a static list. Width reads `--drawer-width` (`clamp(16rem, 32vw, 22rem)`). The current route is marked with `is-current` when the path equals the link or starts with it plus a slash. Hints hide under 640px.
+
+The Wallet top-bar action list in `components/Navigation/Top/ContextActions.vue` does not include a Trade link. Prices stays on the bottom bar.
+
 # Components Data Usage Analysis & Visual Mapping
 
 This document maps **every data key from `Data.md` to the Vue component that consumes it**, and specifically how each key drives form, size, color, or animation of the living UI.

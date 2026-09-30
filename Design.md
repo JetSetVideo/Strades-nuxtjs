@@ -166,3 +166,45 @@ Every piece of secondary data translates to a CSS custom property bound by `useL
 - Living animations respect `prefers-reduced-motion` — when set, all pulse/shake/orbit animations become static.
 - Color-coded leaning / sentiment always paired with a text label or icon (never color alone).
 - The 100% pie always exposes numeric percentages for screen readers.
+
+---
+
+## 10. Menu, profile, and bounded tokens
+
+Strades is a social desk. People build avatars together, and those avatars train on the trades and attention of the people who own them.
+
+### Menu (`components/Navigation/DrawerMenu.vue`)
+The old sheet was one long list. Discover held eleven equal rows, Profile and Monitor shared an icon, Calendar and Data shared another, hints were written and never shown, and Support sat below a 754px laptop viewport.
+
+The sheet is now four groups, each with a one-line job:
+
+| Group | Job | Destinations |
+| --- | --- | --- |
+| You | Identity and the feeds that train you | Profile, Settings, Notifications, Connections |
+| Together | Avatars built with other people | Avatars, Arena, Quests |
+| Desk | The book | Leaderboard, Data, Calendar, Deals, History, Monitor, Risk, Shop |
+| Support | How the desk works | Help, About, Contact |
+
+The header names the current page. Each row keeps a hint. On a phone (under 640px) the hint and the group blurb hide so a thumb can reach Support. Width is `clamp(16rem, 32vw, 22rem)` and never covers the last 2.75rem, so the dimmed backdrop stays a close target. The header sticks while the list scrolls.
+
+Routes were not deleted. Connections is the same `/apis` page. History is `/historic`. The public profile at `/profile/:id` stays separate from the signed-in desk at `/profile`.
+
+### Profile
+`/profile` must call `useCurrentUser()` during setup. Calling it inside a computed throws, Vue drops the page, and `<main>` stays an empty comment. The desk strip under the name is derived, not raw:
+
+- value = clamp(portfolio or seed value, 0, 1e9)
+- win = clamp(win rate, 0, 100)
+- coverage = live avatars / all avatars
+- edge = ahead when win ≥ 55, even from 45, otherwise behind
+
+### Wallet
+The top bar on Wallet no longer has a Trade button. That button only opened Prices, which the bottom bar already does.
+
+### Tokens
+Layout, spacing, radius, nav height, drawer width, and font scale each publish a min and a max. Preferred size sits in `clamp(min, preferred, max)`. Phone, tablet, laptop, and large screens read the same variables.
+
+### Screen notes
+- Phone: one column, menu hints hidden, drawer leaves a close strip.
+- Tablet: same sheet, hints on, gutter grows with the viewport.
+- Laptop: sheet about a third of the width, profile desk strip on one line.
+- Large: gutter and card padding stop at their max so the canvas does not stretch into empty bands.

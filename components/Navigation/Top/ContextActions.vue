@@ -46,12 +46,6 @@ const ACTIONS: Array<{ match: (path: string) => boolean; items: ContextAction[] 
     ]
   },
   {
-    match: p => p.startsWith('/wallet'),
-    items: [
-      { id: 'wallet-prices', label: 'Trade', title: 'Open live prices', icon: 'watch', tone: 'amber', to: '/prices' }
-    ]
-  },
-  {
     match: p => p.startsWith('/prices') || p.startsWith('/assets'),
     items: [
       { id: 'prices-strategy', label: 'Strategy', title: 'Build a strategy on these assets', icon: 'strategy', tone: 'green', to: '/creator' }

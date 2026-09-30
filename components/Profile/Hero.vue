@@ -149,6 +149,8 @@ const joinedYear = computed(() =>
   padding: 0 var(--spacing-lg);
   margin-top: -36px;
   align-items: flex-end;
+  position: relative;
+  z-index: 1;
 }
 
 .avatar-wrap {

@@ -5,7 +5,7 @@
  * Redesigned per Design.md living-UI principles:
  *   • volatility_index  → animation pulse speed (high vol = fast beat)
  *   • investor_confidence → glow intensity (high conf = bright glow)
- *   • market_sentiment  → card left-border color (bull=green, bear=red)
+ *   • displayed price change → card left-border color (up=green, down=red)
  *   • market_cap        → glow radius (large cap = wider glow, more "gravity")
  *   • liquidity_depth   → shadow alpha
  *
@@ -18,6 +18,8 @@ import type { Asset } from '~/types/asset'
 import { useLivingUI } from '~/composables/useLivingUI'
 import PriceIntuition from '@/components/Widget/PriceIntuition.vue'
 import { usePredictionsStore } from '@/stores/predictions'
+import { useAppearanceStore } from '@/stores/appearance'
+import { usePaperStore } from '@/stores/paper'
 
 // ── Props ──────────────────────────────────────────────────────────────────
 const props = defineProps<{
@@ -52,6 +54,8 @@ function goToAssetPage(e: MouseEvent) {
 
 // ── Predictions store ─────────────────────────────────────────────────────
 const predStore = usePredictionsStore()
+const appearance = useAppearanceStore()
+const paper = usePaperStore()
 if (!predStore.initialized) predStore.init()
 
 // ── Derive display values (asset object OR legacy props) ──────────────────
@@ -89,9 +93,6 @@ const volatility = computed<number>(() => {
 const confidence = computed<number>(() =>
   (props.asset as Record<string, any> | undefined)?.psychology_profile?.investor_confidence ?? 0.6
 )
-const sentiment = computed<string>(() =>
-  (props.asset as Record<string, any> | undefined)?.psychology_profile?.market_sentiment ?? 'neutral'
-)
 const marketCap = computed<number>(() => livingAsset.value?.market_cap ?? 0)
 const liquidity = computed<number>(() =>
   props.liquidityDepth ?? livingAsset.value?.liquidity_depth ?? 0.5
@@ -118,10 +119,10 @@ const glowRadius = computed(() => {
 })
 const cardGlow = computed(() => `0 0 ${glowRadius.value} ${glowColor.value}`)
 
-// Left accent border color from sentiment
+// Left accent follows the price on screen: any down tick is red, any up tick is green.
 const accentColor = computed(() => {
-  if (sentiment.value === 'bullish' || changePct.value > 1) return 'var(--app-color-up, var(--success-green))'
-  if (sentiment.value === 'bearish' || changePct.value < -1) return 'var(--app-color-down, var(--error-red))'
+  if (changePct.value < 0) return 'var(--app-color-down, var(--error-red))'
+  if (changePct.value > 0) return 'var(--app-color-up, var(--success-green))'
   return 'var(--text-gray)'
 })
 
@@ -153,7 +154,7 @@ function fmtPrice(p: number): string {
 // ── Simulated price history for sparkline & PriceIntuition ───────────────
 const priceHistory = ref<number[]>([])
 
-function buildHistory(current: number, vol: number, n = 12): number[] {
+function buildHistory(current: number, vol: number, n = 32): number[] {
   const pts: number[] = [current]
   for (let i = 1; i < n; i++) {
     const prev = pts[0]!
@@ -164,27 +165,90 @@ function buildHistory(current: number, vol: number, n = 12): number[] {
 }
 
 onMounted(() => {
+  appearance.hydrate()
+  if (!paper.hydrated) paper.hydrate()
   priceHistory.value = buildHistory(currentPrice.value, volatility.value)
 })
 
 // ── Sparkline SVG ─────────────────────────────────────────────────────────
-const SVG_W = 80
-const SVG_H = 30
+const SVG_W = 160
+const SVG_H = 52
+const sparkUp = 'var(--app-color-up, var(--success-green))'
+const sparkDown = 'var(--app-color-down, var(--error-red))'
 
-const sparkPoints = computed(() => {
+const sparkScale = computed(() => {
   const pts = priceHistory.value
-  if (pts.length < 2) return ''
+  if (pts.length < 2) return null
   const min = Math.min(...pts)
   const max = Math.max(...pts)
   const range = max - min || 1
-  return pts.map((p, i) => {
-    const x = (i / (pts.length - 1)) * SVG_W
-    const y = SVG_H - ((p - min) / range) * SVG_H
-    return `${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
+  const yOf = (p: number) => SVG_H - 4 - ((p - min) / range) * (SVG_H - 8)
+  const xOf = (i: number) => (i / (pts.length - 1)) * SVG_W
+  return { pts, min, max, yOf, xOf }
 })
 
-const sparkColor = computed(() => changePct.value >= 0 ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))')
+const sparkPoints = computed(() => {
+  const s = sparkScale.value
+  if (!s) return ''
+  return s.pts.map((p, i) => `${s.xOf(i).toFixed(1)},${s.yOf(p).toFixed(1)}`).join(' ')
+})
+
+const candles = computed(() => {
+  const s = sparkScale.value
+  if (!s) return []
+  const group = 4
+  const out: { x: number; w: number; yHigh: number; yLow: number; yBody: number; h: number; up: boolean }[] = []
+  const buckets = Math.ceil(s.pts.length / group)
+  for (let b = 0; b < buckets; b++) {
+    const slice = s.pts.slice(b * group, b * group + group)
+    if (!slice.length) continue
+    const open = slice[0]!
+    const close = slice[slice.length - 1]!
+    const high = Math.max(...slice)
+    const low = Math.min(...slice)
+    const x = ((b + 0.5) / buckets) * SVG_W
+    const yOpen = s.yOf(open)
+    const yClose = s.yOf(close)
+    out.push({
+      x,
+      w: Math.max(3, (SVG_W / buckets) * 0.55),
+      yHigh: s.yOf(high),
+      yLow: s.yOf(low),
+      yBody: Math.min(yOpen, yClose),
+      h: Math.max(1.5, Math.abs(yClose - yOpen)),
+      up: close >= open,
+    })
+  }
+  return out
+})
+
+type SparkMark = { kind: 'buy' | 'sell' | 'predict-bull' | 'predict-bear'; x: number; y: number }
+
+const sparkMarks = computed((): SparkMark[] => {
+  const s = sparkScale.value
+  if (!s) return []
+  const marks: SparkMark[] = []
+  const sym = String(symbol.value)
+  const trades = paper.trades.filter(t => t.asset_symbol === sym || t.asset_id === id.value)
+  trades.forEach((t, i) => {
+    const idx = Math.min(s.pts.length - 1, Math.round(((i + 1) / (trades.length + 1)) * (s.pts.length - 1)))
+    marks.push({ kind: t.side, x: s.xOf(idx), y: s.yOf(s.pts[idx]!) })
+  })
+  const preds = predStore.predictions.filter(p => p.assetId === sym && p.status === 'pending')
+  preds.forEach((p, i) => {
+    const idx = Math.min(s.pts.length - 1, Math.round((0.62 + i * 0.08) * (s.pts.length - 1)))
+    marks.push({
+      kind: p.direction === 'bearish' ? 'predict-bear' : 'predict-bull',
+      x: s.xOf(idx),
+      y: s.yOf(s.pts[idx]!),
+    })
+  })
+  return marks
+})
+
+function diamond(x: number, y: number, r = 3.2): string {
+  return `${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}`
+}
 
 // ── PriceIntuition expand ─────────────────────────────────────────────────
 const showIntuition = ref(false)
@@ -248,17 +312,17 @@ const assetAlerts = computed(() =>
     <!-- ── Main card row ── -->
     <div class="da-row">
 
-      <!-- Icon -->
-      <div class="da-icon-wrap">
-        <img
-          :src="icon"
-          :alt="name"
-          class="da-icon"
-          @error="($event.target as HTMLImageElement).style.display='none'"
-        />
+      <!-- Logo + ticker -->
+      <div class="da-ident">
+        <div class="da-icon-plate">
+          <img
+            :src="icon"
+            :alt="name"
+            class="da-icon"
+            @error="($event.target as HTMLImageElement).style.display='none'"
+          />
+        </div>
         <div class="da-symbol">{{ symbol }}</div>
-        <!-- Volatility pulse ring (Design.md: animation speed = volatility) -->
-        <div class="da-pulse-ring" :class="{ active: volatility > 0.4 }" />
       </div>
 
       <!-- Name + price -->
@@ -278,30 +342,47 @@ const assetAlerts = computed(() =>
             {{ changePct >= 0 ? '+' : '' }}{{ changePct.toFixed(2) }}%
           </span>
         </div>
-
-        <!-- Multi-TF prediction badge -->
-        <div v-if="predSummary" class="da-pred-badge"
-          :style="{
-            color: predDominantDir === 'bullish' ? 'var(--app-color-up, var(--success-green))' :
-                   predDominantDir === 'bearish' ? 'var(--app-color-down, var(--error-red))' : 'var(--text-gray)'
-          }">
-          <span>🎯 {{ predSummary }}</span>
-        </div>
       </div>
 
-      <!-- Sparkline -->
+      <!-- Sparkline fills the space the identity block used to leave empty -->
       <div class="da-spark">
         <svg :viewBox="`0 0 ${SVG_W} ${SVG_H}`" preserveAspectRatio="none" class="da-spark-svg">
           <defs>
             <linearGradient :id="`spark-fill-${id}`" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" :stop-color="sparkColor" stop-opacity="0.15" />
-              <stop offset="100%" :stop-color="sparkColor" stop-opacity="0" />
+              <stop offset="0%" stop-color="var(--app-color-up, #00ff88)" stop-opacity="0.22" />
+              <stop offset="100%" stop-color="var(--app-color-down, #ff4444)" stop-opacity="0.05" />
+            </linearGradient>
+            <linearGradient :id="`spark-stroke-${id}`" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stop-color="var(--app-color-down, #ff4444)" />
+              <stop offset="100%" stop-color="var(--app-color-up, #00ff88)" />
             </linearGradient>
           </defs>
-          <polyline :points="`${sparkPoints} ${SVG_W},${SVG_H} 0,${SVG_H}`"
-            :fill="`url(#spark-fill-${id})`" stroke="none" />
-          <polyline :points="sparkPoints" fill="none"
-            :stroke="sparkColor" stroke-width="1.8" stroke-linecap="round" />
+          <template v-if="appearance.chartStyle === 'candle'">
+            <g v-for="(c, i) in candles" :key="i">
+              <line :x1="c.x" :x2="c.x" :y1="c.yHigh" :y2="c.yLow" :stroke="c.up ? sparkUp : sparkDown" stroke-width="1.1" />
+              <rect
+                :x="c.x - c.w / 2" :y="c.yBody" :width="c.w" :height="c.h"
+                :fill="c.up ? sparkUp : sparkDown" rx="0.4"
+              />
+            </g>
+          </template>
+          <template v-else>
+            <polyline :points="`${sparkPoints} ${SVG_W},${SVG_H} 0,${SVG_H}`"
+              :fill="`url(#spark-fill-${id})`" stroke="none" />
+            <polyline :points="sparkPoints" fill="none"
+              :stroke="`url(#spark-stroke-${id})`" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          </template>
+          <g v-for="(m, i) in sparkMarks" :key="'m' + i">
+            <circle v-if="m.kind === 'buy'" :cx="m.x" :cy="m.y" r="3.1" :fill="sparkUp" />
+            <rect v-else-if="m.kind === 'sell'" :x="m.x - 2.6" :y="m.y - 2.6" width="5.2" height="5.2" :fill="sparkDown" rx="0.4" />
+            <polygon
+              v-else
+              :points="diamond(m.x, m.y)"
+              :fill="m.kind === 'predict-bear' ? sparkDown : 'none'"
+              :stroke="m.kind === 'predict-bear' ? sparkDown : sparkUp"
+              stroke-width="1.3"
+            />
+          </g>
         </svg>
       </div>
 
@@ -370,69 +451,56 @@ const assetAlerts = computed(() =>
 .da-row {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
+  gap: 10px;
+  padding: 6px 8px 6px 10px;
 }
 
-/* ── Icon ── */
-.da-icon-wrap {
-  position: relative;
+/* ── Identity: steady logo plate + ticker ── */
+.da-ident {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
+  width: 52px;
+}
+
+.da-icon-plate {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #eef1f4;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--da-cat-color, #607d8b) 65%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .da-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--border-secondary);
-  background: var(--bg-tertiary);
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
   display: block;
+  background: transparent;
 }
 
 .da-symbol {
-  position: absolute;
-  bottom: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.48rem;
+  font-size: 0.52rem;
   font-weight: 800;
-  padding: 1px 4px;
-  border-radius: 999px;
-  background: var(--da-cat-color, var(--border-secondary));
-  color: #000;
-  white-space: nowrap;
   letter-spacing: 0.04em;
+  color: var(--da-cat-color, var(--text-gray));
+  font-family: var(--font-market-data, inherit);
+  line-height: 1;
 }
 
-/* Volatility pulse ring (Design.md: animation driven by volatility) */
-.da-pulse-ring {
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  border: 1.5px solid var(--da-accent, transparent);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.da-pulse-ring.active {
-  animation: da-pulse var(--da-pulse, 2s) ease infinite;
-}
-
-@keyframes da-pulse {
-  0%, 100% { opacity: 0; transform: scale(1); }
-  50%       { opacity: 0.6; transform: scale(1.12); }
-}
-
-/* ── Info ── */
+/* ── Info stays content-sized so the spark can take the leftover width ── */
 .da-info {
-  flex: 1;
+  flex: 0 1 220px;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .da-name-row {
@@ -470,7 +538,7 @@ const assetAlerts = computed(() =>
 }
 
 .da-price {
-  font-size: 1.4rem;
+  font-size: 1.05rem;
   font-weight: 800;
   color: var(--text-white);
   font-family: var(--font-market-data, var(--font-family-primary));
@@ -519,9 +587,8 @@ const assetAlerts = computed(() =>
  * Flexes to soak up the row's remaining width instead of leaving a dead
  * gap between the info column and the predict button on wide screens. */
 .da-spark {
-  flex: 1 1 140px;
-  min-width: 90px;
-  max-width: 320px;
+  flex: 1 1 auto;
+  min-width: 120px;
   align-self: stretch;
   display: flex;
   align-items: center;
@@ -529,12 +596,14 @@ const assetAlerts = computed(() =>
 
 .da-spark-svg {
   width: 100%;
-  height: 40px;
+  height: 58px;
   display: block;
 }
 
 @media (max-width: 640px) {
-  .da-spark { flex-basis: 70px; max-width: 100px; }
+  .da-spark { min-width: 72px; }
+  .da-spark-svg { height: 44px; }
+  .da-info { flex-basis: 150px; }
 }
 
 /* ── Alert ribbon ── */
@@ -646,7 +715,7 @@ const assetAlerts = computed(() =>
 .da-expand-enter-to,
 .da-expand-leave-from {
   opacity: 1;
-  max-height: 600px;
+  max-height: 1400px;
 }
 
 /* Responsive */
@@ -654,6 +723,6 @@ const assetAlerts = computed(() =>
   .da-row { gap: var(--spacing-sm); padding: var(--spacing-sm); }
   .da-spark { display: none; }
   .da-name  { font-size: 0.8rem; max-width: 120px; }
-  .da-price { font-size: 0.9rem; }
+  .da-price { font-size: 0.95rem; }
 }
 </style>

@@ -1,6 +1,8 @@
 import {
   useActivityLogStore,
   type ActivityCategory,
+  type ActivityHow,
+  type ActivityWho,
   type ActivityWhy,
   type FriendProfileSnapshot,
   type ActivityWith,
@@ -9,7 +11,7 @@ import { useCommunityStore } from '~/stores/community'
 import { useUsersStore } from '~/stores/users'
 
 /**
- * useActivityLog — single entry point for where / when / what / why (+ with) tracking.
+ * useActivityLog — single entry point for where / who / what / when / why / how.
  *
  * Examples:
  *   log.pageView('/strategies', { from: '/news' })
@@ -44,10 +46,13 @@ export function useActivityLog() {
       route_name?: string
       query?: Record<string, unknown>
       intent?: string
+      who?: ActivityWho
+      how?: ActivityHow
     } = {}
   ) => {
     return store.log({
       where: { page, route_name: opts.route_name },
+      who: opts.who,
       what: {
         action: 'page_view',
         target: page,
@@ -60,6 +65,7 @@ export function useActivityLog() {
           query: opts.query,
         },
       },
+      how: opts.how ?? { method: 'page-view', inputs: opts.from ? [opts.from] : [] },
     })
   }
 

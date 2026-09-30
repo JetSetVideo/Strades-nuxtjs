@@ -365,3 +365,20 @@ interface NewsItem {
 ### External links
 - Browser import is **manual provenance only**: URL validation, source label, summary, optional company/assets, optional geography, optional sentiment/axis hints.
 - The frontend must not claim it scraped or enriched a remote article unless a backend service performed that work and recorded the provenance.
+
+---
+
+## Activity row
+
+Every interaction stored by `stores/activityLog.ts` carries where, who, what, when, why, and how. `who.role` is `user`, `avatar`, `swarm`, or `system`. `how.method` is the call that produced the row. Demo identity is `user_001` from `user/users.json`.
+
+Numeric bounds used by the desk:
+
+| Quantity | Min | Max |
+| --- | --- | --- |
+| Portfolio value shown on Profile | 0 | 1e9 |
+| Win rate | 0 | 100 |
+| Font scale | 0.85 | 1.2 |
+| Opinion vector | sums to 100 | sums to 100 |
+| Personality axis | 0 | 1 |
+| Political and economic leaning | -1 | 1 |

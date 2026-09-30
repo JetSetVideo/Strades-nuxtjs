@@ -30,11 +30,9 @@ const activityLog = useActivityLogStore()
 const bots = useBotsStore()
 const { user: authUser, isAuthenticated } = useAuth()
 const { portfolio, loading: portfolioLoading, error: portfolioError, refresh: refreshPortfolio } = usePortfolio()
+const { userId: sessionUserId } = useCurrentUser()
 
-const userId = computed<string>(() => {
-  const { userId: uid } = useCurrentUser()
-  return authUser.value?.id || uid.value
-})
+const userId = computed(() => authUser.value?.id || sessionUserId.value || 'user_001')
 
 const loading = ref(true)
 const statistics = ref<any>(null)
@@ -59,16 +57,8 @@ onMounted(async () => {
   loading.value = false
 })
 
-const user = computed(() => usersStore.getUserById(userId.value) || (
-  authUser.value ? {
-    id: authUser.value.id,
-    username: authUser.value.username || authUser.value.display_name || authUser.value.email,
-    bio: authUser.value.bio || '',
-    total_portfolio_value: portfolio.value?.total_value,
-    total_returns: undefined,
-  } as any : null
-))
-const wallet = computed(() => walletStore.getWalletByUserId(userId.value))
+const user = computed(() => usersStore.getUserById(userId.value) ?? null)
+const wallet = computed(() => walletStore.getDefaultWallet(userId.value) ?? walletStore.getUserWallets(userId.value)[0])
 const personalAgent = computed(() => agents.personal)
 
 const backendPnl = computed(() => {
@@ -124,6 +114,24 @@ const totalBots = computed(() => bots.list.length)
 const displayPortfolioValue = computed(() =>
   portfolio.value?.total_value ?? user.value?.total_portfolio_value ?? 0
 )
+
+const VALUE_MIN = 0
+const VALUE_MAX = 1_000_000_000
+const RATE_MIN = 0
+const RATE_MAX = 100
+
+const clampNum = (n: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, Number.isFinite(n) ? n : min))
+
+const desk = computed(() => {
+  const value = clampNum(displayPortfolioValue.value, VALUE_MIN, VALUE_MAX)
+  const win = clampNum(winRate.value, RATE_MIN, RATE_MAX)
+  const botsN = Math.max(0, totalBots.value)
+  const live = clampNum(liveBots.value, 0, botsN || liveBots.value)
+  const coverage = botsN === 0 ? 0 : live / botsN
+  const edge = win >= 55 ? 'ahead' : win >= 45 ? 'even' : 'behind'
+  return { value, win, live, bots: botsN, coverage, edge }
+})
 </script>
 
 <template>
@@ -155,8 +163,17 @@ const displayPortfolioValue = computed(() =>
         </template>
       </UIPageHeader>
 
+      <section class="desk" aria-label="Desk summary">
+        <span><em>Value</em> {{ formatCurrency(desk.value) }}</span>
+        <span><em>Win</em> {{ desk.win.toFixed(0) }}%</span>
+        <span><em>Avatars</em> {{ desk.live }}/{{ desk.bots }}</span>
+        <span><em>Coverage</em> {{ Math.round(desk.coverage * 100) }}%</span>
+        <span><em>Edge</em> {{ desk.edge }}</span>
+      </section>
+
       <ProfileHero
         :user="user"
+        is-own
         :trading-style="tradingStyle"
         :total-trades="totalTrades"
         :win-rate="winRate"
@@ -347,6 +364,26 @@ const displayPortfolioValue = computed(() =>
   font-weight: 700;
 }
 .cta-link:hover { text-decoration: underline; }
+
+.desk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--edge-soft, rgba(255,255,255,0.05));
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-base);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+}
+.desk em {
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.45);
+  margin-right: 0.3rem;
+}
 
 /* 2–3 col layouts */
 .grid-2 {

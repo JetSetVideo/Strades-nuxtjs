@@ -62,7 +62,10 @@ const unreadCount = computed(() => {
     radial-gradient(ellipse 100% 55% at 50% 108%, rgba(0, 0, 0, 0.55), transparent 62%);
 }
 
-.app-shell > * { position: relative; z-index: 1; }
+/* Only the scrolling frame is positioned. A blanket `position: relative`
+   on every child was overriding the fixed top and bottom bars, so the
+   header took flow space and the frame still padded for a fixed bar. */
+.app-shell > .page-frame { position: relative; z-index: 1; }
 
 .page-frame {
   width: 100%;
@@ -71,7 +74,7 @@ const unreadCount = computed(() => {
   /* Content starts exactly one page-gap below the fixed top bar and
      ends one page-gap above the fixed bottom bar (incl. iOS safe area). */
   padding:
-    calc(var(--nav-top-height, 3.25rem) + var(--page-gap, 0.5rem))
+    calc(var(--nav-top-height, 3.25rem) + 0.2rem)
     var(--page-gutter)
     calc(var(--nav-bottom-height, 4.1rem) + var(--page-gap, 0.5rem) + env(safe-area-inset-bottom, 0px))
     var(--page-gutter);
@@ -83,7 +86,7 @@ const unreadCount = computed(() => {
 
 @media (min-width: 640px) {
   .page-frame {
-    padding-top: calc(var(--nav-top-height-md, 3.5rem) + var(--page-gap, 0.6rem));
+    padding-top: calc(var(--nav-top-height-md, 3.5rem) + 0.2rem);
   }
 }
 
@@ -96,7 +99,7 @@ const unreadCount = computed(() => {
 @media (min-width: 1024px) {
   .page-frame {
     max-width: 1440px;
-    padding-top: calc(var(--nav-top-height-lg, 3.75rem) + var(--page-gap, 0.75rem));
+    padding-top: calc(var(--nav-top-height-lg, 3.75rem) + 0.2rem);
   }
 }
 @media (min-width: 1536px) {

@@ -19,8 +19,11 @@ export type FontScaleKey = 'small' | 'medium' | 'large'
 export type ChromeFontKey = 'poppins' | 'sora'
 export type MarketDataFontKey = 'plex-mono' | 'inter'
 export type ColorSchemeKey = 'default' | 'colorblind' | 'swapped'
+export type ChartStyleKey = 'line' | 'candle'
 export type TimezoneKey = 'UTC' | 'local' | 'America/New_York' | 'Europe/London' | 'Asia/Tokyo' | 'Asia/Hong_Kong'
 
+export const FONT_SCALE_MIN = 0.85
+export const FONT_SCALE_MAX = 1.2
 const FONT_SCALES: Record<FontScaleKey, number> = { small: 0.9, medium: 1, large: 1.15 }
 
 const CHROME_FONTS: Record<ChromeFontKey, string> = {
@@ -54,6 +57,7 @@ export interface AppearanceState {
   chromeFontKey: ChromeFontKey
   marketDataFontKey: MarketDataFontKey
   colorSchemeKey: ColorSchemeKey
+  chartStyle: ChartStyleKey
   timezone: TimezoneKey
   hydrated: boolean
 }
@@ -66,12 +70,13 @@ export const useAppearanceStore = defineStore('appearance', {
     chromeFontKey: 'poppins',
     marketDataFontKey: 'plex-mono',
     colorSchemeKey: 'default',
+    chartStyle: 'line',
     timezone: 'UTC',
     hydrated: false
   }),
 
   getters: {
-    fontScale: (s) => FONT_SCALES[s.fontScaleKey],
+    fontScale: (s) => Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, FONT_SCALES[s.fontScaleKey])),
     chromeFontFamily: (s) => CHROME_FONTS[s.chromeFontKey],
     marketDataFontFamily: (s) => MARKET_DATA_FONTS[s.marketDataFontKey],
     upColor: (s) => COLOR_SCHEMES[s.colorSchemeKey][0],
@@ -95,6 +100,7 @@ export const useAppearanceStore = defineStore('appearance', {
           this.chromeFontKey = parsed.chromeFontKey ?? this.chromeFontKey
           this.marketDataFontKey = parsed.marketDataFontKey ?? this.marketDataFontKey
           this.colorSchemeKey = parsed.colorSchemeKey ?? this.colorSchemeKey
+          this.chartStyle = parsed.chartStyle === 'candle' ? 'candle' : 'line'
           this.timezone = parsed.timezone ?? this.timezone
         }
       } catch { /* fresh start */ }
@@ -109,6 +115,7 @@ export const useAppearanceStore = defineStore('appearance', {
           chromeFontKey: this.chromeFontKey,
           marketDataFontKey: this.marketDataFontKey,
           colorSchemeKey: this.colorSchemeKey,
+          chartStyle: this.chartStyle,
           timezone: this.timezone
         }))
       } catch { /* quota full — non-fatal */ }
@@ -118,6 +125,7 @@ export const useAppearanceStore = defineStore('appearance', {
     setChromeFont(key: ChromeFontKey) { this.chromeFontKey = key; this.persist() },
     setMarketDataFont(key: MarketDataFontKey) { this.marketDataFontKey = key; this.persist() },
     setColorScheme(key: ColorSchemeKey) { this.colorSchemeKey = key; this.persist() },
+    setChartStyle(key: ChartStyleKey) { this.chartStyle = key; this.persist() },
     setTimezone(key: TimezoneKey) { this.timezone = key; this.persist() }
   }
 })

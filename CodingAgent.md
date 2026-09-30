@@ -188,3 +188,24 @@ The frontend is designed so the following can be swapped to real services withou
 | Avatar training in `agents.ts` | Python ML service (PyTorch / JAX) |
 | Opinion profiler in `tracking.ts` | NLP service (transformer-based) |
 | Paper ledger in `tracking/activity_log.json` | Postgres `paper_trades` table |
+
+---
+
+## 10. Agent contract
+
+Strades is a social desk: people build avatars together, and the avatars train on those people's trades, reads, and attention.
+
+Before changing a surface, read `Design.md`, `Data.md`, `CodingAgent.md`, `Components.md`, `Structure.md`, and `Todo.md`. They are the shared brief. Do not invent a parallel vocabulary.
+
+Every agent action is one log row. `stores/activityLog.ts` and `middleware/logKeeper.global.ts` write all six fields:
+
+| Field | Meaning |
+| --- | --- |
+| where | Page, route, component |
+| who | Actor id and role: user, avatar, swarm, or system |
+| what | Action, target, category |
+| when | ISO-8601 UTC on the row |
+| why | Intent and context |
+| how | Method name and the inputs it used |
+
+`log()` fills `who` with the session user and `how` with the action name when a caller omits them. A folded summary keeps the first row's who and how. Numeric features stay inside the ranges in section 8. Font scale is clamped to [0.85, 1.2].

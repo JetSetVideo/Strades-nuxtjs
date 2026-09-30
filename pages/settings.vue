@@ -5,7 +5,7 @@ import UICard from '@/components/UI/Card.vue'
 import UIPill from '@/components/UI/Pill.vue'
 import {
   useAppearanceStore, TIMEZONE_LABELS,
-  type FontScaleKey, type ChromeFontKey, type MarketDataFontKey, type ColorSchemeKey, type TimezoneKey
+  type FontScaleKey, type ChromeFontKey, type MarketDataFontKey, type ColorSchemeKey, type ChartStyleKey, type TimezoneKey
 } from '~/stores/appearance'
 
 definePageMeta({ title: 'Settings', description: 'Account, security, preferences.', layout: 'default' })
@@ -26,6 +26,10 @@ const COLOR_SCHEME_OPTIONS: { key: ColorSchemeKey; label: string }[] = [
   { key: 'default', label: 'Green up / Red down' },
   { key: 'colorblind', label: 'Colorblind-safe' },
   { key: 'swapped', label: 'Red up / Green down' }
+]
+const CHART_STYLE_OPTIONS: { key: ChartStyleKey; label: string }[] = [
+  { key: 'line', label: 'Line' },
+  { key: 'candle', label: 'Candles' }
 ]
 const TIMEZONE_OPTIONS = (Object.keys(TIMEZONE_LABELS) as TimezoneKey[]).map(key => ({ key, label: TIMEZONE_LABELS[key] }))
 
@@ -109,6 +113,17 @@ const saveSettings = () => { /* persist later */ }
               <span class="swatch" :style="{ background: opt.key === 'default' ? '#ff4444' : opt.key === 'colorblind' ? '#3b82f6' : '#00ff88' }" />
               {{ opt.label }}
             </button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-label">Price chart <em>(line or candles, with buy, sell, and prediction marks)</em></span>
+          <div class="chip-row">
+            <button
+              v-for="opt in CHART_STYLE_OPTIONS" :key="opt.key"
+              :class="['chip', { active: appearance.chartStyle === opt.key }]"
+              @click="appearance.setChartStyle(opt.key)"
+            >{{ opt.label }}</button>
           </div>
         </div>
 

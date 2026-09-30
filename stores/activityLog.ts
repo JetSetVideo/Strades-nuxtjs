@@ -50,6 +50,16 @@ export interface ActivityWhy {
   context?: Record<string, unknown>
 }
 
+export interface ActivityWho {
+  actor: string
+  role?: 'user' | 'avatar' | 'swarm' | 'system'
+}
+
+export interface ActivityHow {
+  method: string
+  inputs?: string[]
+}
+
 export interface ActivityWith {
   friend_ids: string[]
   friend_profiles?: FriendProfileSnapshot[]
@@ -60,8 +70,10 @@ export interface ActivityLogEntry {
   id: string
   when: string
   where: ActivityWhere
+  who?: ActivityWho
   what: ActivityWhat
   why: ActivityWhy
+  how?: ActivityHow
   with?: ActivityWith
   session_id?: string
   duration_ms?: number
@@ -276,8 +288,10 @@ export const useActivityLogStore = defineStore('activityLog', {
      */
     log(input: {
       where: ActivityWhere
+      who?: ActivityWho
       what: ActivityWhat
       why?: ActivityWhy
+      how?: ActivityHow
       with?: ActivityWith
       duration_ms?: number
       feedTraining?: boolean
@@ -289,8 +303,10 @@ export const useActivityLogStore = defineStore('activityLog', {
         id: nextId(),
         when: new Date().toISOString(),
         where: input.where,
+        who: input.who ?? { actor: 'session', role: 'user' },
         what: input.what,
         why: input.why ?? {},
+        how: input.how ?? { method: input.what.action },
         with: input.with,
         session_id: this.sessionId ?? undefined,
         duration_ms: input.duration_ms,
@@ -385,7 +401,9 @@ export const useActivityLogStore = defineStore('activityLog', {
           id: nextId('sum'),
           when: last.when,
           where: first.where,
+          who: first.who,
           what: first.what,
+          how: first.how ?? { method: 'reduce' },
           why: {
             intent: intents.size === 1
               ? [...intents][0]

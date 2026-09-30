@@ -34,7 +34,7 @@ const selectedType     = ref('all')
 const selectedAssetId  = ref<string | null>(null)
 const showMoreAssets   = ref(false)
 const sortBy           = ref<'default' | 'gainers' | 'losers' | 'vol_high' | 'cap'>('default')
-const searchQuery      = ref('')
+const searchQuery      = useState('marketQuery', () => '')
 const viewMode         = ref<'list' | 'map'>('list')
 const selectedRegionIso = ref<string | null>(null)
 
@@ -78,7 +78,6 @@ function startTicker() {
       const p = asset.current_price * (1 + nudge / 100)
       assetsStore.updateAssetPrice(asset.id, +p.toFixed(asset.current_price < 1 ? 6 : 2))
     })
-    assetsStore.lastUpdated = new Date()
     // Sync aggregates into macro store so nav icons always reflect live session data
     macroStore.updateFromPriceChanges(priceChanges)
   }, 5000)
@@ -122,6 +121,14 @@ const TYPE_LABELS: Record<string, string> = {
   fiat_currency: 'Forex / Fiat',
   commodity: 'Commodities',
 }
+
+const SORTS: { id: 'default' | 'gainers' | 'losers' | 'vol_high' | 'cap'; label: string }[] = [
+  { id: 'default', label: 'Default' },
+  { id: 'gainers', label: '↑ Top Gainers' },
+  { id: 'losers', label: '↓ Top Losers' },
+  { id: 'vol_high', label: '⚡ High Volatility' },
+  { id: 'cap', label: '💎 Market Cap' },
+]
 
 // ── Filter + search + sort ─────────────────────────────────────────────────
 const filtered = computed(() => {
@@ -240,26 +247,10 @@ function navigateToAsset(assetId: string) {
         </div>
       </div>
 
-      <!-- Last updated -->
-      <span class="last-updated" v-if="assetsStore.lastUpdated">
-        ⟳ {{ new Date(assetsStore.lastUpdated).toLocaleTimeString() }}
-      </span>
     </div>
 
-    <!-- ── Search + Filters + Sort ──────────────────────────────────── -->
+    <!-- ── Type, view, sort, and result count on one bar ───────────── -->
     <div class="controls-bar" v-if="hasData">
-      <!-- Search -->
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input
-          v-model="searchQuery"
-          class="search-input"
-          placeholder="Search assets…"
-        />
-        <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</button>
-      </div>
-
-      <!-- Type filter chips -->
       <div class="type-chips">
         <button
           v-for="type in availableTypes"
@@ -272,21 +263,28 @@ function navigateToAsset(assetId: string) {
         </button>
       </div>
 
-      <!-- List / Map view toggle -->
       <div class="view-toggle" role="group" aria-label="View mode">
         <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="List view">☰ List</button>
         <button :class="{ active: viewMode === 'map' }" @click="viewMode = 'map'" title="Map view">🌍 Map</button>
       </div>
 
-      <!-- Sort -->
-      <div class="sort-wrap">
-        <select v-model="sortBy" class="sort-select">
-          <option value="default">Default</option>
-          <option value="gainers">↑ Top Gainers</option>
-          <option value="losers">↓ Top Losers</option>
-          <option value="vol_high">⚡ High Volatility</option>
-          <option value="cap">💎 Market Cap</option>
-        </select>
+      <div class="sort-chips" role="group" aria-label="Sort">
+        <button
+          v-for="opt in SORTS"
+          :key="opt.id"
+          class="sort-chip"
+          :class="{ active: sortBy === opt.id }"
+          @click="sortBy = opt.id"
+        >{{ opt.label }}</button>
+      </div>
+
+      <div class="results-meta">
+        <span>{{ filtered.length }} assets</span>
+        <span v-if="searchQuery" class="search-term">for "{{ searchQuery }}"</span>
+        <button v-if="searchQuery" class="meta-clear" @click="searchQuery = ''">Clear</button>
+        <button v-if="selectedRegionIso" class="region-chip" @click="selectedRegionIso = null">
+          📍 {{ selectedRegionIso }} ✕
+        </button>
       </div>
     </div>
 
@@ -317,15 +315,6 @@ function navigateToAsset(assetId: string) {
       <Transition name="fade">
         <Heatmap v-if="selectedAssetId" :companyId="selectedAssetId" class="heatmap-panel" />
       </Transition>
-
-      <!-- Count -->
-      <div class="results-meta">
-        <span>{{ filtered.length }} assets</span>
-        <span v-if="searchQuery" class="search-term">for "{{ searchQuery }}"</span>
-        <button v-if="selectedRegionIso" class="region-chip" @click="selectedRegionIso = null">
-          📍 {{ selectedRegionIso }} ✕
-        </button>
-      </div>
 
       <!-- Primary grid -->
       <div class="asset-grid">
@@ -374,7 +363,7 @@ function navigateToAsset(assetId: string) {
 .prices-page {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 0.45rem;
   padding: 0;
   min-height: 100%;
   color: var(--text-white);
@@ -434,53 +423,19 @@ function navigateToAsset(assetId: string) {
 .mstat-val  { font-weight: 700; }
 .mstat.highlight { font-weight: 700; font-size: 0.62rem; }
 
-.last-updated {
-  font-size: 0.58rem;
-  color: var(--text-gray);
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-/* ── Controls ── */
+/* ── One toolbar: type, view, sort, count ── */
 .controls-bar {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-/* Search */
-.search-wrap {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  background: rgba(0,0,0,0.25);
-  border: 1px solid var(--border-secondary);
-  border-radius: var(--radius-md);
-  padding: 8px 12px;
-  transition: border-color var(--transition-fast);
+  gap: 6px 8px;
 }
 
-.search-wrap:focus-within { border-color: var(--border-accent); }
-.search-icon { font-size: 0.7rem; opacity: 0.5; flex-shrink: 0; }
-
-.search-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-white);
-  font-size: 0.78rem;
-  outline: none;
-  font-family: var(--font-family-secondary);
+.type-chips, .sort-chips, .view-toggle {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
-.search-input::placeholder { color: var(--text-gray); }
-
-.search-clear {
-  background: transparent; border: none;
-  color: var(--text-gray); cursor: pointer; font-size: 0.6rem;
-}
-
-/* Type chips */
-.type-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .type-chip {
   padding: 5px 12px;
@@ -500,22 +455,24 @@ function navigateToAsset(assetId: string) {
 .type-chip:hover { background: var(--bg-tertiary); color: var(--text-white); }
 .type-chip.active { background: var(--primary-gradient); border-color: var(--primary-green); color: var(--secondary-darker); }
 
-/* Sort */
-.sort-wrap { display: flex; align-items: center; }
-
-.sort-select {
-  padding: 6px 12px;
-  background: var(--bg-secondary);
+.sort-chip {
+  padding: 4px 8px;
+  background: transparent;
   border: 1px solid var(--border-secondary);
   border-radius: var(--radius-md);
-  color: var(--text-light-gray);
-  font-size: 0.68rem;
+  color: var(--text-gray);
   cursor: pointer;
-  outline: none;
+  font-size: 0.62rem;
+  font-weight: 600;
   font-family: var(--font-family-secondary);
-  -webkit-appearance: none;
+  white-space: nowrap;
 }
-.sort-select:focus { border-color: var(--border-accent); }
+.sort-chip:hover { color: var(--text-white); }
+.sort-chip.active {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.28);
+  color: var(--text-white);
+}
 
 /* ── Background refresh overlay ── */
 .refresh-overlay {
@@ -611,10 +568,21 @@ function navigateToAsset(assetId: string) {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
   font-size: 0.62rem;
   color: var(--text-gray);
+  white-space: nowrap;
 }
 .search-term { font-style: italic; }
+.meta-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-light-gray);
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-family: inherit;
+  padding: 0;
+}
 .region-chip {
   margin-left: auto;
   background: rgba(0,170,255,0.1);

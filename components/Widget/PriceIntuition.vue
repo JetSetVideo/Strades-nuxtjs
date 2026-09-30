@@ -13,7 +13,7 @@
  *  - Drag-track fill intensity scales with magnitude
  *  - Prediction endpoint pulse speed follows volatility prop
  */
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { usePredictionsStore, computeTargetDate } from '@/stores/predictions'
 import type { Prediction, PredictionDirection } from '@/stores/predictions'
 
@@ -56,30 +56,31 @@ const TIMEFRAMES = [
 ]
 const TF_DAYS: Record<string, number> = { '1D': 1, '1W': 7, '1M': 30, '3M': 90, '6M': 182, '1Y': 365 }
 
-// SVG chart constants
-const SVG_W   = 250
-const SVG_H   = 85
-const HIST_X  = 130  // x-position of "now" divider
-const PAD_Y   = 10
-const FUTURE_W = SVG_W - HIST_X - 15  // usable future zone width
+const FRIEND_AVATARS: Record<string, string> = {
+  kevin_scalper: 'https://i.pravatar.cc/64?u=kevin',
+  simon_trader: 'https://i.pravatar.cc/64?u=simon',
+  arthuro_investor: 'https://i.pravatar.cc/64?u=arthuro',
+}
+
+// Plot geometry. Prices sit in an HTML column to the left of this box.
+const SVG_W  = 360
+const SVG_H  = 156
+const PAD_T  = 18
+const PAD_B  = 12
+const NOW_X  = 214
+const END_X  = SVG_W - 16
 
 // ── State ──────────────────────────────────────────────────────────────
 const selectedTf   = ref('1W')
 const dragNorm     = ref(0)         // -1 (full bear) to +1 (full bull)
 const dragging     = ref(false)
-const trackRef     = ref<HTMLElement | null>(null)
+const chartRef     = ref<HTMLElement | null>(null)
 const confidence   = ref(3)
 const noteText     = ref('')
-const showNote     = ref(false)
 const useGeo       = ref(false)
 const geoLocation  = ref<{ lat: number; lon: number } | null>(null)
-const showBody     = ref(!props.compact)
 const justRecorded = ref(false)
-const isExpanded   = ref(true)
 const showHistory  = ref(false)
-
-let startClientX  = 0
-let startDragNorm = 0
 
 // ── Store getters ──────────────────────────────────────────────────────
 const userActivePreds = computed(() =>
@@ -93,7 +94,9 @@ const existingForTf = computed(() =>
 const isEditing = computed(() => !!existingForTf.value)
 
 const friendsPreds = computed(() =>
-  store.friendsForAsset(props.userId!, props.assetId!)
+  store.predictions.filter(
+    p => p.userId !== props.userId && p.assetId === props.assetId
+  )
 )
 
 const friendsForTf = computed(() =>
@@ -107,17 +110,28 @@ const consensus = computed(() =>
 const activePredByTf = computed(() => {
   const result: Record<string, Prediction | null> = {}
   for (const tf of TIMEFRAMES) {
-    result[tf.id] = store.activeForAssetTf(props.userId!, props.assetId!, tf.id)
+    const pending = store.activeForAssetTf(props.userId!, props.assetId!, tf.id)
+    if (pending) { result[tf.id] = pending; continue }
+    const mine = store.predictions
+      .filter(p => p.userId === props.userId && p.assetId === props.assetId && p.timeframe === tf.id)
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    result[tf.id] = mine[0] ?? null
   }
   return result
 })
+
+function friendDir(tf: string): PredictionDirection | null {
+  const fps = friendsPreds.value.filter(p => p.timeframe === tf)
+  if (!fps.length) return null
+  const avg = fps.reduce((s, p) => s + p.predictedChangePct, 0) / fps.length
+  if (Math.abs(avg) < 0.05) return 'neutral'
+  return avg > 0 ? 'bullish' : 'bearish'
+}
 
 const recentHistory = computed(() =>
   store.recentByAsset(props.userId!, props.assetId!, 5)
     .filter(p => p.status !== 'pending')
 )
-
-const alerts = computed(() => store.recentAlerts(props.userId!))
 
 // ── Drag / prediction math ─────────────────────────────────────────────
 const predictionPct  = computed(() => dragNorm.value * props.maxRangePct!)
@@ -132,40 +146,63 @@ const dirColorVar = computed(() =>
   direction.value === 'bearish' ? 'var(--piw-bear)' : 'var(--piw-neutral)'
 )
 
-const bullFillPct = computed(() => dragNorm.value > 0 ? dragNorm.value * 50 : 0)
-const bearFillPct = computed(() => dragNorm.value < 0 ? -dragNorm.value * 50 : 0)
-const thumbLeftStyle = computed(() =>
-  `calc(${((dragNorm.value + 1) / 2) * 100}% - 20px)`
-)
+const hasAim = computed(() => Math.abs(dragNorm.value) >= 0.025)
 
 // Border-radius morphs with confidence (Design.md)
 const widgetRadius = computed(() => `${4 + confidence.value * 2}px`)
 // Pulse speed from volatility (Design.md)
 const pulseSpeed   = computed(() => `${2.5 - (props.volatility ?? 0.3) * 1.8}s`)
 
-// ── SVG chart ──────────────────────────────────────────────────────────
-function tfX(tf: string): number {
-  const days = TF_DAYS[tf] ?? 7
-  return HIST_X + (Math.log10(days + 0.5) / Math.log10(365.5)) * FUTURE_W
+// ── Period chart ───────────────────────────────────────────────────────
+// Each timeframe rebuilds its own path so switching 1D / 1W / 1Y changes
+// the graph, not just a highlight on a shared axis.
+function hashSeed(s: string): number {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619)
+  return h >>> 0
 }
+function mulberry32(a: number) {
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+const periodSeries = computed(() => {
+  const days = TF_DAYS[selectedTf.value] ?? 7
+  const n = Math.min(36, Math.max(14, Math.round(10 + Math.log2(days + 1) * 4)))
+  const rand = mulberry32(hashSeed(`${props.assetId}:${selectedTf.value}`))
+  const amp = (props.volatility ?? 0.3) * (0.35 + Math.log10(days + 1) * 0.45)
+  const back: number[] = [props.currentPrice!]
+  let p = props.currentPrice!
+  for (let i = 1; i < n; i++) {
+    const drift = (rand() - 0.48) * amp * 0.09
+    p = Math.max(0.0001, p * (1 - drift))
+    back.push(p)
+  }
+  return back.reverse()
+})
 
 function toY(price: number, min: number, max: number): number {
   const range = max - min || 1
-  return SVG_H - PAD_Y - ((price - min) / range) * (SVG_H - PAD_Y * 2)
+  const plot = SVG_H - PAD_T - PAD_B
+  return PAD_T + (1 - (price - min) / range) * plot
 }
 
 const yRange = computed(() => {
-  const all = [
-    ...props.priceHistory!,
-    props.currentPrice!,
-    ...userActivePreds.value.map(p => p.predictedPrice),
-    ...friendsPreds.value.map(p => p.predictedPrice),
-  ]
-  if (Math.abs(dragNorm.value) > 0.025) all.push(predictedPrice.value)
-  const mn = Math.min(...all)
-  const mx = Math.max(...all)
-  const pad = (mx - mn) * 0.08
-  return { min: mn - pad, max: mx + pad }
+  // Scale to this period's path so the line stays readable. Targets that
+  // sit outside the path are pinned to the edge instead of flattening it.
+  const prices = [props.currentPrice!, ...periodSeries.value]
+  let min = Math.min(...prices)
+  let max = Math.max(...prices)
+  if (!(max > min)) {
+    min *= 0.985
+    max *= 1.015
+  }
+  const pad = (max - min) * 0.45
+  return { min: min - pad, max: max + pad }
 })
 
 const currentPriceY = computed(() =>
@@ -173,47 +210,56 @@ const currentPriceY = computed(() =>
 )
 
 const histPolyline = computed(() => {
-  const hist = props.priceHistory!
+  const hist = periodSeries.value
   if (hist.length < 2) return ''
   const { min, max } = yRange.value
   return hist.map((p, i) => {
-    const x = (i / (hist.length - 1)) * HIST_X
+    const x = (i / (hist.length - 1)) * NOW_X
     return `${x.toFixed(1)},${toY(p, min, max).toFixed(1)}`
   }).join(' ')
 })
 
-// Live drag preview line for selected TF (shown while dragging or when a value is set)
-const liveLine = computed(() => {
-  if (Math.abs(dragNorm.value) < 0.025) return null
-  const x = tfX(selectedTf.value)
+const targetPoint = computed(() => {
+  if (!hasAim.value) return null
   const y = toY(predictedPrice.value, yRange.value.min, yRange.value.max)
-  return { x: x.toFixed(1), y: y.toFixed(1), tf: selectedTf.value }
+  return { x: END_X, y }
 })
 
-// Unique timeframes across all friends predictions for chart rendering
-const friendTfs = computed(() => {
-  const seen = new Set<string>()
-  return friendsPreds.value.filter(fp => {
-    if (seen.has(fp.userId + fp.timeframe)) return false
-    seen.add(fp.userId + fp.timeframe)
-    return true
-  })
+const friendMarks = computed(() => {
+  const { min, max } = yRange.value
+  return friendsForTf.value.map((fp, i) => ({
+    id: fp.id,
+    x: END_X - 10 - (i % 3) * 8,
+    y: Math.max(PAD_T + 4, Math.min(SVG_H - PAD_B - 4, toY(fp.predictedPrice, min, max))),
+    dir: fp.direction,
+    price: fp.predictedPrice,
+  }))
 })
 
-// Average per-TF prediction from friends
-const friendAvgByTf = computed(() => {
-  const result: Record<string, { pct: number; dir: PredictionDirection; price: number }> = {}
-  for (const tf of TIMEFRAMES) {
-    const fps = friendsPreds.value.filter(p => p.timeframe === tf.id)
-    if (!fps.length) continue
-    const avg = fps.reduce((s, p) => s + p.predictedChangePct, 0) / fps.length
-    result[tf.id] = {
-      pct:   avg,
-      dir:   avg > 0 ? 'bullish' : avg < 0 ? 'bearish' : 'neutral',
-      price: props.currentPrice! * (1 + avg / 100),
+const gradId = computed(() => `piw-grad-${props.assetId}`)
+
+const windowStartLabel = computed(() => {
+  const d = new Date()
+  d.setDate(d.getDate() - (TF_DAYS[selectedTf.value] ?? 7))
+  return fmtDate(d.toISOString())
+})
+const targetDateLabel = computed(() => fmtDate(computeTargetDate(selectedTf.value)))
+
+const friendFaces = computed(() => {
+  const seen = new Map<string, Prediction>()
+  for (const p of friendsPreds.value) {
+    const prev = seen.get(p.userId)
+    if (!prev || (p.timeframe === selectedTf.value && prev.timeframe !== selectedTf.value)) {
+      seen.set(p.userId, p)
     }
   }
-  return result
+  return [...seen.values()].map(p => ({
+    id: p.userId,
+    name: friendName(p.userId),
+    avatar: FRIEND_AVATARS[p.userId] ?? `https://i.pravatar.cc/64?u=${encodeURIComponent(p.userId)}`,
+    direction: p.direction,
+    onTf: p.timeframe === selectedTf.value,
+  }))
 })
 
 // ── Pre-load drag value when switching TF ──────────────────────────────
@@ -237,58 +283,39 @@ onMounted(() => {
   loadExistingForTf()
 })
 
-// ── Drag events ────────────────────────────────────────────────────────
-function onMouseDown(e: MouseEvent) {
-  e.preventDefault()
+// ── Drag on the chart itself ───────────────────────────────────────────
+function applyPointer(clientY: number) {
+  const el = chartRef.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  const y = (clientY - rect.top) / rect.height
+  const padTop = PAD_T / SVG_H
+  const plot = (SVG_H - PAD_T - PAD_B) / SVG_H
+  const t = Math.max(0, Math.min(1, (y - padTop) / plot))
+  const { min, max } = yRange.value
+  const price = max - t * (max - min)
+  const pct = ((price - props.currentPrice!) / props.currentPrice!) * 100
+  dragNorm.value = Math.max(-1, Math.min(1, pct / props.maxRangePct!))
+}
+
+function onChartPointerDown(e: PointerEvent) {
+  if (e.button !== 0) return
+  const el = e.currentTarget as HTMLElement
+  try { el.setPointerCapture(e.pointerId) } catch { /* pointer already released */ }
   dragging.value = true
-  startClientX  = e.clientX
-  startDragNorm = dragNorm.value
-  document.addEventListener('mousemove', onDocMove)
-  document.addEventListener('mouseup',  onDocUp)
+  applyPointer(e.clientY)
 }
 
-function onTouchStart(e: TouchEvent) {
-  e.preventDefault()
-  dragging.value = true
-  startClientX  = e.touches[0]!.clientX
-  startDragNorm = dragNorm.value
-  document.addEventListener('touchmove',  onDocTouchMove, { passive: false })
-  document.addEventListener('touchend',   onDocTouchEnd)
+function onChartPointerMove(e: PointerEvent) {
+  if (!dragging.value) return
+  applyPointer(e.clientY)
 }
 
-function onDocMove(e: MouseEvent) {
-  if (!dragging.value || !trackRef.value) return
-  const rect     = trackRef.value.getBoundingClientRect()
-  const deltaN   = (e.clientX - startClientX) / (rect.width / 2)
-  dragNorm.value = Math.max(-1, Math.min(1, startDragNorm + deltaN))
-}
-
-function onDocTouchMove(e: TouchEvent) {
-  if (!dragging.value || !trackRef.value) return
-  e.preventDefault()
-  const rect     = trackRef.value.getBoundingClientRect()
-  const deltaN   = (e.touches[0]!.clientX - startClientX) / (rect.width / 2)
-  dragNorm.value = Math.max(-1, Math.min(1, startDragNorm + deltaN))
-}
-
-function onDocUp() {
+function onChartPointerUp() {
+  if (!dragging.value) return
   dragging.value = false
-  document.removeEventListener('mousemove', onDocMove)
-  document.removeEventListener('mouseup',  onDocUp)
+  if (direction.value !== 'neutral') recordIntuition()
 }
-
-function onDocTouchEnd() {
-  dragging.value = false
-  document.removeEventListener('touchmove', onDocTouchMove)
-  document.removeEventListener('touchend',  onDocTouchEnd)
-}
-
-onBeforeUnmount(() => {
-  document.removeEventListener('mousemove', onDocMove)
-  document.removeEventListener('mouseup',  onDocUp)
-  document.removeEventListener('touchmove', onDocTouchMove)
-  document.removeEventListener('touchend',  onDocTouchEnd)
-})
 
 // ── Record / Update ────────────────────────────────────────────────────
 async function recordIntuition() {
@@ -367,39 +394,15 @@ function fmtDate(d: string): string {
 <template>
   <div
     class="piw"
+    :class="{ compact }"
     :style="{
       '--piw-radius': widgetRadius,
       '--piw-pulse-speed': pulseSpeed,
     }"
   >
-    <!-- ─ Header ──────────────────────────────────────────────────── -->
-    <div class="piw-header" @click="isExpanded = !isExpanded">
-      <div class="piw-header-left">
-        <span class="piw-icon">🎯</span>
-        <span class="piw-title">Price Intuition</span>
-        <span class="piw-asset-tag">{{ assetId }}</span>
-        <span v-if="userActivePreds.length" class="piw-active-badge">
-          {{ userActivePreds.length }} active
-        </span>
-      </div>
-      <div class="piw-header-right">
-        <!-- Alert badges -->
-        <span
-          v-for="a in alerts.slice(0, 2)"
-          :key="a.id"
-          class="piw-alert-chip"
-          :class="a.status"
-        >
-          {{ statusIcon(a.status) }} {{ a.assetId }} {{ a.timeframe }}
-        </span>
-        <span class="piw-chevron">{{ isExpanded ? '▲' : '▼' }}</span>
-      </div>
-    </div>
+    <div class="piw-body">
 
-    <Transition name="piw-body">
-      <div v-if="isExpanded" class="piw-body">
-
-        <!-- ─ Timeframe Tabs ───────────────────────────────────────── -->
+        <!-- ─ Timeframe Tabs: color shows whether a call exists, and which way ─ -->
         <div class="piw-tf-tabs">
           <button
             v-for="tf in TIMEFRAMES"
@@ -407,311 +410,154 @@ function fmtDate(d: string): string {
             class="piw-tf-btn"
             :class="{
               'active': selectedTf === tf.id,
-              'has-pred': !!activePredByTf[tf.id],
-              'bull': activePredByTf[tf.id]?.direction === 'bullish',
-              'bear': activePredByTf[tf.id]?.direction === 'bearish',
+              'has-pred': !!activePredByTf[tf.id] || !!friendDir(tf.id),
+              'from-friend': !activePredByTf[tf.id] && !!friendDir(tf.id),
+              'bull': (activePredByTf[tf.id]?.direction ?? friendDir(tf.id)) === 'bullish',
+              'bear': (activePredByTf[tf.id]?.direction ?? friendDir(tf.id)) === 'bearish',
             }"
             @click="selectedTf = tf.id"
           >
             <span class="tf-label">{{ tf.label }}</span>
-            <span
-              v-if="activePredByTf[tf.id]"
-              class="tf-dir-dot"
-              :style="{ background: predDirColor(activePredByTf[tf.id]!.direction) }"
-            />
+            <span v-if="activePredByTf[tf.id] || friendDir(tf.id)" class="tf-dir">
+              {{ (activePredByTf[tf.id]?.direction ?? friendDir(tf.id)) === 'bearish' ? '↓' : '↑' }}
+            </span>
           </button>
         </div>
 
-        <!-- ─ Multi-TF Chart ──────────────────────────────────────── -->
-        <div class="piw-chart-wrap">
-          <svg
-            :viewBox="`0 0 ${SVG_W} ${SVG_H}`"
-            class="piw-svg"
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <linearGradient id="hist-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--piw-hist)" stop-opacity="0.3" />
-                <stop offset="100%" stop-color="var(--piw-hist)" stop-opacity="0.0" />
-              </linearGradient>
-            </defs>
-
-            <!-- Historical area fill -->
-            <polygon
-              v-if="histPolyline"
-              :points="`${histPolyline} ${HIST_X},${SVG_H} 0,${SVG_H}`"
-              fill="url(#hist-fill)"
-            />
-
-            <!-- Historical sparkline -->
-            <polyline
-              v-if="histPolyline"
-              :points="histPolyline"
-              fill="none"
-              stroke="var(--piw-hist)"
-              stroke-width="1.5"
-              stroke-linejoin="round"
-            />
-
-            <!-- "Now" divider -->
-            <line
-              :x1="HIST_X" y1="0"
-              :x2="HIST_X" :y2="SVG_H"
-              stroke="rgba(255,255,255,0.18)"
-              stroke-dasharray="3 3"
-              stroke-width="1"
-            />
-
-            <!-- "Now" dot -->
-            <circle
-              :cx="HIST_X" :cy="currentPriceY"
-              r="3.5"
-              fill="var(--piw-hist)"
-              stroke="var(--bg-primary)"
-              stroke-width="1"
-            />
-
-            <!-- Friends' average per-TF lines -->
-            <g v-for="(avg, tfId) in friendAvgByTf" :key="'favg-' + tfId" opacity="0.35">
-              <line
-                :x1="HIST_X" :y1="currentPriceY"
-                :x2="tfX(tfId)" :y2="toY(avg.price, yRange.min, yRange.max)"
-                :stroke="predDirColor(avg.dir)"
-                stroke-width="1"
-                stroke-dasharray="3 4"
-              />
-              <circle
-                :cx="tfX(tfId)" :cy="toY(avg.price, yRange.min, yRange.max)"
-                r="2.5"
-                :fill="predDirColor(avg.dir)"
-              />
-              <text
-                :x="tfX(tfId) + 3"
-                :y="toY(avg.price, yRange.min, yRange.max) - 5"
-                font-size="4.5"
-                :fill="predDirColor(avg.dir)"
-              >~{{ fmtPrice(avg.price) }}</text>
-            </g>
-
-            <!-- User's active prediction lines (all TFs) -->
-            <g v-for="pred in userActivePreds" :key="pred.id">
-              <!-- Connection line -->
-              <line
-                :x1="HIST_X" :y1="currentPriceY"
-                :x2="tfX(pred.timeframe)" :y2="toY(pred.predictedPrice, yRange.min, yRange.max)"
-                :stroke="predDirColor(pred.direction)"
-                :stroke-width="selectedTf === pred.timeframe ? 2.5 : 1.5"
-                stroke-dasharray="6 3"
-                :opacity="selectedTf === pred.timeframe ? 1 : 0.55"
-              />
-              <!-- Endpoint pulse ring (selected TF only) -->
-              <circle
-                v-if="selectedTf === pred.timeframe"
-                :cx="tfX(pred.timeframe)"
-                :cy="toY(pred.predictedPrice, yRange.min, yRange.max)"
-                r="7"
-                :fill="predDirColor(pred.direction)"
-                opacity="0.15"
-                class="piw-pulse-ring"
-              />
-              <!-- Endpoint circle -->
-              <circle
-                :cx="tfX(pred.timeframe)"
-                :cy="toY(pred.predictedPrice, yRange.min, yRange.max)"
-                r="4"
-                :fill="predDirColor(pred.direction)"
-                stroke="var(--bg-primary)"
-                stroke-width="1"
-              />
-              <!-- Target price label -->
-              <text
-                :x="tfX(pred.timeframe) + 5"
-                :y="toY(pred.predictedPrice, yRange.min, yRange.max) - 3"
-                font-size="5.5"
-                :fill="predDirColor(pred.direction)"
-                font-weight="600"
-              >{{ fmtPrice(pred.predictedPrice) }}</text>
-              <!-- TF label below -->
-              <text
-                :x="tfX(pred.timeframe) + 5"
-                :y="toY(pred.predictedPrice, yRange.min, yRange.max) + 9"
-                font-size="4.5"
-                fill="rgba(255,255,255,0.45)"
-              >{{ pred.timeframe }}</text>
-            </g>
-
-            <!-- Live drag preview line -->
-            <g v-if="liveLine && !isEditing">
-              <line
-                :x1="HIST_X" :y1="currentPriceY"
-                :x2="liveLine.x" :y2="liveLine.y"
-                :stroke="dirColorVar"
-                stroke-width="2"
-                stroke-dasharray="5 3"
-                opacity="0.85"
-              />
-              <circle
-                :cx="liveLine.x" :cy="liveLine.y"
-                r="4"
-                :fill="dirColorVar"
-                opacity="0.9"
-                class="piw-pulse-ring"
-              />
-              <text
-                :x="Number(liveLine.x) + 5"
-                :y="Number(liveLine.y) - 3"
-                font-size="5.5"
-                :fill="dirColorVar"
-                font-weight="600"
-              >{{ fmtPrice(predictedPrice) }}</text>
-            </g>
-
-            <!-- TF axis markers (x-axis labels) -->
-            <g v-for="tf in TIMEFRAMES" :key="'axis-' + tf.id">
-              <text
-                :x="tfX(tf.id)"
-                :y="SVG_H - 1"
-                font-size="4"
-                fill="rgba(255,255,255,0.22)"
-                text-anchor="middle"
-              >{{ tf.label }}</text>
-            </g>
-          </svg>
-
-          <!-- Price scale (Y-axis hint) -->
-          <div class="piw-y-hint">
-            <span>{{ fmtPrice(yRange.max) }}</span>
-            <span>{{ fmtPrice(yRange.min) }}</span>
-          </div>
-        </div>
-
-        <!-- ─ TF Controls ──────────────────────────────────────────── -->
-        <div class="piw-tf-section">
-          <!-- Edit notice -->
-          <div v-if="isEditing" class="piw-edit-notice">
-            <span>✏️ Editing your {{ selectedTf }} prediction</span>
-            <span class="edit-since">set {{ fmtDate(existingForTf!.timestamp) }}</span>
+        <!-- ─ Chart: drag vertically on the plot to set the target ─ -->
+        <div class="piw-chart-layout">
+          <div class="piw-y-axis" aria-hidden="true">
+            <span class="axis-hi">{{ fmtFull(yRange.max) }}</span>
+            <span class="axis-now">{{ fmtFull(currentPrice!) }}</span>
+            <span class="axis-lo">{{ fmtFull(yRange.min) }}</span>
           </div>
 
-          <!-- Price row -->
-          <div class="piw-price-row">
-            <div class="piw-price-col">
-              <span class="piw-price-label">Current</span>
-              <span class="piw-price-val">{{ fmtFull(currentPrice!) }}</span>
-            </div>
-            <div class="piw-arrow" :style="{ color: dirColorVar }">
-              {{ direction === 'bullish' ? '→↑' : direction === 'bearish' ? '→↓' : '→' }}
-            </div>
-            <div class="piw-price-col piw-price-col--target">
-              <span class="piw-price-label">{{ selectedTf }} Target</span>
-              <span class="piw-price-val" :style="{ color: dirColorVar }">
-                {{ Math.abs(dragNorm) > 0.025 ? fmtFull(predictedPrice) : '—' }}
-              </span>
-              <span class="piw-price-pct" :style="{ color: dirColorVar }">
-                {{ Math.abs(dragNorm) > 0.025 ? fmtPct(predictionPct) : '' }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Horizontal drag track -->
-          <div class="piw-htrack-wrap" ref="trackRef">
-            <div class="piw-htrack-bg">
-              <span class="piw-htrack-bear-label">↓ Bear</span>
-              <span class="piw-htrack-bull-label">Bull ↑</span>
-            </div>
-            <!-- Bear fill (from center leftward) -->
+          <div class="piw-chart-wrap">
             <div
-              class="piw-htrack-fill piw-bear-fill"
-              :style="{ width: bearFillPct + '%' }"
-            />
-            <!-- Bull fill (from center rightward) -->
-            <div
-              class="piw-htrack-fill piw-bull-fill"
-              :style="{ width: bullFillPct + '%' }"
-            />
-            <!-- Center tick -->
-            <div class="piw-htrack-center" />
-            <!-- Thumb -->
-            <div
-              class="piw-htrack-thumb"
-              :class="{ bull: direction === 'bullish', bear: direction === 'bearish', dragging }"
-              :style="{
-                left: thumbLeftStyle,
-                borderColor: dirColorVar,
-                boxShadow: `0 0 ${8 + Math.abs(dragNorm) * 10}px ${dirColorVar}`,
-              }"
-              @mousedown="onMouseDown"
-              @touchstart.prevent="onTouchStart"
+              v-if="friendFaces.length"
+              class="piw-friend-avatars"
             >
-              <span class="piw-thumb-icon">
-                {{ direction === 'bullish' ? '↑' : direction === 'bearish' ? '↓' : '●' }}
-              </span>
+              <img
+                v-for="f in friendFaces"
+                :key="f.id"
+                :src="f.avatar"
+                :alt="f.name"
+                :title="`${f.name} · ${f.direction}`"
+                class="piw-friend-avatar"
+                :class="{ 'on-tf': f.onTf, bear: f.direction === 'bearish', bull: f.direction === 'bullish' }"
+              />
+            </div>
+
+            <div
+              v-if="hasAim"
+              class="piw-readout"
+              :class="[direction, { recorded: justRecorded }]"
+            >
+              <span class="readout-kicker">{{ selectedTf }} · {{ targetDateLabel }}</span>
+              <span class="readout-price">{{ fmtFull(predictedPrice) }}</span>
+              <span class="readout-pct">{{ fmtPct(predictionPct) }}</span>
+            </div>
+
+            <div
+              ref="chartRef"
+              class="piw-plot"
+              role="slider"
+              :aria-valuemin="yRange.min"
+              :aria-valuemax="yRange.max"
+              :aria-valuenow="hasAim ? predictedPrice : currentPrice"
+              :aria-label="`Set ${selectedTf} price prediction`"
+              @pointerdown="onChartPointerDown"
+              @pointermove="onChartPointerMove"
+              @pointerup="onChartPointerUp"
+              @pointercancel="onChartPointerUp"
+            >
+              <svg
+                :viewBox="`0 0 ${SVG_W} ${SVG_H}`"
+                class="piw-svg"
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <linearGradient :id="gradId" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0%" stop-color="var(--app-color-down, #ff4444)" />
+                    <stop offset="100%" stop-color="var(--app-color-up, #00ff88)" />
+                  </linearGradient>
+                  <linearGradient :id="gradId + '-fill'" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="var(--app-color-up, #00ff88)" stop-opacity="0.28" />
+                    <stop offset="100%" stop-color="var(--app-color-down, #ff4444)" stop-opacity="0.08" />
+                  </linearGradient>
+                </defs>
+
+                <polygon
+                  v-if="histPolyline"
+                  :points="`${histPolyline} ${NOW_X},${SVG_H - PAD_B} 0,${SVG_H - PAD_B}`"
+                  :fill="`url(#${gradId}-fill)`"
+                />
+                <polyline
+                  v-if="histPolyline"
+                  :points="histPolyline"
+                  fill="none"
+                  :stroke="`url(#${gradId})`"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                  stroke-linecap="round"
+                />
+
+                <line
+                  x1="0" :x2="SVG_W"
+                  :y1="currentPriceY" :y2="currentPriceY"
+                  stroke="rgba(255,255,255,0.16)"
+                  stroke-dasharray="3 4"
+                  stroke-width="1"
+                />
+                <line
+                  :x1="NOW_X" y1="6"
+                  :x2="NOW_X" :y2="SVG_H - 4"
+                  stroke="rgba(255,255,255,0.2)"
+                  stroke-dasharray="3 3"
+                  stroke-width="1"
+                />
+                <circle
+                  :cx="NOW_X" :cy="currentPriceY"
+                  r="3.5"
+                  fill="#fff"
+                  stroke="rgba(0,0,0,0.45)"
+                  stroke-width="1"
+                />
+
+                <g v-if="targetPoint">
+                  <line
+                    :x1="NOW_X" :y1="currentPriceY"
+                    :x2="targetPoint.x" :y2="targetPoint.y"
+                    :stroke="dirColorVar"
+                    stroke-width="2"
+                    stroke-dasharray="5 3"
+                  />
+                  <circle
+                    :cx="targetPoint.x" :cy="targetPoint.y"
+                    r="6"
+                    :fill="direction === 'bearish' ? dirColorVar : 'none'"
+                    :stroke="dirColorVar"
+                    stroke-width="2"
+                  />
+                </g>
+
+                <g v-for="m in friendMarks" :key="m.id">
+                  <circle
+                    :cx="m.x" :cy="m.y" r="3.2"
+                    :fill="m.dir === 'bearish' ? 'var(--piw-bear)' : 'none'"
+                    :stroke="predDirColor(m.dir)"
+                    stroke-width="1.4"
+                  />
+                </g>
+              </svg>
+            </div>
+
+            <div class="piw-x-axis">
+              <span>{{ windowStartLabel }}</span>
+              <span>Now</span>
+              <span>{{ targetDateLabel }}</span>
             </div>
           </div>
-
-          <!-- Confidence + options row -->
-          <div class="piw-meta-row">
-            <div class="piw-stars">
-              <button
-                v-for="s in 5"
-                :key="s"
-                class="piw-star"
-                :class="{ filled: s <= confidence }"
-                @click="confidence = s"
-              >★</button>
-            </div>
-            <div class="piw-meta-actions">
-              <button
-                class="piw-meta-btn"
-                :class="{ active: showNote }"
-                @click="showNote = !showNote"
-                title="Add note"
-              >📝</button>
-              <button
-                class="piw-meta-btn"
-                :class="{ active: useGeo }"
-                @click="useGeo = !useGeo"
-                title="Record location"
-              >📍</button>
-            </div>
-          </div>
-
-          <Transition name="fade">
-            <textarea
-              v-if="showNote"
-              v-model="noteText"
-              class="piw-note"
-              rows="2"
-              placeholder="Your thesis for this prediction…"
-            />
-          </Transition>
-
-          <!-- Record / Update button -->
-          <button
-            class="piw-record-btn"
-            :class="{
-              'bull': direction === 'bullish',
-              'bear': direction === 'bearish',
-              'recorded': justRecorded,
-              'edit-mode': isEditing,
-              'disabled': direction === 'neutral',
-            }"
-            :disabled="direction === 'neutral'"
-            @click="recordIntuition"
-          >
-            <template v-if="justRecorded">
-              ✓ {{ isEditing ? 'Updated!' : 'Recorded!' }}
-            </template>
-            <template v-else-if="direction === 'neutral'">
-              ← Drag to set prediction →
-            </template>
-            <template v-else>
-              {{ isEditing ? '↺ Update' : '🎯 Record' }}
-              {{ selectedTf }} Prediction
-              {{ fmtPct(predictionPct) }}
-              {{ direction === 'bullish' ? '↑' : '↓' }}
-            </template>
-          </button>
         </div>
 
         <!-- ─ Community Consensus ─────────────────────────────────── -->
@@ -793,15 +639,14 @@ function fmtDate(d: string): string {
         </div>
 
       </div>
-    </Transition>
   </div>
 </template>
 
 <style scoped>
 /* ── CSS Variables (scoped overrides) ─────────────────────────────── */
 .piw {
-  --piw-bull:    var(--success-green, #00ff88);
-  --piw-bear:    var(--error-red,     #ff4466);
+  --piw-bull:    var(--app-color-up, var(--success-green, #00ff88));
+  --piw-bear:    var(--app-color-down, var(--error-red, #ff4444));
   --piw-neutral: var(--text-gray,     #888);
   --piw-hist:    var(--primary-green, #00cc66);
   --piw-bg:      var(--bg-secondary,  #1a1a1b);
@@ -814,56 +659,10 @@ function fmtDate(d: string): string {
   font-family:   var(--font-family-secondary, sans-serif);
 }
 
-/* ── Header ───────────────────────────────────────────────────────── */
-.piw-header {
-  display:         flex;
-  justify-content: space-between;
-  align-items:     center;
-  padding:         10px 14px;
-  cursor:          pointer;
-  background:      rgba(0,0,0,0.2);
-  border-bottom:   1px solid var(--piw-border);
-  user-select:     none;
-}
-.piw-header-left { display: flex; align-items: center; gap: 8px; }
-.piw-header-right { display: flex; align-items: center; gap: 6px; }
-
-.piw-icon  { font-size: 1rem; }
-.piw-title {
-  font-family: var(--font-family-primary, 'Kanit', sans-serif);
-  font-size:   0.9rem;
-  font-weight: 600;
-  color:       var(--text-white, #fff);
-}
-.piw-asset-tag {
-  font-size:    0.7rem;
-  padding:      2px 7px;
-  border-radius: 20px;
-  background:   rgba(0,204,102,.15);
-  color:        var(--piw-hist);
-  font-weight:  600;
-}
-.piw-active-badge {
-  font-size:    0.65rem;
-  padding:      1px 6px;
-  border-radius: 10px;
-  background:   rgba(0,204,102,.1);
-  color:        var(--piw-hist);
-  border:       1px solid rgba(0,204,102,.2);
-}
-.piw-alert-chip {
-  font-size:     0.6rem;
-  padding:       2px 7px;
-  border-radius: 10px;
-  border:        1px solid;
-}
-.piw-alert-chip.accurate { color: var(--piw-bull); border-color: rgba(0,255,136,.3); background: rgba(0,255,136,.08); }
-.piw-alert-chip.missed   { color: var(--piw-bear); border-color: rgba(255,68,102,.3); background: rgba(255,68,102,.08); }
-.piw-alert-chip.expired  { color: var(--piw-neutral); border-color: rgba(136,136,136,.3); background: rgba(136,136,136,.08); }
-.piw-chevron { color: var(--text-gray, #888); font-size: 0.7rem; }
+.piw.compact { border: none; background: transparent; }
 
 /* ── Body ─────────────────────────────────────────────────────────── */
-.piw-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; }
+.piw-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
 
 /* ── Timeframe Tabs ───────────────────────────────────────────────── */
 .piw-tf-tabs {
@@ -887,50 +686,126 @@ function fmtDate(d: string): string {
   font-family:    var(--font-family-secondary, sans-serif);
 }
 .piw-tf-btn:hover { border-color: var(--text-gray); color: var(--text-white, #fff); }
-.piw-tf-btn.active {
+.piw-tf-btn.bull {
+  color: var(--piw-bull);
+  border-color: color-mix(in srgb, var(--piw-bull) 55%, transparent);
+  background: color-mix(in srgb, var(--piw-bull) 16%, transparent);
+}
+.piw-tf-btn.bear {
+  color: var(--piw-bear);
+  border-color: color-mix(in srgb, var(--piw-bear) 55%, transparent);
+  background: color-mix(in srgb, var(--piw-bear) 16%, transparent);
+}
+.piw-tf-btn.active:not(.bull):not(.bear) {
   background: rgba(255,255,255,.08);
-  border-color: rgba(255,255,255,.3);
+  border-color: rgba(255,255,255,.35);
   color: var(--text-white, #fff);
 }
-.piw-tf-btn.has-pred.bull { border-color: rgba(0,255,136,.4); color: var(--piw-bull); }
-.piw-tf-btn.has-pred.bear { border-color: rgba(255,68,102,.4); color: var(--piw-bear); }
-.tf-dir-dot {
-  width:         5px;
-  height:        5px;
-  border-radius: 50%;
-  display:       inline-block;
+.piw-tf-btn.from-friend { opacity: 0.85; }
+.piw-tf-btn.active.bull {
+  background: color-mix(in srgb, var(--piw-bull) 28%, transparent);
+  box-shadow: inset 0 0 0 1px var(--piw-bull);
 }
+.piw-tf-btn.active.bear {
+  background: color-mix(in srgb, var(--piw-bear) 28%, transparent);
+  box-shadow: inset 0 0 0 1px var(--piw-bear);
+}
+.tf-dir { font-size: 0.62rem; font-weight: 800; line-height: 1; }
 
 /* ── Chart ────────────────────────────────────────────────────────── */
-.piw-chart-wrap {
-  position: relative;
-  background: rgba(0,0,0,.15);
-  border-radius: 8px;
-  overflow: visible;
-  padding: 4px 0 4px 0;
+.piw-chart-layout {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
 }
-.piw-svg {
-  width:  100%;
-  height: 85px;
-  display: block;
-  overflow: visible;
-}
-.piw-y-hint {
-  position:   absolute;
-  right:      -2px;
-  top:        0;
-  bottom:     0;
-  display:    flex;
+.piw-y-axis {
+  display: flex;
   flex-direction: column;
   justify-content: space-between;
+  padding: 8px 0 22px;
+  font-family: var(--font-market-data, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+.axis-hi { color: var(--piw-bull); }
+.axis-now { color: rgba(255,255,255,0.78); }
+.axis-lo { color: var(--piw-bear); }
+
+.piw-chart-wrap {
+  position: relative;
+  background: rgba(0,0,0,.22);
+  border-radius: 8px;
+  min-width: 0;
+}
+.piw-plot {
+  cursor: ns-resize;
+  touch-action: none;
+}
+.piw-svg {
+  width: 100%;
+  height: 168px;
+  display: block;
+}
+.piw-x-axis {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 8px 6px;
+  font-size: 0.58rem;
+  color: rgba(255,255,255,0.42);
+  font-family: var(--font-market-data, ui-monospace, monospace);
   pointer-events: none;
-  padding:    4px 0;
 }
-.piw-y-hint span {
-  font-size:  0.58rem;
-  color:      rgba(255,255,255,.3);
-  white-space: nowrap;
+.piw-friend-avatars {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  z-index: 2;
+  pointer-events: none;
 }
+.piw-friend-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-left: -7px;
+  border: 2px solid #121214;
+  background: #222;
+}
+.piw-friend-avatar:first-child { margin-left: 0; }
+.piw-friend-avatar.bull.on-tf { box-shadow: 0 0 0 1.5px var(--piw-bull); }
+.piw-friend-avatar.bear.on-tf { box-shadow: 0 0 0 1.5px var(--piw-bear); }
+.piw-readout {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  pointer-events: none;
+  font-family: var(--font-market-data, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+.piw-readout.bull { color: var(--piw-bull); }
+.piw-readout.bear { color: var(--piw-bear); }
+.readout-kicker {
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  font-family: var(--font-chrome, inherit);
+}
+.readout-price {
+  font-size: 1.15rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.readout-pct { font-size: 0.72rem; font-weight: 700; }
 
 @keyframes piw-pulse {
   0%, 100% { r: 5; opacity: 0.15; }

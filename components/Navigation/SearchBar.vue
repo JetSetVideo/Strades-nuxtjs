@@ -12,6 +12,9 @@ const props = defineProps({
   searchSuggestions: { type: Array as PropType<SearchSuggestion[]>, default: () => [] }
 })
 
+const route = useRoute()
+const marketQuery = useState('marketQuery', () => '')
+
 const q = ref('')
 const isOpen = ref(false)
 const activeIndex = ref(0)
@@ -193,13 +196,17 @@ const groups = computed<ResultGroup[]>(() => {
 const flatResults = computed<Result[]>(() => groups.value.flatMap(g => g.results))
 
 const open = async () => {
+  if (route.path.startsWith('/prices')) q.value = marketQuery.value
   isOpen.value = true
   activeIndex.value = 0
   if (!community.hydrated) community.fetchCommunity()
   await nextTick()
   inputRef.value?.focus()
 }
-const close = () => { isOpen.value = false; q.value = '' }
+const close = () => {
+  isOpen.value = false
+  if (!route.path.startsWith('/prices')) q.value = ''
+}
 
 const move = (dir: 1 | -1) => {
   if (flatResults.value.length === 0) return
@@ -230,7 +237,13 @@ const onKey = (e: KeyboardEvent) => {
   }
 }
 
-watch(q, () => { activeIndex.value = 0 })
+watch(q, (v) => {
+  activeIndex.value = 0
+  if (route.path.startsWith('/prices')) marketQuery.value = v
+})
+watch(marketQuery, (v) => {
+  if (route.path.startsWith('/prices') && q.value !== v) q.value = v
+})
 
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))

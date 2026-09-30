@@ -17,26 +17,18 @@ const { playHover, playClick } = useNavSound()
 
 <template>
   <header class="top-nav" role="banner">
-    <div class="brand-cluster">
-      <NuxtLink
-        to="/wallet"
-        class="brand-link"
-        @mouseenter="playHover"
-        @click="drawerOpen = false; playClick()"
-      >
-        <span class="brand-mark">◈</span>
-        <span class="brand-word">STRADES</span>
-      </NuxtLink>
-      <span class="brand-divider" aria-hidden="true" />
-      <button
-        class="menu-btn"
-        aria-label="Open menu"
-        @mouseenter="playHover"
-        @click="toggleDrawer(); playClick()"
-      >
-        <span class="bars"><span /><span /><span /></span>
-      </button>
-    </div>
+    <button
+      type="button"
+      class="brand-btn"
+      aria-label="Open menu"
+      :aria-expanded="drawerOpen"
+      @mouseenter="playHover"
+      @click="toggleDrawer(); playClick()"
+    >
+      <span class="brand-mark">◈</span>
+      <span class="brand-word">STRADES</span>
+      <span class="bars" aria-hidden="true"><span /><span /><span /></span>
+    </button>
 
     <SearchBar
       class="search-bar"
@@ -61,6 +53,7 @@ const { playHover, playClick } = useNavSound()
   position: fixed; top: 0; left: 0; right: 0;
   display: flex; flex-direction: row; align-items: center;
   width: 100%;
+  box-sizing: border-box;
   height: var(--nav-top-height, 3.25rem);
   padding: 0.35rem var(--page-gutter, 0.75rem);
   gap: 0.5rem;
@@ -79,58 +72,34 @@ const { playHover, playClick } = useNavSound()
   to   { transform: translateY(0);     opacity: 1; }
 }
 
-/* One cohesive unit: brand identity (plain, no button chrome) + a thin
-   divider + the menu trigger (the only actual "button" in this cluster).
-   Previously both brand-link and menu-btn had independent box/border/hover-bg
-   styling, which at ≥1024px read as two competing, near-identical buttons
-   sitting side by side. */
-.brand-cluster {
+/* Brand mark and menu trigger are one control. */
+.brand-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.45rem;
   flex-shrink: 0;
-}
-
-.brand-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
+  height: 30px;
+  padding: 0 0.55rem 0 0.35rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--app-border-radius, 6px);
   color: #fff;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+}
+.brand-btn:hover {
+  border-color: var(--primary-green, #00ff88);
+  color: var(--primary-green, #00ff88);
+}
+.brand-btn:hover .brand-mark {
+  filter: drop-shadow(0 0 9px rgba(0,255,136,0.6));
+}
+.brand-word {
+  display: none;
   font-weight: 700;
   letter-spacing: 0.16em;
   font-size: 0.78rem;
-  font-family: 'Poppins', sans-serif;
-  text-decoration: none;
-  flex-shrink: 0;
-  transition: color 0.2s, filter 0.2s;
 }
-.brand-link:hover {
-  color: var(--primary-green, #00ff88);
-}
-.brand-link:hover .brand-mark {
-  filter: drop-shadow(0 0 9px rgba(0,255,136,0.6));
-}
-
-.brand-divider {
-  display: none;
-  width: 1px;
-  height: 1.1rem;
-  background: rgba(255,255,255,0.1);
-  flex-shrink: 0;
-}
-
-.menu-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px; height: 30px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: var(--app-border-radius, 6px);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.menu-btn:hover { border-color: var(--primary-green, #00ff88); }
 .bars {
   display: inline-flex;
   flex-direction: column;
@@ -140,7 +109,8 @@ const { playHover, playClick } = useNavSound()
   display: block;
   width: 12px;
   height: 1.5px;
-  background: rgba(255,255,255,0.5);
+  background: currentColor;
+  opacity: 0.7;
   border-radius: 2px;
 }
 
@@ -162,6 +132,8 @@ const { playHover, playClick } = useNavSound()
 .right-cluster {
   display: flex; align-items: center; gap: 0.4rem;
   flex-shrink: 0;
+  /* Leave a clear margin before the viewport edge. */
+  margin-right: 1.35rem;
 }
 .right-divider {
   width: 1px;
@@ -182,7 +154,6 @@ const { playHover, playClick } = useNavSound()
     gap: 0.75rem;
   }
   .brand-word { display: inline; }
-  .brand-divider { display: block; }
   .search-bar { max-width: 32rem; margin: 0 auto; }
 }
 
@@ -194,5 +165,6 @@ const { playHover, playClick } = useNavSound()
 @media (min-width: 1536px) {
   .top-nav { padding: 0.5rem 2rem; }
   .search-bar { max-width: 44rem; }
+  .right-cluster { margin-right: 1.25rem; }
 }
 </style>
