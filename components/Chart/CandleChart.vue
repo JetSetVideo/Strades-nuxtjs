@@ -10,13 +10,16 @@ const props = defineProps({ isLine: Boolean });
 
 // data import
 const bitcoin = useBitcoinStore();
-const json = bitcoin.bitcoinPrices;
+// Nothing else hydrates this store, so the chart loads it itself (see onMounted).
 
 // ref declaration
 const canvas = ref(null);
 const candle = ref(null);
 
-onMounted(() => {
+onMounted(async () => {
+  if (!bitcoin.bitcoinPrices.length) await bitcoin.fetchBitcoinPrices();
+  const json = bitcoin.bitcoinPrices;
+
   // variable declaration
   var totalWidth = window.innerWidth - 100;
   var totalHeight = window.innerHeight - 150;
