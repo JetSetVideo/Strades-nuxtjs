@@ -79,8 +79,8 @@ const totals = computed(() => {
     <UIMetricRow :cols="4">
       <UIStat label="Completed" :value="`${totals.done}/${totals.total}`" />
       <UIStat label="Avg progress" :value="(totals.avg * 100)" suffix="%" :precision="0" />
-      <UIStat label="Credits won" :value="totals.credits" />
-      <UIStat label="Open" :value="totals.total - totals.done" />
+      <UIStat label="Credits won" :value="totals.credits" :precision="0" />
+      <UIStat label="Open" :value="totals.total - totals.done" :precision="0" />
     </UIMetricRow>
 
     <UISectionTabs v-model="selected" :tabs="tabs" />

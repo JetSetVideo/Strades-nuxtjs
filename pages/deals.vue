@@ -179,11 +179,11 @@ const filteredDeals = computed(() => {
     <template v-else>
       <!-- ── Aggregate bar ─────────────────────────────────────────────── -->
       <UIMetricRow :cols="5">
-        <UIStat label="Active Deals" :value="activeDeals.length" size="md" />
+        <UIStat label="Active Deals" :value="activeDeals.length" :precision="0" size="md" />
         <UIStat label="Capital Exposed" :value="totalCapitalExposed" :precision="0" suffix="USD" size="md" />
         <UIStat label="Total P&L" :value="totalPnl" :precision="0" tone="auto" suffix="USD" size="md" />
         <UIStat label="Avg Return" :value="avgReturn" :precision="1" suffix="%" tone="auto" size="md" />
-        <UIStat label="Counterparties" :value="allCounterparties.length" size="md" />
+        <UIStat label="Counterparties" :value="allCounterparties.length" :precision="0" size="md" />
       </UIMetricRow>
 
       <!-- ── Top counterparties ────────────────────────────────────────── -->

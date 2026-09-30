@@ -37,6 +37,12 @@ onMounted(async () => {
   } catch { /* silent */ }
   loading.value = false
 
+  // Seed data can skew entirely into the past relative to the demo clock —
+  // don't land the user on an empty "Upcoming" tab when there's real data elsewhere.
+  if (!enriched.value.some(e => !e.isPast) && enriched.value.length > 0) {
+    filter.value = 'all'
+  }
+
   if (typeof localStorage !== 'undefined') {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
@@ -131,10 +137,10 @@ const stats = computed(() => ({
     </UIPageHeader>
 
     <UIMetricRow :cols="4">
-      <UIStat label="This week"     :value="stats.thisWeek" size="md" />
-      <UIStat label="High impact"   :value="stats.high"     tone="negative" size="md" />
-      <UIStat label="Watching"      :value="stats.watching" tone="positive" size="md" />
-      <UIStat label="Total tracked" :value="stats.total"    size="md" />
+      <UIStat label="This week"     :value="stats.thisWeek" :precision="0" size="md" />
+      <UIStat label="High impact"   :value="stats.high"     :precision="0" tone="negative" size="md" />
+      <UIStat label="Watching"      :value="stats.watching" :precision="0" tone="positive" size="md" />
+      <UIStat label="Total tracked" :value="stats.total"    :precision="0" size="md" />
     </UIMetricRow>
 
     <UISectionTabs v-model="filter" :tabs="tabs" />

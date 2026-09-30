@@ -242,8 +242,8 @@ const codeJson = computed(() => {
 
         <UICard title="Trade stats">
           <UIMetricRow :cols="2">
-            <UIStat label="Total trades" :value="strategy.total_trades ?? 0" size="sm" />
-            <UIStat label="Successful"   :value="strategy.successful_trades ?? 0" tone="positive" size="sm" />
+            <UIStat label="Total trades" :value="strategy.total_trades ?? 0" :precision="0" size="sm" />
+            <UIStat label="Successful"   :value="strategy.successful_trades ?? 0" :precision="0" tone="positive" size="sm" />
             <UIStat label="Avg duration" :value="strategy.average_trade_duration ?? '—'" size="sm" />
             <UIStat label="Last run"     :value="lastRunRel" size="sm" />
           </UIMetricRow>
@@ -335,7 +335,7 @@ const codeJson = computed(() => {
           </UIMetricRow>
           <UIMetricRow :cols="4">
             <UIStat label="Calmar Ratio" :value="backtestResult.metrics.calmarRatio" :precision="3" size="sm" />
-            <UIStat label="Total Trades" :value="backtestResult.metrics.totalTrades" size="sm" />
+            <UIStat label="Total Trades" :value="backtestResult.metrics.totalTrades" :precision="0" size="sm" />
             <UIStat label="Winning / Losing" :value="`${backtestResult.metrics.winningTrades} / ${backtestResult.metrics.losingTrades}`" size="sm" />
             <UIStat label="Avg Win / Loss" :value="`$${Math.round(backtestResult.metrics.avgWin)} / $${Math.round(backtestResult.metrics.avgLoss)}`" size="sm" />
           </UIMetricRow>

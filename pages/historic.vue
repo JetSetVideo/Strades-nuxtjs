@@ -95,7 +95,7 @@ const stats = computed(() => {
     </UIPageHeader>
 
     <UIMetricRow :cols="4">
-      <UIStat label="Total trades" :value="stats.total"   size="md" />
+      <UIStat label="Total trades" :value="stats.total"   :precision="0" size="md" />
       <UIStat label="Realized PnL" :value="stats.totalPnl" tone="auto" suffix="USD" :precision="0" size="md" />
       <UIStat label="Win rate"     :value="stats.winRate"  suffix="%" :precision="1" size="md" />
       <UIStat label="Currently"    :value="tab"            size="md" />

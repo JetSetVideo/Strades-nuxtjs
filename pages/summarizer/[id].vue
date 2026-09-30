@@ -94,8 +94,8 @@ async function testStrategy() {
       </UIPageHeader>
 
       <UIMetricRow :cols="4">
-        <UIStat label="Indicators"   :value="strategy.indicators?.length ?? 0" size="md" />
-        <UIStat label="Target assets" :value="strategy.target_assets?.length ?? 0" size="md" />
+        <UIStat label="Indicators"   :value="strategy.indicators?.length ?? 0" :precision="0" size="md" />
+        <UIStat label="Target assets" :value="strategy.target_assets?.length ?? 0" :precision="0" size="md" />
         <UIStat label="Risk level"   :value="strategy.risk_level || '—'" size="md" />
         <UIStat label="Period"       :value="`${strategy.backtest_period?.start ?? '—'} → ${strategy.backtest_period?.end ?? '—'}`" size="sm" />
       </UIMetricRow>

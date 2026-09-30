@@ -104,10 +104,10 @@ function openStrategy(id: string) {
     </UIPageHeader>
 
     <UIMetricRow :cols="4">
-      <UIStat label="Public strategies" :value="stats.total"      size="md" />
-      <UIStat label="Free"              :value="stats.free"       tone="positive" size="md" />
-      <UIStat label="Premium"           :value="stats.premium"    size="md" />
-      <UIStat label="Categories"        :value="stats.categories" size="md" />
+      <UIStat label="Public strategies" :value="stats.total"      :precision="0" size="md" />
+      <UIStat label="Free"              :value="stats.free"       :precision="0" tone="positive" size="md" />
+      <UIStat label="Premium"           :value="stats.premium"    :precision="0" size="md" />
+      <UIStat label="Categories"        :value="stats.categories" :precision="0" size="md" />
     </UIMetricRow>
 
     <UISectionTabs v-model="category" :tabs="categoryTabs" />

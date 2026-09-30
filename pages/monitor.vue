@@ -156,9 +156,9 @@ const returnColor = (pct: number) => pct >= 0 ? 'var(--app-color-up, var(--succe
     <template v-else>
       <!-- ── Aggregate summary ─────────────────────────────────────────── -->
       <UIMetricRow :cols="6">
-        <UIStat label="Active"   :value="activeCount"   size="md" />
-        <UIStat label="Paused"   :value="pausedCount"   size="md" tone="warning" />
-        <UIStat label="Stopped"  :value="stoppedCount"  size="md" tone="negative" />
+        <UIStat label="Active"   :value="activeCount"   :precision="0" size="md" />
+        <UIStat label="Paused"   :value="pausedCount"   :precision="0" size="md" tone="warning" />
+        <UIStat label="Stopped"  :value="stoppedCount"  :precision="0" size="md" tone="negative" />
         <UIStat label="Total Capital" :value="totalCapital" :precision="0" suffix="USD" size="md" />
         <UIStat label="Total P&L" :value="totalReturn" :precision="0" tone="auto" suffix="USD" size="md" />
         <UIStat label="Avg Win Rate" :value="avgWinRate" :precision="1" suffix="%" size="md" />

@@ -159,15 +159,15 @@ const isClassifier = computed(() => agent.value?.model_type === 'classifier')
           <UIStat label="Sharpe"       :value="agent.performance.sharpe"           :precision="2" size="sm" />
           <UIStat label="Win rate"     :value="agent.performance.win_rate * 100"   suffix="%" :precision="0" size="sm" />
           <UIStat label="Max DD"       :value="-agent.performance.max_drawdown_pct" tone="negative" suffix="%" :precision="1" size="sm" />
-          <UIStat label="Total trades" :value="agent.performance.trades_total"     size="sm" />
+          <UIStat label="Total trades" :value="agent.performance.trades_total"     :precision="0" size="sm" />
         </UIMetricRow>
       </UICard>
 
       <UICard title="Training">
         <UIMetricRow :cols="2">
           <UIStat label="Version"     :value="`v${agent.training_state.version}`"               size="md" />
-          <UIStat label="Epochs"      :value="agent.training_state.epochs"                       size="md" />
-          <UIStat label="Samples"     :value="agent.training_state.samples_observed"             size="sm" />
+          <UIStat label="Epochs"      :value="agent.training_state.epochs"                       :precision="0" size="md" />
+          <UIStat label="Samples"     :value="agent.training_state.samples_observed"             :precision="0" size="sm" />
           <UIStat label="Reward EMA"  :value="agent.training_state.reward_ema_pnl" tone="auto"   :precision="3" size="sm" />
           <UIStat label="Loss EMA"    :value="agent.training_state.loss_ema"                     :precision="3" size="sm" />
           <UIStat label="Queued"      :value="agent.training_state.samples_since_last_train"     size="sm" />

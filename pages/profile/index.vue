@@ -250,8 +250,8 @@ const desk = computed(() => {
             <NuxtLink to="/strategies" class="cta-link">All bots →</NuxtLink>
           </template>
           <UIMetricRow :cols="2">
-            <UIStat label="Live" :value="liveBots" tone="positive" size="md" />
-            <UIStat label="Total" :value="totalBots" size="md" />
+            <UIStat label="Live" :value="liveBots" :precision="0" tone="positive" size="md" />
+            <UIStat label="Total" :value="totalBots" :precision="0" size="md" />
             <UIStat label="Capital deployed" :value="bots.totalCapital" :precision="0" suffix="USD" size="sm" />
             <UIStat label="PnL today" :value="bots.totalPnlTodayUsd" tone="auto" :precision="0" suffix="USD" size="sm" />
           </UIMetricRow>
