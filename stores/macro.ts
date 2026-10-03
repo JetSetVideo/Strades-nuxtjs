@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 
 export type AssetClass = 'fiat' | 'crypto' | 'stocks' | 'commodities'
 
@@ -58,10 +59,9 @@ export const useMacroStore = defineStore('macro', {
   }),
   actions: {
     async fetchMacroState() {
+      const url = publicAssetUrl('/data/global/macro_state.json')
       try {
-        const res = await fetch('/data/global/macro_state.json')
-        if (!res.ok) return
-        const data = await res.json()
+        const data = await $fetch<Record<string, any>>(url)
         this.$patch({
           global_volatility_index: data.global_volatility_index ?? this.global_volatility_index,
           market_sentiment: data.market_sentiment ?? this.market_sentiment,

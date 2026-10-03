@@ -2,7 +2,7 @@
 
 This document is the **exhaustive data backbone** of Strades. Every data point listed here must influence the UI visually — as raw numbers, text, or as a secondary modifier of a component's form, color, size, or animation.
 
-Data sources live under `public/data/` and are hydrated into Pinia stores at boot via `plugins/00.dataPipeline.client.ts`. Nothing fetches macro state independently.
+Data sources live under `public/data/` and are hydrated into Pinia stores at boot via `plugins/00.dataPipeline.ts` (server and client). Static files are requested with `publicAssetUrl` so SSR does not receive the app HTML in place of JSON. Nothing fetches macro state independently. Synthetic ticks start after the client has mounted, so the first paint matches the server.
 
 ---
 
@@ -106,15 +106,23 @@ The 100% allocation engine. Holds:
 
 ## 4. Strategy & Node Graph
 
-### `core/strategies.json` + `strategies/codes/*.json`
+### `core/strategies.json` (canonical)
+`utils/strategyCode.ts` projects this catalog into the Creator payload that `Strategy/CodeView` renders (`assetFrom`, `assetTo`, indicators, period, owner, `agent_id`).
+
+`strategies/codes/*.json` is a legacy file set and is not loaded. Those files describe different strategies (strategy_001 there is "BTC Momentum", owner `user_simon`). Ratings, history CSVs, and trade CSVs under `strategies/` remain optional performance attachments and do not name the strategy.
+
 | Key | Visual mapping |
 |-----|----------------|
 | `nodes[].type` | Shape (square=condition, circle=action, hexagon=avatar, diamond=opinion) |
 | `nodes[].confidence_score` | Node opacity (`0.4 + 0.6 × score`) |
 | `nodes[].execution_frequency` | Heartbeat pulse speed |
 | `edges[].capital_flow` | D3 link stroke width |
-| `target_assets[]` | Chips on the strategy card |
+| `target_assets[]` | Chips on the strategy card; first symbol is the code-view entry, the second (or USD) is the exit |
+| `indicators[]` | Data-source chips and IF rules when entry conditions are empty |
+| `agent_id` | Avatar chip on the code view |
 | `is_paper` | Paper-trade badge |
+
+`relationships/asset_relationships.json` and `relationships/strategy_assets.json` were removed. Related assets are the `similar_assets` and `depends_on` fields on the asset itself.
 
 ---
 

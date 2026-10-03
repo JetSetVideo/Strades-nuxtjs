@@ -10,6 +10,7 @@
  * deltas (volatility jitter, flow direction changes, news pulses).
  */
 import { defineNuxtPlugin } from '#app'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 import { useMacroStore, type AssetClass } from '~/stores/macro'
 import { useUserPreferencesStore } from '~/stores/userPreferences'
 import { useNewsStore } from '~/stores/news'
@@ -28,7 +29,10 @@ import { useActivityLogStore } from '~/stores/activityLog'
 
 const TICK_BUDGET_MS = 33 // ~30fps cap for visual updates
 
-export default defineNuxtPlugin(async () => {
+export default defineNuxtPlugin({
+  name: 'data-pipeline',
+  enforce: 'post',
+  async setup(nuxtApp) {
   const pipeline = usePipelineStore()
   const macro = useMacroStore()
   const prefs = useUserPreferencesStore()
@@ -44,7 +48,10 @@ export default defineNuxtPlugin(async () => {
   const chat = useChatStore()
   const sharesStore = useSharesStore()
   const activityLog = useActivityLogStore()
+  const postsUrl = publicAssetUrl('/data/social/posts.json')
+  const alreadyPainted = macro.hydrated && wallet.hydrated && prefs.hydrated
 
+  if (!alreadyPainted) {
   pipeline.bootstrap()
   pipeline.stages.agents = pipeline.stages.agents ?? { name: 'agents', state: 'idle', lastTickMs: 0, errors: 0 }
   pipeline.stages.training = pipeline.stages.training ?? { name: 'training', state: 'idle', lastTickMs: 0, errors: 0 }
@@ -65,7 +72,7 @@ export default defineNuxtPlugin(async () => {
   pipeline.markStage('chat', 'hydrating')
   pipeline.markStage('activityLog', 'hydrating')
 
-  await Promise.all([
+  if (!alreadyPainted) await Promise.all([
     macro.fetchMacroState().then(() => pipeline.markStage('macro', 'streaming')),
     prefs.fetchPreferences().then(() => pipeline.markStage('preferences', 'streaming')),
     news.initializeStore().then(() => pipeline.markStage('news', 'streaming')),
@@ -84,22 +91,30 @@ export default defineNuxtPlugin(async () => {
   ]).catch(() => {
     pipeline.markStage('macro', 'error')
   })
+  }
 
-  // Seed news globe coords from the first post; cache full list for the rotator
-  let postsCache: Array<{ geographic_origin?: { lat: number; lng: number }; weight?: number }> = []
-  try {
-    const res = await fetch('/data/social/posts.json')
-    if (res.ok) {
-      postsCache = await res.json()
-      if (postsCache[0]?.geographic_origin) {
-        const { lat, lng } = postsCache[0].geographic_origin
+  if (!alreadyPainted) {
+    try {
+      const posts = await $fetch<Array<{ geographic_origin?: { lat: number; lng: number }; weight?: number }>>(postsUrl)
+      if (posts[0]?.geographic_origin) {
+        const { lat, lng } = posts[0].geographic_origin
         prefetch.updateLatestNewsCoords(lat, lng)
       }
-    }
-  } catch { /* posts.json optional */ }
+    } catch { /* posts.json optional */ }
+  }
 
-  // ── 2. Streaming loop (mock WebSocket via RAF) ──────────────────────────
-  if (typeof window === 'undefined') return
+  // Synthetic ticks and browser-only journals start after hydration so the
+  // first client render matches the server markup.
+  if (import.meta.server) return
+
+  nuxtApp.hook('app:mounted', async () => {
+    await activityLog.hydrate(true)
+    news.adoptBrowserPersistence()
+
+    let postsCache: Array<{ geographic_origin?: { lat: number; lng: number }; weight?: number }> = []
+    try {
+      postsCache = await $fetch(postsUrl)
+    } catch { /* posts.json optional */ }
 
   let lastTick = performance.now()
   let pendingPatch: Record<string, any> = {}
@@ -245,6 +260,8 @@ export default defineNuxtPlugin(async () => {
       cancelAnimationFrame(rafId)
     })
   }
+  })
+  },
 })
 
 function clamp(v: number, min = 0, max = 1) {

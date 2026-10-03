@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 import { normalizeAllocationPie, type AllocationPie } from '~/types/allocation'
 import type { Prediction } from '~/stores/predictions'
 import type { UserProfile } from '~/types/user'
@@ -503,15 +504,23 @@ export const useNewsStore = defineStore('newsStore', {
       this.error = null
       try {
         this.hydratePersisted()
+        const postsUrl = publicAssetUrl('/data/social/posts.json')
+        const editorialUrl = publicAssetUrl('/news.json')
+        const usersUrl = publicAssetUrl('/data/user/users.json')
+        const influencersUrl = publicAssetUrl('/data/core/influencers.json')
+        const predictionsUrl = publicAssetUrl('/data/predictions.json')
+        const bookmarksUrl = publicAssetUrl('/data/social/bookmarks.json')
+        const commentsUrl = publicAssetUrl('/data/social/news_comments.json')
+        const communityUrl = publicAssetUrl('/data/core/community.json')
         const [posts, editorial, users, influencers, predictions, bookmarkSeed, seededComments, community] = await Promise.all([
-          $fetch<SocialPostSeed[]>('/data/social/posts.json'),
-          $fetch<EditorialFeedSeed>('/news.json'),
-          $fetch<UserProfile[]>('/data/user/users.json').catch(() => []),
-          $fetch<Influencer[]>('/data/core/influencers.json').catch(() => []),
-          $fetch<Prediction[]>('/data/predictions.json').catch(() => []),
-          $fetch<string[]>('/data/social/bookmarks.json').catch(() => []),
-          $fetch<NewsComment[]>('/data/social/news_comments.json').catch(() => []),
-          $fetch<CommunityUser[]>('/data/core/community.json').catch(() => []),
+          $fetch<SocialPostSeed[]>(postsUrl),
+          $fetch<EditorialFeedSeed>(editorialUrl),
+          $fetch<UserProfile[]>(usersUrl).catch(() => []),
+          $fetch<Influencer[]>(influencersUrl).catch(() => []),
+          $fetch<Prediction[]>(predictionsUrl).catch(() => []),
+          $fetch<string[]>(bookmarksUrl).catch(() => []),
+          $fetch<NewsComment[]>(commentsUrl).catch(() => []),
+          $fetch<CommunityUser[]>(communityUrl).catch(() => []),
         ])
         const currentUserId = useCurrentUser().getUserId()
         const currentUser = users.find(user => user.id === currentUserId)
@@ -576,6 +585,14 @@ export const useNewsStore = defineStore('newsStore', {
       } catch {
         this.persistedByUser = {}
       }
+    },
+
+    /** Apply browser bookmarks after SSR markup has hydrated, without a loading flash. */
+    adoptBrowserPersistence() {
+      if (!import.meta.client || !this.hydrated) return
+      this.hydratePersisted()
+      const currentState = this.ensureUserState()
+      this.items = this.items.map(item => mergePersistedItem(item, currentState))
     },
 
     persist() {

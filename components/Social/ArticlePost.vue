@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import type { AllocationPie } from '~/types/allocation'
 import type { NewsItem, NewsPoliticalScale } from '~/types/news'
+import { useNewsStore } from '~/stores/news'
 
 export interface Post {
   id: string

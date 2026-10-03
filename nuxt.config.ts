@@ -6,6 +6,11 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@nuxt/ui'
   ],
+  // Scanning option stores auto-imports the `actions` key (mlly treats it as
+  // an extra export name). Stores are imported explicitly instead.
+  pinia: {
+    storesDirs: [],
+  },
   nitro: {
     preset: 'vercel-edge',
   },

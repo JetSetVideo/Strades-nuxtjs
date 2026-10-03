@@ -52,6 +52,8 @@ export interface Strategy {
   created_at: string
   updated_at: string
   last_run: string
+  /** Avatar that runs this strategy, when the catalog names one. */
+  agent_id?: string
   /** Optional code payload for visualizer / CodeView */
   code?: Record<string, unknown> | string
   monthlyGain?: number

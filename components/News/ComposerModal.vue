@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useAllocationStore } from '~/stores/allocation'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{

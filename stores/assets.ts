@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia'
 import { usePriceCache } from '~/composables/usePriceCache'
-import type { Asset, AssetRelationship } from '~/types/asset'
+import { publicAssetUrl } from '~/composables/useLocalJson'
+import type { Asset } from '~/types/asset'
 
-export type { Asset, AssetRelationship } from '~/types/asset'
+export type { Asset } from '~/types/asset'
 
 export const useAssetsStore = defineStore('assets', {
   state: () => ({
     assets: [] as Asset[],
-    assetRelationships: [] as AssetRelationship[],
     loading: false,        // true only when there is zero data (first cold load)
     isRefreshing: false,   // true during background refresh (data already shown)
     fromCache: false,      // true when current data was served from localStorage
@@ -32,15 +32,6 @@ export const useAssetsStore = defineStore('assets', {
       return state.assets.filter(asset => asset.category === category)
     },
 
-    getRelatedAssets: (state) => (assetId: string) => {
-      return state.assetRelationships
-        .filter(rel => rel.asset_id === assetId)
-        .map(rel => ({
-          ...rel,
-          relatedAsset: state.assets.find(asset => asset.id === rel.related_asset_id)
-        }))
-    },
-
     getAssetsByProximityLevel: (state) => (level: number) => {
       return state.assets.filter(asset => asset.proximity_level === level)
     }
@@ -53,6 +44,7 @@ export const useAssetsStore = defineStore('assets', {
       const config = useRuntimeConfig()
       const apiBase = config.public.apiBase as string
       const { accessToken } = useAuth()
+      const localAssetsUrl = publicAssetUrl('/core/assets.json')
 
       try {
         // Prefer shared $api (Bearer + 401 refresh) when available
@@ -94,7 +86,7 @@ export const useAssetsStore = defineStore('assets', {
       }
 
       try {
-        const assetsData = await $fetch<Asset[]>('/core/assets.json')
+        const assetsData = await $fetch<Asset[]>(localAssetsUrl)
         this.assets = assetsData
         this.fromCache = false
         this.lastUpdated = new Date()
@@ -127,10 +119,7 @@ export const useAssetsStore = defineStore('assets', {
 
       // ── Step 2: background refresh ────────────────────────────────────────
       this.isRefreshing = true
-      await Promise.all([
-        this.fetchAssets(),
-        this.fetchAssetRelationships(),
-      ])
+      await this.fetchAssets()
       this.loading = false
       this.isRefreshing = false
     },
@@ -140,15 +129,6 @@ export const useAssetsStore = defineStore('assets', {
       if (asset) {
         asset.current_price = newPrice
         asset.updated_at = new Date().toISOString()
-      }
-    },
-
-    async fetchAssetRelationships() {
-      try {
-        const data = await $fetch<AssetRelationship[]>('/data/relationships/asset_relationships.json')
-        this.assetRelationships = data
-      } catch {
-        // Silently ignore — relationships are optional
       }
     },
 

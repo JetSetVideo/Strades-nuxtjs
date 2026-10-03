@@ -133,7 +133,13 @@ PaperTrade {
 
 ---
 
-## 6. Predictive Pre-fetching Engine
+## 6. Strategy code source
+
+The catalog in `public/data/core/strategies.json` is the only identity for a strategy. `utils/strategyCode.ts` (`strategyToCodeView`, `strategyToStrategyCode`) is what the summarizer, complements, and opposites read.
+
+`public/data/strategies/codes/*.json` is legacy and must not be fetched. A matching id there can name a different strategy and a different owner.
+
+## 7. Predictive Pre-fetching Engine
 
 A Markov-chain model in a WebWorker predicts the next click.
 
@@ -154,7 +160,7 @@ A Markov-chain model in a WebWorker predicts the next click.
 
 ---
 
-## 7. Real-time Rendering Performance
+## 8. Real-time Rendering Performance
 
 - **WebSocket batching**: 100 ms chunks, applied via `requestAnimationFrame`.
 - **CSS var batching**: `DynamicThemeController` collects all macro-driven CSS var changes per frame and writes them in a single `style.setProperty` batch.
@@ -163,7 +169,7 @@ A Markov-chain model in a WebWorker predicts the next click.
 
 ---
 
-## 8. Mock Data Generation Rules
+## 9. Mock Data Generation Rules
 
 When authoring new mock data, respect these invariants:
 
@@ -177,7 +183,7 @@ When authoring new mock data, respect these invariants:
 
 ---
 
-## 9. Future Backend Plug-in Points
+## 10. Future Backend Plug-in Points
 
 The frontend is designed so the following can be swapped to real services without UI changes:
 
@@ -191,7 +197,7 @@ The frontend is designed so the following can be swapped to real services withou
 
 ---
 
-## 10. Agent contract
+## 11. Agent contract
 
 Strades is a social desk: people build avatars together, and the avatars train on those people's trades, reads, and attention.
 
@@ -208,4 +214,4 @@ Every agent action is one log row. `stores/activityLog.ts` and `middleware/logKe
 | why | Intent and context |
 | how | Method name and the inputs it used |
 
-`log()` fills `who` with the session user and `how` with the action name when a caller omits them. A folded summary keeps the first row's who and how. Numeric features stay inside the ranges in section 8. Font scale is clamped to [0.85, 1.2].
+`log()` fills `who` with the session user and `how` with the action name when a caller omits them. A folded summary keeps the first row's who and how. Numeric features stay inside the ranges in section 9. Font scale is clamped to [0.85, 1.2].

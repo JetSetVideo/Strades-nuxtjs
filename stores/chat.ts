@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 
 // Types for chat and messaging
 export interface Participant {
@@ -258,23 +259,27 @@ export const useChatStore = defineStore('chat', {
 
   actions: {
     async fetchConversations() {
+      const localUrl = publicAssetUrl('/data/chat/conversations.json')
       this.loading = true
       this.error = null
 
-      // Try backend first via $api (Bearer + 401 refresh)
-      try {
-        const { $api } = useNuxtApp()
-        const data = await ($api as typeof $fetch)<BackendConversation[]>('/api/social/conversations/')
-        this.conversations = data.map(mapBackendConversation)
-        this.loading = false
-        return
-      } catch (backendError) {
-        console.warn('Backend conversations fetch failed, falling back to local JSON:', backendError)
+      // The live API is a browser session concern. SSR paints the JSON catalog
+      // so a missing Django process cannot stall the first render.
+      if (import.meta.client) {
+        try {
+          const { $api } = useNuxtApp()
+          const data = await ($api as typeof $fetch)<BackendConversation[]>('/api/social/conversations/')
+          this.conversations = data.map(mapBackendConversation)
+          this.loading = false
+          return
+        } catch (backendError) {
+          console.warn('Backend conversations fetch failed, falling back to local JSON:', backendError)
+        }
       }
 
       // Fall back to local JSON
       try {
-        const conversationsData = await $fetch<Conversation[]>('/data/chat/conversations.json')
+        const conversationsData = await $fetch<Conversation[]>(localUrl)
         this.conversations = conversationsData
       } catch (error) {
         this.error = error as Error
@@ -285,6 +290,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     async fetchMessages(conversationId?: string) {
+      const localUrl = publicAssetUrl('/data/chat/messages.json')
       // If a specific conversationId is provided, try the backend endpoint
       if (conversationId) {
         try {
@@ -319,7 +325,7 @@ export const useChatStore = defineStore('chat', {
 
       // Fall back to local JSON (loads all messages)
       try {
-        const messagesData = await $fetch<Message[]>('/data/chat/messages.json')
+        const messagesData = await $fetch<Message[]>(localUrl)
         this.messages = messagesData
       } catch (error) {
         console.error('Failed to fetch messages from local JSON:', error)

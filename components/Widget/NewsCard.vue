@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { NewsItem, NewsPoliticalScale } from '~/types/news'
+import { useNewsStore } from '~/stores/news'
 
 interface Article {
   id: string

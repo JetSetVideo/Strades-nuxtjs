@@ -5,6 +5,7 @@ import UIEmptyState from '@/components/UI/EmptyState.vue'
 import UICard from '@/components/UI/Card.vue'
 import UIPill from '@/components/UI/Pill.vue'
 import type { NewsPoliticalScale } from '~/types/news'
+import { useNewsStore } from '~/stores/news'
 
 definePageMeta({ title: 'News detail', layout: 'default' })
 

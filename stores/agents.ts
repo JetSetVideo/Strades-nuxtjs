@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 import type {
   Agent,
   PersonalityMatrix,
@@ -43,9 +44,8 @@ export const useAgentsStore = defineStore('agents', {
     async fetchAgents() {
       this.loading = true
       try {
-        const res = await fetch('/data/agents/avatars.json')
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const list: Agent[] = await res.json()
+        const url = publicAssetUrl('/data/agents/avatars.json')
+        const list = await $fetch<Agent[]>(url)
         const byId: Record<string, Agent> = {}
         list.forEach(a => { byId[a.id] = a })
         this.byId = byId

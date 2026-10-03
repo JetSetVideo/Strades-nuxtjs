@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 import { useAgentsStore, type OpinionVector } from '~/stores/agents'
 import { useAssetsStore } from '~/stores/assets'
 import { useActivityLog } from '~/composables/useActivityLog'
@@ -107,8 +108,9 @@ export const useSharesStore = defineStore('shares', {
   actions: {
     async hydrate() {
       if (this.hydrated) return
+      const localUrl = publicAssetUrl('/data/shared_data.json')
       try {
-        const data = await $fetch<typeof this.library>('/data/shared_data.json')
+        const data = await $fetch<typeof this.library>(localUrl)
         this.library = data
       } catch {
         this.library = []

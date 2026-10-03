@@ -1,19 +1,11 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 import type { Strategy, StrategyAsset, StrategySummary } from '~/types/strategy'
+import { strategyToStrategyCode, type CanonicalStrategyCode } from '~/utils/strategyCode'
 
 export type { Strategy, StrategyAsset, StrategySummary } from '~/types/strategy'
 
-export interface StrategyCode {
-  id: string
-  name: string
-  assets: { entry: string; exit: string }
-  period: { start: string; end: string }
-  frequency: string
-  conditions: Array<Record<string, unknown> & { operator?: string }>
-  profiles: string[]
-  parameters: Record<string, unknown>
-  rights: { owners: string[]; editors: string[]; viewers: string[]; is_public: boolean }
-}
+export type StrategyCode = CanonicalStrategyCode
 
 export interface StrategyRating {
   risk: number
@@ -103,6 +95,7 @@ function normalizeStrategy(raw: Record<string, unknown>): Strategy {
     created_at: String(raw.created_at ?? raw.creationDate ?? now),
     updated_at: String(raw.updated_at ?? now),
     last_run: String(raw.last_run ?? now),
+    agent_id: raw.agent_id ? String(raw.agent_id) : undefined,
     creator: raw.creator as string | undefined,
     monthlyGain: raw.monthlyGain as number | undefined,
   }
@@ -253,12 +246,14 @@ export const useStrategiesStore = defineStore('strategies', {
   actions: {
     async fetchStrategies() {
       this.loading = true
+      const primary = publicAssetUrl('/data/core/strategies.json')
+      const fallback = publicAssetUrl('/data/strategies/index.json')
       try {
         let raw: unknown[] = []
         try {
-          raw = await $fetch<unknown[]>('/data/core/strategies.json')
+          raw = await $fetch<unknown[]>(primary)
         } catch {
-          raw = await $fetch<unknown[]>('/data/strategies/index.json')
+          raw = await $fetch<unknown[]>(fallback)
         }
         this.strategies = (raw as Record<string, unknown>[]).map(normalizeStrategy)
       } catch (error) {
@@ -269,36 +264,37 @@ export const useStrategiesStore = defineStore('strategies', {
       }
     },
 
-    async fetchStrategyAssets() {
-      try {
-        const strategyAssetsData = await $fetch<StrategyAsset[]>('/data/relationships/strategy_assets.json')
-        this.strategyAssets = strategyAssetsData
-      } catch (error) {
-        console.error('Failed to fetch strategy assets:', error)
-      }
-    },
-
     async initializeStore() {
-      await Promise.all([
-        this.fetchStrategies(),
-        this.fetchStrategyAssets(),
-      ])
+      await this.fetchStrategies()
     },
 
     async fetchStrategyDetail(id: string): Promise<StrategyDetails> {
       if (this.detailsCache[id]) return this.detailsCache[id]
+      const ratingUrl = publicAssetUrl(`/data/strategies/ratings/${id}.json`)
+      const historyUrl = publicAssetUrl(`/data/strategies/history/${id}-pnl.csv`)
+      const tradesUrl = publicAssetUrl(`/data/strategies/trades/${id}.csv`)
       try {
-        const [code, rating, historyCsv, tradesCsv] = await Promise.all([
-          $fetch<StrategyCode>(`/data/strategies/codes/${id}.json`),
-          $fetch<StrategyRating>(`/data/strategies/ratings/${id}.json`).catch(
+        if (!this.getStrategyById(id)) await this.fetchStrategies()
+        const strategy = this.getStrategyById(id)
+        const code: StrategyCode = strategy
+          ? strategyToStrategyCode(strategy)
+          : {
+              id,
+              name: id,
+              assets: { entry: '', exit: '' },
+              period: { start: '', end: '' },
+              frequency: '1D',
+              conditions: [],
+              profiles: [],
+              parameters: {},
+              rights: { owners: [], editors: [], viewers: [], is_public: false },
+            }
+        const [rating, historyCsv, tradesCsv] = await Promise.all([
+          $fetch<StrategyRating>(ratingUrl).catch(
             () => ({ risk: 0, complexity: '0/10', computationalCost: 0 })
           ),
-          $fetch<string>(`/data/strategies/history/${id}-pnl.csv`, {
-            responseType: 'text',
-          }).catch(() => ''),
-          $fetch<string>(`/data/strategies/trades/${id}.csv`, {
-            responseType: 'text',
-          }).catch(() => ''),
+          $fetch<string>(historyUrl, { responseType: 'text' }).catch(() => ''),
+          $fetch<string>(tradesUrl, { responseType: 'text' }).catch(() => ''),
         ])
 
         const history = historyCsv
@@ -398,18 +394,21 @@ export const useStrategiesStore = defineStore('strategies', {
         try {
           await this.fetchStrategyDetail(id)
         } catch {
+          const strategy = this.getStrategyById(id)
           this.detailsCache[id] = {
-            code: {
-              id,
-              name: this.getStrategyById(id)?.name ?? id,
-              assets: { entry: 'BTC', exit: 'USD' },
-              period: { start: '2024-01-01', end: '2024-12-31' },
-              frequency: '1D',
-              conditions: [],
-              profiles: [],
-              parameters: {},
-              rights: { owners: [], editors: [], viewers: [], is_public: true },
-            },
+            code: strategy
+              ? strategyToStrategyCode(strategy)
+              : {
+                  id,
+                  name: id,
+                  assets: { entry: '', exit: '' },
+                  period: { start: '', end: '' },
+                  frequency: '1D',
+                  conditions: [],
+                  profiles: [],
+                  parameters: {},
+                  rights: { owners: [], editors: [], viewers: [], is_public: false },
+                },
             rating: { risk: 5, complexity: '3/10', computationalCost: 200 },
             history: [],
             trades: [],

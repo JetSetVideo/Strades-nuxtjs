@@ -157,7 +157,7 @@ const completenessColor = computed(() => {
         <div class="flow-mid">
           <div class="flow-line" />
           <div class="alloc-bubble">
-            <span class="alloc-pct">{{ code.allocation ?? 50 }}%</span>
+            <span class="alloc-pct">{{ code.allocation == null ? '—' : code.allocation + '%' }}</span>
             <span class="alloc-sub">of portfolio</span>
           </div>
           <div class="flow-arrow">→</div>
@@ -231,7 +231,7 @@ const completenessColor = computed(() => {
           <div v-for="(action, i) in code.actions" :key="i" class="logic-item action-item">
             <span class="li-act-icon">{{ ACTION_ICONS[action.type] ?? '?' }}</span>
             <span class="li-act-type">{{ action.type }}</span>
-            <span v-if="action.type !== 'hold'" class="li-val">{{ action.allocation }}%</span>
+            <span v-if="action.type !== 'hold' && action.allocation != null" class="li-val">{{ action.allocation }}%</span>
             <span class="li-timing">→ {{ action.timing }}</span>
           </div>
         </div>

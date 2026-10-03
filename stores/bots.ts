@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 
 export type BotStatus = 'live' | 'paused' | 'stopped' | 'error'
 
@@ -35,9 +36,8 @@ export const useBotsStore = defineStore('bots', {
     async fetchBots() {
       this.loading = true
       try {
-        const res = await fetch('/data/core/bots.json')
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        this.list = await res.json()
+        const url = publicAssetUrl('/data/core/bots.json')
+        this.list = await $fetch<Bot[]>(url)
         this.hydrated = true
       } catch (e: any) {
         this.error = e.message

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 
 export interface UserPersonalityMatrix {
   risk: number
@@ -38,10 +39,9 @@ export const useUserPreferencesStore = defineStore('userPreferences', {
   state: (): UserPreferencesState => ({ ...DEFAULTS }),
   actions: {
     async fetchPreferences() {
+      const url = publicAssetUrl('/data/global/user_preferences.json')
       try {
-        const res = await fetch('/data/global/user_preferences.json')
-        if (!res.ok) return
-        const data = await res.json()
+        const data = await $fetch<Partial<UserPreferencesState>>(url)
         this.$patch({ ...data, hydrated: true })
       } catch (e) {
         console.error('Failed to load user preferences', e)

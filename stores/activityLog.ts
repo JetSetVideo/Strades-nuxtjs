@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 import { useTrainingStore, type TrainingEventType } from '~/stores/training'
 import { useAgentsStore } from '~/stores/agents'
 
@@ -209,9 +210,9 @@ export const useActivityLogStore = defineStore('activityLog', {
       return this.sessionId
     },
 
-    async hydrate() {
-      if (this.hydrated) return
-      if (import.meta.client) {
+    async hydrate(applyBrowser = false) {
+      const seedUrl = publicAssetUrl('/data/tracking/activity_log.json')
+      if (applyBrowser && import.meta.client) {
         try {
           const raw = localStorage.getItem(STORAGE_KEY)
           if (raw) {
@@ -226,12 +227,14 @@ export const useActivityLogStore = defineStore('activityLog', {
         } catch {
           /* corrupt storage — start fresh */
         }
+      } else if (this.hydrated) {
+        return
       }
 
       // Seed from static file if empty (first visit)
       if (this.raw.length === 0 && this.summaries.length === 0) {
         try {
-          const seed = await $fetch<ActivityLogEntry[]>('/data/tracking/activity_log.json')
+          const seed = await $fetch<ActivityLogEntry[]>(seedUrl)
           if (Array.isArray(seed) && seed.length) {
             this.raw = seed.filter(e => !e.reduced)
             this.summaries = seed.filter(e => e.reduced)

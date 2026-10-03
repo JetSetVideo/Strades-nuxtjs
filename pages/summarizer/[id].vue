@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStrategiesStore } from '@/stores/strategies'
 
@@ -11,6 +11,7 @@ import UIMetricRow from '@/components/UI/MetricRow.vue'
 import UIEmptyState from '@/components/UI/EmptyState.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import StrategyCodeView from '@/components/Strategy/CodeView.vue'
+import { strategyToCodeView } from '~/utils/strategyCode'
 
 definePageMeta({
   title: 'Strategy Summary',
@@ -26,35 +27,18 @@ const strategy = ref<ReturnType<typeof strategiesStore.getStrategyById>>(null)
 const isLoading = ref(true)
 const isTesting = ref(false)
 
-onMounted(async () => {
-  if (strategiesStore.strategies.length === 0) {
-    await strategiesStore.fetchStrategies()
-  }
-  const raw = route.params.id
-  const lookup = Array.isArray(raw) ? raw[0] : String(raw)
-  strategy.value = strategiesStore.getStrategyById(lookup) ?? null
-  isLoading.value = false
-  if (!strategy.value) {
-    setTimeout(() => router.push('/strategies'), 1200)
-  }
-})
+const rawId = route.params.id
+const lookup = Array.isArray(rawId) ? rawId[0] : String(rawId)
+if (strategiesStore.strategies.length === 0) {
+  await strategiesStore.fetchStrategies()
+}
+strategy.value = strategiesStore.getStrategyById(lookup) ?? null
+isLoading.value = false
+if (!strategy.value && import.meta.client) {
+  setTimeout(() => router.push('/strategies'), 1200)
+}
 
-const summaryCode = computed(() => {
-  if (!strategy.value) return {}
-  const s = strategy.value
-  return {
-    id: s.id,
-    name: s.name,
-    description: s.description,
-    category: s.category,
-    risk_level: s.risk_level,
-    target_assets: s.target_assets,
-    indicators: s.indicators,
-    entry_conditions: s.entry_conditions,
-    exit_conditions: s.exit_conditions,
-    backtest_period: s.backtest_period
-  }
-})
+const summaryCode = computed(() => strategy.value ? strategyToCodeView(strategy.value) : {})
 
 async function testStrategy() {
   if (!strategy.value) return

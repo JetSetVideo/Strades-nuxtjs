@@ -54,7 +54,7 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **9.2 Refactor `pages/calendar.vue` (408 → 220 LOC)**: Extract `Calendar/EventRow.vue`. Page handles only day grouping and filtering.
 - [x] **9.3 Modernize `pages/Shop.vue`**: Replaced broken legacy `MarketplaceCard` (data shape mismatch with current `useStrategiesStore`) with `Strategy/Card.vue`. Added category tabs, tier filter, design-system shell, premium/free pill via new `#footer-extra` slot on `Strategy/Card`. Updated `Button/Database.vue` import. Deleted `Strategy/MarketplaceCard.vue`.
 - [x] **9.4 Resolve duplicate TypeScript interface auto-import collisions**: `userPreferences.PersonalityMatrix` → `UserPersonalityMatrix`; `training.TrainingState` → `TrainingStoreState` (kept agent-side names canonical).
-- [ ] **9.5 Silence remaining `actions` auto-import warnings**: pre-existing `@pinia/nuxt` scanner picks up the `actions:` key from Pinia options-stores. Requires migrating stores to setup-store style — out of scope here.
+- [x] **9.5 Silence remaining `actions` auto-import warnings**: `mlly` treats the options-store `actions:` key as a second export, so every store collided on the name `actions`. `pinia.storesDirs` is now empty and the seven call sites that relied on store auto-import import the store directly.
 
 ## Phase 10: Detail-Page Refactors
 - [x] **10.1 Store cleanup**: deleted 5 dead stores (`MessagesStore`, `DiscussionsStore`, `DatasourcesStore`, `FriendsStore`, `priceStore`); renamed `newsStore.ts` → `news.ts` and `BitcoinStore.ts` → `bitcoin.ts` (callsites updated).
@@ -204,6 +204,13 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **33.4 Wallet/History**: paper P&L sign ("-$44.85"), separators, agent/strategy names; History no longer reports a 0.0% win rate for trades with no outcome; symbol search matches "BTC".
 - [x] **33.5 Risk**: portfolio value looked up wallets for `'current_user'` and always fell back to $10,000; now the real wallet ($125,750).
 - [x] **33.6 Creator** credits read the shared house-credit balance (was a hard-coded 1000). **News** authors user_006/007 resolve from the community roster. **/CandleChart** loads its data before drawing.
-- [ ] **33.7 Summarizer code panel**: `Strategy/CodeView` expects the Creator payload (`assetFrom`/`assetTo`/`dataSources`/`conditions`), but canonical strategies carry only `target_assets`/`indicators` and empty conditions, and `data/strategies/codes/*.json` describe different strategies (strategy_001 there is "BTC Momentum", owner user_simon). Needs a decision on the canonical source.
-- [ ] **33.8 Hydration drift**: stores that hydrate only on the client (wallet, macro-driven `useLivingUI` styles) render differently on the server (e.g. /historic "0 trades" SSR vs 8 on client).
-- [ ] **33.9 Dead request**: `stores/assets.ts` fetches `relationships/asset_relationships.json` (removed in d809e3d); `getRelatedAssets` has no consumers.
+- [x] **33.7 Summarizer code panel**: canonical source is `core/strategies.json`. `utils/strategyCode.ts` maps that catalog into the Creator payload (`assetFrom`/`assetTo`/indicators). `data/strategies/codes/*.json` is not loaded — strategy_001 there is "BTC Momentum" / user_simon, while the catalog is "Mean Reversion BTC" / user_001.
+- [x] **33.8 Hydration drift**: `plugins/00.dataPipeline.ts` hydrates macro, preferences, and wallet on the server through `publicAssetUrl`, and synthetic ticks start after `app:mounted`. `/historic` SSR shows the 8 catalog trades. Living-UI padding matches the hydrated crypto / risk profile on the first paint.
+- [x] **33.9 Dead request**: removed `fetchAssetRelationships` and `getRelatedAssets`. `relationships/asset_relationships.json` is gone. Also stopped requesting the missing `relationships/strategy_assets.json`.
+
+## Phase 34: Catalog truth, shared first paint, quiet imports
+- [x] **34.1** Strategy code view and complements read the catalog, not `strategies/codes/*.json`.
+- [x] **34.2** Boot JSON is fetched against the request origin so SSR and the client paint the same wallet, macro theme, and news catalog.
+- [x] **34.3** Browser journals (activity log, news bookmarks) apply after mount. Chat does not call the Django API during SSR.
+- [x] **34.4** Pinia no longer auto-imports `actions` from option stores.
+- [x] **34.5** `npx vitest run` — 46/46. History SSR shows 8 trades. Summarizer for `strategy_001` shows Mean Reversion BTC, BTC → USD, RSI and SMA.

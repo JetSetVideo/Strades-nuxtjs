@@ -31,9 +31,9 @@ This document defines the highly optimized, methodical top-to-bottom architectur
 Data flows strictly downwards. We use Pinia stores as the single source of truth, hydrated via WebSockets, and distributed to the component tree via Vue's `Provide/Inject` and Pinia getters.
 
 1. **Global App Layout (`app.vue`)**
-   - Initializes WebSocket connection.
-   - Fetches `global/macro_state.json` (Volatility, Sentiment).
+   - `plugins/00.dataPipeline.ts` fetches `global/macro_state.json`, preferences, and the wallet catalog on the server and the client, through `publicAssetUrl`.
    - *Provides* this macro state to the entire app. No component should fetch macro data independently.
+   - The mock tick loop starts in `app:mounted`, after the server markup has hydrated.
 
 2. **Top Navigation (`components/Navigation/Top.vue`)**
    - Subscribes to specific Pinia getters for its Living Icons.
@@ -55,13 +55,12 @@ Stores are divided methodically to handle specific domains without cross-contami
 - **Role**: Manages `global_volatility_index`, `market_sentiment`, `geopolitical_stress`.
 - **Optimization**: Throttles UI updates to max 30fps to prevent CPU spiking during high volatility.
 
-### 2. `stores/wallet.ts`
-- **Role**: The 100% Allocation Engine. Enforces that `fiat + crypto + stocks + commodities = 100%`.
-- **Logic**: When a strategy node shifts capital, this store mathematically balances the pie and updates the `allocation_pie` object.
+### 2. `stores/wallet.ts` and `stores/allocation.ts`
+- **Role**: `wallet.ts` holds portfolios and the trade ledger. `allocation.ts` is the 100% engine (`fiat + crypto + stocks + commodities = 100`).
+- **Logic**: When a strategy node shifts capital, the allocation store redistributes the pie. History reads `wallet.transactions` after the catalog has loaded, including during SSR.
 
-### 3. `stores/currency.ts`
-- **Role**: The Base Currency transformer.
-- **Optimization**: Instead of recalculating thousands of prices on every tick, it maintains a single FX multiplier map. Components use a fast global mixin `formatPrice(value, assetCurrency)` which references this map.
+### 3. Base currency
+There is no `stores/currency.ts`. Prices stay in the asset's quote currency and the wallet catalog's `currency` field. Do not add a second FX store for display.
 
 ### 4. `stores/prefetch.ts` (Predictive Engine)
 - **Role**: Analyzes user mouse movements and historical behavior to silently cache data.

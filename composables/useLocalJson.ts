@@ -1,15 +1,23 @@
 /**
+ * Absolute URL for a file under /public.
+ * A relative fetch during SSR is resolved by Nitro's router, which does not
+ * serve /public — it returns the app HTML. Call this before any await.
+ */
+export function publicAssetUrl(path: string): string {
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  if (import.meta.server) {
+    return new URL(normalized, useRequestURL().origin).toString()
+  }
+  return normalized
+}
+
+/**
  * Load a static JSON file from /public/data/{path}.
  * Returns empty array for list-shaped failures, empty object otherwise —
  * callers should treat empty fallbacks as "no data" not success.
  */
 export async function useLocalJson<T>(path: string, fallback?: T): Promise<T> {
-  // During SSR a relative $fetch is resolved by Nitro's internal router, which
-  // doesn't serve /public files — it rendered the app's HTML instead, so every
-  // server-side load fell back to [] (quests, notifications, search suggestions).
-  // Resolve against the request origin so it reaches the static file server.
-  // Must run before any await: useRequestURL needs the active Nuxt context.
-  const url = import.meta.server ? new URL(`/data/${path}`, useRequestURL().origin).toString() : `/data/${path}`
+  const url = publicAssetUrl(`/data/${path}`)
   try {
     const result = await $fetch<T>(url)
     if (typeof result === 'string' && (result as string).trim().startsWith('<')) {

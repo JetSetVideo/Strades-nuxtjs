@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 
 export interface Wallet {
   id: string
@@ -164,11 +165,13 @@ export const useWalletStore = defineStore('wallet', {
 
   actions: {
     async fetchWallets() {
+      const walletsUrl = publicAssetUrl('/data/core/wallets.json')
+      const historyUrl = publicAssetUrl('/data/core/wallet_history.json')
       try {
         this.loading = true
         const [walletsData, historyData] = await Promise.all([
-          $fetch<Wallet[]>('/data/core/wallets.json'),
-          $fetch<Record<string, Record<string, unknown>>>('/data/core/wallet_history.json')
+          $fetch<Wallet[]>(walletsUrl),
+          $fetch<Record<string, Record<string, unknown>>>(historyUrl)
         ])
         this.wallets = walletsData
         this.walletHistory = historyData

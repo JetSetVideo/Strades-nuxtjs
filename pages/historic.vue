@@ -30,10 +30,11 @@ const tab = ref<'closed' | 'open' | 'upcoming' | 'paper'>('closed')
 const search = ref('')
 const loading = ref(true)
 
-onMounted(async () => {
-  if (!walletStore.hydrated) await walletStore.initializeStore()
+if (!walletStore.hydrated) await walletStore.initializeStore()
+loading.value = false
+
+onMounted(() => {
   paper.hydrate()
-  loading.value = false
 })
 
 const allTrades = computed<Trade[]>(() =>

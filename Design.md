@@ -157,6 +157,7 @@ Every piece of secondary data translates to a CSS custom property bound by `useL
 
 - **No generic spinners.** Skeleton layouts inherit the user's geometric preferences (sharp vs. rounded, compact vs. spacious) from `userPreferences` before data arrives.
 - **Hover intent** — hovering a nav icon > 200 ms triggers the prefetch store. If prediction confidence exceeds 65%, the next page's JSON is already in Pinia before the click.
+- **First paint** — wallet totals, macro lighting, and living-UI padding come from the same catalog on the server and the client. Browser-only journals (paper ledger, appearance, news bookmarks) fill in after mount.
 - **Progressive disclosure** — dense pages (risk, monitor) render KPI strip first, then charts, then tables, so the user sees value within 200 ms even on slow connections.
 
 ---

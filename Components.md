@@ -133,7 +133,7 @@ Deterministic random-walk SVG chart used on strategy detail and bot detail pages
 Read-only SVG view of a strategy's node tree.
 
 ### Strategy/CodeView.vue
-Syntax-highlighted strategy code viewer.
+Read-only strategy code viewer. The Creator passes its live form. The summarizer passes `strategyToCodeView()` from the catalog in `core/strategies.json` (entry/exit assets, indicators, period, owner, agent). It does not read `strategies/codes/*.json`. An unknown allocation renders as an em dash, not 50%.
 
 ### Strategy/SwarmPlugs.vue (Phase 15)
 Plug/unplug agents into the strategy with weighted sliders. Live preview bar.

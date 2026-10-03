@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 import type { AssetClass } from '~/stores/macro'
 
 export interface InfluencerSignal {
@@ -37,9 +38,8 @@ export const useInfluencersStore = defineStore('influencers', {
     async fetchInfluencers() {
       this.loading = true
       try {
-        const res = await fetch('/data/core/influencers.json')
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        this.list = await res.json()
+        const url = publicAssetUrl('/data/core/influencers.json')
+        this.list = await $fetch<Influencer[]>(url)
         this.hydrated = true
       } catch (e: any) {
         this.error = e.message

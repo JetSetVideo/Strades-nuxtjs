@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { publicAssetUrl } from '~/composables/useLocalJson'
 import type { AssetClass } from '~/stores/macro'
 
 export type PlatformStatus = 'connected' | 'rate_limited' | 'disconnected' | 'error'
@@ -38,9 +39,8 @@ export const usePlatformsStore = defineStore('platforms', {
     async fetchPlatforms() {
       this.loading = true
       try {
-        const res = await fetch('/data/core/trading_platforms.json')
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        this.list = await res.json()
+        const url = publicAssetUrl('/data/core/trading_platforms.json')
+        this.list = await $fetch<TradingPlatform[]>(url)
         this.hydrated = true
         this.error = null
       } catch (e: any) {

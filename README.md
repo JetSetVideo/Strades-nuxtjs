@@ -125,4 +125,4 @@ Secondary data physically shapes the UI. Volatility drives animation speed. Geop
 - **New contributor?** Read `Data.md` → `Structure.md` → `Components.md` in that order.
 - **Designer?** Read `Design.md` and `Components.md` only.
 - **ML engineer?** Read `CodingAgent.md` and the avatar / swarm sections of `Data.md`.
-- **Building a page?** Follow the folder rules in `Structure.md` and pick primitives from `components/UI/`.
+- **Building a page?** Follow the folder rules in `Structure.md` and pick primitives from `components/UI/`. Boot data is loaded in `plugins/00.dataPipeline.ts` on the server and the client. Strategy identity comes from `core/strategies.json`.
