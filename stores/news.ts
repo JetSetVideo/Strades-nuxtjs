@@ -503,6 +503,9 @@ export const useNewsStore = defineStore('newsStore', {
       this.loading = true
       this.error = null
       try {
+        // Resolve the session before any await. After the fetch, this action
+        // no longer has a Nuxt instance, and useCurrentUser() throws on the server.
+        const currentUserId = useCurrentUser().getUserId()
         this.hydratePersisted()
         const postsUrl = publicAssetUrl('/data/social/posts.json')
         const editorialUrl = publicAssetUrl('/news.json')
@@ -522,10 +525,9 @@ export const useNewsStore = defineStore('newsStore', {
           $fetch<NewsComment[]>(commentsUrl).catch(() => []),
           $fetch<CommunityUser[]>(communityUrl).catch(() => []),
         ])
-        const currentUserId = useCurrentUser().getUserId()
         const currentUser = users.find(user => user.id === currentUserId)
         this.friendIds = currentUser?.friends ?? users.filter(user => user.id !== currentUserId).slice(0, 6).map(user => user.id)
-        const currentState = this.ensureUserState()
+        const currentState = this.ensureUserState(currentUserId)
         if (!currentState.bookmarks.length) {
           currentState.bookmarks = bookmarkSeed.filter(id => [...posts.map(post => post.id), ...editorial.categories.flatMap(cat => cat.articles.map(article => article.id))].includes(id))
           if (currentState.bookmarks.length === 0) currentState.bookmarks = ['post_003', 'news_event_001']
@@ -569,6 +571,7 @@ export const useNewsStore = defineStore('newsStore', {
         this.hydrated = true
       } catch (error) {
         this.error = (error as Error).message
+        console.error('news.initializeStore', error)
       } finally {
         this.loading = false
       }

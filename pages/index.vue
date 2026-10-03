@@ -2,6 +2,16 @@
 definePageMeta({
   layout: false
 })
+
+const demoCookie = useCookie('strades_demo', {
+  maxAge: 60 * 60 * 24 * 30,
+  sameSite: 'lax',
+})
+
+async function enterDemo() {
+  demoCookie.value = '1'
+  await navigateTo('/prices')
+}
 </script>
 
 <template>
@@ -15,21 +25,20 @@ definePageMeta({
       <div class="auth-options">
         <p class="subtitle">Welcome back</p>
         
-        <NuxtLink to="/prices" class="auth-btn email-btn">
+        <NuxtLink to="/auth" class="auth-btn email-btn">
           <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2m0 4l-8 5l-8-5V6l8 5l8-5z"/></svg>
           Sign in with Email
         </NuxtLink>
-        
-        <NuxtLink to="/prices" class="auth-btn google-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27c3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10c5.35 0 9.25-3.67 9.25-9.09c0-1.15-.15-1.81-.15-1.81"/></svg>
-          Continue with Google
-        </NuxtLink>
+
+        <button type="button" class="auth-btn google-btn" @click="enterDemo">
+          Continue in demo mode
+        </button>
 
         <div class="divider">
           <span>or</span>
         </div>
 
-        <NuxtLink to="/prices" class="auth-btn create-btn">
+        <NuxtLink to="/auth?mode=register" class="auth-btn create-btn">
           Create an account
         </NuxtLink>
       </div>

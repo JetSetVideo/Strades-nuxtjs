@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { publicAssetUrl } from '~/composables/useLocalJson'
+import { reconcileWallet } from '~/utils/walletReconcile'
 
 export interface Wallet {
   id: string
@@ -174,6 +175,7 @@ export const useWalletStore = defineStore('wallet', {
           $fetch<Record<string, Record<string, unknown>>>(historyUrl)
         ])
         this.wallets = walletsData
+        for (const wallet of this.wallets) reconcileWallet(wallet)
         this.walletHistory = historyData
         this.hydrated = true
       } catch (error) {
@@ -298,20 +300,7 @@ export const useWalletStore = defineStore('wallet', {
     updateWalletBalances(walletId: string) {
       const wallet = this.wallets.find(w => w.id === walletId)
       if (!wallet) return
-
-      let totalValue = 0
-      let investedAmount = 0
-
-      wallet.assets.forEach(asset => {
-        totalValue += asset.current_value
-        investedAmount += (asset.amount * asset.average_price)
-      })
-
-      wallet.total_value = totalValue
-      wallet.invested_amount = investedAmount
-      wallet.total_return = totalValue - investedAmount
-      wallet.total_return_percentage = investedAmount > 0 ? (wallet.total_return / investedAmount) * 100 : 0
-
+      reconcileWallet(wallet)
       wallet.updated_at = new Date().toISOString()
     },
 
@@ -320,19 +309,9 @@ export const useWalletStore = defineStore('wallet', {
       if (!wallet) return
 
       const asset = wallet.assets.find(a => a.asset_id === assetId)
-      if (asset) {
-        asset.current_price = newPrice
-        asset.current_value = asset.amount * newPrice
-        asset.return_amount = asset.current_value - (asset.amount * asset.average_price)
-        asset.return_percentage = (asset.return_amount / (asset.amount * asset.average_price)) * 100
-
-        const totalValue = wallet.assets.reduce((sum, a) => sum + a.current_value, 0)
-        wallet.assets.forEach(a => {
-          a.allocation_percentage = (a.current_value / totalValue) * 100
-        })
-
-        this.updateWalletBalances(walletId)
-      }
+      if (!asset) return
+      asset.current_price = newPrice
+      this.updateWalletBalances(walletId)
     }
   }
 })
