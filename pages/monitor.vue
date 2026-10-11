@@ -224,7 +224,7 @@ const returnColor = (pct: number) => pct >= 0 ? 'var(--app-color-up, var(--succe
               </div>
               <div class="sc-metric">
                 <span class="sc-m-label">Capital</span>
-                <span class="sc-m-val">${{ (s.current_capital ?? 0).toLocaleString() }}</span>
+                <span class="sc-m-val">${{ (s.current_capital ?? 0).toLocaleString(APP_LOCALE) }}</span>
               </div>
               <div class="sc-metric">
                 <span class="sc-m-label">Win Rate</span>

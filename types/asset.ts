@@ -1,6 +1,11 @@
 /** Canonical asset domain types — single source of truth. */
 
-export type AssetType = 'cryptocurrency' | 'fiat_currency' | 'stock' | 'commodity'
+export type AssetType =
+  | 'cryptocurrency' | 'fiat_currency' | 'stock' | 'commodity'
+  // aliases the backend has used for the same classes
+  | 'crypto' | 'forex'
+  // prediction-market / betting contracts (Kalshi, Polymarket)
+  | 'bet'
 
 export interface Asset {
   id: string
@@ -9,6 +14,17 @@ export interface Asset {
   type: AssetType
   category: string
   description: string
+  /** ── Bet-type extras (present only when type === 'bet') ── */
+  /** upstream venue the contract came from */
+  source?: 'kalshi' | 'polymarket' | string
+  /** venue-native market id */
+  external_id?: string | null
+  /** the underlying the bet is ABOUT (equity/commodity/crypto symbol); may be null */
+  subject?: string | null
+  /** ISO8601 resolution deadline, or null for open-ended markets */
+  expires_at?: string | null
+  /** the market title/question */
+  question?: string | null
   location: string
   industry: string
   market_cap?: number
@@ -32,6 +48,10 @@ export interface Asset {
   liquidity_depth?: number
   fluctuation_velocity?: number
   change_24h_pct?: number
+  /** hourly simple returns, oldest first (live markets only) */
+  return_history?: number[]
+  /** set when the price comes from a live market feed */
+  live?: { pair: string; proxy?: string; at: string }
 }
 
 export interface AssetRelationship {
@@ -62,7 +82,8 @@ export interface Activity {
   timestamp: number
 }
 
-export interface NewsItem {
+/** Legacy per-asset event feed item (stores/assetEvents). Not the news-workspace NewsItem (types/news.ts). */
+export interface AssetNewsItem {
   id: string
   title: string
   content: string

@@ -206,7 +206,7 @@ function toggleStatus() {
           <span class="schedule-icon">↻</span>
           <div class="schedule-body">
             <strong>Next action {{ nextActionRel }}</strong>
-            <small>{{ new Date(bot.next_action_at!).toLocaleString() }}</small>
+            <small>{{ new Date(bot.next_action_at!).toLocaleString(APP_LOCALE) }}</small>
           </div>
         </div>
       </UICard>

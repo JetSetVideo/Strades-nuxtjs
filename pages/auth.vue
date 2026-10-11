@@ -1,8 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: false })
 
-const { login, register, isAuthenticated } = useAuth()
-const config = useRuntimeConfig()
+const { login, register, startDemo, isAuthenticated } = useAuth()
 
 const route = useRoute()
 const mode = ref<'login' | 'register'>(route.query.mode === 'register' ? 'register' : 'login')
@@ -18,8 +17,14 @@ const demoCookie = useCookie('strades_demo', {
   sameSite: 'lax',
 })
 
+// Only same-site paths: never let ?redirect= send a fresh login to another origin.
+const redirectTo = computed(() => {
+  const r = route.query.redirect
+  return typeof r === 'string' && /^\/(?![\/\\])/.test(r) && !r.includes('\\') ? r : '/prices'
+})
+
 if (isAuthenticated.value) {
-  await navigateTo('/prices')
+  await navigateTo(redirectTo.value)
 }
 
 async function submit() {
@@ -37,20 +42,53 @@ async function submit() {
       })
     }
     demoCookie.value = null
-    await navigateTo('/prices')
+    await navigateTo(redirectTo.value)
   } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Authentication failed. Check your credentials or use demo mode.'
+    error.value = authErrorMessage(e)
   } finally {
     loading.value = false
   }
 }
 
-async function enterDemoMode() {
-  demoCookie.value = '1'
-  await navigateTo('/prices')
+const showPassword = ref(false)
+
+/** Human message; never the raw fetch error (it leaked the API URL and "<no response>"). */
+function authErrorMessage(e: unknown): string {
+  const err = e as { response?: { status?: number }; statusCode?: number; data?: Record<string, unknown> }
+  const status = err?.response?.status ?? err?.statusCode ?? 0
+  if (!status) return "Can't reach the Strades server right now. Please try again in a moment."
+  if (status === 429) return 'Too many attempts. Please wait a minute and try again.'
+  const data = err.data ?? {}
+  if (typeof data.detail === 'string') return data.detail
+  // DRF field errors: { email: ["user with this email already exists."] }
+  const first = Object.entries(data).find(([, v]) => Array.isArray(v) && v.length)
+  if (first) return `${first[0].replace(/_/g, ' ')}: ${String((first[1] as unknown[])[0])}`
+  return mode.value === 'login' ? 'Wrong email or password.' : 'Could not create the account.'
 }
 
-const apiBase = computed(() => config.public.apiBase as string)
+async function enterDemoMode() {
+  error.value = null
+  loading.value = true
+  try {
+    // Preferred: a real throwaway account, so the whole product (wallets, bots) works.
+    await startDemo()
+    demoCookie.value = null
+    await navigateTo(redirectTo.value)
+  } catch (e: unknown) {
+    const status = (e as { statusCode?: number; response?: { status?: number } })?.response?.status
+      ?? (e as { statusCode?: number }).statusCode
+    if (status === 429) {
+      error.value = 'Too many demo sessions from this network right now. Please create a free account instead.'
+      return
+    }
+    // Backend unreachable: fall back to the sample-data demo (no wallets or bots there).
+    demoCookie.value = '1'
+    await navigateTo('/prices')
+  } finally {
+    loading.value = false
+  }
+}
+
 </script>
 
 <template>
@@ -74,14 +112,18 @@ const apiBase = computed(() => config.public.apiBase as string)
           autocomplete="email"
           required
         />
-        <input
-          v-model="password"
-          type="password"
-          placeholder="Password"
-          autocomplete="current-password"
-          required
-          minlength="6"
-        />
+        <div class="pw-wrap">
+          <input
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="Password"
+            :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
+            required
+            minlength="6"
+          />
+          <button type="button" class="pw-toggle" :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            :aria-pressed="showPassword" @click="showPassword = !showPassword">{{ showPassword ? 'Hide' : 'Show' }}</button>
+        </div>
 
         <p v-if="error" class="error">{{ error }}</p>
 
@@ -96,12 +138,11 @@ const apiBase = computed(() => config.public.apiBase as string)
 
       <div class="divider"><span>or</span></div>
 
-      <button type="button" class="demo-btn" @click="enterDemoMode">
+      <button type="button" class="demo-btn" :disabled="loading" @click="enterDemoMode">
         Continue in demo mode
       </button>
       <p class="hint">
-        Demo mode skips sign-in and uses local JSON data
-        <span v-if="apiBase"> (API: {{ apiBase }})</span>
+        Try everything with a temporary demo account (deleted after 24 h). In demo you can create a paper wallet, not import a real one.
       </p>
     </div>
   </main>
@@ -114,9 +155,12 @@ const apiBase = computed(() => config.public.apiBase as string)
   justify-content: center;
   min-height: 100dvh;
   padding: 1.5rem;
-  background: var(--bg-primary, #000);
+  /* The card is designed dark (white text, translucent fills). Don't inherit the
+     colour-mode background: in light mode it turned grey-on-white and unreadable. */
+  background: #05070a;
   background-image: radial-gradient(circle at center, rgba(0, 170, 255, 0.1) 0%, transparent 70%);
   color: #fff;
+  color-scheme: dark;
   font-family: 'Poppins', sans-serif;
 }
 
@@ -208,11 +252,21 @@ input:focus {
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* Secondary action: must read quieter than "Sign in". */
 .demo-btn {
-  border: 1px solid rgba(0, 255, 136, 0.35);
-  background: rgba(0, 255, 136, 0.08);
-  color: var(--primary-green, #00ff88);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
 }
+
+.pw-wrap { position: relative; display: flex; }
+.pw-wrap input { flex: 1; padding-right: 4.2rem; }
+.pw-toggle {
+  position: absolute; right: .5rem; top: 50%; transform: translateY(-50%);
+  border: 0; background: transparent; color: rgba(255, 255, 255, 0.6); cursor: pointer; font: inherit; font-size: .8rem;
+  padding: .25rem .4rem;
+}
+.pw-toggle:hover { color: #fff; }
 
 .primary-btn:hover:not(:disabled),
 .demo-btn:hover,

@@ -151,7 +151,7 @@ const stats = computed(() => {
               <span class="pr-meta">
                 {{ t.side.toUpperCase() }} · {{ t.wallet_pct.toFixed(1) }}% wallet · {{ notional(t.notional_value) }} notional
               </span>
-              <span class="pr-time">{{ new Date(t.timestamp).toLocaleString() }}</span>
+              <span class="pr-time">{{ new Date(t.timestamp).toLocaleString(APP_LOCALE) }}</span>
               <span v-if="t.strategy_id || t.agent_id" class="pr-source">
                 <template v-for="(s, i) in paperSources(t)" :key="s.kind">
                   <template v-if="i"> · </template>{{ s.kind }}: <NuxtLink :to="s.to" class="pr-source-link">{{ s.name }}</NuxtLink>

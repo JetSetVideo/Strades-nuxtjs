@@ -22,7 +22,7 @@ const rarityColor = (badge: string): string => {
     <div class="exp-top">
       <span class="level">Lv.{{ experience.level }}</span>
       <span class="title">{{ experience.title }}</span>
-      <span class="xp">{{ experience.xp.toLocaleString() }} / {{ experience.xp_next_level.toLocaleString() }} XP</span>
+      <span class="xp">{{ experience.xp.toLocaleString(APP_LOCALE) }} / {{ experience.xp_next_level.toLocaleString(APP_LOCALE) }} XP</span>
     </div>
 
     <!-- XP progress bar -->

@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { cycleKey, type FilterTriState } from '~/utils/priceFilters'
 
 interface FilterState {
-  status: string
+  status: Record<string, FilterTriState>
   profitMin: number
   profitMax: number
   drawdownMin: number
   drawdownMax: number
   winRateMin: number
   winRateMax: number
-  assets: string[]
-  categories: string[]
-  frequency: string[]
+  assets: Record<string, FilterTriState>
+  categories: Record<string, FilterTriState>
+  frequency: Record<string, FilterTriState>
   search: string
 }
 
@@ -40,16 +41,16 @@ const expanded = ref(false)
 const activeTab = ref('status')
 
 const filters = ref<FilterState>({
-  status: 'all',
+  status: {},
   profitMin: -100,
   profitMax: 100,
   drawdownMin: -100,
   drawdownMax: 0,
   winRateMin: 0,
   winRateMax: 100,
-  assets: [],
-  categories: [],
-  frequency: [],
+  assets: {},
+  categories: {},
+  frequency: {},
   search: '',
 })
 
@@ -60,33 +61,30 @@ function update() { emit('filter-changed', { ...filters.value }) }
 watch(filters, update, { deep: true })
 
 // Active filter count (for badge)
+function activeIn(rec: Record<string, FilterTriState>) {
+  return Object.values(rec).filter(s => s === 'include' || s === 'exclude').length
+}
+
 const activeCount = computed(() => {
   let n = 0
-  if (filters.value.status !== 'all') n++
+  n += activeIn(filters.value.status)
   if (filters.value.profitMin > -100 || filters.value.profitMax < 100) n++
   if (filters.value.drawdownMin > -100 || filters.value.drawdownMax < 0) n++
   if (filters.value.winRateMin > 0 || filters.value.winRateMax < 100) n++
-  if (filters.value.assets.length) n++
-  if (filters.value.categories.length) n++
-  if (filters.value.frequency.length) n++
+  n += activeIn(filters.value.assets)
+  n += activeIn(filters.value.categories)
+  n += activeIn(filters.value.frequency)
   if (filters.value.search.trim()) n++
   return n
 })
 
 function reset() {
   filters.value = {
-    status: 'all', profitMin: -100, profitMax: 100,
+    status: {}, profitMin: -100, profitMax: 100,
     drawdownMin: -100, drawdownMax: 0,
     winRateMin: 0, winRateMax: 100,
-    assets: [], categories: [], frequency: [], search: '',
+    assets: {}, categories: {}, frequency: {}, search: '',
   }
-}
-
-function toggleArr(arr: string[], val: string) {
-  const i = arr.indexOf(val)
-  if (i > -1) arr.splice(i, 1)
-  else arr.push(val)
-  update()
 }
 
 // Dual range gradient helper
@@ -158,39 +156,29 @@ const CAT_COLOR: Record<string, string> = {
           @click="activeTab = tab.id"
         >
           {{ tab.icon }} {{ tab.label }}
-          <span v-if="tab.id === 'assets' && filters.assets.length" class="tab-count">{{ filters.assets.length }}</span>
-          <span v-if="tab.id === 'category' && filters.categories.length" class="tab-count">{{ filters.categories.length }}</span>
+          <span v-if="tab.id === 'assets' && activeIn(filters.assets)" class="tab-count">{{ activeIn(filters.assets) }}</span>
+          <span v-if="tab.id === 'category' && activeIn(filters.categories)" class="tab-count">{{ activeIn(filters.categories) }}</span>
         </button>
       </div>
 
       <!-- ── Status tab ── -->
       <div v-if="activeTab === 'status'" class="tab-body">
-        <div class="status-chips">
-          <button
-            v-for="s in STATUSES"
-            :key="s.id"
-            class="status-chip"
-            :class="{ active: filters.status === s.id }"
-            :style="filters.status === s.id ? { borderColor: s.color, background: s.color + '22', color: s.color } : {}"
-            @click="filters.status = s.id; update()"
-          >
-            <span class="status-dot-sm" :style="{ background: s.color }" />
-            {{ s.label }}
-          </button>
-        </div>
+        <UIOpChips
+          label="Status"
+          :options="STATUSES.filter(s => s.id !== 'all').map(s => ({ id: s.id, label: s.label }))"
+          :states="filters.status"
+          @cycle="id => { cycleKey(filters.status, id); update() }"
+        />
 
         <!-- Frequency filter in status tab -->
         <div class="sub-section">
           <span class="sub-label">Execution frequency</span>
-          <div class="freq-chips">
-            <button
-              v-for="f in FREQUENCIES"
-              :key="f"
-              class="freq-chip"
-              :class="{ active: filters.frequency.includes(f) }"
-              @click="toggleArr(filters.frequency, f)"
-            >{{ f }}</button>
-          </div>
+          <UIOpChips
+            label="Execution frequency"
+            :options="FREQUENCIES.map(f => ({ id: f, label: f }))"
+            :states="filters.frequency"
+            @cycle="id => { cycleKey(filters.frequency, id); update() }"
+          />
         </div>
       </div>
 
@@ -252,40 +240,25 @@ const CAT_COLOR: Record<string, string> = {
 
       <!-- ── Assets tab ── -->
       <div v-if="activeTab === 'assets'" class="tab-body">
-        <div class="asset-grid">
-          <button
-            v-for="asset in ASSETS"
-            :key="asset"
-            class="asset-chip"
-            :class="{ active: filters.assets.includes(asset) }"
-            :style="filters.assets.includes(asset)
-              ? { borderColor: ASSET_COLOR[asset] ?? '#607d8b', background: (ASSET_COLOR[asset] ?? '#607d8b') + '22', color: ASSET_COLOR[asset] ?? '#fff' }
-              : {}"
-            @click="toggleArr(filters.assets, asset)"
-          >
-            <span class="a-dot" :style="{ background: ASSET_COLOR[asset] ?? '#607d8b' }" />
-            {{ asset }}
-          </button>
-        </div>
-        <button v-if="filters.assets.length" class="clear-selection" @click="filters.assets = []; update()">
+        <UIOpChips
+          label="Assets"
+          :options="ASSETS.map(asset => ({ id: asset, label: asset }))"
+          :states="filters.assets"
+          @cycle="id => { cycleKey(filters.assets, id); update() }"
+        />
+        <button v-if="activeIn(filters.assets)" class="clear-selection" @click="filters.assets = {}; update()">
           Clear asset filter
         </button>
       </div>
 
       <!-- ── Category tab ── -->
       <div v-if="activeTab === 'category'" class="tab-body">
-        <div class="cat-chips">
-          <button
-            v-for="cat in CATEGORIES"
-            :key="cat"
-            class="cat-chip"
-            :class="{ active: filters.categories.includes(cat) }"
-            :style="filters.categories.includes(cat)
-              ? { borderColor: CAT_COLOR[cat], background: CAT_COLOR[cat] + '22', color: CAT_COLOR[cat] }
-              : {}"
-            @click="toggleArr(filters.categories, cat)"
-          >{{ cat }}</button>
-        </div>
+        <UIOpChips
+          label="Category"
+          :options="CATEGORIES.map(cat => ({ id: cat, label: cat }))"
+          :states="filters.categories"
+          @cycle="id => { cycleKey(filters.categories, id); update() }"
+        />
       </div>
 
     </div>

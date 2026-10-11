@@ -101,7 +101,7 @@ const typeIcon: Record<string, string> = {
         <div class="pc-meta">
           <span>{{ p.asset_count }} assets</span>
           <span class="pc-pnl" :data-tone="p.daily_pnl_usd >= 0 ? 'pos' : 'neg'">
-            {{ p.daily_pnl_usd >= 0 ? '+' : '' }}${{ Math.round(p.daily_pnl_usd).toLocaleString() }}
+            {{ p.daily_pnl_usd >= 0 ? '+' : '' }}${{ Math.round(p.daily_pnl_usd).toLocaleString(APP_LOCALE) }}
           </span>
         </div>
         <div class="pc-detail">

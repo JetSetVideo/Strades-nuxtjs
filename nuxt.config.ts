@@ -2,6 +2,15 @@ import { defineNuxtConfig } from 'nuxt/config'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-10-01',
+  // Nuxt DevTools auto-enables in dev, which puts a floating "6 ms / gear" pill
+  // over the UI — it showed up in our screenshots as a visual defect on /auth and
+  // the 404 page. Developers can still have it with NUXT_DEVTOOLS=1; it is off by
+  // default so the dev server renders what a user would see.
+  devtools: { enabled: process.env.NUXT_DEVTOOLS === '1' },
+  // e2e/ holds Deno scripts (Playwright journey); they're checked with `deno check`, not vue-tsc.
+  typescript: {
+    tsConfig: { exclude: ['../e2e/**'] },
+  },
   modules: [
     '@pinia/nuxt',
     '@nuxt/ui'

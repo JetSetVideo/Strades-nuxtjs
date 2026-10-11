@@ -189,7 +189,7 @@ const gridLines = computed(() => {
 
 function formatPrice(v: number): string {
   if (!Number.isFinite(v)) return '—'
-  return v >= 1000 ? v.toLocaleString(undefined, { maximumFractionDigits: 0 })
+  return v >= 1000 ? v.toLocaleString(APP_LOCALE, { maximumFractionDigits: 0 })
     : v >= 1 ? v.toFixed(2) : v.toFixed(4)
 }
 

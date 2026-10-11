@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAssetsStore } from '~/stores/assets'
+
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import UIEmptyState from '@/components/UI/EmptyState.vue'
@@ -10,6 +12,14 @@ import { useNewsStore } from '~/stores/news'
 definePageMeta({ title: 'News detail', layout: 'default' })
 
 const route = useRoute()
+
+const assetsStore = useAssetsStore()
+/** Catalogue id for a ticker mentioned by an article, or null when we don't carry it. */
+const knownAsset = (ticker: string): string | null => {
+  const a = assetsStore.getAssetBySymbol(ticker.toUpperCase()) ?? assetsStore.getAssetById(ticker.toLowerCase())
+  return a ? a.id : null
+}
+onMounted(() => { if (!assetsStore.assets.length) assetsStore.initializeStore() })
 const newsStore = useNewsStore()
 await newsStore.initializeStore()
 
@@ -86,7 +96,7 @@ const onJudge = (value: NewsPoliticalScale | null) => {
                 <div>
                   <strong>{{ comment.authorName }}</strong>
                   <p>{{ comment.content }}</p>
-                  <time :datetime="comment.createdAt">{{ new Date(comment.createdAt).toLocaleString() }}</time>
+                  <time :datetime="comment.createdAt">{{ new Date(comment.createdAt).toLocaleString(APP_LOCALE) }}</time>
                 </div>
               </li>
             </ul>
@@ -97,10 +107,17 @@ const onJudge = (value: NewsPoliticalScale | null) => {
         <aside class="context-column">
           <UICard title="Associated assets" depth="sunken">
             <div v-if="article.assets.length" class="asset-list">
-              <NuxtLink v-for="asset in article.assets" :key="asset" :to="`/assets/${asset.toLowerCase()}`">
-                <strong>{{ asset }}</strong>
-                <span>Open company or asset →</span>
-              </NuxtLink>
+              <template v-for="asset in article.assets" :key="asset">
+                <!-- Only link assets that exist; BRN/XOM/CVX used to land on "Asset Not Found" (crawl 2026-10-08). -->
+                <NuxtLink v-if="knownAsset(asset)" :to="`/assets/${knownAsset(asset)}`">
+                  <strong>{{ asset }}</strong>
+                  <span>Open company or asset →</span>
+                </NuxtLink>
+                <div v-else class="asset-unlinked">
+                  <strong>{{ asset }}</strong>
+                  <span>Not in the catalogue yet</span>
+                </div>
+              </template>
             </div>
             <UIEmptyState v-else size="sm" icon="◇" message="No financial asset is attached." />
           </UICard>
@@ -141,6 +158,8 @@ const onJudge = (value: NewsPoliticalScale | null) => {
 </template>
 
 <style scoped>
+.asset-unlinked { display: flex; flex-direction: column; gap: .15rem; opacity: .7; }
+.asset-unlinked span { font-size: .75rem; color: var(--text-secondary); }
 .detail-page,
 .story-column,
 .context-column,

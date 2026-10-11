@@ -177,7 +177,7 @@ const publishPost = (payload: Parameters<typeof newsStore.publishPost>[0]) => {
             <div v-for="entry in newsStore.history.slice(0, 8)" :key="entry.id" class="history-entry">
               <span>{{ entry.kind }}</span>
               <strong>{{ entry.itemId }}</strong>
-              <small>{{ new Date(entry.createdAt).toLocaleString() }}</small>
+              <small>{{ new Date(entry.createdAt).toLocaleString(APP_LOCALE) }}</small>
             </div>
           </div>
           <UIEmptyState v-else size="sm" icon="◌" message="Reading, saving and sharing will appear here." />

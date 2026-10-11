@@ -122,6 +122,19 @@ describe('newsWorkspace filtering and sorting', () => {
     expect(filterNewsItems(items, friendFilters, 'feed').map(item => item.id)).toEqual(['tsla-editorial'])
   })
 
+  it('unions two included companies and drops an excluded one', () => {
+    const filters = cloneNewsFilters()
+    filters.companies = ['TSLA', 'XAU']
+    const both = filterNewsItems(items, filters, 'feed').map(item => item.id)
+    expect(both).toContain('tsla-editorial')
+    expect(both).toContain('xau-signal')
+
+    filters.excluded.companies = ['TSLA']
+    const kept = filterNewsItems(items, filters, 'feed').map(item => item.id)
+    expect(kept).not.toContain('tsla-editorial')
+    expect(kept).toContain('xau-signal')
+  })
+
   it('sorts by hot and new deterministically', () => {
     expect(sortNewsItems(items, 'hot').map(item => item.id)[0]).toBe('xau-signal')
     expect(sortNewsItems(items, 'new').map(item => item.id)[0]).toBe('tsla-editorial')

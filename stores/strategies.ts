@@ -143,7 +143,7 @@ export function strategyToSummary(s: Strategy): StrategySummary & {
   }
 }
 
-function parseCsv<T extends Record<string, unknown>>(csv: string, numberKeys: string[]): T[] {
+function parseCsv<T extends object>(csv: string, numberKeys: string[]): T[] {
   const lines = csv.trim().split(/\r?\n/)
   if (lines.length <= 1 || !lines[0]) return []
   const headers = lines[0].split(',')
@@ -255,7 +255,11 @@ export const useStrategiesStore = defineStore('strategies', {
         } catch {
           raw = await $fetch<unknown[]>(fallback)
         }
-        this.strategies = (raw as Record<string, unknown>[]).map(normalizeStrategy)
+        const fetched = (raw as Record<string, unknown>[]).map(normalizeStrategy)
+        // Merge, don't replace: strategies the user just built in the creator exist only in
+        // this store (until they're persisted server-side) and must survive a refetch.
+        const known = new Set(fetched.map(f => f.id))
+        this.strategies = [...fetched, ...this.strategies.filter(x => !known.has(x.id))]
       } catch (error) {
         this.error = error as Error
         console.error('Failed to fetch strategies:', error)
@@ -313,9 +317,10 @@ export const useStrategiesStore = defineStore('strategies', {
       }
     },
 
-    createStrategy(input: Partial<Strategy> & { code?: Partial<StrategyCode>; creator?: string; targetAssets?: string[] }) {
+    createStrategy(input: Omit<Partial<Strategy>, 'code'> & { code?: Partial<StrategyCode>; creator?: string; targetAssets?: string[] }) {
       const now = new Date().toISOString()
-      const newId = `strategy_${Date.now()}`
+      // A strategy saved server-side keeps its server id so the two stay linked.
+      const newId = input.id ?? `strategy_${Date.now()}`
       const newStrategy = normalizeStrategy({
         ...input,
         id: newId,

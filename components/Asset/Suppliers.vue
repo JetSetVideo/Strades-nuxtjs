@@ -82,7 +82,7 @@ const fmt = (n: number) => {
       </div>
       <div class="numbers">
         <span class="val">{{ fmt(s.value_usd ?? 0) }}</span>
-        <span class="sub" v-if="s.shipments_90d">{{ s.shipments_90d.toLocaleString() }} shipments / 90d</span>
+        <span class="sub" v-if="s.shipments_90d">{{ s.shipments_90d.toLocaleString(APP_LOCALE) }} shipments / 90d</span>
       </div>
     </li>
   </ul>

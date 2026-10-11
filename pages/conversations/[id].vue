@@ -70,11 +70,11 @@ const formatTimestamp = (timestamp) => {
   const diffInHours = diffInMs / (1000 * 60 * 60);
 
   if (diffInHours < 24) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' });
   } else if (diffInHours < 168) {
-    return date.toLocaleDateString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString(APP_LOCALE, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
   } else {
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 };
 

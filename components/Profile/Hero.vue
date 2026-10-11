@@ -92,7 +92,7 @@ const joinedYear = computed(() =>
       </div>
       <div class="perf-tile">
         <span class="perf-label">Trades</span>
-        <span class="perf-value">{{ user.total_trades.toLocaleString() }}</span>
+        <span class="perf-value">{{ user.total_trades.toLocaleString(APP_LOCALE) }}</span>
       </div>
     </div>
 
@@ -107,8 +107,8 @@ const joinedYear = computed(() =>
 
     <!-- Social stats -->
     <div class="social-stats">
-      <span><strong>{{ user.followers_count.toLocaleString() }}</strong> followers</span>
-      <span><strong>{{ user.following_count.toLocaleString() }}</strong> following</span>
+      <span><strong>{{ user.followers_count.toLocaleString(APP_LOCALE) }}</strong> followers</span>
+      <span><strong>{{ user.following_count.toLocaleString(APP_LOCALE) }}</strong> following</span>
       <span><strong>{{ user.friends_count }}</strong> contacts</span>
       <span v-if="user.active_strategies_count"><strong>{{ user.active_strategies_count }}</strong> strategies</span>
     </div>

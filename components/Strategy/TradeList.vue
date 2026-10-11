@@ -10,15 +10,15 @@ interface Trade {
 
 defineProps<{ trades: Trade[] }>()
 
-const fmtUsd = (n: number) => `$${Math.round(n).toLocaleString()}`
+const fmtUsd = (n: number) => `$${Math.round(n).toLocaleString(APP_LOCALE)}`
 const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 
 function fmtRelTime(ts: number) {
   const d = new Date(ts)
   const days = Math.floor((Date.now() - ts) / 86_400_000)
-  if (days === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  if (days < 7) return d.toLocaleDateString([], { weekday: 'short' })
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  if (days === 0) return d.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })
+  if (days < 7) return d.toLocaleDateString(APP_LOCALE, { weekday: 'short' })
+  return d.toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric' })
 }
 </script>
 

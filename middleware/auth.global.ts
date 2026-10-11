@@ -19,8 +19,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const isPublic = PUBLIC_ROUTES.some(p => to.path === p || to.path.startsWith(p + '/'))
 
   const isDemoMode =
-    config.public.demoMode === 'true' ||
-    config.public.demoMode === true ||
+    String(config.public.demoMode) === 'true' ||
     demoCookie.value === '1'
 
   if (isDemoMode) {
@@ -41,6 +40,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!isAuthenticated.value) {
     const refreshed = await refreshAccessToken()
     if (!refreshed) {
+      // The server never refreshes (see useAuth.refreshAccessToken). With a refresh cookie
+      // present, let the browser's run of this middleware decide; it holds the newest token.
+      if (import.meta.server && useCookie('strades_refresh').value) return
       return navigateTo('/auth')
     }
   }

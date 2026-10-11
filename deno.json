@@ -1,0 +1,31 @@
+{
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "prepare": "nuxt prepare",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e:journey": "deno run -A e2e/journey.ts",
+    "e2e:crawl": "deno run -A e2e/crawl.ts",
+    "e2e:twousers": "deno run -A e2e/twousers.ts"
+  },
+  "fmt": {
+    "exclude": [
+      "node_modules",
+      ".nuxt",
+      ".output",
+      "public"
+    ]
+  },
+  "lint": {
+    "exclude": [
+      "node_modules",
+      ".nuxt",
+      ".output",
+      "public"
+    ]
+  }
+}

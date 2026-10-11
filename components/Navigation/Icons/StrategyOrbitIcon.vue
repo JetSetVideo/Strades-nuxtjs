@@ -125,16 +125,7 @@ const hubColor = computed(() => runningCount.value > 0 ? '#00ff88' : 'rgba(255,2
         :class="{ working: runningCount > 0 }"
         class="hub-ring"
       />
-      <!-- Running agent count -->
-      <text
-        :x="size / 2"
-        :y="size / 2 + size * 0.115"
-        text-anchor="middle"
-        :font-size="size * 0.3"
-        font-weight="700"
-        font-family="Poppins, sans-serif"
-        :fill="hubColor"
-      >{{ runningCount }}</text>
+      <!-- No number here: Navigation/Bar.vue prints the agent count under the label. -->
     </svg>
 
     <!--

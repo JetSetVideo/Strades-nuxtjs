@@ -107,7 +107,10 @@ export default defineNuxtPlugin({
   // first client render matches the server markup.
   if (import.meta.server) return
 
-  nuxtApp.hook('app:mounted', async () => {
+  // app:suspense:resolve, not app:mounted: pages hydrate inside <Suspense>, and
+  // app:mounted fires before they finish, so browser state applied there leaks
+  // into the hydration pass (e.g. /news "Saved 3" vs "0").
+  nuxtApp.hook('app:suspense:resolve', async () => {
     await activityLog.hydrate(true)
     news.adoptBrowserPersistence()
 
@@ -141,7 +144,7 @@ export default defineNuxtPlugin({
       const totalWeight = postsCache.reduce((s, p) => s + (p.weight ?? 0.5), 0)
       let r = Math.random() * totalWeight
       const picked = postsCache.find(p => (r -= (p.weight ?? 0.5)) <= 0) ?? postsCache[0]
-      if (picked.geographic_origin) {
+      if (picked?.geographic_origin) {
         pendingNewsCoords = { lat: picked.geographic_origin.lat, lng: picked.geographic_origin.lng }
       }
     }
@@ -190,7 +193,7 @@ export default defineNuxtPlugin({
     // Wobble each agent's opinion slightly to simulate live re-inference
     agents.all.forEach(a => {
       const ov = { ...a.opinion_vector }
-      const k = (['fiat','crypto','stocks','commodities'] as const)[Math.floor(Math.random() * 4)]
+      const k = (['fiat','crypto','stocks','commodities'] as const)[Math.floor(Math.random() * 4)]!
       const delta = (Math.random() - 0.5) * 2 // ±1%
       ov[k] = clamp(ov[k] + delta, 0, 100)
       // Renormalize so the four still sum to 100

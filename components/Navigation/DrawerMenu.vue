@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, reactive, onMounted, onBeforeUnmount } from 'vue'
 
 const props = withDefaults(defineProps<{
   /** When true, hide the built-in trigger button (caller controls open externally). */
@@ -26,54 +26,126 @@ const onKey = (e: KeyboardEvent) => {
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
-// Lock scroll while open
 watch(isOpen, (v) => {
   if (typeof document === 'undefined') return
   document.body.style.overflow = v ? 'hidden' : ''
 })
 
-type MenuGroup = 'you' | 'together' | 'desk' | 'support'
-interface MenuItem { label: string; to: string; icon: string; group: MenuGroup; hint: string }
+const { logout } = useAuth()
+const signOut = () => logout()
 
-const GROUP_COPY: Record<MenuGroup, { title: string; blurb: string }> = {
-  you: { title: 'You', blurb: 'Identity, alerts, and the accounts that train your avatars' },
-  together: { title: 'Together', blurb: 'Build avatars with other people and train them on shared trades' },
-  desk: { title: 'Desk', blurb: 'Markets, deals, history, and how much you have at risk' },
-  support: { title: 'Support', blurb: 'How the desk works' },
+interface MenuItem { label: string; to: string; hint: string; icon: string }
+interface MenuGroup {
+  key: string
+  title: string
+  blurb: string
+  items: MenuItem[]
+  /** Detail routes that belong here even though their index is not a child link. */
+  also: string[]
 }
 
-const items: MenuItem[] = [
-  { label: 'Profile', to: '/profile', icon: '◉', group: 'you', hint: 'Your record and the avatars trained on it' },
-  { label: 'Settings', to: '/settings', icon: '⚙', group: 'you', hint: 'Appearance, chart, and timezone' },
-  { label: 'Notifications', to: '/notifications', icon: '◔', group: 'you', hint: 'Alerts from avatars, friends, and the desk' },
-  { label: 'Connections', to: '/apis', icon: '⇄', group: 'you', hint: 'Broker feeds that train avatars' },
-  { label: 'Avatars', to: '/agents', icon: '☰', group: 'together', hint: 'Bots you and friends train together' },
-  { label: 'Arena', to: '/arena', icon: '⚔', group: 'together', hint: 'Post a read, stake free credits' },
-  { label: 'Quests', to: '/quest', icon: '◈', group: 'together', hint: 'Shared drills for the swarm' },
-  { label: 'Leaderboard', to: '/leaderboard', icon: '☷', group: 'desk', hint: 'Who is ahead on paper' },
-  { label: 'Data', to: '/data', icon: '▦', group: 'desk', hint: 'Series you can pull into an avatar' },
-  { label: 'Calendar', to: '/calendar', icon: '▣', group: 'desk', hint: 'Sessions and event days' },
-  { label: 'Deals', to: '/deals', icon: '⟷', group: 'desk', hint: 'Pipeline from idea to fill' },
-  { label: 'History', to: '/historic', icon: '⌖', group: 'desk', hint: 'What already printed' },
-  { label: 'Monitor', to: '/monitor', icon: '◎', group: 'desk', hint: 'What is running now' },
-  { label: 'Risk', to: '/risk', icon: '⚠', group: 'desk', hint: 'Exposure across the book' },
-  { label: 'Shop', to: '/shop', icon: '◫', group: 'desk', hint: 'Add-ons for the desk' },
-  { label: 'Help', to: '/help', icon: '?', group: 'support', hint: 'How to train an avatar' },
-  { label: 'About', to: '/about', icon: '★', group: 'support', hint: 'What Strades is' },
-  { label: 'Contact', to: '/contact', icon: '✉', group: 'support', hint: 'Reach the desk' },
+// Bottom bar already covers Prices, News, Wallet, Lab (/strategies), and Chat.
+// Landing (/) and sign-in (/auth) sit outside the app. Detail routes need an id.
+const GROUPS: MenuGroup[] = [
+  {
+    key: 'trade',
+    title: 'Trade',
+    blurb: 'Paper wallets, prediction bots, public bots, and the strategies that run them',
+    also: ['/bots', '/strategy', '/summarizer'],
+    items: [
+      { label: 'Trade', to: '/trade', hint: 'Wallet, bots, and the ledger', icon: '⇅' },
+      { label: 'Predict', to: '/predict', hint: 'Paper bot on a market', icon: '◐' },
+      { label: 'Community bots', to: '/community', hint: 'Public bots from other traders', icon: '◎' },
+      { label: 'Strategy Creator', to: '/creator', hint: 'Build rules and backtest them', icon: '✎' },
+      { label: 'Strategy Monitor', to: '/monitor', hint: 'What is running now', icon: '▶' },
+    ],
+  },
+  {
+    key: 'markets',
+    title: 'Markets',
+    blurb: 'Chart, data catalog, calendar, deal pipeline, history, and exposure',
+    also: [],
+    items: [
+      { label: 'Candle Chart', to: '/CandleChart', hint: 'Full-screen chart', icon: '▥' },
+      { label: 'Data Catalog', to: '/data', hint: 'Series an avatar can pull', icon: '▦' },
+      { label: 'Calendar', to: '/calendar', hint: 'Sessions and event days', icon: '▣' },
+      { label: 'Deals', to: '/deals', hint: 'Pipeline from idea to fill', icon: '⟷' },
+      { label: 'History', to: '/historic', hint: 'What already printed', icon: '⌖' },
+      { label: 'Risk & Exposure', to: '/risk', hint: 'Exposure across the book', icon: '⚠' },
+    ],
+  },
+  {
+    key: 'compete',
+    title: 'Compete',
+    blurb: 'Avatars, arena, quests, standings, and strategies other people sell',
+    also: [],
+    items: [
+      { label: 'Avatar Marketplace', to: '/agents', hint: 'Bots trained with other people', icon: '☰' },
+      { label: 'Arena', to: '/arena', hint: 'Post a read, stake credits', icon: '⚔' },
+      { label: 'Quests', to: '/quest', hint: 'Shared drills', icon: '◈' },
+      { label: 'Leaderboard', to: '/leaderboard', hint: 'Who is ahead on paper', icon: '☷' },
+      { label: 'Strategy Shop', to: '/shop', hint: 'Browse strategies to buy or rent', icon: '◫' },
+    ],
+  },
+  {
+    key: 'you',
+    title: 'You',
+    blurb: 'Profile, settings, alerts, and the API accounts tied to you',
+    also: [],
+    items: [
+      { label: 'Profile', to: '/profile', hint: 'Your record and trained avatars', icon: '◉' },
+      { label: 'Settings', to: '/settings', hint: 'Appearance, chart, and timezone', icon: '⚙' },
+      { label: 'Notifications', to: '/notifications', hint: 'Alerts from avatars and the desk', icon: '◔' },
+      { label: 'API Connections', to: '/apis', hint: 'Broker feeds that train avatars', icon: '⇄' },
+    ],
+  },
+  {
+    key: 'help',
+    title: 'Help',
+    blurb: 'How the desk works, what Strades is, and how to reach the team',
+    also: [],
+    items: [
+      { label: 'Help', to: '/help', hint: 'How to train an avatar', icon: '?' },
+      { label: 'About', to: '/about', hint: 'What Strades is', icon: '★' },
+      { label: 'Contact', to: '/contact', hint: 'Reach the desk', icon: '✉' },
+    ],
+  },
 ]
 
 const route = useRoute()
-const isCurrent = (to: string) => route.path === to || route.path.startsWith(`${to}/`)
 
-const groups = computed(() => (Object.keys(GROUP_COPY) as MenuGroup[]).map(key => ({
-  key,
-  ...GROUP_COPY[key],
-  items: items.filter(item => item.group === key),
-})))
+const matches = (path: string, to: string) => path === to || path.startsWith(`${to}/`)
 
-const activeItem = computed(() => items.find(item => isCurrent(item.to)) ?? null)
-const here = computed(() => activeItem.value?.label ?? 'Menu')
+const groupHasRoute = (group: MenuGroup) => {
+  const path = route.path
+  return group.items.some(item => matches(path, item.to))
+    || group.also.some(to => matches(path, to))
+}
+
+const openGroups = reactive<Record<string, boolean>>(
+  Object.fromEntries(GROUPS.map(group => [group.key, true]))
+)
+
+function expandCurrent() {
+  for (const group of GROUPS) {
+    if (groupHasRoute(group)) openGroups[group.key] = true
+  }
+}
+
+watch(() => route.path, expandCurrent, { immediate: true })
+watch(isOpen, (v) => { if (v) expandCurrent() })
+
+const toggleGroup = (key: string) => { openGroups[key] = !openGroups[key] }
+
+const here = computed(() => {
+  const path = route.path
+  for (const group of GROUPS) {
+    const item = group.items.find(entry => matches(path, entry.to))
+    if (item) return `${group.title} / ${item.label}`
+    if (group.also.some(to => matches(path, to))) return group.title
+  }
+  return 'Menu'
+})
 
 defineExpose({ open: isOpen, toggle, close })
 </script>
@@ -91,33 +163,61 @@ defineExpose({ open: isOpen, toggle, close })
       <Transition name="drawer">
         <aside v-if="isOpen" class="drawer" role="dialog" aria-label="Menu">
           <header class="drawer-head">
-            <div class="brand-block">
-              <span class="brand">STRADES</span>
-              <span class="here">{{ here }}</span>
-            </div>
-            <button class="close" @click="close" aria-label="Close">✕</button>
+            <button type="button" class="drawer-brand" aria-label="Close menu" @click="close">
+              <span class="brand-logo" aria-hidden="true">
+                <img src="/logos/strades-mark.png" alt="" />
+              </span>
+              <span class="brand-word">STRADES</span>
+            </button>
+            <span class="here">{{ here }}</span>
           </header>
 
-          <div class="group" v-for="group in groups" :key="group.key">
-            <h4>{{ group.title }}</h4>
-            <p class="blurb">{{ group.blurb }}</p>
-            <NuxtLink
-              v-for="item in group.items"
-              :key="item.to"
-              :to="item.to"
-              class="item"
-              :class="{ 'is-current': isCurrent(item.to) }"
-              :title="item.hint"
-              :aria-current="isCurrent(item.to) ? 'page' : undefined"
-              @click="close"
+          <nav class="drawer-tree" aria-label="Pages">
+            <div
+              v-for="group in GROUPS"
+              :key="group.key"
+              class="tree-branch"
+              :class="{ 'is-open': openGroups[group.key] }"
             >
-              <span class="item-icon" aria-hidden="true">{{ item.icon }}</span>
-              <span class="item-copy">
-                <span class="item-label">{{ item.label }}</span>
-                <span class="item-hint">{{ item.hint }}</span>
-              </span>
-            </NuxtLink>
-          </div>
+              <h3 class="tree-parent-heading">
+                <button
+                  type="button"
+                  class="tree-parent"
+                  :class="{ 'has-current': !openGroups[group.key] && groupHasRoute(group) }"
+                  :aria-expanded="!!openGroups[group.key]"
+                  :title="group.blurb"
+                  @click="toggleGroup(group.key)"
+                >
+                  <svg class="chevron" viewBox="0 0 8 8" aria-hidden="true">
+                    <path d="M2 1.5 L5.5 4 L2 6.5" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="square" stroke-linejoin="miter" />
+                  </svg>
+                  <span class="tree-parent-label">{{ group.title }}</span>
+                </button>
+              </h3>
+              <div class="tree-children">
+                <div class="tree-children-clip" :inert="!openGroups[group.key]">
+                  <NuxtLink
+                    v-for="item in group.items"
+                    :key="item.to"
+                    :to="item.to"
+                    class="tree-child"
+                    :class="{ 'is-current': matches(route.path, item.to) }"
+                    :title="item.hint"
+                    :aria-current="matches(route.path, item.to) ? 'page' : undefined"
+                    @click="close"
+                  >
+                    <span class="tree-child-icon" aria-hidden="true">{{ item.icon }}</span>
+                    <span class="tree-child-label">{{ item.label }}</span>
+                    <span class="tree-child-hint">{{ item.hint }}</span>
+                  </NuxtLink>
+                </div>
+              </div>
+            </div>
+          </nav>
+
+          <footer class="drawer-foot">
+            <button type="button" class="signout" @click="close(); signOut()">Sign out</button>
+          </footer>
         </aside>
       </Transition>
     </Teleport>
@@ -128,146 +228,327 @@ defineExpose({ open: isOpen, toggle, close })
 .drawer-wrapper { display: inline-flex; }
 
 .trigger {
-  width: 2.25rem; height: 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
   background: none;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: var(--app-border-radius, 8px);
-  color: rgba(255,255,255,0.85);
+  border: 1px solid var(--drawer-tree-edge);
+  border-radius: var(--drawer-tree-radius);
+  color: var(--text-light-gray);
   cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0;
-  transition: all 0.2s ease;
 }
-.trigger:hover { border-color: var(--primary-green, #00ff88); color: var(--primary-green, #00ff88); }
+.trigger:hover { color: var(--drawer-tree-current-color); }
+.trigger:focus-visible {
+  outline: var(--drawer-tree-focus-width) solid var(--drawer-tree-focus);
+  outline-offset: var(--drawer-tree-focus-offset);
+}
 .bars { display: inline-flex; flex-direction: column; gap: 3px; }
-.bars span { display: block; width: 16px; height: 1.5px; background: currentColor; border-radius: 2px; }
+.bars span {
+  display: block;
+  width: 16px;
+  height: var(--drawer-tree-rule-width);
+  background: currentColor;
+}
 
 .backdrop {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(2px);
-  z-index: 1190;
+  position: fixed;
+  inset: 0;
+  background: var(--drawer-tree-backdrop);
+  z-index: var(--drawer-tree-backdrop-z);
 }
 .backdrop-enter-from, .backdrop-leave-to { opacity: 0; }
-.backdrop-enter-active, .backdrop-leave-active { transition: opacity 0.2s ease; }
+.backdrop-enter-active, .backdrop-leave-active { transition: opacity var(--drawer-tree-motion); }
 
 .drawer {
-  position: fixed; top: 0; right: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
   height: 100dvh;
-  width: min(calc(100vw - 2.75rem), var(--drawer-width, 20rem));
-  min-width: min(16rem, calc(100vw - 2.75rem));
-  max-width: var(--drawer-width-max, 22rem);
-  background: linear-gradient(180deg, rgba(15,15,15,0.98), rgba(20,20,28,0.98));
-  backdrop-filter: blur(20px);
-  border-left: 1px solid rgba(255,255,255,0.08);
-  box-shadow: -8px 0 32px rgba(0,0,0,0.5);
-  z-index: 1200;
-  display: flex; flex-direction: column;
-  padding: 0.55rem 0.55rem calc(0.55rem + env(safe-area-inset-bottom));
-  gap: 0.35rem;
-  overflow-y: auto;
+  width: var(--drawer-tree-width);
+  box-sizing: border-box;
+  background: var(--drawer-tree-bg);
+  backdrop-filter: blur(var(--drawer-tree-blur));
+  border-right: var(--drawer-tree-rule-width) solid var(--drawer-tree-edge);
+  box-shadow: var(--drawer-tree-shadow);
+  z-index: var(--drawer-tree-z);
+  display: flex;
+  flex-direction: column;
+  padding:
+    0
+    max(var(--drawer-tree-pad-x), env(safe-area-inset-right))
+    0
+    max(var(--drawer-tree-pad-x), env(safe-area-inset-left));
+  font-family: var(--drawer-tree-font);
+  color: var(--drawer-tree-child-color);
+  container-type: inline-size;
+  container-name: drawer;
 }
 
-.drawer-enter-from { transform: translateX(100%); }
-.drawer-leave-to { transform: translateX(100%); }
-.drawer-enter-active, .drawer-leave-active { transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+.drawer-enter-from, .drawer-leave-to { transform: translateX(-100%); }
+.drawer-enter-active, .drawer-leave-active { transition: transform var(--drawer-tree-motion); }
 
 .drawer-head {
-  display: flex; justify-content: space-between; align-items: center;
-  position: sticky; top: 0; z-index: 1;
-  padding-bottom: 0.45rem;
-  background: rgba(15,15,15,0.96);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-shrink: 0;
+  min-height: var(--drawer-tree-header-min);
+  padding-block: var(--drawer-tree-pad-y);
+  background: var(--drawer-tree-header-bg);
+  border-bottom: var(--drawer-tree-rule-width) solid var(--drawer-tree-edge);
 }
-.brand-block { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-.brand {
-  font-family: var(--font-chrome, 'Poppins', sans-serif);
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  font-size: 0.9rem;
-  background: var(--primary-gradient, linear-gradient(45deg, #00ff88, #00aaff));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-}
-.here {
-  font-size: 0.68rem;
-  letter-spacing: 0.04em;
-  color: rgba(255,255,255,0.55);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.close {
-  background: none; border: none;
-  color: rgba(255,255,255,0.5);
-  font-size: 1.1rem; cursor: pointer;
-  width: 28px; height: 28px;
-  border-radius: 4px;
-}
-.close:hover { color: #fff; background: rgba(255,255,255,0.05); }
-
-.group { display: flex; flex-direction: column; gap: 0.1rem; }
-.group h4 {
-  margin: 0.35rem 0 0 0.45rem;
-  font-size: 0.58rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.4);
-  font-weight: 700;
-}
-.blurb {
-  margin: 0 0.45rem 0.15rem;
-  font-size: 0.66rem;
-  line-height: 1.25;
-  color: rgba(255,255,255,0.42);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.item {
-  display: flex; align-items: flex-start; gap: 0.55rem;
-  padding: 0.22rem 0.5rem;
+.drawer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 0.55rem 0 0.35rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--app-border-radius, 6px);
-  color: rgba(255,255,255,0.85);
-  text-decoration: none;
-  transition: background 0.15s ease, color 0.15s ease;
+  color: var(--text-white, #fff);
+  cursor: pointer;
+  font-family: var(--drawer-tree-font);
 }
-.item:hover { background: rgba(255,255,255,0.04); color: var(--primary-green, #00ff88); }
-
-.item-icon {
-  width: 1.1rem; text-align: center;
-  font-size: 0.85rem;
-  line-height: 1.35;
-  color: rgba(255,255,255,0.55);
-  flex: 0 0 auto;
-}
-.item-copy { display: flex; flex-direction: column; min-width: 0; gap: 0.05rem; }
-.item-label { letter-spacing: 0.02em; font-size: 0.82rem; }
-.item-hint {
-  display: none;
-  font-size: 0.66rem;
-  line-height: 1.25;
-  color: rgba(255,255,255,0.38);
-}
-.item:hover .item-hint,
-.is-current .item-hint,
-.router-link-exact-active .item-hint {
-  display: block;
-}
-
-.is-current,
-.router-link-exact-active {
-  background: rgba(0,255,136,0.08);
+.drawer-brand:hover {
+  border-color: var(--primary-green, #00ff88);
   color: var(--primary-green, #00ff88);
 }
-.is-current .item-hint,
-.router-link-exact-active .item-hint { color: rgba(0,255,136,0.72); }
+.brand-logo {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1.5px solid transparent;
+  border-radius: 5px 0 5px 0;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    conic-gradient(
+      from 225deg at 50% 50%,
+      rgba(255, 26, 26, 0.59) 0deg,
+      #ff1a1a 18deg,
+      #ff1a1a 70deg,
+      #ffffff 96deg,
+      #ffffff 128deg,
+      #00e25a 158deg,
+      rgba(0, 226, 90, 0.59) 180deg,
+      #00e25a 202deg,
+      #00e25a 220deg,
+      #ffffff 242deg,
+      #ffffff 272deg,
+      #ff1a1a 310deg,
+      #ff1a1a 342deg,
+      rgba(255, 26, 26, 0.59) 360deg
+    ) border-box;
+}
+.brand-logo img {
+  width: 112%;
+  height: 112%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  transform: translateY(-0.5px);
+}
+.brand-word {
+  display: none;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  font-size: 0.78rem;
+}
+.here {
+  font-family: var(--drawer-tree-here-font);
+  font-size: var(--drawer-tree-here-size);
+  color: var(--drawer-tree-here-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.drawer-brand:focus-visible,
+.tree-parent:focus-visible,
+.tree-child:focus-visible,
+.signout:focus-visible {
+  outline: var(--drawer-tree-focus-width) solid var(--drawer-tree-focus);
+  outline-offset: var(--drawer-tree-focus-offset);
+}
 
-@media (max-width: 640px) {
-  .item-hint,
-  .item:hover .item-hint,
-  .is-current .item-hint { display: none; }
-  .blurb { display: none; }
-  .item { align-items: center; padding: 0.45rem 0.5rem; }
+.drawer-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding-block: var(--drawer-tree-pad-y);
+}
+
+.tree-branch { margin-bottom: var(--drawer-tree-branch-gap); width: 100%; }
+.tree-parent-heading { margin: 0; font: inherit; }
+
+.tree-parent {
+  display: flex;
+  align-items: center;
+  gap: var(--drawer-tree-chevron-gap);
+  width: 100%;
+  min-height: var(--drawer-tree-row-min);
+  padding: 0 0.4rem;
+  border: none;
+  border-radius: var(--drawer-tree-radius);
+  background: transparent;
+  color: var(--drawer-tree-parent-color);
+  font-family: inherit;
+  font-size: var(--drawer-tree-parent-size);
+  font-weight: var(--drawer-tree-parent-weight);
+  letter-spacing: var(--drawer-tree-parent-track);
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+}
+.tree-parent:hover { background: var(--drawer-tree-hover-bg); color: var(--drawer-tree-parent-color-open); }
+.tree-branch.is-open .tree-parent {
+  color: var(--drawer-tree-parent-color-open);
+  background: var(--nav-hover-bg);
+  box-shadow: inset var(--drawer-tree-current-bar) 0 0 var(--drawer-tree-current-color);
+}
+.tree-parent.has-current { color: var(--drawer-tree-current-color); }
+
+.chevron {
+  width: var(--drawer-tree-chevron-slot);
+  height: var(--drawer-tree-chevron-slot);
+  flex: 0 0 var(--drawer-tree-chevron-slot);
+  color: var(--drawer-tree-chevron);
+  transform: rotate(0deg);
+  transition: transform var(--drawer-tree-motion);
+}
+.tree-branch.is-open .chevron {
+  transform: rotate(90deg);
+  color: var(--drawer-tree-current-color);
+}
+
+.tree-children {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--drawer-tree-motion);
+}
+.tree-branch.is-open .tree-children { grid-template-rows: 1fr; }
+.tree-children-clip { overflow: hidden; min-height: 0; }
+
+.tree-child {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--drawer-tree-chevron-gap);
+  min-height: var(--drawer-tree-row-min);
+  margin-left: var(--drawer-tree-rule-inset);
+  padding-left: var(--drawer-tree-elbow);
+  padding-right: var(--drawer-tree-pad-x);
+  border-radius: var(--drawer-tree-radius);
+  color: var(--drawer-tree-child-color);
+  font-size: var(--drawer-tree-child-size);
+  font-weight: var(--drawer-tree-child-weight);
+  letter-spacing: var(--drawer-tree-child-track);
+  text-decoration: none;
+}
+.tree-child::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--drawer-tree-rule-inset) * -1);
+  top: 0;
+  bottom: 0;
+  width: var(--drawer-tree-rule-width);
+  background: var(--drawer-tree-rule);
+}
+.tree-child:last-child::before { bottom: 50%; }
+.tree-child::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--drawer-tree-rule-inset) * -1);
+  top: 50%;
+  width: var(--drawer-tree-elbow);
+  height: var(--drawer-tree-rule-width);
+  background: var(--drawer-tree-rule);
+}
+.tree-child:hover {
+  background: var(--drawer-tree-hover-bg);
+  color: var(--drawer-tree-child-color-hover);
+}
+.tree-child.is-current,
+.tree-child.router-link-exact-active {
+  background: var(--drawer-tree-current-bg);
+  color: var(--drawer-tree-current-color);
+  box-shadow: inset var(--drawer-tree-current-bar) 0 0 var(--drawer-tree-current-color);
+}
+.tree-child-icon {
+  flex: 0 0 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-gray);
+}
+.tree-child-label {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree-child-hint {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--drawer-tree-hint-font);
+  font-size: var(--drawer-tree-hint-size);
+  font-style: italic;
+  color: var(--drawer-tree-hint-color);
+}
+
+.drawer-foot {
+  flex-shrink: 0;
+  padding-block: var(--drawer-tree-pad-y) calc(var(--drawer-tree-pad-y) + env(safe-area-inset-bottom));
+  border-top: var(--drawer-tree-rule-width) solid var(--drawer-tree-edge);
+}
+.signout {
+  padding: 0.4rem 0.2rem;
+  border: none;
+  background: transparent;
+  color: var(--drawer-tree-signout-color);
+  font-family: inherit;
+  font-size: var(--drawer-tree-signout-size);
+  font-weight: var(--drawer-tree-signout-weight);
+  cursor: pointer;
+  border-radius: var(--drawer-tree-radius);
+}
+.signout:hover { background: var(--drawer-tree-signout-hover-bg); }
+
+@media (min-width: 640px) {
+  .brand-word { display: inline; }
+}
+
+/* A narrow panel keeps one column and lets a long hint sit under its label. */
+@container drawer (max-width: 28rem) {
+  .tree-child { flex-wrap: wrap; row-gap: 0.05rem; }
+  .tree-child-label { flex: 1 1 auto; }
+  .tree-child-hint {
+    flex: 1 0 calc(100% - 2rem);
+    margin-left: calc(1.5rem + var(--drawer-tree-chevron-gap));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop-enter-active,
+  .backdrop-leave-active,
+  .drawer-enter-active,
+  .drawer-leave-active,
+  .tree-children,
+  .chevron { transition: none; }
 }
 </style>

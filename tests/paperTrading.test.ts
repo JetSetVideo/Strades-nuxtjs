@@ -22,7 +22,7 @@ describe('clampWalletPct — user input to position size, min/max boundaries', (
 
   it('treats non-finite user input (NaN/Infinity) as the minimum, never as NaN passthrough', () => {
     expect(clampWalletPct(NaN)).toBe(MIN_WALLET_PCT)
-    expect(clampWalletPct(Infinity)).toBe(MAX_WALLET_PCT === MIN_WALLET_PCT ? MIN_WALLET_PCT : MIN_WALLET_PCT)
+    expect(clampWalletPct(Infinity)).toBe(MIN_WALLET_PCT)
     // Infinity is caught by the !isFinite guard before the min/max clamp, so it also floors to MIN.
     expect(Number.isFinite(clampWalletPct(Infinity))).toBe(true)
     expect(Number.isFinite(clampWalletPct(-Infinity))).toBe(true)

@@ -29,7 +29,7 @@ const props = withDefaults(defineProps<{
 const formatted = computed(() => {
   if (props.value === null || props.value === undefined) return '—'
   if (typeof props.value === 'number') {
-    if (Math.abs(props.value) >= 1000) return props.value.toLocaleString(undefined, { maximumFractionDigits: 0 })
+    if (Math.abs(props.value) >= 1000) return props.value.toLocaleString(APP_LOCALE, { maximumFractionDigits: 0 })
     return props.value.toFixed(props.precision)
   }
   return props.value

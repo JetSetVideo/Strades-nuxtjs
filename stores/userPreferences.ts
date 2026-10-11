@@ -63,7 +63,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', {
       const heat = state.behavioral_history.eye_tracking_heat
       const entries = Object.entries(heat)
       if (entries.length === 0) return null
-      return entries.sort(([, a], [, b]) => b - a)[0][0]
+      return entries.sort(([, a], [, b]) => b - a)[0]?.[0] ?? null
     }
   }
 })

@@ -179,9 +179,9 @@
   --nav-top-height-md: 3.5rem;
   --nav-top-height-lg: 3.75rem;
   --nav-bottom-height-min: 3.75rem;
-  --nav-bottom-height-max: 4.6rem;
-  --nav-bottom-height: clamp(var(--nav-bottom-height-min), 4.1rem, var(--nav-bottom-height-max));
-  --nav-bottom-height-md: 4.4rem;
+  --nav-bottom-height-max: 5.15rem;
+  --nav-bottom-height: clamp(var(--nav-bottom-height-min), 4.75rem, var(--nav-bottom-height-max));
+  --nav-bottom-height-md: 5rem;
   --nav-padding-x: 0.875rem;
   --nav-padding-x-md: 1.5rem;
   --nav-padding-x-lg: 2.5rem;
@@ -194,6 +194,81 @@
   --nav-active-color: var(--primary-green, #00ff88);
   --nav-active-bg: rgba(0, 255, 136, 0.10);
   --nav-hover-bg: rgba(255, 255, 255, 0.05);
+
+  /* ── Drawer tree ──
+     Left-edge file tree at 80% of the viewport. Groups stack
+     vertically and the tree scrolls; they never reflow into columns. */
+  --drawer-tree-width: 80%;
+  --drawer-tree-z: 1200;
+  --drawer-tree-backdrop-z: 1190;
+  --drawer-tree-bg: var(--surface-sunken);
+  --drawer-tree-backdrop: rgba(0, 0, 0, 0.55);
+  --drawer-tree-shadow: var(--shadow-depth-3);
+  --drawer-tree-edge: var(--nav-border);
+  --drawer-tree-blur: var(--nav-glass-blur);
+  --drawer-tree-header-bg: var(--nav-glass-bg);
+
+  --drawer-tree-pad-x: var(--spacing-lg);
+  --drawer-tree-pad-y: var(--spacing-md);
+  --drawer-tree-header-min: var(--nav-top-height);
+  --drawer-tree-branch-gap: var(--spacing-md);
+  --drawer-tree-col-gap: var(--spacing-xl);
+  --drawer-tree-columns-wide: 2;
+  --drawer-tree-columns-min: 40rem;
+
+  --drawer-tree-row-min: 2.75rem;
+  --drawer-tree-radius: var(--radius-sm);
+  --drawer-tree-rule-width: 1px;
+  --drawer-tree-rule: var(--edge-raised);
+  --drawer-tree-chevron-slot: 1rem;
+  --drawer-tree-chevron-size: 0.5rem;
+  --drawer-tree-chevron-gap: 0.5rem;
+  --drawer-tree-rule-inset: calc(var(--drawer-tree-chevron-slot) / 2);
+  --drawer-tree-elbow: calc(var(--drawer-tree-rule-inset) + var(--drawer-tree-chevron-gap));
+  --drawer-tree-chevron: var(--text-gray);
+  --drawer-tree-chevron-open-color: var(--text-light-gray);
+
+  --drawer-tree-parent-size: 0.6875rem;
+  --drawer-tree-parent-weight: 600;
+  --drawer-tree-parent-track: 0.14em;
+  --drawer-tree-parent-color: var(--text-gray);
+  --drawer-tree-parent-color-open: var(--text-white);
+  --drawer-tree-child-size: 0.9375rem;
+  --drawer-tree-child-weight: 500;
+  --drawer-tree-child-track: 0.01em;
+  --drawer-tree-child-color: var(--text-light-gray);
+  --drawer-tree-child-color-hover: var(--text-white);
+  --drawer-tree-hint-size: 0.6875rem;
+  --drawer-tree-hint-color: var(--text-gray);
+  --drawer-tree-hint-max: 11rem;
+  --drawer-tree-hint-font: var(--font-market-data);
+
+  --drawer-tree-hover-bg: var(--nav-hover-bg);
+  --drawer-tree-current-bg: var(--nav-active-bg);
+  --drawer-tree-current-color: var(--nav-active-color);
+  --drawer-tree-current-bar: 2px;
+  --drawer-tree-focus: var(--primary-blue);
+  --drawer-tree-focus-width: 2px;
+  --drawer-tree-focus-offset: 2px;
+
+  --drawer-tree-brand-size: 0.8125rem;
+  --drawer-tree-brand-weight: 700;
+  --drawer-tree-brand-track: 0.18em;
+  --drawer-tree-brand-color: var(--text-white);
+  --drawer-tree-brand-mark: var(--primary-green);
+  --drawer-tree-brand-mark-w: 2px;
+  --drawer-tree-brand-mark-h: 0.875rem;
+  --drawer-tree-here-size: 0.75rem;
+  --drawer-tree-here-color: var(--text-gray);
+  --drawer-tree-here-font: var(--font-market-data);
+
+  --drawer-tree-signout-size: 0.8125rem;
+  --drawer-tree-signout-weight: 500;
+  --drawer-tree-signout-color: var(--app-color-down);
+  --drawer-tree-signout-hover-bg: color-mix(in srgb, var(--error-red) 12%, transparent);
+
+  --drawer-tree-motion: var(--transition-fast);
+  --drawer-tree-font: var(--font-chrome);
 }
 
 /* Dark Theme Overrides */

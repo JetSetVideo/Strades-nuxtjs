@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
+import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
 import { useStrategiesStore } from '@/stores/strategies'
 import { useActivityLog } from '@/composables/useActivityLog'
 
@@ -7,7 +8,6 @@ import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UIPill from '@/components/UI/Pill.vue'
 import UIStat from '@/components/UI/Stat.vue'
 import UIMetricRow from '@/components/UI/MetricRow.vue'
-import UISectionTabs, { type TabItem } from '@/components/UI/SectionTabs.vue'
 import UIEmptyState from '@/components/UI/EmptyState.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import StrategyCard from '@/components/Strategy/Card.vue'
@@ -29,8 +29,12 @@ const strategiesStore = useStrategiesStore()
 const activityLog = useActivityLog()
 
 const loading = ref(true)
-const category = ref<'all' | string>('all')
-const tier = ref<'all' | 'free' | 'premium'>('all')
+const catStates = reactive<Record<string, FilterTriState>>({})
+const tierStates = reactive<Record<string, FilterTriState>>({})
+const TIER_OPTIONS = [
+  { id: 'free', label: 'Free' },
+  { id: 'premium', label: 'Premium' },
+]
 
 onMounted(async () => {
   await strategiesStore.initializeStore()
@@ -49,25 +53,15 @@ const categories = computed(() => {
     .map(([id, count]) => ({ id, count }))
 })
 
-const categoryTabs = computed<TabItem[]>(() => [
-  { id: 'all', label: 'All', count: publicStrategies.value.length },
-  ...categories.value.map(c => ({ id: c.id, label: c.id, count: c.count }))
-])
-
-const tierTabs: TabItem[] = [
-  { id: 'all', label: 'All tiers' },
-  { id: 'free', label: 'Free' },
-  { id: 'premium', label: 'Premium' }
-]
+const categoryOptions = computed(() =>
+  categories.value.map(c => ({ id: c.id, label: `${c.id} (${c.count})` })),
+)
 
 const filtered = computed(() =>
-  publicStrategies.value.filter(s => {
-    const byCat = category.value === 'all' || s.category === category.value
-    const byTier = tier.value === 'all'
-      || (tier.value === 'premium' && s.is_premium)
-      || (tier.value === 'free' && !s.is_premium)
-    return byCat && byTier
-  })
+  publicStrategies.value.filter(s =>
+    allowsValue(s.category, catStates)
+    && allowsValue(s.is_premium ? 'premium' : 'free', tierStates),
+  ),
 )
 
 const stats = computed(() => {
@@ -110,16 +104,21 @@ function openStrategy(id: string) {
       <UIStat label="Categories"        :value="stats.categories" :precision="0" size="md" />
     </UIMetricRow>
 
-    <UISectionTabs v-model="category" :tabs="categoryTabs" />
+    <UIOpChips
+      label="Strategy category"
+      :options="categoryOptions"
+      :states="catStates"
+      @cycle="id => cycleKey(catStates, id)"
+    />
 
     <div class="tier-row">
       <span class="tier-label">Tier</span>
-      <button
-        v-for="t in tierTabs"
-        :key="t.id"
-        :class="['tier-chip', { active: tier === t.id }]"
-        @click="tier = t.id as any"
-      >{{ t.label }}</button>
+      <UIOpChips
+        label="Tier"
+        :options="TIER_OPTIONS"
+        :states="tierStates"
+        @cycle="id => cycleKey(tierStates, id)"
+      />
     </div>
 
     <div v-if="loading" class="loading">

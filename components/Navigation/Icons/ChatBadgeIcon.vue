@@ -37,13 +37,10 @@ const emotionalUrgency = computed(() => chat.getEmotionalUrgency(userId))
         <circle cx="15" cy="9" r="1" fill="currentColor" class="dot dot-3" />
       </g>
 
-      <!-- Unread counter — sized to be readable at nav-bar scale -->
+      <!-- Unread dot (the count itself is printed by Navigation/Bar.vue under the label) -->
       <g v-if="unreadCount > 0" class="badge" :class="{ urgent: emotionalUrgency > 0.7 }">
         <circle cx="19" cy="4.5" r="4.6" fill="var(--bg-primary, #0e0e0f)" opacity="0.9" />
         <circle cx="19" cy="4.5" r="4" :fill="emotionalUrgency > 0.7 ? 'var(--error-red, #ff4444)' : 'url(#chat-gradient)'" />
-        <text x="19" y="6" text-anchor="middle" font-size="4.6" font-weight="800" :fill="emotionalUrgency > 0.7 ? '#fff' : '#001a0d'" font-family="Poppins, sans-serif">
-          {{ unreadCount > 9 ? '9+' : unreadCount }}
-        </text>
       </g>
     </svg>
   </div>

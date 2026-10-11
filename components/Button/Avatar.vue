@@ -62,7 +62,7 @@ onMounted(async () => {
             </div>
             <div class="info-item">
               <span class="info-label">Date of Birth:</span>
-              <span class="info-value">{{ currentUser.date_of_birth ? new Date(currentUser.date_of_birth).toLocaleDateString() : 'Jan 1, 1990' }}</span>
+              <span class="info-value">{{ currentUser.date_of_birth ? new Date(currentUser.date_of_birth).toLocaleDateString(APP_LOCALE) : 'Jan 1, 1990' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Country:</span>
@@ -82,7 +82,7 @@ onMounted(async () => {
             </div>
             <div class="info-item">
               <span class="info-label">Total Portfolio:</span>
-              <span class="info-value">${{ currentUser.total_portfolio_value ? currentUser.total_portfolio_value.toLocaleString() : '100,000' }}</span>
+              <span class="info-value">${{ currentUser.total_portfolio_value ? currentUser.total_portfolio_value.toLocaleString(APP_LOCALE) : '100,000' }}</span>
             </div>
           </div>
 

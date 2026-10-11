@@ -22,7 +22,7 @@ defineProps<{ items: KpiItem[] }>()
 function format(v: string | number | null | undefined) {
   if (v === null || v === undefined) return '—'
   if (typeof v === 'number') {
-    if (Math.abs(v) >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 0 })
+    if (Math.abs(v) >= 1000) return v.toLocaleString(APP_LOCALE, { maximumFractionDigits: 0 })
     return Number.isInteger(v) ? String(v) : v.toFixed(1)
   }
   return v

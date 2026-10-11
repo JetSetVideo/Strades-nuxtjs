@@ -19,7 +19,8 @@ export function publicAssetUrl(path: string): string {
 export async function useLocalJson<T>(path: string, fallback?: T): Promise<T> {
   const url = publicAssetUrl(`/data/${path}`)
   try {
-    const result = await $fetch<T>(url)
+    // Static file URL: plain fetch typing, not Nitro's route-typed overload.
+    const result = (await ($fetch as (u: string) => Promise<unknown>)(url)) as T
     if (typeof result === 'string' && (result as string).trim().startsWith('<')) {
       throw new Error(`useLocalJson: received HTML instead of JSON for /data/${path}`)
     }

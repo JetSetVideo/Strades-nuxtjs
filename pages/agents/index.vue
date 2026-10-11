@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
+import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
 import { useAgentsStore, type Agent } from '@/stores/agents'
 import { useOpinionsStore } from '@/stores/opinions'
 
@@ -18,8 +19,8 @@ const opinions = useOpinionsStore()
 
 const loading = ref(true)
 const sortKey = ref<'performance' | 'confidence' | 'popular'>('performance')
-const filterStyle = ref<string>('all')
-const filterModel = ref<'all' | 'generative' | 'classifier'>('all')
+const styleStates = reactive<Record<string, FilterTriState>>({})
+const modelStates = reactive<Record<string, FilterTriState>>({})
 const search = ref('')
 
 onMounted(async () => {
@@ -27,7 +28,14 @@ onMounted(async () => {
   loading.value = false
 })
 
-const STYLES = ['all', 'swing_trader', 'day_trader', 'scalper', 'long_term', 'arbitrageur', 'momentum']
+const STYLE_OPTIONS = computed(() => {
+  const styles = new Set(catalog.value.map(a => a.trading_style).filter(Boolean))
+  return [...styles].sort().map(id => ({ id, label: id.replace(/_/g, ' ') }))
+})
+const MODEL_OPTIONS = [
+  { id: 'generative', label: 'generative' },
+  { id: 'classifier', label: 'classifier' },
+]
 
 // Public + forked agents (not the user's own personal avatar)
 const catalog = computed(() =>
@@ -37,11 +45,8 @@ const catalog = computed(() =>
 const filtered = computed(() => {
   let list = [...catalog.value]
   // Filter by trading style
-  if (filterStyle.value !== 'all')
-    list = list.filter(a => a.trading_style === filterStyle.value)
-  // Filter by model type — generative (personality-authored) vs classifier (Jev-style)
-  if (filterModel.value !== 'all')
-    list = list.filter(a => a.model_type === filterModel.value)
+  list = list.filter(a => allowsValue(a.trading_style, styleStates))
+  list = list.filter(a => allowsValue(a.model_type, modelStates))
   // Search by name/tagline/tags
   const q = search.value.trim().toLowerCase()
   if (q) {
@@ -102,22 +107,8 @@ const isPlugged = (id: string) => opinions.isPlugged(id)
         placeholder="Search by name, tagline, specialization…"
         aria-label="Search agents"
       />
-      <div class="filter-chips">
-        <button
-          v-for="s in STYLES"
-          :key="s"
-          :class="['style-chip', { active: filterStyle === s }]"
-          @click="filterStyle = s"
-        >{{ s.replace(/_/g, ' ') }}</button>
-      </div>
-      <div class="filter-chips" role="group" aria-label="Filter by model type">
-        <button
-          v-for="m in (['all', 'generative', 'classifier'] as const)"
-          :key="m"
-          :class="['style-chip', 'model-chip', { active: filterModel === m }]"
-          @click="filterModel = m"
-        >{{ m === 'all' ? 'any model' : m }}</button>
-      </div>
+      <UIOpChips label="Trading style" :options="STYLE_OPTIONS" :states="styleStates" @cycle="id => cycleKey(styleStates, id)" />
+      <UIOpChips label="Model type" :options="MODEL_OPTIONS" :states="modelStates" @cycle="id => cycleKey(modelStates, id)" />
       <div class="sort-row">
         <span class="sort-label">Sort:</span>
         <button :class="{ active: sortKey === 'performance' }" @click="sortKey = 'performance'">PnL</button>

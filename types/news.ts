@@ -133,6 +133,22 @@ export interface NewsItem {
   predictionSummary: NewsPredictionSummary[]
 }
 
+export interface NewsFacetExcludes {
+  companies: string[]
+  currencies: string[]
+  commodities: string[]
+  owners: string[]
+  users: string[]
+  friends: string[]
+  sources: string[]
+  kinds: NewsKind[]
+  categories: string[]
+  political: NewsPoliticalScale[]
+  economic: Array<'dovish' | 'neutral' | 'hawkish'>
+  sentiment: NewsSentimentLabel[]
+  areas: string[]
+}
+
 export interface NewsFilters {
   search: string
   companies: string[]
@@ -153,7 +169,24 @@ export interface NewsFilters {
   dateFrom: string | null
   dateTo: string | null
   areas: string[]
+  excluded: NewsFacetExcludes
 }
+
+export const EMPTY_NEWS_EXCLUDES = (): NewsFacetExcludes => ({
+  companies: [],
+  currencies: [],
+  commodities: [],
+  owners: [],
+  users: [],
+  friends: [],
+  sources: [],
+  kinds: [],
+  categories: [],
+  political: [],
+  economic: [],
+  sentiment: [],
+  areas: [],
+})
 
 export interface NewsFilterOption {
   value: string
@@ -209,6 +242,7 @@ export const DEFAULT_NEWS_FILTERS: NewsFilters = {
   dateFrom: null,
   dateTo: null,
   areas: [],
+  excluded: EMPTY_NEWS_EXCLUDES(),
 }
 
 export function politicalScaleFromValue(value: number | null | undefined): NewsPoliticalScale {

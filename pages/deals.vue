@@ -5,7 +5,8 @@
  *
  * Strategy user: "juggle between assets, their dealers and clients and commodities"
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
+import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
 import { useStrategies } from '@/composables/useStrategies'
 import { useStrategiesStore } from '@/stores/strategies'
 import { useMacroStore } from '@/stores/macro'
@@ -34,7 +35,11 @@ const assetsStore = useAssetsStore()
 
 const loading = ref(true)
 const search = ref('')
-const filterStatus = ref<string>('all')
+const statusStates = reactive<Record<string, FilterTriState>>({})
+const STATUS_OPTIONS = ['active', 'paused', 'stopped'].map(id => ({
+  id,
+  label: id.charAt(0).toUpperCase() + id.slice(1),
+}))
 
 // Live tick for P&L simulation
 const tick = ref(0)
@@ -157,7 +162,7 @@ const allCounterparties = computed(() => {
 // ─── Filter ──────────────────────────────────────────────────────────────────
 const filteredDeals = computed(() => {
   let list = deals.value
-  if (filterStatus.value !== 'all') list = list.filter(d => d.status === filterStatus.value)
+  list = list.filter(d => allowsValue(d.status, statusStates))
   if (search.value.trim()) {
     const q = search.value.toLowerCase()
     list = list.filter(d => d.name.toLowerCase().includes(q) || d.targetAssets.some(a => a.toLowerCase().includes(q)))
@@ -211,14 +216,12 @@ const filteredDeals = computed(() => {
 
       <!-- ── Filters ───────────────────────────────────────────────────── -->
       <div class="toolbar">
-        <div class="status-filter">
-          <button
-            v-for="s in ['all', 'active', 'paused', 'stopped']"
-            :key="s"
-            class="filter-btn" :class="{ active: filterStatus === s }"
-            @click="filterStatus = s"
-          >{{ s.charAt(0).toUpperCase() + s.slice(1) }} ({{ s === 'all' ? deals.length : deals.filter(d => d.status === s).length }})</button>
-        </div>
+        <UIOpChips
+          label="Deal status"
+          :options="STATUS_OPTIONS.map(s => ({ ...s, label: `${s.label} (${deals.filter(d => d.status === s.id).length})` }))"
+          :states="statusStates"
+          @cycle="id => cycleKey(statusStates, id)"
+        />
         <input v-model="search" type="text" class="search-input" placeholder="Search deals or assets..." />
       </div>
 

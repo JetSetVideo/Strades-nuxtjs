@@ -26,7 +26,7 @@ onMounted(() => {
 
 const formatTime = (iso: string) => {
   const d = new Date(iso)
-  return d.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+  return d.toLocaleString(APP_LOCALE, { dateStyle: 'short', timeStyle: 'short' })
 }
 </script>
 

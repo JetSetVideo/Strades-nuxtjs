@@ -93,6 +93,20 @@ export interface BacktestResult {
 
 // ─── Seeded PRNG ─────────────────────────────────────────────────────────────
 
+/**
+ * The creator's rule editor (components/Builder/Condition.vue) emits gt/lt/gte/lte/eq/
+ * crosses_up/crosses_dn; older configs use symbols. Accept both, or user rules are
+ * silently ignored and every backtest shows 0 trades.
+ */
+const OPERATOR_ALIASES: Record<string, string> = {
+  gt: '>', lt: '<', gte: '>=', lte: '<=', eq: '==', crosses_up: 'cross_above', crosses_dn: 'cross_below',
+  cross_over: 'cross_above', '≥': '>=', '≤': '<=', '=': '==',
+}
+export function normalizeOperator(op: string | undefined): string {
+  const o = (op ?? '').trim()
+  return OPERATOR_ALIASES[o] ?? o
+}
+
 function mulberry32(seed: number): () => number {
   return () => {
     seed |= 0; seed = seed + 0x6D2B79F5 | 0
@@ -120,6 +134,8 @@ export function useBacktest() {
   const running = ref(false)
   const progress = ref(0)
   const lastResult = ref<BacktestResult | null>(null)
+  // Results per strategy id, shared across pages (the creator runs it, /strategy/<id> shows it).
+  const resultsById = useState<Record<string, BacktestResult>>('backtest:results', () => ({}))
   const assetsStore = useAssetsStore()
   const macroStore = useMacroStore()
   const walletStore = useWalletStore()
@@ -141,7 +157,7 @@ export function useBacktest() {
     for (let i = 1; i < days; i++) {
       const z = (rng() + rng() + rng() - 1.5) * 1.15 // Box-Muller approx
       const ret = mu * dt + sigma * Math.sqrt(dt) * z
-      const next = prices[i - 1] * Math.exp(Math.max(-0.15, Math.min(0.15, ret)))
+      const next = prices[i - 1]! * Math.exp(Math.max(-0.15, Math.min(0.15, ret)))
       prices.push(Math.max(0.01, next))
     }
     return prices
@@ -152,7 +168,7 @@ export function useBacktest() {
     return prices.map((_, i) => {
       if (i < period - 1) return null
       let sum = 0
-      for (let j = 0; j < period; j++) sum += prices[i - j]
+      for (let j = 0; j < period; j++) sum += prices[i - j]!
       return sum / period
     })
   }
@@ -164,19 +180,18 @@ export function useBacktest() {
     idx: number,
     indicators: Record<string, (number | null)[]>
   ): boolean {
-    const price = prices[idx]
-    if (idx === 0) return false
-
-    const prevPrice = prices[idx - 1]
+    if (idx <= 0 || idx >= prices.length) return false
+    const price = prices[idx]!
+    const prevPrice = prices[idx - 1]!
     const numericVal = typeof cond.value === 'number' ? cond.value : Number(cond.value)
 
-    switch (cond.operator) {
+    switch (normalizeOperator(cond.operator)) {
       case '>':           return price > numericVal
       case '<':           return price < numericVal
       case '>=':          return price >= numericVal
       case '<=':          return price <= numericVal
+      case '==':          return Math.abs(price - numericVal) <= Math.abs(numericVal) * 0.001
       case 'cross_above':
-      case 'cross_over':
         return prevPrice <= numericVal && price > numericVal
       case 'cross_below':
         return prevPrice >= numericVal && price < numericVal
@@ -206,7 +221,7 @@ export function useBacktest() {
       if (i < 14) return null
       let gains = 0, losses = 0
       for (let j = i - 13; j <= i; j++) {
-        const delta = prices[j] - prices[j - 1]
+        const delta = prices[j]! - prices[j - 1]!
         if (delta > 0) gains += delta
         else losses -= delta
       }
@@ -222,12 +237,11 @@ export function useBacktest() {
     }
 
     for (let i = 0; i < days; i++) {
-      const price = prices[i]
-      const date = dates[i]
+      const price = prices[i]!
+      const date = dates[i] ?? fmtDate(new Date(config.period.start))
 
       // Check exit conditions if in position
       if (position) {
-        const pnlPct = (price - position.entryPrice) / position.entryPrice * position.side === 'long' ? 1 : -1
         const actualPnlPct = position.side === 'long'
           ? (price - position.entryPrice) / position.entryPrice
           : (position.entryPrice - price) / position.entryPrice
@@ -241,7 +255,7 @@ export function useBacktest() {
 
         // Condition-based exit
         for (const cond of config.conditions) {
-          if (cond.operator.startsWith('cross_') && cond.datasource === 'price') {
+          if (normalizeOperator(cond.operator).startsWith('cross_') && cond.datasource === 'price') {
             const signal = evalCondition(cond, prices, i, indicatorMap)
             if (signal) exitReason = `signal:${cond.operator}`
           }
@@ -254,7 +268,7 @@ export function useBacktest() {
             : (position.entryPrice - price) * qty
           trades.push({
             date,
-            asset: config.targetAssets[0],
+            asset: config.targetAssets[0] ?? 'unknown',
             side: 'exit',
             entryPrice: position.entryPrice,
             exitPrice: price,
@@ -272,7 +286,7 @@ export function useBacktest() {
       if (!position) {
         let shouldEnter = false
         for (const cond of config.conditions) {
-          if (['>', '<', 'cross_above', 'cross_over', 'cross_below'].includes(cond.operator)) {
+          if (['>', '<', '>=', '<=', '==', 'cross_above', 'cross_below'].includes(normalizeOperator(cond.operator))) {
             if (evalCondition(cond, prices, i, indicatorMap)) {
               shouldEnter = true
               break
@@ -285,7 +299,7 @@ export function useBacktest() {
           const qty = (capital * alloc) / price
           trades.push({
             date,
-            asset: config.targetAssets[0],
+            asset: config.targetAssets[0] ?? 'unknown',
             side: 'long',
             entryPrice: price,
             exitPrice: 0,
@@ -294,6 +308,9 @@ export function useBacktest() {
             pnlPct: 0,
             reason: 'entry_signal',
           })
+          // Pay for the position. The exit adds back cost + P&L; without this debit every
+          // round trip minted the cost basis as free money (+50% "returns", Sortino 31).
+          capital -= qty * price
           position = { entryPrice: price, side: 'long', qty, entryIdx: i }
         }
       }
@@ -307,11 +324,11 @@ export function useBacktest() {
 
     // Close any open position at end
     if (position) {
-      const lastPrice = prices[days - 1]
+      const lastPrice = prices[days - 1]!
       const pnl = (lastPrice - position.entryPrice) * position.qty
       trades.push({
-        date: dates[days - 1],
-        asset: config.targetAssets[0],
+        date: dates[days - 1] ?? fmtDate(new Date(config.period.start)),
+        asset: config.targetAssets[0] ?? 'unknown',
         side: 'exit',
         entryPrice: position.entryPrice,
         exitPrice: lastPrice,
@@ -334,7 +351,7 @@ export function useBacktest() {
     days: number,
     rf: number = 0.05
   ): BacktestMetrics {
-    const totalReturn = equity[equity.length - 1] - initialCapital
+    const totalReturn = (equity[equity.length - 1] ?? initialCapital) - initialCapital
     const totalReturnPct = totalReturn / initialCapital * 100
     const annFactor = 252 / Math.max(1, days)
     const annualReturn = totalReturnPct * annFactor
@@ -342,7 +359,7 @@ export function useBacktest() {
     // Daily returns
     const dailyReturns: number[] = []
     for (let i = 1; i < equity.length; i++) {
-      dailyReturns.push(equity[i] / equity[i - 1] - 1)
+      dailyReturns.push(equity[i]! / equity[i - 1]! - 1)
     }
 
     const meanRet = dailyReturns.reduce((a, b) => a + b, 0) / Math.max(1, dailyReturns.length)
@@ -354,14 +371,15 @@ export function useBacktest() {
 
     // Sortino: downside deviation only
     const negReturns = dailyReturns.filter(r => r < 0)
-    const downVariance = negReturns.length > 0
-      ? negReturns.reduce((a, b) => a + b ** 2, 0) / negReturns.length
+    // Standard (target) downside deviation: mean over ALL periods of min(r, 0)².
+    const downVariance = dailyReturns.length > 0
+      ? negReturns.reduce((a, b) => a + b ** 2, 0) / dailyReturns.length
       : 0
     const downVol = Math.sqrt(downVariance * 252) * 100
     const sortinoRatio = downVol > 0 ? (annualMean - rf) / (downVol / 100) : 0
 
     // Max drawdown
-    let peak = equity[0]
+    let peak = equity[0] ?? initialCapital
     let maxDd = 0
     let maxDdPct = 0
     for (const e of equity) {
@@ -493,7 +511,7 @@ export function useBacktest() {
       for (const r of batchResults) {
         allTrades.push(r.trades)
         allEquities.push(r.equity)
-        allFinalEquities.push(r.equity[r.equity.length - 1])
+        allFinalEquities.push(r.equity[r.equity.length - 1] ?? config.initialCapital)
       }
 
       progress.value = Math.round(((batch + batchSize) / simulations) * 100)
@@ -503,10 +521,11 @@ export function useBacktest() {
     const sortedIdx = allFinalEquities
       .map((e, i) => ({ e, i }))
       .sort((a, b) => a.e - b.e)
-    const medianIdx = sortedIdx[Math.floor(sortedIdx.length / 2)].i
+    const median = sortedIdx[Math.floor(sortedIdx.length / 2)]
+    if (!median) throw new Error('Backtest needs at least one simulation')
 
-    const medianEquity = allEquities[medianIdx]
-    const medianTrades = allTrades[medianIdx]
+    const medianEquity = allEquities[median.i]!
+    const medianTrades = allTrades[median.i]!
     const metrics = computeMetrics(medianEquity, medianTrades, config.initialCapital, days)
 
     // Build equity curve
@@ -518,7 +537,7 @@ export function useBacktest() {
     }))
 
     // Compute drawdown for equity curve
-    let peak = equityCurve[0].equity
+    let peak = equityCurve[0]?.equity ?? config.initialCapital
     for (const pt of equityCurve) {
       if (pt.equity > peak) peak = pt.equity
       pt.drawdown = peak - pt.equity
@@ -536,6 +555,7 @@ export function useBacktest() {
     }
 
     lastResult.value = result
+    resultsById.value = { ...resultsById.value, [result.id]: result }
     running.value = false
     progress.value = 100
     return result
@@ -545,6 +565,7 @@ export function useBacktest() {
     running,
     progress,
     lastResult,
+    resultsById,
     runBacktest,
     generatePricePath,
     computeMetrics,

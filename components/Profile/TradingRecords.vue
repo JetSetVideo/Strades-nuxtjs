@@ -22,7 +22,7 @@ const formatWhen = (iso: string) => {
   if (ms < 60_000) return `${Math.round(ms / 1000)}s ago`
   if (ms < 3_600_000) return `${Math.round(ms / 60000)}m ago`
   if (ms < 86_400_000) return `${Math.round(ms / 3_600_000)}h ago`
-  return new Date(iso).toLocaleDateString()
+  return new Date(iso).toLocaleDateString(APP_LOCALE)
 }
 
 const actionLabel = (a: string) => a.replace(/_/g, ' ')

@@ -18,6 +18,12 @@ const fmt = (n: number) => {
   if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(1)}k`
   return `$${Math.round(n)}`
 }
+
+// The "+ Add wallet" chip used to be a button with NO handler — clicking it did
+// nothing. /trade is where a wallet is created or imported, and it had no entry
+// point anywhere in the app, so this was the only visible way in for a user who
+// already had a wallet... and it was dead. `navigateTo` is auto-imported by Nuxt.
+const openTrade = () => navigateTo('/trade')
 </script>
 
 <template>
@@ -38,7 +44,7 @@ const fmt = (n: number) => {
       </span>
     </button>
 
-    <button class="chip add" aria-label="Add wallet">
+    <button class="chip add" aria-label="Add wallet" @click="openTrade">
       <span class="plus">+</span>
       <span class="add-label">Add wallet</span>
     </button>

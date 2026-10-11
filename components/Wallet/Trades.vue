@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
+import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
 
 interface Trade {
   id: string
@@ -18,7 +19,7 @@ const props = defineProps<{
   trades: Trade[]
 }>()
 
-const filter = ref<'all' | 'buy' | 'sell'>('all')
+const sideStates = reactive<Record<string, FilterTriState>>({})
 const expanded = ref(false)
 
 const sorted = computed(() => {
@@ -29,10 +30,7 @@ const sorted = computed(() => {
   })
 })
 
-const filtered = computed(() => {
-  if (filter.value === 'all') return sorted.value
-  return sorted.value.filter(t => t.type === filter.value)
-})
+const filtered = computed(() => sorted.value.filter(t => allowsValue(t.type, sideStates)))
 
 const visible = computed(() => expanded.value ? filtered.value : filtered.value.slice(0, 5))
 
@@ -50,9 +48,9 @@ const formatTime = (iso?: string) => {
   const d = new Date(iso)
   const now = new Date()
   const days = (now.getTime() - d.getTime()) / 86_400_000
-  if (days < 1) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  if (days < 7) return d.toLocaleDateString([], { weekday: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+  if (days < 1) return d.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })
+  if (days < 7) return d.toLocaleDateString(APP_LOCALE, { weekday: 'short' }) + ' · ' + d.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 })
@@ -65,11 +63,15 @@ const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 
         <h3>Recent Trades</h3>
         <span class="meta">{{ sorted.length }} total · ${{ fmt(totals.fees) }} fees</span>
       </div>
-      <div class="filter-row">
-        <button :class="{ active: filter === 'all' }" @click="filter = 'all'">All</button>
-        <button :class="{ active: filter === 'buy' }" @click="filter = 'buy'">Buy <em>{{ totals.buys }}</em></button>
-        <button :class="{ active: filter === 'sell' }" @click="filter = 'sell'">Sell <em>{{ totals.sells }}</em></button>
-      </div>
+      <UIOpChips
+        label="Trade side"
+        :options="[
+          { id: 'buy', label: `Buy ${totals.buys}` },
+          { id: 'sell', label: `Sell ${totals.sells}` },
+        ]"
+        :states="sideStates"
+        @cycle="id => cycleKey(sideStates, id)"
+      />
     </header>
 
     <div v-if="filtered.length === 0" class="empty">No trades match this filter.</div>

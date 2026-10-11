@@ -568,7 +568,7 @@ const getVolatilityDescription = (volatilityIndex) => {
                   class="event-item"
                 >
                   <div class="event-date">
-                    <span class="date">{{ new Date(event.date).toLocaleDateString() }}</span>
+                    <span class="date">{{ new Date(event.date).toLocaleDateString(APP_LOCALE) }}</span>
                   </div>
                   <div class="event-details">
                     <h4 class="event-title">{{ event.event }}</h4>

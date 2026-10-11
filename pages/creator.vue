@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, reactive } from 'vue'
+import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
 import { useStrategies } from '@/composables/useStrategies'
 import SelectorDatasources from '@/components/Selector/Datasources.vue'
 import SelectorAsset from '@/components/Selector/Asset.vue'
@@ -15,6 +16,9 @@ import StrategySwarmPlugs from '@/components/Strategy/SwarmPlugs.vue'
 import { useOpinionsStore } from '@/stores/opinions'
 import { useCreditsStore } from '@/stores/credits'
 import { useBacktest } from '@/composables/useBacktest'
+import { TradingApiError, useTradingApi, type RealBacktest } from '@/composables/useTradingApi'
+import { toServerStrategy, type CreatorCondition } from '@/utils/strategyServer'
+import { useTradingPrefsStore } from '~/stores/tradingPrefs'
 
 definePageMeta({
   title: 'Strategy Creator',
@@ -66,7 +70,11 @@ watch(() => strategy.value.name, n => { layoutTitle.value = n })
 const dsSearch      = ref('')
 const profileSearch = ref('')
 const logicSearch   = ref('')
-const logicFilter   = ref<'all' | 'condition' | 'action'>('all')
+const blockStates = reactive<Record<string, FilterTriState>>({})
+const BLOCK_OPTIONS = [
+  { id: 'condition', label: '📋 IF' },
+  { id: 'action', label: '⚡ THEN' },
+]
 
 // ── Date range presets ─────────────────────────────────────────────────────
 const DATE_PRESETS = [
@@ -123,7 +131,7 @@ function assetInfo(id: string) { return ASSET_INFO[id] }
 
 const filteredBlocks = computed(() => {
   let list = strategy.value.blocks
-  if (logicFilter.value !== 'all') list = list.filter(b => b.type === logicFilter.value)
+  list = list.filter(b => allowsValue(b.type, blockStates))
   if (logicSearch.value.trim()) {
     const q = logicSearch.value.toLowerCase()
     list = list.filter(b => {
@@ -240,6 +248,13 @@ const showCountdown = ref(false)
 const pendingId     = ref<string | null>(null)
 const pendingAction = ref<'backtest' | 'both'>('backtest')
 const actionError   = ref<string | null>(null)
+const pendingServerId = ref<string | null>(null)
+const serverNotes   = ref<string[]>([])
+const tradingApi    = useTradingApi()
+const tradingPrefs  = useTradingPrefsStore()
+tradingPrefs.hydrate()
+// Real-history backtests, keyed by strategy id (shown on /strategy/<id>).
+const realBacktests = useState<Record<string, RealBacktest>>('backtest:real', () => ({}))
 const saveSuccess   = ref(false)
 
 function guard() {
@@ -255,10 +270,37 @@ function guard() {
   return true
 }
 
+/** Save to the backend rules engine so the backtest runs on REAL prices; null if signed out. */
+async function saveToServer(): Promise<string | null> {
+  const mapped = toServerStrategy({
+    name: strategy.value.name,
+    description: strategy.value.description,
+    category: strategy.value.category,
+    assetFrom: strategy.value.assetFrom,
+    assetTo: strategy.value.assetTo,
+    frequency: strategy.value.frequency,
+    allocation: strategy.value.allocation,
+    variables: strategy.value.variables,
+    conditions: strategy.value.blocks.filter(b => b.type === 'condition').map(b => b.data as unknown as CreatorCondition),
+  })
+  if (!mapped.ok) throw new Error(mapped.errors.join(' '))
+  serverNotes.value = mapped.notes
+  try {
+    const saved = await tradingApi.saveStrategy(mapped.payload)
+    return saved.id
+  } catch (e) {
+    if (e instanceof TradingApiError && e.status === 401) return null // signed out → simulated backtest only
+    throw e
+  }
+}
+
 async function handleBacktest() {
   if (!guard()) return
   try {
+    const serverId = await saveToServer()
+    pendingServerId.value = serverId
     const s = await createStrategy({
+      ...(serverId ? { id: serverId } : {}),
       name: strategy.value.name,
       description: strategy.value.description,
       category: strategy.value.category,
@@ -268,7 +310,9 @@ async function handleBacktest() {
     pendingId.value = s.id
     pendingAction.value = 'backtest'
     showCountdown.value = true
-  } catch (e) { actionError.value = 'Failed to create strategy.' }
+  } catch (e) {
+    actionError.value = e instanceof Error && e.message ? e.message : 'Failed to create strategy.'
+  }
 }
 
 async function handleDeploy() {
@@ -334,7 +378,16 @@ async function handleSaveDraft() {
 async function onCountdownFinish() {
   if (!pendingId.value) return
   if (pendingAction.value === 'backtest') {
-    // Use real Monte Carlo engine
+    // 1) Real prices: the backend rules engine replays pinned Binance candles.
+    if (pendingServerId.value) {
+      try {
+        const real = await tradingApi.backtestReal(pendingServerId.value, { capital_usd: 10000, bars: tradingPrefs.backtestBars })
+        realBacktests.value = { ...realBacktests.value, [pendingId.value]: real }
+      } catch (e) {
+        actionError.value = e instanceof Error ? `Real-price backtest failed: ${e.message}` : 'Real-price backtest failed.'
+      }
+    }
+    // 2) Simulated paths (Monte Carlo on synthetic prices), kept as a separate, labelled view.
     const config = {
       id: pendingId.value,
       name: strategy.value.name || 'Untitled',
@@ -389,7 +442,7 @@ async function onCountdownFinish() {
     await backtestEngine.runBacktest(config, 250)
     await deployStrategy(pendingId.value)
   }
-  navigateTo(`/strategy/${pendingId.value}`)
+  navigateTo({ path: `/strategy/${pendingId.value}`, query: { tab: 'backtest' } })
 }
 </script>
 
@@ -405,7 +458,7 @@ async function onCountdownFinish() {
       <!-- Credit widget -->
       <div class="credit-widget">
         <span class="credit-label">Credits</span>
-        <span class="credit-val">{{ credit.toLocaleString() }}</span>
+        <span class="credit-val">{{ credit.toLocaleString(APP_LOCALE) }}</span>
         <div class="credit-bar">
           <div
             class="credit-fill"
@@ -673,13 +726,12 @@ async function onCountdownFinish() {
               <input v-model="logicSearch" class="logic-search-input" placeholder="Search blocks…" />
               <button v-if="logicSearch" @click="logicSearch = ''" class="logic-search-clear">✕</button>
             </div>
-            <div class="logic-type-filter">
-              <button v-for="f in ['all','condition','action']" :key="f"
-                class="filter-chip" :class="{ active: logicFilter === f }"
-                @click="logicFilter = f as any">
-                {{ f === 'all' ? 'All' : f === 'condition' ? '📋 IF' : '⚡ THEN' }}
-              </button>
-            </div>
+            <UIOpChips
+              label="Block type"
+              :options="BLOCK_OPTIONS"
+              :states="blockStates"
+              @cycle="id => cycleKey(blockStates, id)"
+            />
           </div>
 
           <!-- Blocks list -->

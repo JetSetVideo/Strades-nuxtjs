@@ -53,11 +53,11 @@ const formatLastMessageTime = (timestamp) => {
   const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
   if (diffInHours < 24) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' });
   } else if (diffInHours < 168) { // 7 days
-    return date.toLocaleDateString([], { weekday: 'short' });
+    return date.toLocaleDateString(APP_LOCALE, { weekday: 'short' });
   } else {
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric' });
   }
 };
 
@@ -141,7 +141,11 @@ function onViewProfile(id) {
               v-for="conversation in userConversations"
               :key="conversation.id"
               class="conversation-item"
+              role="link"
+              tabindex="0"
+              :aria-label="`Open conversation with ${getUserInfo(getOtherParticipant(conversation))?.username || 'user'}`"
               @click="navigateToConversation(conversation.id)"
+              @keydown.enter="navigateToConversation(conversation.id)"
             >
               <div class="conversation-avatar">
                 <NuxtLink

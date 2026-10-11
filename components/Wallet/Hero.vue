@@ -16,9 +16,32 @@ interface Wallet {
   performance_history?: Record<string, PerfPoint>
 }
 
+/**
+ * Totals across every connected platform.
+ *
+ * The wallet page previously labelled ONE platform's `total_value` "Total
+ * Balance", which contradicted the bottom-bar figure (that one sums all
+ * platforms). Both numbers were right for their own definition, which is
+ * exactly why the pair read as a bug. When this prop is supplied the hero shows
+ * the portfolio figure and keeps the selected platform visible underneath.
+ *
+ * `invested_amount` is COST BASIS (Σ amount × average_price), not the market
+ * value of the positions, so Available + Invested is deliberately not equal to
+ * Total — the difference is `unrealized`. It is surfaced as its own row so the
+ * arithmetic is legible instead of looking like missing money.
+ */
+interface PortfolioTotals {
+  total_value: number
+  available_balance: number
+  invested_amount: number
+  unrealized: number
+  platform_count: number
+}
+
 const props = defineProps<{
   wallet: Wallet | null | undefined
   period: '1d' | '7d' | '30d' | '90d' | '1y'
+  portfolio?: PortfolioTotals | null
 }>()
 
 const emit = defineEmits<{ (e: 'update:period', p: '1d' | '7d' | '30d' | '90d' | '1y'): void }>()
@@ -62,6 +85,17 @@ const swarmDeltas = computed(() => {
   })).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
 })
 const topDelta = computed(() => swarmDeltas.value[0])
+
+// Market value minus cost basis. Shown as its own row so that
+// Available + Invested + Unrealized = Total is visible arithmetic; without it
+// the gap just looks like missing money.
+const unrealized = computed(() =>
+  props.portfolio
+    ? props.portfolio.unrealized
+    : (props.wallet?.total_value ?? 0)
+      - (props.wallet?.available_balance ?? 0)
+      - (props.wallet?.invested_amount ?? 0)
+)
 </script>
 
 <template>
@@ -69,9 +103,12 @@ const topDelta = computed(() => swarmDeltas.value[0])
     <!-- Primary cluster: total balance + period PnL -->
     <div class="primary-row">
       <div class="balance-block">
-        <span class="label">Total Balance</span>
-        <span class="balance-value">${{ fmt(wallet.total_value) }}</span>
+        <span class="label">{{ portfolio && portfolio.platform_count > 1 ? 'Total Balance · all platforms' : 'Total Balance' }}</span>
+        <span class="balance-value">${{ fmt(portfolio?.total_value ?? wallet.total_value) }}</span>
         <span class="balance-currency">{{ wallet.currency || 'USD' }}</span>
+        <span v-if="portfolio && portfolio.platform_count > 1" class="balance-scope">
+          {{ wallet.name || 'this platform' }} ${{ fmt(wallet.total_value) }}
+        </span>
       </div>
 
       <div class="pnl-block" :class="{ pos: isPositive, neg: !isPositive }">
@@ -93,16 +130,25 @@ const topDelta = computed(() => swarmDeltas.value[0])
       </div>
     </div>
 
-    <!-- Secondary cluster: available + invested + today -->
+    <!-- Secondary cluster: available + invested(cost) + unrealized + today -->
     <div class="secondary-row">
       <div class="sub">
         <span class="sub-label">Available</span>
-        <span class="sub-value">${{ fmt(wallet.available_balance ?? 0) }}</span>
+        <span class="sub-value">${{ fmt(portfolio?.available_balance ?? wallet.available_balance ?? 0) }}</span>
       </div>
       <div class="sub-divider" />
-      <div class="sub">
-        <span class="sub-label">Invested</span>
-        <span class="sub-value">${{ fmt(wallet.invested_amount ?? 0) }}</span>
+      <div class="sub" title="What the open positions cost to buy — not their current market value">
+        <span class="sub-label">Invested <span class="sub-hint">cost</span></span>
+        <span class="sub-value">${{ fmt(portfolio?.invested_amount ?? wallet.invested_amount ?? 0) }}</span>
+      </div>
+      <div class="sub-divider" />
+      <div
+        class="sub"
+        :class="{ pos: unrealized >= 0, neg: unrealized < 0 }"
+        title="Market value minus cost basis. This is why Available + Invested is not the Total Balance."
+      >
+        <span class="sub-label">Unrealized</span>
+        <span class="sub-value">{{ fmtSigned(unrealized) }}</span>
       </div>
       <div class="sub-divider" />
       <div class="sub" :class="{ pos: todayPnl >= 0, neg: todayPnl < 0 }">
@@ -249,6 +295,14 @@ const topDelta = computed(() => swarmDeltas.value[0])
   font-weight: 600;
 }
 
+/* Which platform the selected tab covers, now that the headline is the
+   portfolio total rather than this one platform's balance. */
+.balance-scope {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.02em;
+}
+
 .pnl-block {
   display: flex;
   flex-direction: column;
@@ -345,6 +399,15 @@ const topDelta = computed(() => swarmDeltas.value[0])
   text-transform: uppercase;
   color: rgba(255,255,255,0.4);
   font-weight: 700;
+}
+/* Flags that this figure is cost basis, not market value — otherwise the row
+   reads as if Available + Invested should equal the Total Balance. */
+.sub-hint {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+  font-style: italic;
+  opacity: 0.8;
 }
 .sub-value {
   font-size: 0.85rem;

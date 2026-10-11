@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { allowsAny, allowsValue, type FilterTriState } from '~/utils/priceFilters'
 import Carousel from '@/components/Carousel.vue'
 import Filters from '@/components/Filters.vue'
 import Comparator from '@/components/Comparator.vue'
@@ -20,22 +21,22 @@ const showComparator    = ref(false)
 const sortBy            = ref('gain')
 
 interface FilterState {
-  status: string
+  status: Record<string, FilterTriState>
   profitMin: number; profitMax: number
   drawdownMin: number; drawdownMax: number
   winRateMin: number; winRateMax: number
-  assets: string[]
-  categories: string[]
-  frequency: string[]
+  assets: Record<string, FilterTriState>
+  categories: Record<string, FilterTriState>
+  frequency: Record<string, FilterTriState>
   search: string
 }
 
 const currentFilters = ref<FilterState>({
-  status: 'all',
+  status: {},
   profitMin: -100, profitMax: 100,
   drawdownMin: -100, drawdownMax: 0,
   winRateMin: 0, winRateMax: 100,
-  assets: [], categories: [], frequency: [],
+  assets: {}, categories: {}, frequency: {},
   search: '',
 })
 
@@ -43,7 +44,7 @@ const currentFilters = ref<FilterState>({
 const filteredStrategies = computed(() => {
   const f = currentFilters.value
   return strategies.value.filter((s: Record<string,any>) => {
-    if (f.status !== 'all' && s.status !== f.status) return false
+    if (!allowsValue(s.status, f.status)) return false
 
     if (f.search) {
       const q = f.search.toLowerCase()
@@ -63,14 +64,11 @@ const filteredStrategies = computed(() => {
     const wr = s.winRate ?? 0
     if (wr < f.winRateMin || wr > f.winRateMax) return false
 
-    if (f.assets.length) {
-      const sa = (s.targetAssets ?? []) as string[]
-      if (!f.assets.some((a: string) => sa.includes(a))) return false
-    }
+    if (!allowsAny((s.targetAssets ?? []) as string[], f.assets)) return false
 
-    if (f.categories.length && !f.categories.includes(s.category)) return false
+    if (!allowsValue(s.category, f.categories)) return false
 
-    if (f.frequency.length && !f.frequency.includes(s.frequency)) return false
+    if (!allowsValue(s.frequency, f.frequency)) return false
 
     return true
   })
@@ -148,6 +146,8 @@ onMounted(fetchStrategies)
 
 <template>
   <div class="strategies-page">
+
+    <StrategySavedList />
 
     <!-- ── Page header: title + controls ── -->
     <div class="page-header">

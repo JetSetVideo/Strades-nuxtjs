@@ -11,6 +11,8 @@ export interface AuthUser {
   avatar_url: string | null
   bio: string
   role: 'user' | 'premium' | 'admin'
+  /** Throwaway per-visitor demo account (POST /api/auth/demo/): create-only wallets, expires in 24h. */
+  is_demo?: boolean
   auth_provider: 'email' | 'google'
   email_verified: boolean
   preferences: Record<string, unknown>

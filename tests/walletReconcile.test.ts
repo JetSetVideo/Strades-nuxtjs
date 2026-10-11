@@ -48,7 +48,7 @@ describe('reconcileWallet', () => {
     expect(Math.max(...weights)).toBeLessThanOrEqual(100)
     expect(wallet.total_value).toBeCloseTo(142475, 6)
     expect(wallet.available_balance).toBe(0)
-    expect(wallet.assets[0].allocation_percentage).toBeCloseTo((78125 / 142475) * 100, 6)
+    expect(wallet.assets[0]!.allocation_percentage).toBeCloseTo((78125 / 142475) * 100, 6)
   })
 
   it('is stable when applied twice', () => {
@@ -71,17 +71,17 @@ describe('reconcileWallet', () => {
     reconcileWallet(wallet)
     expect(wallet.available_balance).toBe(200)
     expect(wallet.total_value).toBeCloseTo(1000, 6)
-    expect(wallet.assets[0].allocation_percentage).toBeCloseTo(80, 6)
+    expect(wallet.assets[0]!.allocation_percentage).toBeCloseTo(80, 6)
   })
 
   it('reprices a position and keeps the pie closed', () => {
     const wallet = staleBookWallet()
     reconcileWallet(wallet)
-    wallet.assets[0].current_price = 80000
+    wallet.assets[0]!.current_price = 80000
     reconcileWallet(wallet)
     const sum = wallet.assets.reduce((s, a) => s + a.allocation_percentage, 0)
     expect(sum).toBeCloseTo(100, 6)
-    expect(wallet.assets[0].current_value).toBeCloseTo(1.25 * 80000, 6)
+    expect(wallet.assets[0]!.current_value).toBeCloseTo(1.25 * 80000, 6)
     expect(wallet.total_value).toBeCloseTo(wallet.assets.reduce((s, a) => s + a.current_value, 0), 6)
   })
 })

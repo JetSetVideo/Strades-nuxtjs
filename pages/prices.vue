@@ -11,14 +11,29 @@
  *    at a fixed interval instead of re-randomised on every render
  *  • PriceIntuition widget is embedded in each DisplayAsset card
  */
-import { ref, computed, watch, onMounted, onUnmounted, reactive } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, reactive } from 'vue'
 import { useAssetsStore } from '@/stores/assets'
+import { useTradingPrefsStore } from '@/stores/tradingPrefs'
 import { usePredictionsStore } from '@/stores/predictions'
 import { useMacroStore } from '@/stores/macro'
 import DisplayAsset from '@/components/Widget/DisplayAsset.vue'
 import Heatmap from '@/components/Asset/Heatmap.vue'
 import PricesMap from '@/components/Map/PricesMap.vue'
+import PricesApiPanel from '@/components/Prices/ApiPanel.vue'
 import { regionOf } from '~/composables/useAssetRegion'
+import {
+  isBetAsset,
+  HORIZON_BUCKETS,
+  defaultHorizonStates,
+  applyHorizonStates,
+  countHiddenByHorizonStates,
+} from '~/utils/betAssets'
+import {
+  applyTypeFilters,
+  cycleKey,
+  sortAssets,
+  type FilterTriState,
+} from '~/utils/priceFilters'
 
 definePageMeta({
   title: 'Market Prices',
@@ -27,16 +42,27 @@ definePageMeta({
 })
 
 const assetsStore      = useAssetsStore()
+const tradingPrefs     = useTradingPrefsStore()
+onMounted(() => tradingPrefs.hydrate())
 const predStore        = usePredictionsStore()
 const macroStore       = useMacroStore()
 
-const selectedType     = ref('all')
 const selectedAssetId  = ref<string | null>(null)
-const showMoreAssets   = ref(false)
 const sortBy           = ref<'default' | 'gainers' | 'losers' | 'vol_high' | 'cap'>('default')
+const sortReverse      = ref(false)
+const typeStates       = reactive<Record<string, FilterTriState>>({})
 const searchQuery      = useState('marketQuery', () => '')
-const viewMode         = ref<'list' | 'map'>('list')
+const viewMode         = ref<'list' | 'tree' | 'map'>('list')
+const treeSelected     = ref<string | null>(null)
+const liveCount        = computed(() => assetsStore.liveCount)
+const loadError        = computed(() => assetsStore.error)
 const selectedRegionIso = ref<string | null>(null)
+
+// ── Bet class: horizon filter + API panel ────────────────────────────────
+// Default horizon EXCLUDES far-future bets (see utils/betAssets.ts).
+const horizonStates = reactive<Record<string, FilterTriState>>(defaultHorizonStates())
+const showApiPanel = ref(false)
+const hasBetAssets = computed(() => assetsStore.assets.some(isBetAsset))
 
 // Aliases to store reactive state
 const loading      = computed(() => assetsStore.loading)
@@ -57,6 +83,11 @@ function assetVolatility(asset: Asset): number {
 
 function seedChanges() {
   assetsStore.assets.forEach(asset => {
+    // Live markets: the real 24h change, always (overwrites any earlier seed).
+    if (asset.live && asset.change_24h_pct !== undefined) {
+      priceChanges[asset.id] = +asset.change_24h_pct.toFixed(2)
+      return
+    }
     if (priceChanges[asset.id] !== undefined) return
     const vol = assetVolatility(asset)
     priceChanges[asset.id] = +(((Math.random() - 0.5) * 2 * vol * 12)).toFixed(2)
@@ -67,9 +98,16 @@ function seedChanges() {
 // ── Real-time simulation ─────────────────────────────────────────────────
 let ticker: ReturnType<typeof setInterval>
 
+let tickCount = 0
 function startTicker() {
-  ticker = setInterval(() => {
+  ticker = setInterval(async () => {
+    // Every 30 s pull real quotes; live assets never get simulated nudges.
+    if (++tickCount % 6 === 0) {
+      await assetsStore.mergeLiveQuotes()
+      seedChanges()
+    }
     assetsStore.assets.forEach(asset => {
+      if (asset.live) return
       const vol  = assetVolatility(asset)
       const prev = priceChanges[asset.id] ?? 0
       const nudge = (Math.random() - 0.5) * vol * 0.8
@@ -82,6 +120,9 @@ function startTicker() {
     macroStore.updateFromPriceChanges(priceChanges)
   }, 5000)
 }
+
+// Re-seed when live quotes land (same length, new data)
+watch(() => assetsStore.liveCount, () => seedChanges())
 
 // Seed price changes + start ticker as soon as assets are available
 // (may be from cache before network completes)
@@ -104,22 +145,53 @@ onMounted(async () => {
   assetsStore.initializeStore()
   predStore.init()
   predStore.seedFromFile()
+  window.addEventListener('scroll', fillListIfNear, { passive: true })
+  window.addEventListener('resize', fillListIfNear)
+  nextTick(() => fillListIfNear())
 })
 
-onUnmounted(() => clearInterval(ticker))
+onUnmounted(() => {
+  clearInterval(ticker)
+  listObserver?.disconnect()
+  window.removeEventListener('scroll', fillListIfNear)
+  window.removeEventListener('resize', fillListIfNear)
+})
 
-// ── Available filter types ────────────────────────────────────────────────
-const availableTypes = computed(() => {
+// ── Available filter types (no All — every chip neutral shows everything) ─
+const filterTypes = computed(() => {
   const types = new Set(assetsStore.assets.map(a => a.type))
-  return ['all', ...Array.from(types)]
+  return Array.from(types)
 })
 
 const TYPE_LABELS: Record<string, string> = {
-  all: 'All',
   stock: 'Stocks',
   cryptocurrency: 'Crypto',
+  crypto: 'Crypto',
   fiat_currency: 'Forex / Fiat',
+  forex: 'Forex / Fiat',
   commodity: 'Commodities',
+  bet: 'Bets',
+}
+
+const typeOptions = computed(() =>
+  filterTypes.value.map(type => ({
+    id: type,
+    label: TYPE_LABELS[type] ?? type,
+    tone: type === 'bet' ? 'bet' as const : undefined,
+  })),
+)
+
+function resetHorizon() {
+  for (const key of Object.keys(horizonStates)) delete horizonStates[key]
+  Object.assign(horizonStates, defaultHorizonStates())
+}
+
+function resetFilters() {
+  searchQuery.value = ''
+  sortBy.value = 'default'
+  sortReverse.value = false
+  for (const key of Object.keys(typeStates)) delete typeStates[key]
+  resetHorizon()
 }
 
 const SORTS: { id: 'default' | 'gainers' | 'losers' | 'vol_high' | 'cap'; label: string }[] = [
@@ -134,9 +206,14 @@ const SORTS: { id: 'default' | 'gainers' | 'losers' | 'vol_high' | 'cap'; label:
 const filtered = computed(() => {
   let list = assetsStore.assets
 
-  // Type filter
-  if (selectedType.value !== 'all')
-    list = list.filter(a => a.type === selectedType.value)
+  // Settings › Trading › "Hide simulated assets"
+  if (tradingPrefs.hideSimulated) list = list.filter(a => !!a.live)
+
+  // Tri-state type chips: include whitelists, exclude always hides.
+  list = applyTypeFilters(list, typeStates)
+
+  // Bet time-horizon filter — removes ONLY bet rows resolving beyond the horizon.
+  list = applyHorizonStates(list, horizonStates, Date.now())
 
   // Region filter (from the map view)
   if (selectedRegionIso.value)
@@ -152,21 +229,73 @@ const filtered = computed(() => {
     )
   }
 
-  // Sort
-  const withChange = list.map(a => ({ asset: a, pct: priceChanges[a.id] ?? 0 }))
-  switch (sortBy.value) {
-    case 'gainers': withChange.sort((a, b) => b.pct - a.pct); break
-    case 'losers':  withChange.sort((a, b) => a.pct - b.pct); break
-    case 'vol_high': withChange.sort((a, b) =>
-      (b.asset.fluctuation_velocity ?? b.asset.psychology_profile?.volatility_affinity ?? 0) -
-      (a.asset.fluctuation_velocity ?? a.asset.psychology_profile?.volatility_affinity ?? 0)); break
-    case 'cap': withChange.sort((a, b) => (b.asset.market_cap ?? 0) - (a.asset.market_cap ?? 0)); break
-  }
-  return withChange.map(x => x.asset)
+  return sortAssets(list, sortBy.value, priceChanges, sortReverse.value)
 })
 
-const primaryAssets   = computed(() => filtered.value.slice(0, 6))
-const additionalAssets = computed(() => filtered.value.slice(6))
+/** Live quotes inside the current result set — the "40" next to the asset count. */
+const liveInView = computed(() => filtered.value.filter(a => a.live).length)
+const feedTitle = computed(() => {
+  const n = filtered.value.length
+  const live = liveInView.value
+  if (!live) return `${n} assets in this list, none with a live quote. Open to see which API each asset comes from.`
+  return `${live} of ${n} assets in this list have a live quote. Open to see which API each asset comes from.`
+})
+
+// Paint the top of the list first. Further rows mount as the scroll
+// position nears the end, so a long list stays one continuous column.
+const LIST_CHUNK = 10
+const LIST_PRELOAD_PX = 800
+const visibleCount = ref(LIST_CHUNK)
+const visibleAssets = computed(() => filtered.value.slice(0, visibleCount.value))
+const hasMoreAssets = computed(() => visibleCount.value < filtered.value.length)
+const listSentinel = ref<HTMLElement | null>(null)
+let listObserver: IntersectionObserver | null = null
+let fillingList = false
+
+function resetListWindow() {
+  visibleCount.value = LIST_CHUNK
+  nextTick(() => fillListIfNear())
+}
+
+async function fillListIfNear() {
+  if (fillingList || typeof window === 'undefined') return
+  fillingList = true
+  try {
+    while (visibleCount.value < filtered.value.length) {
+      const el = listSentinel.value
+      if (!el) break
+      if (el.getBoundingClientRect().top > window.innerHeight + LIST_PRELOAD_PX) break
+      const next = Math.min(filtered.value.length, visibleCount.value + LIST_CHUNK)
+      if (next === visibleCount.value) break
+      visibleCount.value = next
+      await nextTick()
+    }
+  } finally {
+    fillingList = false
+  }
+}
+
+function bindListSentinel(el: HTMLElement | null) {
+  listObserver?.disconnect()
+  listObserver = null
+  if (!el || typeof IntersectionObserver === 'undefined') return
+  listObserver = new IntersectionObserver((entries) => {
+    if (entries.some(entry => entry.isIntersecting)) fillListIfNear()
+  }, { rootMargin: `${LIST_PRELOAD_PX}px 0px` })
+  listObserver.observe(el)
+}
+
+watch(listSentinel, bindListSentinel)
+watch(() => filtered.value.length, () => { nextTick(() => fillListIfNear()) })
+watch([sortBy, sortReverse, searchQuery, selectedRegionIso], resetListWindow)
+watch(typeStates, resetListWindow, { deep: true })
+watch(horizonStates, resetListWindow, { deep: true })
+watch(() => tradingPrefs.hideSimulated, resetListWindow)
+
+/** Bets the current horizon is hiding (shown next to the horizon chips). */
+const hiddenBets = computed(() =>
+  countHiddenByHorizonStates(assetsStore.assets, horizonStates, Date.now())
+)
 
 // ── Market overview stats ─────────────────────────────────────────────────
 const gainers = computed(() =>
@@ -249,42 +378,76 @@ function navigateToAsset(assetId: string) {
 
     </div>
 
-    <!-- ── Type, view, sort, and result count on one bar ───────────── -->
+    <!-- ── Type + sort share one row; view and bet horizon sit below ─ -->
     <div class="controls-bar" v-if="hasData">
-      <div class="type-chips">
-        <button
-          v-for="type in availableTypes"
-          :key="type"
-          class="type-chip"
-          :class="{ active: selectedType === type }"
-          @click="selectedType = type"
-        >
-          {{ TYPE_LABELS[type] ?? type }}
-        </button>
+      <div class="controls-primary">
+        <UIOpChips
+          class="type-chips"
+          label="Asset type"
+          uppercase
+          nowrap
+          :options="typeOptions"
+          :states="typeStates"
+          @cycle="id => cycleKey(typeStates, id)"
+        />
+
+        <div class="sort-chips" role="group" aria-label="Sort">
+          <button
+            v-for="opt in SORTS"
+            :key="opt.id"
+            class="sort-chip"
+            :class="{ active: sortBy === opt.id }"
+            :aria-pressed="sortBy === opt.id"
+            @click="sortBy = opt.id"
+          >{{ opt.label }}</button>
+          <button
+            class="sort-chip dir-chip"
+            :class="{ active: sortReverse }"
+            :aria-pressed="sortReverse"
+            :title="sortReverse ? 'List is bottom to top. Click to restore top to bottom.' : 'Flip the list bottom to top.'"
+            @click="sortReverse = !sortReverse"
+          >{{ sortReverse ? '↑ Reversed' : '↓ Order' }}</button>
+        </div>
+
+        <div class="results-meta">
+          <button
+            class="src-badge"
+            :class="{ live: liveInView }"
+            :title="feedTitle"
+            :aria-label="feedTitle"
+            @click="showApiPanel = true"
+          >
+            {{ filtered.length }} assets · {{ liveInView ? `${liveInView} live` : 'none live' }}
+          </button>
+          <span v-if="searchQuery" class="search-term">for "{{ searchQuery }}"</span>
+          <button v-if="searchQuery" class="meta-clear" @click="searchQuery = ''">Clear</button>
+          <button v-if="selectedRegionIso" class="region-chip" @click="selectedRegionIso = null">
+            📍 {{ selectedRegionIso }} ✕
+          </button>
+        </div>
       </div>
 
-      <div class="view-toggle" role="group" aria-label="View mode">
-        <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="List view">☰ List</button>
-        <button :class="{ active: viewMode === 'map' }" @click="viewMode = 'map'" title="Map view">🌍 Map</button>
-      </div>
+      <div class="controls-secondary">
+        <div class="view-toggle" role="group" aria-label="View mode">
+          <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="List view">☰ List</button>
+          <button :class="{ active: viewMode === 'tree' }" @click="viewMode = 'tree'" title="Market tree: parents ↔ children">⌥ Tree</button>
+          <button :class="{ active: viewMode === 'map' }" @click="viewMode = 'map'" title="Map view">🌍 Map</button>
+        </div>
 
-      <div class="sort-chips" role="group" aria-label="Sort">
-        <button
-          v-for="opt in SORTS"
-          :key="opt.id"
-          class="sort-chip"
-          :class="{ active: sortBy === opt.id }"
-          @click="sortBy = opt.id"
-        >{{ opt.label }}</button>
-      </div>
-
-      <div class="results-meta">
-        <span>{{ filtered.length }} assets</span>
-        <span v-if="searchQuery" class="search-term">for "{{ searchQuery }}"</span>
-        <button v-if="searchQuery" class="meta-clear" @click="searchQuery = ''">Clear</button>
-        <button v-if="selectedRegionIso" class="region-chip" @click="selectedRegionIso = null">
-          📍 {{ selectedRegionIso }} ✕
-        </button>
+        <!-- Bet-only time horizon: hides bets resolving beyond the window. -->
+        <div v-if="hasBetAssets" class="horizon-chips">
+          <span class="horizon-label">Bet horizon</span>
+          <UIOpChips
+            label="Bet time horizon"
+            tone="bet"
+            :options="HORIZON_BUCKETS.map(h => ({ id: h.id, label: h.label }))"
+            :states="horizonStates"
+            @cycle="id => cycleKey(horizonStates, id)"
+          />
+          <span v-if="hiddenBets" class="horizon-hidden" :title="`${hiddenBets} bet(s) resolving outside the highlighted windows are hidden`">
+            {{ hiddenBets }} hidden
+          </span>
+        </div>
       </div>
     </div>
 
@@ -299,8 +462,23 @@ function navigateToAsset(assetId: string) {
       </div>
     </div>
 
+    <!-- ── Nothing to show (load failed) ─────────────────────────────── -->
+    <div v-if="!loading && !hasData" class="empty-state">
+      <span class="empty-icon">📉</span>
+      <p>{{ loadError ? 'Market data could not be loaded.' : 'No market data yet.' }}</p>
+      <button class="reset-btn" @click="assetsStore.fetchAssets()">Retry</button>
+    </div>
+
     <!-- ── Asset list ────────────────────────────────────────────────── -->
     <div v-if="hasData" class="assets-section">
+
+      <!-- Tree view: Market → class → sector → asset, with the linking equations -->
+      <PricesMarketTree
+        v-if="viewMode === 'tree'"
+        v-model:selected="treeSelected"
+        :assets="filtered"
+        :price-changes="priceChanges"
+      />
 
       <!-- Map view -->
       <PricesMap
@@ -316,10 +494,10 @@ function navigateToAsset(assetId: string) {
         <Heatmap v-if="selectedAssetId" :companyId="selectedAssetId" class="heatmap-panel" />
       </Transition>
 
-      <!-- Primary grid -->
+      <template v-if="viewMode !== 'tree'">
       <div class="asset-grid">
         <DisplayAsset
-          v-for="asset in primaryAssets"
+          v-for="asset in visibleAssets"
           :key="asset.id"
           :asset="asset"
           :priceChangePct="priceChanges[asset.id]"
@@ -327,39 +505,35 @@ function navigateToAsset(assetId: string) {
           @click="navigateToAsset"
         />
       </div>
+      <div
+        v-if="hasMoreAssets"
+        ref="listSentinel"
+        class="list-sentinel"
+        aria-hidden="true"
+      />
 
-      <!-- Empty state -->
       <div v-if="!filtered.length" class="empty-state">
         <span class="empty-icon">📊</span>
         <p>No assets match your filters.</p>
-        <button @click="searchQuery = ''; selectedType = 'all'" class="reset-btn">Reset filters</button>
+        <button @click="resetFilters" class="reset-btn">Reset filters</button>
       </div>
-
-      <!-- Show more -->
-      <div v-if="additionalAssets.length" class="show-more-wrap">
-        <button class="show-more-btn" @click="showMoreAssets = !showMoreAssets">
-          {{ showMoreAssets ? '▲ Show less' : `▾ Show ${additionalAssets.length} more assets` }}
-        </button>
-      </div>
-
-      <Transition name="fade">
-        <div v-if="showMoreAssets" class="asset-grid additional">
-          <DisplayAsset
-            v-for="asset in additionalAssets"
-            :key="asset.id"
-            :asset="asset"
-            :priceChangePct="priceChanges[asset.id]"
-            :userId="'current_user'"
-            @click="navigateToAsset"
-          />
-        </div>
-      </Transition>
+      </template>
 
     </div>
+
+    <!-- ── Data APIs, grouped by what they feed ────────────────────── -->
+    <PricesApiPanel v-model:open="showApiPanel" :assets="filtered" />
   </div>
 </template>
 
 <style scoped>
+.src-badge {
+  font-size: .68rem; padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--border-primary); color: var(--text-secondary);
+  background: transparent; cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+.src-badge:hover { border-color: var(--border-accent); color: var(--text-white); }
+.src-badge.live { color: var(--app-color-up, var(--success-green)); border-color: currentColor; }
 .prices-page {
   display: flex;
   flex-direction: column;
@@ -423,22 +597,41 @@ function navigateToAsset(assetId: string) {
 .mstat-val  { font-weight: 700; }
 .mstat.highlight { font-weight: 700; font-size: 0.62rem; }
 
-/* ── One toolbar: type, view, sort, count ── */
+/* ── Toolbar: type + sort on one row, view + horizon on the next ── */
 .controls-bar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
+  flex-direction: column;
+  gap: 6px;
 }
+
+.controls-primary,
+.controls-secondary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.controls-primary {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.controls-primary::-webkit-scrollbar { display: none; }
+
+.controls-secondary { flex-wrap: wrap; }
 
 .type-chips, .sort-chips, .view-toggle {
   display: flex;
   gap: 4px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  align-items: center;
 }
 
 .type-chip {
-  padding: 5px 12px;
+  height: 26px;
+  padding: 0 12px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-secondary);
   border-radius: var(--radius-md);
@@ -447,16 +640,77 @@ function navigateToAsset(assetId: string) {
   font-size: 0.68rem;
   font-weight: 600;
   text-transform: uppercase;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
   font-family: var(--font-family-secondary);
   white-space: nowrap;
+  box-shadow: none;
 }
 
 .type-chip:hover { background: var(--bg-tertiary); color: var(--text-white); }
-.type-chip.active { background: var(--primary-gradient); border-color: var(--primary-green); color: var(--secondary-darker); }
 
-.sort-chip {
-  padding: 4px 8px;
+/* Include: raised — light inner edge, dark drop shadow. */
+.type-chip.include {
+  background: linear-gradient(180deg, #eafff4 0%, var(--primary-green) 42%, #00b368 100%);
+  border-color: var(--primary-green);
+  color: var(--secondary-darker);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.72),
+    0 3px 8px rgba(0,0,0,0.55);
+}
+.type-chip.include:hover { color: var(--secondary-darker); }
+
+/* Exclude: pressed — dark inset, light outer lip. */
+.type-chip.exclude {
+  background: #101218;
+  border-color: rgba(255,255,255,0.08);
+  color: var(--text-gray);
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.78),
+    0 1px 0 rgba(255,255,255,0.16);
+}
+.type-chip.exclude:hover { color: var(--text-light-gray); background: #101218; }
+
+/* Bets: distinct hot-pink class, never the commodity/equity colours. */
+.type-chip.bet { color: #ff4d9d; border-color: rgba(255,77,157,0.5); }
+.type-chip.bet:hover { background: rgba(255,77,157,0.12); color: #ff4d9d; }
+.type-chip.bet.include {
+  background: linear-gradient(180deg, #ffe4f1 0%, #ff4d9d 46%, #d41474 100%);
+  border-color: #ff4d9d;
+  color: #1a0a12;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.7),
+    0 3px 8px rgba(0,0,0,0.55);
+}
+.type-chip.bet.include:hover { color: #1a0a12; background: linear-gradient(180deg, #ffe4f1 0%, #ff4d9d 46%, #d41474 100%); }
+.type-chip.bet.exclude {
+  background: #140810;
+  border-color: rgba(255,77,157,0.25);
+  color: rgba(255,77,157,0.72);
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.78),
+    0 1px 0 rgba(255,77,157,0.28);
+}
+.type-chip.bet.exclude:hover { color: #ff4d9d; background: #140810; }
+
+/* ── Bet time-horizon filter ── */
+.horizon-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border-primary);
+}
+.horizon-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #ff4d9d;
+  font-weight: 700;
+  margin-right: 2px;
+}
+.horizon-chip {
+  height: 26px;
+  padding: 0 8px;
   background: transparent;
   border: 1px solid var(--border-secondary);
   border-radius: var(--radius-md);
@@ -467,11 +721,42 @@ function navigateToAsset(assetId: string) {
   font-family: var(--font-family-secondary);
   white-space: nowrap;
 }
+.horizon-chip:hover { color: var(--text-white); }
+.horizon-chip.active {
+  background: rgba(255,77,157,0.14);
+  border-color: rgba(255,77,157,0.6);
+  color: #ff4d9d;
+}
+.horizon-hidden {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  border: 1px dashed var(--text-secondary);
+  border-radius: 999px;
+  padding: 0 6px;
+}
+
+.sort-chip {
+  height: 26px;
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  color: var(--text-gray);
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 600;
+  font-family: var(--font-family-secondary);
+  white-space: nowrap;
+  box-shadow: none;
+}
 .sort-chip:hover { color: var(--text-white); }
 .sort-chip.active {
-  background: rgba(255,255,255,0.06);
-  border-color: rgba(255,255,255,0.28);
+  background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
+  border-color: rgba(255,255,255,0.32);
   color: var(--text-white);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.45),
+    0 3px 8px rgba(0,0,0,0.55);
 }
 
 /* ── Background refresh overlay ── */
@@ -572,6 +857,7 @@ function navigateToAsset(assetId: string) {
   font-size: 0.62rem;
   color: var(--text-gray);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .search-term { font-style: italic; }
 .meta-clear {
@@ -597,7 +883,8 @@ function navigateToAsset(assetId: string) {
 
 .view-toggle { display: flex; gap: 2px; }
 .view-toggle button {
-  padding: 0.3rem 0.6rem;
+  height: 26px;
+  padding: 0 0.6rem;
   border-radius: 6px;
   border: 1px solid var(--border-secondary);
   background: transparent;
@@ -618,7 +905,7 @@ function navigateToAsset(assetId: string) {
   gap: var(--spacing-sm);
 }
 
-.additional { opacity: 0.85; }
+.list-sentinel { height: 1px; }
 
 /* Empty state */
 .empty-state {
@@ -644,27 +931,6 @@ function navigateToAsset(assetId: string) {
   transition: all var(--transition-fast);
 }
 .reset-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-white); }
-
-/* Show more */
-.show-more-wrap { display: flex; justify-content: center; }
-
-.show-more-btn {
-  padding: var(--spacing-sm) var(--spacing-xl);
-  background: transparent;
-  border: 1px solid var(--border-secondary);
-  border-radius: var(--radius-lg);
-  color: var(--text-gray);
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  font-family: var(--font-family-secondary);
-}
-.show-more-btn:hover {
-  background: rgba(255,255,255,0.06);
-  color: var(--text-white);
-  border-color: var(--border-primary);
-}
 
 /* Transitions */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }

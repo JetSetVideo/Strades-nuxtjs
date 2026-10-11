@@ -11,7 +11,6 @@ import type {
 } from '~/types/user'
 
 export type {
-  UserProfile as User,
   CalendarDay,
   AiAvatar,
   Achievement,
@@ -170,7 +169,7 @@ export const useUsersStore = defineStore('users', {
         // ignore — fallback below
       }
       if (!this.currentUser && this.users.length > 0) {
-        await this.setCurrentUser(this.users[0].id)
+        await this.setCurrentUser(this.users[0]!.id)
       }
     },
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { NewsFacetSummary, NewsFilters, NewsSortMode, NewsViewMode } from '~/types/news'
+import type { NewsFacetExcludes, NewsFacetSummary, NewsFilterOption, NewsFilters, NewsSortMode, NewsViewMode } from '~/types/news'
+import { statesFromLists, type FilterTriState } from '~/utils/priceFilters'
 
 type FacetKey = 'companies' | 'currencies' | 'commodities' | 'owners' | 'users' | 'friends' | 'sources' | 'categories' | 'areas'
 type EnumFacetKey = 'kinds' | 'political' | 'economic' | 'sentiment'
@@ -25,7 +26,6 @@ const emit = defineEmits<{
 }>()
 
 const expanded = ref(false)
-const openBranch = ref<string | null>(null)
 
 const views: Array<{ id: NewsViewMode; label: string }> = [
   { id: 'feed', label: 'Feed' },
@@ -41,352 +41,227 @@ const sorts: Array<{ id: NewsSortMode; label: string }> = [
   { id: 'new', label: 'New' },
 ]
 
-const branches = computed(() => [
-  {
-    id: 'markets',
-    label: 'Markets',
-    count: props.filters.companies.length + props.filters.currencies.length + props.filters.commodities.length,
-  },
-  {
-    id: 'people',
-    label: 'People',
-    count: props.filters.owners.length + props.filters.users.length + props.filters.friends.length,
-  },
-  {
-    id: 'source',
-    label: 'Source',
-    count: props.filters.sources.length + props.filters.kinds.length + props.filters.categories.length,
-  },
-  {
-    id: 'interpretation',
-    label: 'Interpretation',
-    count: props.filters.political.length + props.filters.economic.length + props.filters.sentiment.length,
-  },
-  {
-    id: 'context',
-    label: 'Time & place',
-    count: props.filters.areas.length + (props.filters.dateFrom ? 1 : 0) + (props.filters.dateTo ? 1 : 0),
-  },
-  {
-    id: 'state',
-    label: 'My state',
-    count: Number(props.filters.savedOnly) + Number(props.filters.historyOnly) + Number(props.filters.predictionOnly),
-  },
-])
+const kindOptions = computed(() => toOptions(props.facets.kinds))
+const categoryOptions = computed(() => toOptions(props.facets.categories))
+const sentimentOptions = [
+  { id: 'bearish', label: 'Bearish' },
+  { id: 'neutral', label: 'Neutral' },
+  { id: 'bullish', label: 'Bullish' },
+]
+const politicalOptions = [
+  { id: 'left', label: 'Left' },
+  { id: 'center_left', label: 'Center left' },
+  { id: 'center', label: 'Center' },
+  { id: 'center_right', label: 'Center right' },
+  { id: 'right', label: 'Right' },
+]
+const economicOptions = [
+  { id: 'dovish', label: 'Dovish' },
+  { id: 'neutral', label: 'Neutral' },
+  { id: 'hawkish', label: 'Hawkish' },
+]
 
-const activeSummary = computed(() => {
-  const labels = [
-    ...props.filters.companies,
-    ...props.filters.currencies,
-    ...props.filters.commodities,
-    ...props.filters.areas,
-    ...props.filters.categories,
-    ...props.filters.friends,
-    ...props.filters.political.map(value => value.replace('_', ' ')),
-    ...props.filters.sentiment,
-  ]
-  if (props.filters.savedOnly) labels.push('saved')
-  if (props.filters.historyOnly) labels.push('history')
-  if (props.filters.predictionOnly) labels.push('predictions')
-  return labels.slice(0, 4)
-})
+const longGroups = computed(() => [
+  { id: 'companies' as const, label: 'Companies & assets', options: toOptions(props.facets.companies) },
+  { id: 'currencies' as const, label: 'Currencies', options: toOptions(props.facets.currencies) },
+  { id: 'commodities' as const, label: 'Commodities', options: toOptions(props.facets.commodities) },
+  { id: 'sources' as const, label: 'Sources', options: toOptions(props.facets.sources) },
+  { id: 'owners' as const, label: 'Authors', options: toOptions(props.facets.owners) },
+  { id: 'friends' as const, label: 'Friends', options: toOptions(props.facets.friends) },
+  { id: 'users' as const, label: 'Users & agents', options: toOptions(props.facets.users) },
+  { id: 'areas' as const, label: 'Place', options: toOptions(props.facets.areas) },
+].filter(group => group.options.length))
 
-const toggleExpanded = () => {
-  expanded.value = !expanded.value
-  if (!expanded.value) openBranch.value = null
+function toOptions(options: NewsFilterOption[]) {
+  return options.map(option => ({ id: option.value, label: option.label }))
 }
 
-const toggleBranch = (id: string) => {
-  openBranch.value = openBranch.value === id ? null : id
+function statesFor(key: keyof NewsFacetExcludes): Record<string, FilterTriState> {
+  const include = (props.filters[key] as readonly string[]) ?? []
+  const exclude = (props.filters.excluded?.[key] as readonly string[]) ?? []
+  return statesFromLists(include, exclude)
 }
 
-const enumSelected = (key: EnumFacetKey, value: string) =>
-  (props.filters[key] as readonly string[]).includes(value)
+function cycleEnum(key: EnumFacetKey, id: string) {
+  emit('toggle-enum-filter', { key, value: id })
+}
+
+function cycleFacet(key: FacetKey, id: string) {
+  emit('toggle-filter', { key, value: id })
+}
 </script>
 
 <template>
   <section class="toolbar" :class="{ expanded }" aria-label="News discovery controls">
     <div class="compact-bar">
-      <div class="compact-controls">
-        <label class="compact-select">
-          <span class="sr-only">News view</span>
-          <select :value="view" @change="emit('update:view', ($event.target as HTMLSelectElement).value as NewsViewMode)">
-            <option v-for="entry in views" :key="entry.id" :value="entry.id">{{ entry.label }}</option>
-          </select>
-        </label>
+      <div class="controls-primary">
+        <UIOpChips
+          v-if="categoryOptions.length"
+          class="category-chips"
+          label="Category"
+          uppercase
+          nowrap
+          :options="categoryOptions"
+          :states="statesFor('categories')"
+          @cycle="cycleFacet('categories', $event)"
+        />
 
-        <label class="compact-select">
-          <span class="sr-only">Sort order</span>
-          <select :value="sortMode" @change="emit('update:sort', ($event.target as HTMLSelectElement).value as NewsSortMode)">
-            <option v-for="entry in sorts" :key="entry.id" :value="entry.id">{{ entry.label }}</option>
-          </select>
-        </label>
+        <div class="mode-chips" role="group" aria-label="Sort order">
+          <button
+            v-for="entry in sorts"
+            :key="entry.id"
+            type="button"
+            class="mode-chip"
+            :class="{ active: sortMode === entry.id }"
+            :aria-pressed="sortMode === entry.id"
+            @click="emit('update:sort', entry.id)"
+          >{{ entry.label }}</button>
+        </div>
 
         <button
-          class="filter-toggle"
+          class="icon-action"
+          type="button"
+          title="Import external link"
+          aria-label="Import external link"
+          @click="emit('open-import')"
+        >↗</button>
+
+        <button
+          v-if="activeFilterCount"
+          class="clear-chip"
+          type="button"
+          @click="emit('clear')"
+        >Clear</button>
+      </div>
+
+      <div class="controls-secondary">
+        <div class="mode-chips view-chips" role="group" aria-label="News view">
+          <button
+            v-for="entry in views"
+            :key="entry.id"
+            type="button"
+            class="mode-chip view-chip"
+            :class="{ active: view === entry.id }"
+            :aria-pressed="view === entry.id"
+            @click="emit('update:view', entry.id)"
+          >{{ entry.label }}</button>
+        </div>
+
+        <div v-if="kindOptions.length" class="chip-group">
+          <span class="group-label">Kind</span>
+          <UIOpChips
+            label="Content kind"
+            :options="kindOptions"
+            :states="statesFor('kinds')"
+            @cycle="cycleEnum('kinds', $event)"
+          />
+        </div>
+
+        <div class="chip-group">
+          <span class="group-label">Sentiment</span>
+          <UIOpChips
+            label="Market sentiment"
+            :options="sentimentOptions"
+            :states="statesFor('sentiment')"
+            @cycle="cycleEnum('sentiment', $event)"
+          />
+        </div>
+
+        <button
+          class="mode-chip more-chip"
           :class="{ active: expanded || activeFilterCount > 0 }"
           type="button"
           :aria-expanded="expanded"
           aria-controls="news-filter-tree"
-          @click="toggleExpanded"
+          @click="expanded = !expanded"
         >
-          Filters
+          {{ expanded ? 'Less' : 'More' }}
           <span v-if="activeFilterCount" class="count">{{ activeFilterCount }}</span>
-          <span class="chevron" aria-hidden="true">{{ expanded ? '−' : '+' }}</span>
         </button>
-
-        <button class="icon-action" type="button" title="Import external link" aria-label="Import external link" @click="emit('open-import')">↗</button>
       </div>
-    </div>
-
-    <div v-if="!expanded && activeSummary.length" class="active-summary" aria-label="Active filters">
-      <button
-        v-for="label in activeSummary"
-        :key="label"
-        class="summary-chip"
-        type="button"
-        @click="expanded = true"
-      >
-        {{ label }}
-      </button>
-      <button v-if="activeFilterCount > activeSummary.length" class="summary-chip more" type="button" @click="expanded = true">
-        +{{ activeFilterCount - activeSummary.length }}
-      </button>
-      <button class="summary-clear" type="button" @click="emit('clear')">Clear</button>
     </div>
 
     <div v-if="expanded" id="news-filter-tree" class="filter-tree">
-      <nav class="branch-nav" aria-label="Filter groups">
-        <button
-          v-for="branch in branches"
-          :key="branch.id"
-          type="button"
-          class="branch-button"
-          :class="{ active: openBranch === branch.id, selected: branch.count > 0 }"
-          :aria-expanded="openBranch === branch.id"
-          @click="toggleBranch(branch.id)"
-        >
-          <span>{{ branch.label }}</span>
-          <span v-if="branch.count" class="branch-count">{{ branch.count }}</span>
-          <span class="branch-arrow" aria-hidden="true">{{ openBranch === branch.id ? '▾' : '›' }}</span>
-        </button>
-      </nav>
+      <div class="leaf">
+        <span class="leaf-title">Political axis</span>
+        <UIOpChips
+          label="Political axis"
+          :options="politicalOptions"
+          :states="statesFor('political')"
+          @cycle="cycleEnum('political', $event)"
+        />
+      </div>
+      <div class="leaf">
+        <span class="leaf-title">Economic axis</span>
+        <UIOpChips
+          label="Economic axis"
+          :options="economicOptions"
+          :states="statesFor('economic')"
+          @cycle="cycleEnum('economic', $event)"
+        />
+      </div>
 
-      <div v-if="openBranch" class="branch-panel">
-        <template v-if="openBranch === 'markets'">
-          <div class="leaf">
-            <span class="leaf-title">Companies & assets</span>
-            <div class="chips">
-              <button
-                v-for="option in facets.companies"
-                :key="option.value"
-                type="button"
-                class="chip"
-                :class="{ active: filters.companies.includes(option.value) }"
-                @click="emit('toggle-filter', { key: 'companies', value: option.value })"
-              >{{ option.label }} <small>{{ option.count }}</small></button>
-            </div>
-          </div>
-          <div class="leaf">
-            <span class="leaf-title">Currencies</span>
-            <div class="chips">
-              <button
-                v-for="option in facets.currencies"
-                :key="option.value"
-                type="button"
-                class="chip"
-                :class="{ active: filters.currencies.includes(option.value) }"
-                @click="emit('toggle-filter', { key: 'currencies', value: option.value })"
-              >{{ option.label }} <small>{{ option.count }}</small></button>
-            </div>
-          </div>
-          <div class="leaf">
-            <span class="leaf-title">Commodities</span>
-            <div class="chips">
-              <button
-                v-for="option in facets.commodities"
-                :key="option.value"
-                type="button"
-                class="chip"
-                :class="{ active: filters.commodities.includes(option.value) }"
-                @click="emit('toggle-filter', { key: 'commodities', value: option.value })"
-              >{{ option.label }} <small>{{ option.count }}</small></button>
-            </div>
-          </div>
-        </template>
+      <div v-for="group in longGroups" :key="group.id" class="leaf">
+        <span class="leaf-title">{{ group.label }}</span>
+        <UIOpChips
+          :label="group.label"
+          :options="group.options"
+          :states="statesFor(group.id)"
+          @cycle="cycleFacet(group.id, $event)"
+        />
+      </div>
 
-        <template v-else-if="openBranch === 'people'">
-          <div class="leaf">
-            <span class="leaf-title">Friends</span>
-            <div class="chips">
-              <button
-                v-for="option in facets.friends"
-                :key="option.value"
-                type="button"
-                class="chip friend-chip"
-                :class="{ active: filters.friends.includes(option.value) }"
-                @click="emit('toggle-filter', { key: 'friends', value: option.value })"
-              >{{ option.label }} <small>{{ option.count }}</small></button>
-            </div>
-          </div>
-          <div class="leaf">
-            <span class="leaf-title">Owners & authors</span>
-            <div class="chips">
-              <button
-                v-for="option in facets.owners"
-                :key="option.value"
-                type="button"
-                class="chip"
-                :class="{ active: filters.owners.includes(option.value) }"
-                @click="emit('toggle-filter', { key: 'owners', value: option.value })"
-              >{{ option.label }} <small>{{ option.count }}</small></button>
-            </div>
-          </div>
-          <div class="leaf">
-            <span class="leaf-title">Users & agents</span>
-            <div class="chips">
-              <button
-                v-for="option in facets.users"
-                :key="option.value"
-                type="button"
-                class="chip"
-                :class="{ active: filters.users.includes(option.value) }"
-                @click="emit('toggle-filter', { key: 'users', value: option.value })"
-              >{{ option.label }} <small>{{ option.count }}</small></button>
-            </div>
-          </div>
-        </template>
+      <div class="leaf date-leaf">
+        <label class="date-field">
+          <span>From</span>
+          <input
+            type="date"
+            :value="filters.dateFrom ?? ''"
+            @input="emit('update-date', { key: 'dateFrom', value: (($event.target as HTMLInputElement).value || null) })"
+          >
+        </label>
+        <label class="date-field">
+          <span>To</span>
+          <input
+            type="date"
+            :value="filters.dateTo ?? ''"
+            @input="emit('update-date', { key: 'dateTo', value: (($event.target as HTMLInputElement).value || null) })"
+          >
+        </label>
+      </div>
 
-        <template v-else-if="openBranch === 'source'">
-          <div class="leaf">
-            <span class="leaf-title">Sources</span>
-            <div class="chips">
-              <button
-                v-for="option in facets.sources"
-                :key="option.value"
-                type="button"
-                class="chip"
-                :class="{ active: filters.sources.includes(option.value) }"
-                @click="emit('toggle-filter', { key: 'sources', value: option.value })"
-              >{{ option.label }} <small>{{ option.count }}</small></button>
-            </div>
-          </div>
-          <div class="leaf">
-            <span class="leaf-title">Content kind</span>
-            <div class="chips">
-              <button
-                v-for="option in facets.kinds"
-                :key="option.value"
-                type="button"
-                class="chip"
-                :class="{ active: enumSelected('kinds', option.value) }"
-                @click="emit('toggle-enum-filter', { key: 'kinds', value: option.value })"
-              >{{ option.label }} <small>{{ option.count }}</small></button>
-            </div>
-          </div>
-          <div class="leaf">
-            <span class="leaf-title">Categories</span>
-            <div class="chips">
-              <button
-                v-for="option in facets.categories"
-                :key="option.value"
-                type="button"
-                class="chip"
-                :class="{ active: filters.categories.includes(option.value) }"
-                @click="emit('toggle-filter', { key: 'categories', value: option.value })"
-              >{{ option.label }} <small>{{ option.count }}</small></button>
-            </div>
-          </div>
-        </template>
-
-        <template v-else-if="openBranch === 'interpretation'">
-          <div class="leaf">
-            <span class="leaf-title">Political axis</span>
-            <div class="chips">
-              <button
-                v-for="option in ['left', 'center_left', 'center', 'center_right', 'right']"
-                :key="option"
-                type="button"
-                class="chip"
-                :class="{ active: enumSelected('political', option) }"
-                @click="emit('toggle-enum-filter', { key: 'political', value: option })"
-              >{{ option.replace('_', ' ') }}</button>
-            </div>
-          </div>
-          <div class="leaf">
-            <span class="leaf-title">Economic axis</span>
-            <div class="chips">
-              <button
-                v-for="option in ['dovish', 'neutral', 'hawkish']"
-                :key="option"
-                type="button"
-                class="chip"
-                :class="{ active: enumSelected('economic', option) }"
-                @click="emit('toggle-enum-filter', { key: 'economic', value: option })"
-              >{{ option }}</button>
-            </div>
-          </div>
-          <div class="leaf">
-            <span class="leaf-title">Market sentiment</span>
-            <div class="chips">
-              <button
-                v-for="option in ['bearish', 'neutral', 'bullish']"
-                :key="option"
-                type="button"
-                class="chip"
-                :class="{ active: enumSelected('sentiment', option) }"
-                @click="emit('toggle-enum-filter', { key: 'sentiment', value: option })"
-              >{{ option }}</button>
-            </div>
-          </div>
-        </template>
-
-        <template v-else-if="openBranch === 'context'">
-          <div class="leaf">
-            <span class="leaf-title">Geographic area</span>
-            <div class="chips">
-              <button
-                v-for="option in facets.areas"
-                :key="option.value"
-                type="button"
-                class="chip"
-                :class="{ active: filters.areas.includes(option.value) }"
-                @click="emit('toggle-filter', { key: 'areas', value: option.value })"
-              >{{ option.label }} <small>{{ option.count }}</small></button>
-            </div>
-          </div>
-          <div class="leaf date-leaf">
-            <label class="date-field">
-              <span>From</span>
-              <input type="date" :value="filters.dateFrom ?? ''" @input="emit('update-date', { key: 'dateFrom', value: (($event.target as HTMLInputElement).value || null) })">
-            </label>
-            <label class="date-field">
-              <span>To</span>
-              <input type="date" :value="filters.dateTo ?? ''" @input="emit('update-date', { key: 'dateTo', value: (($event.target as HTMLInputElement).value || null) })">
-            </label>
-          </div>
-        </template>
-
-        <template v-else-if="openBranch === 'state'">
-          <div class="state-grid">
-            <button class="state-option" :class="{ active: filters.savedOnly }" type="button" @click="emit('toggle-flag', 'savedOnly')">
-              <strong>Saved</strong><span>Only items in your library</span>
-            </button>
-            <button class="state-option" :class="{ active: filters.historyOnly }" type="button" @click="emit('toggle-flag', 'historyOnly')">
-              <strong>Read history</strong><span>Items you deliberately opened</span>
-            </button>
-            <button class="state-option" :class="{ active: filters.predictionOnly }" type="button" @click="emit('toggle-flag', 'predictionOnly')">
-              <strong>Predictions</strong><span>Items linked to asset forecasts</span>
-            </button>
-          </div>
-        </template>
+      <div class="leaf">
+        <span class="leaf-title">My state</span>
+        <div class="mode-chips" role="group" aria-label="My state">
+          <button
+            type="button"
+            class="mode-chip"
+            :class="{ active: filters.savedOnly }"
+            :aria-pressed="filters.savedOnly"
+            @click="emit('toggle-flag', 'savedOnly')"
+          >Saved</button>
+          <button
+            type="button"
+            class="mode-chip"
+            :class="{ active: filters.historyOnly }"
+            :aria-pressed="filters.historyOnly"
+            @click="emit('toggle-flag', 'historyOnly')"
+          >Read history</button>
+          <button
+            type="button"
+            class="mode-chip"
+            :class="{ active: filters.predictionOnly }"
+            :aria-pressed="filters.predictionOnly"
+            @click="emit('toggle-flag', 'predictionOnly')"
+          >Predictions</button>
+        </div>
       </div>
 
       <footer class="tree-footer">
-        <span>{{ activeFilterCount ? `${activeFilterCount} active filters` : 'All information visible' }}</span>
+        <span>{{ activeFilterCount ? `${activeFilterCount} active filters` : 'All stories visible' }}</span>
         <div>
-          <button v-if="activeFilterCount" class="text-button" type="button" @click="emit('clear')">Clear all</button>
-          <button class="done-button" type="button" @click="toggleExpanded">Done</button>
+          <button v-if="activeFilterCount" class="clear-chip" type="button" @click="emit('clear')">Clear all</button>
+          <button class="mode-chip view-chip active" type="button" @click="expanded = false">Done</button>
         </div>
       </footer>
     </div>
@@ -401,200 +276,142 @@ const enumSelected = (key: EnumFacetKey, value: string) =>
   background: var(--surface-base, rgba(20, 20, 28, 0.96));
   border: 1px solid var(--edge-raised, rgba(255, 255, 255, 0.08));
   box-shadow: var(--shadow-depth-1, 0 1px 2px rgba(0,0,0,0.4));
-  overflow: clip;
 }
 
 .compact-bar {
   display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-sm, 8px);
-  align-items: center;
-  min-height: 2.8rem;
-  padding: 0.38rem 0.45rem;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0.45rem;
 }
 
-.compact-select select,
-.date-field input {
-  width: 100%;
-  box-sizing: border-box;
-  border-radius: var(--radius-md, 8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.035);
-  color: rgba(255, 255, 255, 0.88);
-  font: inherit;
-}
-
-.compact-controls {
+.controls-primary,
+.controls-secondary {
   display: flex;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.controls-primary {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.controls-primary::-webkit-scrollbar { display: none; }
+
+.controls-secondary { flex-wrap: wrap; }
+
+.category-chips { flex-shrink: 0; }
+
+.chip-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border-primary, rgba(255, 255, 255, 0.08));
+}
+
+.group-label,
+.leaf-title,
+.date-field span {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-gray, rgba(255, 255, 255, 0.48));
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mode-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
   align-items: center;
 }
 
-.compact-select select {
-  height: 2rem;
-  padding: 0 1.7rem 0 0.55rem;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.filter-toggle,
+.mode-chip,
 .icon-action,
-.summary-chip,
-.summary-clear,
-.branch-button,
-.chip,
-.state-option,
-.text-button,
-.done-button {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.8);
-  cursor: pointer;
-}
-
-.filter-toggle,
-.icon-action {
-  height: 2rem;
+.clear-chip {
+  height: 26px;
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid var(--border-secondary, rgba(255, 255, 255, 0.16));
   border-radius: var(--radius-md, 8px);
-  padding: 0 0.65rem;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: var(--text-gray, rgba(255, 255, 255, 0.62));
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 600;
+  font-family: var(--font-family-secondary, inherit);
+  white-space: nowrap;
+  box-shadow: none;
 }
 
-.filter-toggle {
+.mode-chip:hover,
+.icon-action:hover,
+.clear-chip:hover { color: var(--text-white, #fff); }
+
+.mode-chip.active {
+  background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
+  border-color: rgba(255,255,255,0.32);
+  color: var(--text-white, #fff);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.45),
+    0 3px 8px rgba(0,0,0,0.55);
+}
+
+.view-chip.active {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: var(--primary-green, #00ff88);
+  color: var(--primary-green, #00ff88);
+  box-shadow: none;
+}
+
+.icon-action {
+  width: 26px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+
+.more-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
 }
 
-.filter-toggle.active,
-.branch-button.active,
-.branch-button.selected,
-.chip.active,
-.state-option.active {
-  border-color: rgba(0, 255, 136, 0.32);
-  background: rgba(0, 255, 136, 0.09);
-  color: var(--primary-green, #00ff88);
-}
-
-.count,
-.branch-count {
+.count {
   display: inline-grid;
   place-items: center;
   min-width: 1rem;
   height: 1rem;
   border-radius: 999px;
   background: rgba(0, 255, 136, 0.14);
+  color: var(--primary-green, #00ff88);
   font-size: 0.58rem;
 }
 
-.chevron {
-  font-size: 0.85rem;
-}
-
-.active-summary {
-  display: flex;
-  gap: 0.3rem;
-  align-items: center;
-  min-height: 1.7rem;
-  padding: 0 0.45rem 0.38rem;
-  overflow: hidden;
-}
-
-.summary-chip,
-.summary-clear,
-.chip {
-  border-radius: 999px;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.62rem;
-  white-space: nowrap;
-}
-
-.summary-chip {
-  color: rgba(171, 224, 255, 0.88);
-  border-color: rgba(0, 170, 255, 0.2);
-}
-
-.summary-chip.more,
-.summary-clear {
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.summary-clear {
-  margin-left: auto;
-  border: none;
-  background: transparent;
-}
-
 .filter-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.65rem 0.45rem 0.5rem;
   border-top: 1px solid var(--edge-soft, rgba(255, 255, 255, 0.05));
-}
-
-.branch-nav {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.3rem;
-  padding: 0.4rem;
-  background: var(--surface-sunken, rgba(8, 9, 13, 0.92));
-}
-
-.branch-button {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 0.3rem;
-  align-items: center;
-  min-height: 2rem;
-  border-radius: var(--radius-md, 8px);
-  padding: 0.35rem 0.5rem;
-  text-align: left;
-  font-size: 0.65rem;
-}
-
-.branch-arrow {
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.branch-panel {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 0.65rem;
-  max-height: 14rem;
-  overflow: auto;
-  padding: 0.65rem;
-  background: var(--surface-base, rgba(20, 20, 28, 0.96));
 }
 
 .leaf {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  align-items: flex-start;
+  gap: 0.35rem;
   min-width: 0;
 }
 
-.leaf-title,
-.date-field span {
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: rgba(255, 255, 255, 0.48);
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-
-.chip small {
-  color: rgba(255, 255, 255, 0.42);
-}
-
-.date-leaf,
-.state-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.date-leaf {
+  flex-direction: row;
   gap: 0.5rem;
 }
 
@@ -607,25 +424,12 @@ const enumSelected = (key: EnumFacetKey, value: string) =>
 .date-field input {
   height: 2.1rem;
   padding: 0 0.55rem;
-}
-
-.state-grid {
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.state-option {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  box-sizing: border-box;
   border-radius: var(--radius-md, 8px);
-  padding: 0.65rem;
-  text-align: left;
-}
-
-.state-option span {
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(255, 255, 255, 0.88);
+  font: inherit;
 }
 
 .tree-footer {
@@ -633,7 +437,7 @@ const enumSelected = (key: EnumFacetKey, value: string) =>
   justify-content: space-between;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.4rem 0.65rem;
+  padding-top: 0.35rem;
   border-top: 1px solid var(--edge-soft, rgba(255, 255, 255, 0.05));
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.65rem;
@@ -644,81 +448,8 @@ const enumSelected = (key: EnumFacetKey, value: string) =>
   gap: 0.4rem;
 }
 
-.text-button,
-.done-button {
-  border-radius: 999px;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.64rem;
-}
-
-.text-button {
-  border-color: transparent;
-  background: transparent;
-}
-
-.done-button {
-  border-color: rgba(0, 255, 136, 0.32);
-  color: var(--primary-green, #00ff88);
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-@media (max-width: 1024px) {
-  .compact-bar {
-    justify-content: stretch;
-  }
-
-  .compact-controls {
-    overflow-x: auto;
-    padding-bottom: 0.1rem;
-  }
-
-  .branch-nav {
-    display: flex;
-    overflow-x: auto;
-  }
-
-  .branch-button {
-    min-width: 8rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .compact-select {
-    display: none;
-  }
-
-  .compact-controls {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-
-  .state-grid,
-  .date-leaf {
-    grid-template-columns: 1fr;
-  }
-
-  .branch-panel {
-    max-height: 18rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .toolbar *,
-  .toolbar *::before,
-  .toolbar *::after {
-    scroll-behavior: auto !important;
-    transition: none !important;
-  }
+@media (max-width: 720px) {
+  .controls-primary { flex-wrap: wrap; overflow-x: visible; }
+  .date-leaf { flex-direction: column; }
 }
 </style>

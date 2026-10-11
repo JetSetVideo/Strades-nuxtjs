@@ -2,7 +2,8 @@
  * Data Catalog — Browse every data source available in the Strades ecosystem.
  * Shows schemas, sizes, and lets users discover what they can pull into strategies.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
+import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
 import UIPill from '@/components/UI/Pill.vue'
@@ -38,7 +39,8 @@ const view = ref<'providers' | 'internal'>('providers')
 const sources = ref<DataSource[]>([])
 const providers = ref<MarketProvider[]>([])
 const search = ref('')
-const activeCategory = ref<string | null>(null)
+const providerStates = reactive<Record<string, FilterTriState>>({})
+const sourceStates = reactive<Record<string, FilterTriState>>({})
 
 const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   core: { label: 'Core Data', icon: '📊' },
@@ -86,7 +88,7 @@ const categories = computed(() => {
 
 const filtered = computed(() => {
   let list = sources.value
-  if (activeCategory.value) list = list.filter(s => s.category === activeCategory.value)
+  list = list.filter(s => allowsValue(s.category, sourceStates))
   if (search.value.trim()) {
     const q = search.value.toLowerCase()
     list = list.filter(s => s.path.toLowerCase().includes(q) || s.keys.some(k => k.toLowerCase().includes(q)) || s.description.toLowerCase().includes(q))
@@ -103,7 +105,7 @@ const providerCategories = computed(() => {
 
 const filteredProviders = computed(() => {
   let list = providers.value
-  if (activeCategory.value) list = list.filter(p => p.category === activeCategory.value)
+  list = list.filter(p => allowsValue(p.category, providerStates))
   if (search.value.trim()) {
     const q = search.value.toLowerCase()
     list = list.filter(p =>
@@ -120,7 +122,8 @@ const providerCatCount = (cat: string) => providers.value.filter(p => p.category
 // Switching tabs clears a category filter that wouldn't apply to the other list.
 function setView(v: 'providers' | 'internal') {
   view.value = v
-  activeCategory.value = null
+  for (const key of Object.keys(providerStates)) delete providerStates[key]
+  for (const key of Object.keys(sourceStates)) delete sourceStates[key]
 }
 </script>
 
@@ -143,17 +146,15 @@ function setView(v: 'providers' | 'internal') {
     <template v-else-if="view === 'providers'">
       <div class="toolbar">
         <input v-model="search" type="text" class="search-input" placeholder="Search providers by name, tag, or description..." />
-        <div class="category-strip">
-          <button class="cat-btn" :class="{ active: !activeCategory }" @click="activeCategory = null">All ({{ providers.length }})</button>
-          <button
-            v-for="cat in providerCategories"
-            :key="cat"
-            class="cat-btn" :class="{ active: activeCategory === cat }"
-            @click="activeCategory = activeCategory === cat ? null : cat"
-          >
-            {{ PROVIDER_CATEGORY_META[cat]?.icon ?? '📁' }} {{ PROVIDER_CATEGORY_META[cat]?.label ?? cat }} ({{ providerCatCount(cat) }})
-          </button>
-        </div>
+        <UIOpChips
+          label="Provider category"
+          :options="providerCategories.map(cat => ({
+            id: cat,
+            label: `${PROVIDER_CATEGORY_META[cat]?.icon ?? '📁'} ${PROVIDER_CATEGORY_META[cat]?.label ?? cat} (${providerCatCount(cat)})`,
+          }))"
+          :states="providerStates"
+          @cycle="id => cycleKey(providerStates, id)"
+        />
       </div>
 
       <div v-if="filteredProviders.length === 0" class="empty">No providers match your search.</div>
@@ -189,17 +190,15 @@ function setView(v: 'providers' | 'internal') {
       <!-- Search + category filter -->
       <div class="toolbar">
         <input v-model="search" type="text" class="search-input" placeholder="Search by name, key, or description..." />
-        <div class="category-strip">
-          <button class="cat-btn" :class="{ active: !activeCategory }" @click="activeCategory = null">All ({{ sources.length }})</button>
-          <button
-            v-for="cat in categories"
-            :key="cat"
-            class="cat-btn" :class="{ active: activeCategory === cat }"
-            @click="activeCategory = activeCategory === cat ? null : cat"
-          >
-            {{ CATEGORY_META[cat]?.icon ?? '📁' }} {{ CATEGORY_META[cat]?.label ?? cat }} ({{ catCount(cat) }})
-          </button>
-        </div>
+        <UIOpChips
+          label="Source category"
+          :options="categories.map(cat => ({
+            id: cat,
+            label: `${CATEGORY_META[cat]?.icon ?? '📁'} ${CATEGORY_META[cat]?.label ?? cat} (${catCount(cat)})`,
+          }))"
+          :states="sourceStates"
+          @cycle="id => cycleKey(sourceStates, id)"
+        />
       </div>
 
       <!-- Data source cards -->

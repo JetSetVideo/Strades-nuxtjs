@@ -27,14 +27,16 @@ const PATTERNS: Array<{ test: RegExp; iso: string; label: string }> = [
   { test: /decentralized|global|worldwide/i, iso: 'GLOBAL', label: 'Global' },
 ]
 
+const GLOBAL_LL: LatLng = COUNTRY_LATLNG.GLOBAL ?? { lat: 20, lng: 0 }
+
 export function regionOf(asset: Pick<Asset, 'location'>): AssetRegion {
   const loc = asset.location ?? ''
   for (const p of PATTERNS) {
     if (p.test.test(loc)) {
-      return { iso: p.iso, label: p.label, latlng: COUNTRY_LATLNG[p.iso] ?? COUNTRY_LATLNG.GLOBAL }
+      return { iso: p.iso, label: p.label, latlng: COUNTRY_LATLNG[p.iso] ?? GLOBAL_LL }
     }
   }
-  return { iso: 'GLOBAL', label: 'Global', latlng: COUNTRY_LATLNG.GLOBAL }
+  return { iso: 'GLOBAL', label: 'Global', latlng: GLOBAL_LL }
 }
 
 export function useAssetRegion() {

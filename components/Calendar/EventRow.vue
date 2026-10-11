@@ -44,7 +44,7 @@ const surprise = computed<'beat' | 'miss' | 'inline' | null>(() => {
 })
 
 const fmtTime = (ts: number) =>
-  new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  new Date(ts).toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })
 </script>
 
 <template>

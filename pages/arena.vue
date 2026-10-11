@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
+import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
 import { useDataBetsStore } from '~/stores/dataBets'
 import { useCreditsStore } from '~/stores/credits'
 import { useAssetsStore } from '~/stores/assets'
@@ -19,7 +20,12 @@ const assets = useAssetsStore()
 const tracker = useAgentTracker()
 const { getUserId } = useCurrentUser()
 
-const tab = ref<'open' | 'mine' | 'settled'>('open')
+const tabStates = reactive<Record<string, FilterTriState>>({ open: 'include' })
+const ARENA_TABS = [
+  { id: 'open', label: 'Open' },
+  { id: 'mine', label: 'Mine' },
+  { id: 'settled', label: 'Settled' },
+]
 const modalOpen = ref(false)
 
 let resolveTicker: ReturnType<typeof setInterval> | null = null
@@ -37,16 +43,20 @@ onUnmounted(() => { if (resolveTicker) clearInterval(resolveTicker) })
 
 const visibleChallenges = computed(() => {
   const uid = getUserId()
-  switch (tab.value) {
-    case 'mine':
-      return dataBets.challenges.filter(c =>
-        c.author_id === uid || dataBets.betsForChallenge(c.id).some(b => b.user_id === uid)
-      )
-    case 'settled':
-      return dataBets.settledChallenges
-    default:
-      return dataBets.openChallenges
+  const mine = dataBets.challenges.filter(c =>
+    c.author_id === uid || dataBets.betsForChallenge(c.id).some(b => b.user_id === uid)
+  )
+  const pools: Array<[string, typeof dataBets.openChallenges]> = [
+    ['open', dataBets.openChallenges],
+    ['mine', mine],
+    ['settled', dataBets.settledChallenges],
+  ]
+  const byId = new Map<string, (typeof dataBets.openChallenges)[number]>()
+  for (const [key, list] of pools) {
+    if (!allowsValue(key, tabStates)) continue
+    for (const challenge of list) byId.set(challenge.id, challenge)
   }
+  return [...byId.values()]
 })
 
 const kpis = computed(() => [
@@ -86,17 +96,18 @@ function handlePost(payload: PostChallengePayload) {
       <button class="post-btn" @click="modalOpen = true">+ Post a challenge</button>
     </template>
 
-    <div class="tabs" role="tablist">
-      <button :class="{ active: tab === 'open' }" @click="tab = 'open'">Open</button>
-      <button :class="{ active: tab === 'mine' }" @click="tab = 'mine'">Mine</button>
-      <button :class="{ active: tab === 'settled' }" @click="tab = 'settled'">Settled</button>
-    </div>
+    <UIOpChips
+      label="Challenges"
+      :options="ARENA_TABS"
+      :states="tabStates"
+      @cycle="id => cycleKey(tabStates, id)"
+    />
 
     <UIEmptyState
       v-if="!visibleChallenges.length"
       icon="⚔"
       title="Nothing here yet"
-      :message="tab === 'open' ? 'Be the first to post a challenge.' : 'No challenges match this tab yet.'"
+      message="No challenges match these filters yet."
     />
 
     <div v-else class="challenge-grid">

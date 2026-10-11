@@ -94,7 +94,7 @@ function dayLabel(d: Date) {
   if (d.toDateString() === todayD.toDateString()) return 'Today'
   if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
   if (d.toDateString() === yest.toDateString()) return 'Yesterday'
-  return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(APP_LOCALE, { weekday: 'long', month: 'short', day: 'numeric' })
 }
 
 const grouped = computed(() => {

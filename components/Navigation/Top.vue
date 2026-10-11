@@ -20,14 +20,17 @@ const { playHover, playClick } = useNavSound()
     <button
       type="button"
       class="brand-btn"
-      aria-label="Open menu"
+      :class="{ 'is-covered': drawerOpen }"
+      :aria-label="drawerOpen ? 'Close menu' : 'Open menu'"
+      title="Menu: trade, strategies, profile, settings, help"
       :aria-expanded="drawerOpen"
       @mouseenter="playHover"
       @click="toggleDrawer(); playClick()"
     >
-      <span class="brand-mark">◈</span>
+      <span class="brand-logo" aria-hidden="true">
+        <img src="/logos/strades-mark.png" alt="" />
+      </span>
       <span class="brand-word">STRADES</span>
-      <span class="bars" aria-hidden="true"><span /><span /><span /></span>
     </button>
 
     <SearchBar
@@ -40,7 +43,6 @@ const { playHover, playClick } = useNavSound()
       <NavigationTopContextActions />
       <span class="right-divider" aria-hidden="true" />
       <NavigationTopGmtClock />
-      <NavigationTopCalendarBtn />
       <slot />
     </div>
 
@@ -55,7 +57,8 @@ const { playHover, playClick } = useNavSound()
   width: 100%;
   box-sizing: border-box;
   height: var(--nav-top-height, 3.25rem);
-  padding: 0.35rem var(--page-gutter, 0.75rem);
+  padding-block: 0.35rem;
+  padding-inline: var(--page-gutter, 0.75rem);
   gap: 0.5rem;
   background: linear-gradient(180deg, rgba(12,12,16,0.92) 0%, rgba(18,18,24,0.88) 100%);
   backdrop-filter: blur(var(--app-glass-blur, 14px));
@@ -91,36 +94,50 @@ const { playHover, playClick } = useNavSound()
   border-color: var(--primary-green, #00ff88);
   color: var(--primary-green, #00ff88);
 }
-.brand-btn:hover .brand-mark {
-  filter: drop-shadow(0 0 9px rgba(0,255,136,0.6));
-}
+.brand-btn.is-covered { visibility: hidden; }
 .brand-word {
   display: none;
   font-weight: 700;
   letter-spacing: 0.16em;
   font-size: 0.78rem;
 }
-.bars {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
+.brand-logo {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1.5px solid transparent;
+  border-radius: 5px 0 5px 0;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    conic-gradient(
+      from 225deg at 50% 50%,
+      rgba(255, 26, 26, 0.59) 0deg,
+      #ff1a1a 18deg,
+      #ff1a1a 70deg,
+      #ffffff 96deg,
+      #ffffff 128deg,
+      #00e25a 158deg,
+      rgba(0, 226, 90, 0.59) 180deg,
+      #00e25a 202deg,
+      #00e25a 220deg,
+      #ffffff 242deg,
+      #ffffff 272deg,
+      #ff1a1a 310deg,
+      #ff1a1a 342deg,
+      rgba(255, 26, 26, 0.59) 360deg
+    ) border-box;
 }
-.bars span {
+.brand-logo img {
+  width: 112%;
+  height: 112%;
+  object-fit: contain;
   display: block;
-  width: 12px;
-  height: 1.5px;
-  background: currentColor;
-  opacity: 0.7;
-  border-radius: 2px;
-}
-
-.brand-mark {
-  font-size: 1rem;
-  background: var(--primary-gradient, linear-gradient(45deg, #00ff88, #00aaff));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 0 6px rgba(0,255,136,0.4));
+  pointer-events: none;
+  transform: translateY(-0.5px);
 }
 .brand-word { display: none; }
 
@@ -132,8 +149,13 @@ const { playHover, playClick } = useNavSound()
 .right-cluster {
   display: flex; align-items: center; gap: 0.4rem;
   flex-shrink: 0;
-  /* Leave a clear margin before the viewport edge. */
-  margin-right: 1.35rem;
+}
+/* The drawer anchor is only a teleport host. Kept in flow, the nav gap
+   leaves a strip between the cluster and the page edge. */
+.top-nav :deep(.drawer-wrapper) {
+  position: absolute;
+  width: 0;
+  height: 0;
 }
 .right-divider {
   width: 1px;
@@ -149,7 +171,7 @@ const { playHover, playClick } = useNavSound()
 
 @media (min-width: 640px) {
   .top-nav {
-    padding: 0.45rem var(--page-gutter, 1rem);
+    padding-block: 0.45rem;
     height: var(--nav-top-height-md, 3.5rem);
     gap: 0.75rem;
   }
@@ -158,13 +180,19 @@ const { playHover, playClick } = useNavSound()
 }
 
 @media (min-width: 1024px) {
-  .top-nav { padding: 0.5rem var(--page-gutter, 1.5rem); height: var(--nav-top-height-lg, 3.75rem); gap: 1rem; }
+  .top-nav {
+    padding-block: 0.5rem;
+    padding-inline: max(var(--page-gutter), calc((100% - 1440px) / 2 + var(--page-gutter)));
+    height: var(--nav-top-height-lg, 3.75rem);
+    gap: 1rem;
+  }
   .search-bar { max-width: 36rem; }
 }
 
 @media (min-width: 1536px) {
-  .top-nav { padding: 0.5rem 2rem; }
+  .top-nav {
+    padding-inline: max(var(--page-gutter), calc((100% - 1680px) / 2 + var(--page-gutter)));
+  }
   .search-bar { max-width: 44rem; }
-  .right-cluster { margin-right: 1.25rem; }
 }
 </style>

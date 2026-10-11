@@ -79,8 +79,32 @@ const currentWallet = computed<any>(() => walletStore.getWalletById(selectedWall
 const positions = computed(() => currentWallet.value?.assets ?? [])
 const transactions = computed(() => currentWallet.value?.transactions ?? [])
 
+/**
+ * Totals across every connected platform — the SAME definition the bottom bar
+ * uses for its Wallet readout. The hero used to label one platform's balance
+ * "Total Balance", so the page and the bar disagreed by the size of the other
+ * platforms and each looked like a bug from the other's side.
+ *
+ * `invested_amount` is cost basis (Σ amount × average_price); `unrealized` is the
+ * market-minus-cost gap, surfaced so the row reconciles instead of looking short.
+ */
+const portfolioTotals = computed(() => {
+  const ws = walletStore.wallets ?? []
+  const sum = (pick: (w: any) => number) => ws.reduce((s, w) => s + (pick(w) ?? 0), 0)
+  const total = sum(w => w.total_value)
+  const available = sum(w => w.available_balance)
+  const invested = sum(w => w.invested_amount)
+  return {
+    total_value: total,
+    available_balance: available,
+    invested_amount: invested,
+    unrealized: total - available - invested,
+    platform_count: ws.length
+  }
+})
+
 const kpis = computed(() => [
-  { label: 'Value', value: currentWallet.value ? `$${Math.round(currentWallet.value.total_value).toLocaleString()}` : '—' },
+  { label: 'Value', value: currentWallet.value ? `$${Math.round(currentWallet.value.total_value).toLocaleString(APP_LOCALE)}` : '—' },
   { label: 'Today', value: currentWallet.value ? `${currentWallet.value.daily_change_percentage >= 0 ? '+' : ''}${currentWallet.value.daily_change_percentage.toFixed(2)}` : '—', suffix: '%', tone: (currentWallet.value?.daily_change_percentage ?? 0) >= 0 ? 'positive' as const : 'negative' as const },
   { label: 'Platforms', value: platforms.connectedCount }
 ])
@@ -125,6 +149,15 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
         </UIPill>
       </template>
 
+      <!-- Two wallet models exist (crawl 2026-10-08): this page shows SAMPLE platform
+           wallets; the user's own paper wallet and its bots live on /trade. Say so. -->
+      <div class="sample-banner" role="note">
+        <span><b>Sample portfolio.</b> These platform wallets are demo data. Your own paper wallet, its bots and its ledger are in Trade.</span>
+        <NuxtLink to="/trade" class="sample-cta">Open my wallet in Trade →</NuxtLink>
+      </div>
+
+      <WalletHandTrade />
+
       <WalletSwitcher
         v-if="walletStore.wallets.length"
         :wallets="walletStore.wallets"
@@ -132,7 +165,7 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
         @switch="selectedWalletId = $event"
       />
 
-      <WalletHero :wallet="currentWallet" v-model:period="period" />
+      <WalletHero :wallet="currentWallet" :portfolio="portfolioTotals" v-model:period="period" />
 
       <WalletPaperPanel />
 
@@ -187,6 +220,10 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 </template>
 
 <style scoped>
+.sample-banner { display: flex; justify-content: space-between; align-items: center; gap: .8rem; flex-wrap: wrap;
+  margin: 0 0 .8rem; padding: .6rem .9rem; border: 1px dashed var(--warning-orange, #f5a623); border-radius: var(--radius-md, 8px);
+  color: var(--text-primary); font-size: .85rem; }
+.sample-cta { color: var(--warning-orange, #f5a623); font-weight: 600; text-decoration: none; white-space: nowrap; }
 :deep(.screen-shell) { position: relative; z-index: 1; }
 .row { display: grid; gap: 0.6rem; }
 .row.two-col { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }

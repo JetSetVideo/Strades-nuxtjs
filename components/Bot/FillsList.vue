@@ -11,17 +11,17 @@ interface Fill {
 
 defineProps<{ fills: Fill[] }>()
 
-const fmtUsd = (n: number) => `$${Math.round(n).toLocaleString()}`
+const fmtUsd = (n: number) => `$${Math.round(n).toLocaleString(APP_LOCALE)}`
 
 function fmtRelTime(ts: number) {
   const days = Math.floor((Date.now() - ts) / 86_400_000)
   const d = new Date(ts)
-  if (days === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  if (days === 0) return d.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })
   if (days < 7) {
-    return d.toLocaleDateString([], { weekday: 'short' }) +
-      ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    return d.toLocaleDateString(APP_LOCALE, { weekday: 'short' }) +
+      ' ' + d.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })
   }
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric' })
 }
 </script>
 

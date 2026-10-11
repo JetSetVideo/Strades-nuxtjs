@@ -12,7 +12,7 @@
  * Integrates PriceIntuition widget as a collapsible section below each card.
  * Shows the user's last prediction badge for this asset from the predictions store.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { navigateTo } from '#app'
 import type { Asset } from '~/types/asset'
 import { useLivingUI } from '~/composables/useLivingUI'
@@ -20,6 +20,7 @@ import PriceIntuition from '@/components/Widget/PriceIntuition.vue'
 import { usePredictionsStore } from '@/stores/predictions'
 import { useAppearanceStore } from '@/stores/appearance'
 import { usePaperStore } from '@/stores/paper'
+import { isBetAsset, BET_COLOR, betSourceLabel } from '~/utils/betAssets'
 
 // ── Props ──────────────────────────────────────────────────────────────────
 const props = defineProps<{
@@ -61,9 +62,17 @@ if (!predStore.initialized) predStore.init()
 // ── Derive display values (asset object OR legacy props) ──────────────────
 const name     = computed(() => props.asset?.name      ?? props.assetName  ?? '')
 const symbol   = computed(() => props.asset?.symbol    ?? props.tagName    ?? '')
-const icon     = computed(() => props.asset?.icon_url  ?? props.profileIcon ?? '')
+const icon     = computed(() => props.asset?.icon_url || props.profileIcon || '')
+// Missing or dead logo URL → show the ticker instead of an empty plate.
+const iconFailed = ref(false)
+watch(icon, () => { iconFailed.value = false })
 const id       = computed(() => props.asset?.id        ?? props.assetId    ?? '')
 const category = computed(() => props.asset?.category  ?? 'other')
+/** Raw enum → label: "precious_metals" → "Precious metals", "layer1" → "Layer 1". */
+const categoryLabel = computed(() => {
+  const s = category.value.replace(/_/g, ' ').replace(/([a-z])(\d)/gi, '$1 $2').trim()
+  return s.charAt(0).toUpperCase() + s.slice(1)
+})
 const type     = computed(() => props.asset?.type      ?? 'other')
 
 // Numeric current price (from store or legacy string prop)
@@ -142,7 +151,25 @@ const CAT_COLOR: Record<string, string> = {
   stock: '#2196f3', energy: '#ff9800', finance: '#9c27b0',
   healthcare: '#e91e63', consumer: '#00bcd4', commodity: '#ffd700',
 }
-const catColor = computed(() => CAT_COLOR[category.value] ?? '#607d8b')
+
+// ── Bet class (Kalshi / Polymarket prediction contracts) ──────────────────
+// A bet gets its own colour, never a category colour, so a prediction row can
+// never be mistaken for a commodity/equity. Its underlying and deadline are
+// surfaced below the price.
+const isBet = computed(() => isBetAsset(props.asset as { type?: string } | undefined))
+const betColor = computed(() => BET_COLOR)
+const catColor = computed(() => (isBet.value ? BET_COLOR : (CAT_COLOR[category.value] ?? '#607d8b')))
+
+const betSource   = computed(() => betSourceLabel((props.asset as Record<string, any> | undefined)?.source))
+const betSubject  = computed(() => (props.asset as Record<string, any> | undefined)?.subject ?? null)
+const betQuestion = computed(() => (props.asset as Record<string, any> | undefined)?.question ?? null)
+const betExpiry = computed(() => {
+  const iso = (props.asset as Record<string, any> | undefined)?.expires_at
+  if (!iso) return null
+  const t = Date.parse(String(iso))
+  if (!Number.isFinite(t)) return null
+  return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+})
 
 // ── Price display ─────────────────────────────────────────────────────────
 function fmtPrice(p: number): string {
@@ -154,21 +181,45 @@ function fmtPrice(p: number): string {
 // ── Simulated price history for sparkline & PriceIntuition ───────────────
 const priceHistory = ref<number[]>([])
 
-function buildHistory(current: number, vol: number, n = 32): number[] {
+function buildHistory(current: number, vol: number, n = 32, targetPct?: number): number[] {
   const pts: number[] = [current]
   for (let i = 1; i < n; i++) {
     const prev = pts[0]!
     const drift = (Math.random() - 0.5) * 2 * vol * 0.06
     pts.unshift(Math.max(0.0001, prev * (1 - drift)))
   }
+  // Simulated line must agree with the % shown next to it: tilt it (log space,
+  // linearly, current price fixed) so first → last equals the displayed change.
+  if (targetPct !== undefined && Number.isFinite(targetPct)) {
+    const want = Math.log(1 / (1 + targetPct / 100))  // log(first / current) we want
+    const have = Math.log(pts[0]! / current)
+    for (let i = 0; i < n; i++) pts[i] = pts[i]! * Math.exp((want - have) * (n - 1 - i) / (n - 1))
+  }
   return pts  // oldest→newest; last element = current
+}
+
+/** Live markets: rebuild real prices backwards from the current one, p₍t−1₎ = p_t / (1 + r_t). */
+function historyFromReturns(current: number, returns: number[]): number[] {
+  const pts = [current]
+  for (let i = returns.length - 1; i >= 0; i--) pts.unshift(pts[0]! / (1 + returns[i]!))
+  return pts
+}
+
+function refreshHistory() {
+  const live = props.asset?.return_history
+  priceHistory.value = live?.length
+    ? historyFromReturns(currentPrice.value, live)
+    : buildHistory(currentPrice.value, volatility.value, 32, changePct.value)
 }
 
 onMounted(() => {
   appearance.hydrate()
   if (!paper.hydrated) paper.hydrate()
-  priceHistory.value = buildHistory(currentPrice.value, volatility.value)
+  refreshHistory()
 })
+
+// Live quotes land after mount (and refresh every 30 s): redraw from the real series.
+watch(() => props.asset?.return_history, h => { if (h?.length) refreshHistory() })
 
 // ── Sparkline SVG ─────────────────────────────────────────────────────────
 const SVG_W = 160
@@ -316,21 +367,32 @@ const assetAlerts = computed(() =>
       <div class="da-ident">
         <div class="da-icon-plate">
           <img
+            v-if="icon && !iconFailed"
             :src="icon"
             :alt="name"
             class="da-icon"
-            @error="($event.target as HTMLImageElement).style.display='none'"
+            @error="iconFailed = true"
           />
+          <span v-else class="da-icon-text" aria-hidden="true">{{ String(symbol ?? '?').slice(0, 4) }}</span>
         </div>
-        <div class="da-symbol">{{ symbol }}</div>
+        <!-- The plate already shows the ticker when there's no logo; don't print it twice. -->
+        <div v-if="icon && !iconFailed" class="da-symbol">{{ symbol }}</div>
       </div>
 
       <!-- Name + price -->
       <div class="da-info">
         <div class="da-name-row">
-          <span class="da-name">{{ name }}</span>
-          <span class="da-cat-badge" :style="{ color: catColor, borderColor: catColor + '44', background: catColor + '16' }">
-            {{ category }}
+          <span class="da-name" :title="betQuestion || undefined">{{ name }}</span>
+          <!-- The card click opens the heatmap; this is the way to the full asset page. -->
+          <NuxtLink v-if="asset?.id" class="da-details" :to="`/assets/${asset.id}`" @click.stop>Details →</NuxtLink>
+          <span
+            v-if="isBet"
+            class="da-bet-badge"
+            :style="{ color: betColor, borderColor: betColor + '55', background: betColor + '18' }"
+            :title="betQuestion || 'Prediction-market contract'"
+          >BET{{ betSource ? ' · ' + betSource : '' }}</span>
+          <span v-else class="da-cat-badge" :style="{ color: catColor, borderColor: catColor + '44', background: catColor + '16' }">
+            {{ categoryLabel }}
           </span>
         </div>
         <div class="da-price-row">
@@ -341,6 +403,12 @@ const assetAlerts = computed(() =>
           >
             {{ changePct >= 0 ? '+' : '' }}{{ changePct.toFixed(2) }}%
           </span>
+          <span v-if="asset && !asset.live" class="da-sim" title="No live quote for this market: the move is simulated">sim</span>
+        </div>
+        <!-- A bet's raison d'être: what it is about, and when it resolves. -->
+        <div v-if="isBet && (betSubject || betExpiry)" class="da-bet-meta">
+          <span v-if="betSubject" class="da-bet-subject" title="The underlying this contract is about">about {{ betSubject }}</span>
+          <span v-if="betExpiry" class="da-bet-expiry" title="Resolution deadline">⏳ {{ betExpiry }}</span>
         </div>
       </div>
 
@@ -477,6 +545,7 @@ const assetAlerts = computed(() =>
   overflow: hidden;
 }
 
+.da-icon-text { font: 700 .62rem/1 var(--font-market-data, monospace); color: #37474f; letter-spacing: .02em; }
 .da-icon {
   width: 28px;
   height: 28px;
@@ -503,6 +572,8 @@ const assetAlerts = computed(() =>
   gap: 2px;
 }
 
+.da-details { font-size: .68rem; color: var(--primary-blue, #3b82f6); text-decoration: none; white-space: nowrap; }
+.da-details:hover { text-decoration: underline; }
 .da-name-row {
   display: flex;
   align-items: center;
@@ -531,6 +602,35 @@ const assetAlerts = computed(() =>
   flex-shrink: 0;
 }
 
+.da-bet-badge {
+  font-size: 0.52rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.da-bet-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.58rem;
+  color: var(--text-secondary, #9aa0a6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.da-bet-subject {
+  color: #ff4d9d;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.da-bet-expiry { font-variant-numeric: tabular-nums; }
+
 .da-price-row {
   display: flex;
   align-items: center;
@@ -546,6 +646,8 @@ const assetAlerts = computed(() =>
   letter-spacing: -0.01em;
 }
 
+.da-sim { font-size: .6rem; letter-spacing: .05em; text-transform: uppercase; padding: 0 5px; border-radius: 999px;
+  border: 1px dashed var(--text-secondary, #888); color: var(--text-secondary, #888); align-self: center; }
 .da-change {
   font-size: 0.75rem;
   font-weight: 700;

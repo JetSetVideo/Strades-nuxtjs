@@ -31,7 +31,7 @@ const fmt = (n: number) => {
 const fmtDate = (iso?: string) => {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric' })
 }
 
 const CC_FLAG: Record<string, string> = {
@@ -58,7 +58,7 @@ const flag = (c: string) => CC_FLAG[c] || '🏳'
         <span class="cc">{{ s.to_country }}</span>
       </span>
       <span class="product">{{ s.product }}</span>
-      <span class="containers" v-if="s.containers">{{ s.containers.toLocaleString() }} <em>cont</em></span>
+      <span class="containers" v-if="s.containers">{{ s.containers.toLocaleString(APP_LOCALE) }} <em>cont</em></span>
       <span class="containers" v-else>—</span>
       <span class="value">{{ fmt(s.value_usd ?? 0) }}</span>
       <span class="date">{{ fmtDate(s.date) }}</span>

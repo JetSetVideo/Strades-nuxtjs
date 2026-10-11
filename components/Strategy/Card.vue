@@ -53,7 +53,7 @@ const returnTone = computed(() => returnPct.value >= 0 ? 'positive' : 'negative'
 const isPositive = computed(() => returnPct.value >= 0)
 
 const fmtPct = (n?: number) => n === undefined ? '—' : `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
-const fmtUsd = (n?: number) => n === undefined ? '—' : `$${Math.round(n).toLocaleString()}`
+const fmtUsd = (n?: number) => n === undefined ? '—' : `$${Math.round(n).toLocaleString(APP_LOCALE)}`
 
 const lastRunRel = computed(() => {
   if (!props.strategy.last_run) return '—'

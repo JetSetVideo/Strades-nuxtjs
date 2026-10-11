@@ -149,8 +149,8 @@ export const useAgentsStore = defineStore('agents', {
   },
 
   getters: {
-    all: (state): Agent[] => state.ids.map(id => state.byId[id]).filter(Boolean),
-    personal: (state): Agent | null => state.personalId ? state.byId[state.personalId] : null,
+    all: (state): Agent[] => state.ids.map(id => state.byId[id]).filter((a): a is Agent => !!a),
+    personal: (state): Agent | null => (state.personalId ? state.byId[state.personalId] ?? null : null),
     publicAgents(): Agent[] { return this.all.filter(a => a.kind === 'public') },
     myRoster(): Agent[] {
       // Prefer authenticated user; fall back to demo owner for JSON data

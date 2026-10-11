@@ -157,7 +157,7 @@ const onCardClick = (event: MouseEvent) => {
       <div class="provenance">
         <span>{{ item.source.label }}</span>
         <span v-if="item.geographicOrigin?.name">· {{ item.geographicOrigin.name }}</span>
-        <time :datetime="item.publishedAt">· {{ new Date(item.publishedAt).toLocaleString() }}</time>
+        <time :datetime="item.publishedAt">· {{ new Date(item.publishedAt).toLocaleString(APP_LOCALE) }}</time>
       </div>
     </div>
 

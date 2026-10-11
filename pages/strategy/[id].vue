@@ -21,6 +21,8 @@ import UIEmptyState from '@/components/UI/EmptyState.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 
 import StrategyEquityCurve from '@/components/Strategy/EquityCurve.vue'
+import { TradingApiError, useTradingApi, type RealBacktest, type TradingWallet } from '@/composables/useTradingApi'
+import { useTradingPrefsStore } from '~/stores/tradingPrefs'
 import StrategyTradeList from '@/components/Strategy/TradeList.vue'
 import StrategyRunByPanel from '@/components/Strategy/RunByPanel.vue'
 
@@ -41,11 +43,72 @@ const agents = useAgentsStore()
 const bots = useBotsStore()
 
 const loading = ref(true)
-const tab = ref<'performance' | 'trades' | 'code' | 'backtest'>('performance')
+const tab = ref<'performance' | 'trades' | 'code' | 'backtest'>(route.query.tab === 'backtest' ? 'backtest' : 'performance')
 const isBacktesting = ref(false)
-const backtestResult = ref<any>(null)
+// Show the run the creator just did, if any (shared by useBacktest per strategy id).
+const backtestResult = ref<any>(backtestEngine.resultsById.value[String(route.params.id)] ?? null)
 
 const simulations = ref(250)
+
+// Real-history backtest run from the creator (backend rules engine on Binance candles).
+const realBacktests = useState<Record<string, RealBacktest>>('backtest:real', () => ({}))
+const realBacktest = computed(() => realBacktests.value[strategyId.value] ?? null)
+const beatHold = computed(() => !!realBacktest.value && realBacktest.value.metrics.return_pct >= realBacktest.value.benchmark.buy_hold_pct)
+const realCurve = computed(() => {
+  const pts = realBacktest.value?.equity_curve ?? []
+  if (pts.length < 2) return ''
+  const ys = pts.map(p => p.equity)
+  const lo = Math.min(...ys), hi = Math.max(...ys), span = hi - lo || 1
+  return pts.map((p, i) => `${((i / (pts.length - 1)) * 600).toFixed(1)},${(134 - ((p.equity - lo) / span) * 128).toFixed(1)}`).join(' ')
+})
+// Deploy: run this (server-saved) strategy as a bot funded by one of the user's wallets.
+const tradingApi = useTradingApi()
+const walletsList = ref<TradingWallet[]>([])
+const deployWalletId = ref('')
+const tradingPrefs = useTradingPrefsStore()
+tradingPrefs.hydrate()
+const deployCapital = ref(String(tradingPrefs.defaultCapital))
+const deploying = ref(false)
+const deployError = ref('')
+onMounted(async () => {
+  try {
+    walletsList.value = await tradingApi.listWallets()
+    deployWalletId.value = walletsList.value[0]?.id ?? ''
+  } catch { /* signed out → the card explains */ }
+})
+async function deployToWallet() {
+  deploying.value = true
+  deployError.value = ''
+  try {
+    await tradingApi.launchBot(deployWalletId.value, {
+      capital_usd: String(deployCapital.value), weight_mode: 'random', strategy_id: strategyId.value, period_s: 3600,
+    })
+    await navigateTo('/trade')
+  } catch (e) {
+    deployError.value = e instanceof TradingApiError ? e.message : 'Could not launch the bot.'
+  } finally {
+    deploying.value = false
+  }
+}
+const curveRange = computed(() => {
+  const ys = (realBacktest.value?.equity_curve ?? []).map(p => p.equity)
+  return { lo: ys.length ? Math.min(...ys) : 0, hi: ys.length ? Math.max(...ys) : 0 }
+})
+const usd0 = (v: number) => v.toLocaleString(APP_LOCALE, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+const intervalLabel = (i: string) => ({ '15m': '15-minute bars', '1h': 'hourly bars', '4h': '4-hour bars', '1d': 'daily bars', '1D': 'daily bars' } as Record<string, string>)[i] ?? i
+const rerunning = ref(false)
+async function rerunReal() {
+  rerunning.value = true
+  try {
+    const r = await tradingApi.backtestReal(strategyId.value, { capital_usd: 10000, bars: tradingPrefs.backtestBars })
+    realBacktests.value = { ...realBacktests.value, [strategyId.value]: r }
+  } catch (e) {
+    deployError.value = e instanceof TradingApiError ? `Backtest failed: ${e.message}` : 'Backtest failed.'
+  } finally {
+    rerunning.value = false
+  }
+}
+const fmtDay = (ts: number) => new Date(ts).toLocaleDateString(APP_LOCALE, { year: 'numeric', month: 'short', day: 'numeric' })
 
 onMounted(async () => {
   loading.value = true
@@ -54,8 +117,26 @@ onMounted(async () => {
     !agents.hydrated ? agents.fetchAgents() : Promise.resolve(),
     !bots.hydrated ? bots.fetchBots() : Promise.resolve()
   ])
+  // Strategies saved on the server (opened from "Saved strategies", a bookmark or a reload)
+  // aren't in the browser store: load them by id instead of showing "Strategy not found".
+  if (!strategy.value) await loadServerStrategy().catch(() => {})
   loading.value = false
 })
+
+async function loadServerStrategy() {
+  const s = await tradingApi.getStrategy(strategyId.value)
+  await strategiesStore.createStrategy({
+    id: s.id, name: s.name, description: s.description, category: s.category || 'technical', targetAssets: [s.assets_entry],
+  })
+  const lb = s.last_backtest
+  if (!realBacktests.value[s.id] && lb?.metrics && lb.benchmark && lb.window) {
+    // Summary only (the server keeps scalars): no curve or trade list until it is re-run.
+    realBacktests.value = { ...realBacktests.value, [s.id]: {
+      engine: 'rules', capital: 0, equity: 0, return_pct: lb.return_pct ?? lb.metrics.return_pct,
+      equity_curve: [], trades: [], metrics: lb.metrics, benchmark: lb.benchmark, window: lb.window,
+    } as RealBacktest }
+  }
+}
 
 const strategy = computed<any>(() =>
   (strategies.value ?? []).find((s: any) => s.id === strategyId.value)
@@ -78,6 +159,7 @@ const statusTone = computed(() => {
   }
 })
 
+const hasTradeHistory = computed(() => (strategy.value?.total_trades ?? 0) > 0)
 const returnPct = computed(() => strategy.value?.total_return_percentage ?? 0)
 
 const tabs = computed<TabItem[]>(() => [
@@ -213,6 +295,7 @@ const codeJson = computed(() => {
           {{ isBacktesting ? '…' : '↺ Backtest' }}
         </button>
         <button class="action ghost" @click="onFork">⎆ Fork</button>
+        <NuxtLink class="action ghost" :to="`/summarizer/${strategyId}`" title="Plain-language review of the rules, assets and risk settings">≡ Summary</NuxtLink>
       </template>
     </UIPageHeader>
 
@@ -228,8 +311,10 @@ const codeJson = computed(() => {
     <!-- PERFORMANCE -->
     <template v-if="tab === 'performance'">
       <UICard title="Equity curve">
-        <template #action><UIPill ghost tone="neutral">since inception</UIPill></template>
+        <template #action><UIPill ghost tone="neutral">{{ hasTradeHistory ? 'illustrative path' : 'no trades yet' }}</UIPill></template>
+        <UIEmptyState v-if="!hasTradeHistory" title="No trades yet" message="Run a backtest, or attach this strategy to a wallet, to see real results here." />
         <StrategyEquityCurve
+          v-else
           :seed="strategy.id"
           :initial-value="strategy.initial_capital ?? 10000"
           :final-value="strategy.current_capital ?? (strategy.initial_capital ?? 10000)"
@@ -307,7 +392,64 @@ const codeJson = computed(() => {
 
     <!-- BACKTEST -->
     <template v-else-if="tab === 'backtest'">
-      <UICard title="Monte Carlo Backtest">
+      <UICard v-if="realBacktest" title="Backtest on real prices" class="real-bt">
+        <template #action>
+          <UIPill ghost tone="info">{{ realBacktest.window.symbol }} · {{ intervalLabel(realBacktest.window.interval) }} · {{ realBacktest.window.bars }} bars · {{ fmtDay(realBacktest.window.from_ts) }} → {{ fmtDay(realBacktest.window.to_ts) }}</UIPill>
+        </template>
+        <div class="real-kpis">
+          <UIStat label="Strategy return" :value="realBacktest.metrics.return_pct" tone="auto" suffix="%" :precision="2" size="lg" />
+          <UIStat label="Buy & hold" :value="realBacktest.benchmark.buy_hold_pct" tone="auto" suffix="%" :precision="2" size="lg" />
+          <UIStat label="Max drawdown" :value="-realBacktest.metrics.max_dd_pct" tone="auto" suffix="%" :precision="2" size="md" />
+          <UIStat label="Closed trades" :value="realBacktest.metrics.trades" :precision="0" size="md" />
+          <UIStat label="Win rate" :value="realBacktest.metrics.win_rate ?? 0" suffix="%" :precision="1" size="md" />
+          <UIStat :label="realBacktest.metrics.trades ? 'Fees paid (USD)' : 'Fees on open position (USD)'" :value="realBacktest.metrics.fees" :precision="2" size="md" />
+        </div>
+        <p class="real-verdict">
+          {{ beatHold ? 'Did better than' : 'Did worse than' }} simply holding {{ realBacktest.window.symbol.replace('USDT', '') }}:
+          <b :class="beatHold ? 'up' : 'down'">{{ beatHold ? '+' : '−' }}{{ Math.abs(realBacktest.metrics.return_pct - realBacktest.benchmark.buy_hold_pct).toFixed(2) }} points</b>
+          over this window.
+          <span class="caveat">One past window doesn't predict future returns.</span>
+        </p>
+        <div v-if="realCurve" class="real-chart">
+          <div class="y-axis"><span>{{ usd0(curveRange.hi) }}</span><span>{{ usd0(curveRange.lo) }}</span></div>
+          <svg class="real-curve" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Equity curve on real prices">
+            <polyline :points="realCurve" fill="none" stroke="currentColor" stroke-width="1.6" />
+          </svg>
+          <div class="x-axis"><span>{{ fmtDay(realBacktest.window.from_ts) }}</span><span>equity (USD) over time</span><span>{{ fmtDay(realBacktest.window.to_ts) }}</span></div>
+        </div>
+        <table v-if="realBacktest.trades.length" class="real-trades">
+          <thead><tr><th>Closed</th><th>Entry</th><th>Exit</th><th>P&L</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr v-for="(t, i) in realBacktest.trades.slice(-10).reverse()" :key="i">
+              <td>{{ fmtDay(t.ts) }}</td><td>{{ t.entry.toFixed(2) }}</td><td>{{ t.exit.toFixed(2) }}</td>
+              <td :class="t.pnl >= 0 ? 'up' : 'down'">{{ t.pnl >= 0 ? '+' : '' }}{{ t.pnl.toFixed(2) }}</td><td>{{ t.reason }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else class="muted-note">{{ realBacktest.equity_curve.length ? 'No trade closed in this window.' : 'Saved summary of the last run. Re-run the backtest to see the curve and trades.' }}</p>
+        <button class="deploy-btn rerun" :disabled="rerunning" @click="rerunReal">{{ rerunning ? 'Running…' : '↺ Re-run on real prices' }}</button>
+      </UICard>
+
+      <UICard v-if="realBacktest" title="Run this strategy on a wallet" class="deploy-card">
+        <p v-if="!walletsList.length" class="muted-note">
+          No wallet yet. <NuxtLink to="/trade">Create or import one</NuxtLink>, then come back.
+        </p>
+        <form v-else class="deploy-form" @submit.prevent="deployToWallet">
+          <label>Wallet
+            <select v-model="deployWalletId">
+              <option v-for="w in walletsList" :key="w.id" :value="w.id">{{ w.label }} · ${{ Number(w.cash_usd).toFixed(2) }} free</option>
+            </select>
+          </label>
+          <label>Capital (USD)
+            <input v-model="deployCapital" type="number" min="10" step="any" inputmode="decimal" />
+          </label>
+          <button class="deploy-btn" :disabled="deploying">{{ deploying ? 'Launching…' : 'Run on wallet' }}</button>
+        </form>
+        <p v-if="deployError" class="deploy-err">{{ deployError }}</p>
+        <p class="muted-note">Paper trading: the bot executes this strategy's rules on live prices with simulated dollars from the wallet.</p>
+      </UICard>
+
+      <UICard title="Simulated paths (Monte Carlo): synthetic prices, not history">
         <template #action>
           <div class="backtest-actions">
             <span class="sim-count">{{ simulations }} simulations</span>
@@ -322,7 +464,7 @@ const codeJson = computed(() => {
           <div class="progress-bar">
             <div class="progress-fill" :style="{ width: `${backtestEngine.progress}%` }" />
           </div>
-          <span class="progress-label">{{ backtestEngine.progress }}% — simulating {{ simulations }} price paths</span>
+          <span class="progress-label">{{ backtestEngine.progress }}% — simulating {{ simulations }} synthetic price paths</span>
         </div>
 
         <!-- Results -->
@@ -330,8 +472,8 @@ const codeJson = computed(() => {
           <UIMetricRow :cols="4">
             <UIStat label="Total Return" :value="backtestResult.metrics.totalReturnPct" tone="auto" suffix="%" :precision="2" size="lg" />
             <UIStat label="Annual Return" :value="backtestResult.metrics.annualReturn" tone="auto" suffix="%" :precision="2" size="md" />
-            <UIStat label="Sharpe" :value="backtestResult.metrics.sharpeRatio" :precision="3" size="md" />
-            <UIStat label="Sortino" :value="backtestResult.metrics.sortinoRatio" :precision="3" size="md" />
+            <UIStat label="Sharpe" :value="backtestResult.metrics.sharpeRatio" :precision="2" size="md" />
+            <UIStat label="Sortino" :value="backtestResult.metrics.sortinoRatio" :precision="2" size="md" />
           </UIMetricRow>
           <UIMetricRow :cols="4">
             <UIStat label="Max DD" :value="-(backtestResult.metrics.maxDrawdownPct)" tone="negative" suffix="%" :precision="2" size="md" />
@@ -374,6 +516,26 @@ const codeJson = computed(() => {
 </template>
 
 <style scoped>
+.real-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .6rem; }
+.real-verdict { margin: .8rem 0 .4rem; font-size: .85rem; color: var(--text-primary); }
+.real-verdict .caveat { color: var(--text-secondary); }
+.real-chart { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: .2rem .5rem; }
+.y-axis { display: flex; flex-direction: column; justify-content: space-between; font-size: .68rem; color: var(--text-secondary); font-family: var(--font-market-data, monospace); }
+.x-axis { grid-column: 2; display: flex; justify-content: space-between; font-size: .68rem; color: var(--text-secondary); }
+.real-verdict .up, .real-trades .up { color: var(--app-color-up, #00ff88); }
+.real-verdict .down, .real-trades .down { color: var(--app-color-down, #ff4444); }
+.real-curve { width: 100%; height: 140px; color: var(--primary-blue, #3b82f6); margin: .4rem 0; }
+.real-trades { width: 100%; border-collapse: collapse; font-size: .78rem; font-family: var(--font-market-data, monospace); }
+.real-trades th { text-align: left; color: var(--text-secondary); font-weight: 500; padding: .3rem; }
+.real-trades td { padding: .3rem; border-top: 1px solid var(--border-primary); }
+.muted-note { color: var(--text-secondary); font-size: .8rem; }
+.deploy-form { display: flex; gap: .8rem; align-items: flex-end; flex-wrap: wrap; }
+.deploy-form label { display: flex; flex-direction: column; gap: .3rem; font-size: .8rem; color: var(--text-secondary); }
+.deploy-form select, .deploy-form input { padding: .5rem .6rem; border-radius: 6px; border: 1px solid var(--border-primary); background: var(--surface-sunken, transparent); color: var(--text-primary); font: inherit; }
+.deploy-btn { padding: .55rem 1rem; border: 0; border-radius: 8px; background: var(--primary-blue, #3b82f6); color: #fff; font-weight: 600; cursor: pointer; }
+.deploy-btn:disabled { opacity: .5; }
+.rerun { margin-top: .6rem; }
+.deploy-err { color: var(--app-color-down, #ff4444); font-size: .85rem; }
 .strategy-detail {
   display: flex;
   flex-direction: column;

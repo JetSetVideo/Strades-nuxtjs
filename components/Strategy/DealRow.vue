@@ -97,7 +97,7 @@ const riskTone = computed(() => {
     <div class="dr-metrics">
       <div class="dr-m">
         <span class="dr-ml">Capital</span>
-        <span class="dr-mv">${{ deal.capital.toLocaleString() }}</span>
+        <span class="dr-mv">${{ deal.capital.toLocaleString(APP_LOCALE) }}</span>
       </div>
       <div class="dr-m">
         <span class="dr-ml">Return</span>
@@ -108,7 +108,7 @@ const riskTone = computed(() => {
       <div class="dr-m">
         <span class="dr-ml">P&L</span>
         <span class="dr-mv" :style="{ color: returnColor(deal.returnAbs) }">
-          {{ deal.returnAbs >= 0 ? '+' : '' }}${{ Math.abs(deal.returnAbs).toLocaleString() }}
+          {{ deal.returnAbs >= 0 ? '+' : '' }}${{ Math.abs(deal.returnAbs).toLocaleString(APP_LOCALE) }}
         </span>
       </div>
       <div class="dr-m">

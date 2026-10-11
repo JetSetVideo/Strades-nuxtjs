@@ -75,7 +75,7 @@ const fmtSigned = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(0)}`
         <span class="qpb-chip" title="Paper trade — simulated bet as % of wallet">P</span>
         <h4>Paper Trade {{ assetSymbol }}</h4>
       </div>
-      <span class="qpb-price">@ ${{ currentPrice.toLocaleString() }}</span>
+      <span class="qpb-price">@ ${{ currentPrice.toLocaleString(APP_LOCALE) }}</span>
     </header>
 
     <!-- Quick form -->
@@ -115,7 +115,7 @@ const fmtSigned = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(0)}`
       <div v-for="t in openForAsset" :key="t.id" class="pos-row" :data-side="t.side">
         <span class="pos-side">{{ t.side.toUpperCase() }}</span>
         <span class="pos-pct">{{ t.wallet_pct.toFixed(1) }}% wallet</span>
-        <span class="pos-entry">@ ${{ t.simulated_price.toLocaleString() }}</span>
+        <span class="pos-entry">@ ${{ t.simulated_price.toLocaleString(APP_LOCALE) }}</span>
         <span class="pos-pnl" :data-tone="t.hypothetical_pnl_value >= 0 ? 'pos' : 'neg'">
           {{ fmtSigned(t.hypothetical_pnl_value) }}
         </span>

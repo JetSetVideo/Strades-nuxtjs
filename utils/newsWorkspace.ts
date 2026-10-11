@@ -1,8 +1,11 @@
+import { allowsAny, allowsValue, statesFromLists } from '~/utils/priceFilters'
 import {
   DEFAULT_NEWS_FILTERS,
+  EMPTY_NEWS_EXCLUDES,
   economicLabelFromValue,
   politicalScaleFromValue,
   sentimentLabelFromValue,
+  type NewsFacetExcludes,
   type NewsFilters,
   type NewsItem,
   type NewsKind,
@@ -42,6 +45,22 @@ export function parseNewsQuery(query: Record<string, string | string[] | undefin
       dateFrom: typeof query.from === 'string' ? query.from : null,
       dateTo: typeof query.to === 'string' ? query.to : null,
       areas: parseArray(query.areas),
+      excluded: {
+        ...EMPTY_NEWS_EXCLUDES(),
+        companies: parseArray(query.companiesOut),
+        currencies: parseArray(query.currenciesOut),
+        commodities: parseArray(query.commoditiesOut),
+        owners: parseArray(query.ownersOut),
+        users: parseArray(query.usersOut),
+        friends: parseArray(query.friendsOut),
+        sources: parseArray(query.sourcesOut),
+        kinds: parseArray(query.kindsOut) as NewsKind[],
+        categories: parseArray(query.categoriesOut),
+        political: parseArray(query.politicalOut) as NewsPoliticalScale[],
+        economic: parseArray(query.economicOut) as NewsFacetExcludes['economic'],
+        sentiment: parseArray(query.sentimentOut) as NewsFacetExcludes['sentiment'],
+        areas: parseArray(query.areasOut),
+      },
     } satisfies NewsFilters,
     view: typeof query.view === 'string' ? query.view as NewsViewMode : 'feed',
     sortMode: typeof query.sort === 'string' ? query.sort as NewsSortMode : 'top',
@@ -67,6 +86,20 @@ export function serializeNewsQuery(filters: NewsFilters, view: NewsViewMode, sor
   withArray('economic', filters.economic)
   withArray('sentiment', filters.sentiment)
   withArray('areas', filters.areas)
+  const excluded = filters.excluded ?? EMPTY_NEWS_EXCLUDES()
+  withArray('companiesOut', excluded.companies)
+  withArray('currenciesOut', excluded.currencies)
+  withArray('commoditiesOut', excluded.commodities)
+  withArray('ownersOut', excluded.owners)
+  withArray('usersOut', excluded.users)
+  withArray('friendsOut', excluded.friends)
+  withArray('sourcesOut', excluded.sources)
+  withArray('kindsOut', excluded.kinds)
+  withArray('categoriesOut', excluded.categories)
+  withArray('politicalOut', excluded.political)
+  withArray('economicOut', excluded.economic)
+  withArray('sentimentOut', excluded.sentiment)
+  withArray('areasOut', excluded.areas)
   if (filters.savedOnly) query.saved = '1'
   if (filters.historyOnly) query.history = '1'
   if (filters.predictionOnly) query.predictions = '1'
@@ -98,24 +131,25 @@ export function filterNewsItems(items: NewsItem[], filters: NewsFilters, view: N
       ].join(' ').toLowerCase()
       if (!haystack.includes(text)) return false
     }
-    if (filters.companies.length && !item.assets.some(asset => filters.companies.includes(asset))) return false
-    if (filters.currencies.length && !item.currencies.some(asset => filters.currencies.includes(asset))) return false
-    if (filters.commodities.length && !item.commodities.some(asset => filters.commodities.includes(asset))) return false
-    if (filters.owners.length && !filters.owners.includes(item.author.displayName)) return false
-    if (filters.users.length && !filters.users.includes(item.author.id)) return false
-    if (filters.friends.length && !filters.friends.includes(item.author.id)) return false
-    if (filters.sources.length && !filters.sources.includes(item.source.label)) return false
-    if (filters.kinds.length && !filters.kinds.includes(item.kind)) return false
-    if (filters.categories.length && !filters.categories.includes(item.category)) return false
-    if (filters.political.length && !filters.political.includes(politicalScaleFromValue(item.politicalLeaning))) return false
-    if (filters.economic.length && !filters.economic.includes(economicLabelFromValue(item.economicLeaning))) return false
-    if (filters.sentiment.length && !filters.sentiment.includes(sentimentLabelFromValue(item.sentiment))) return false
+    const excluded = filters.excluded ?? EMPTY_NEWS_EXCLUDES()
+    if (!allowsAny(item.assets, statesFromLists(filters.companies, excluded.companies))) return false
+    if (!allowsAny(item.currencies, statesFromLists(filters.currencies, excluded.currencies))) return false
+    if (!allowsAny(item.commodities, statesFromLists(filters.commodities, excluded.commodities))) return false
+    if (!allowsValue(item.author.displayName, statesFromLists(filters.owners, excluded.owners))) return false
+    if (!allowsValue(item.author.id, statesFromLists(filters.users, excluded.users))) return false
+    if (!allowsValue(item.author.id, statesFromLists(filters.friends, excluded.friends))) return false
+    if (!allowsValue(item.source.label, statesFromLists(filters.sources, excluded.sources))) return false
+    if (!allowsValue(item.kind, statesFromLists(filters.kinds, excluded.kinds))) return false
+    if (!allowsValue(item.category, statesFromLists(filters.categories, excluded.categories))) return false
+    if (!allowsValue(politicalScaleFromValue(item.politicalLeaning), statesFromLists(filters.political, excluded.political))) return false
+    if (!allowsValue(economicLabelFromValue(item.economicLeaning), statesFromLists(filters.economic, excluded.economic))) return false
+    if (!allowsValue(sentimentLabelFromValue(item.sentiment), statesFromLists(filters.sentiment, excluded.sentiment))) return false
     if (filters.savedOnly && !item.savedByUser) return false
     if (filters.historyOnly && !item.readByUser) return false
     if (filters.predictionOnly && item.predictionSummary.length === 0) return false
-    if (filters.areas.length) {
+    {
       const area = item.geographicOrigin?.area ?? item.geographicOrigin?.name ?? ''
-      if (!filters.areas.includes(area)) return false
+      if (!allowsValue(area, statesFromLists(filters.areas, excluded.areas))) return false
     }
     if (filters.dateFrom && item.publishedAt < `${filters.dateFrom}T00:00:00.000Z`) return false
     if (filters.dateTo && item.publishedAt > `${filters.dateTo}T23:59:59.999Z`) return false

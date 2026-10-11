@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
-import type { PriceUpdate, Activity, NewsItem } from '~/types/asset'
+import type { PriceUpdate, Activity, AssetNewsItem as NewsItem } from '~/types/asset'
 
-export type { PriceUpdate, Activity, NewsItem } from '~/types/asset'
+export type { PriceUpdate, Activity, AssetNewsItem } from '~/types/asset'
 
 export const useAssetEventsStore = defineStore('assetEvents', {
   state: () => ({

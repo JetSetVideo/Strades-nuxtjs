@@ -1,5 +1,6 @@
 {
   "private": true,
+  "packageManager": "deno@2.9.7",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -7,19 +8,23 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "vue-tsc --noEmit -p .nuxt/tsconfig.app.json"
   },
   "engines": {
-    "node": "22.x"
+    "node": "22.x",
+    "deno": ">=2.0.0"
   },
   "devDependencies": {
-    "@nuxt/ui": "^4.5.1",
+    "@nuxt/ui": "^4.11.3",
     "@pinia/nuxt": "^0.11.3",
     "@types/node": "^25.5.0",
-    "nuxt": "^4.4.2",
+    "nuxt": "^4.6.0",
     "pinia": "^3.0.4",
     "sass": "^1.98.0",
-    "vitest": "^4.1.10"
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.10",
+    "vue-tsc": "^3.3.12"
   },
   "dependencies": {
     "@types/d3": "^7.4.3",
@@ -28,6 +33,7 @@
     "date-fns": "^4.1.0",
     "mitt": "^3.0.1",
     "socket.io-client": "^4.8.3",
-    "topojson-client": "^3.1.0"
+    "topojson-client": "^3.1.0",
+    "vue": "^3.5.43"
   }
 }

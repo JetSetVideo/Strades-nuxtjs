@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia'
+// Stores are not auto-imported in this project (see nuxt.config pinia note).
+import { useOpinionProfileStore } from '~/stores/opinionProfile'
 import { publicAssetUrl } from '~/composables/useLocalJson'
 import { normalizeAllocationPie, type AllocationPie } from '~/types/allocation'
 import type { Prediction } from '~/stores/predictions'
@@ -12,6 +14,8 @@ import {
   type NewsCounters,
   type NewsFacetSummary,
   type NewsFilterOption,
+  EMPTY_NEWS_EXCLUDES,
+  type NewsFacetExcludes,
   type NewsFilters,
   type NewsHistoryEvent,
   type NewsItem,
@@ -466,26 +470,27 @@ export const useNewsStore = defineStore('newsStore', {
 
     activeFilterCount(): number {
       const f = this.filters
+      const x = f.excluded ?? EMPTY_NEWS_EXCLUDES()
       return [
         f.search ? 1 : 0,
-        f.companies.length,
-        f.currencies.length,
-        f.commodities.length,
-        f.owners.length,
-        f.users.length,
-        f.friends.length,
-        f.sources.length,
-        f.kinds.length,
-        f.categories.length,
-        f.political.length,
-        f.economic.length,
-        f.sentiment.length,
+        f.companies.length, x.companies.length,
+        f.currencies.length, x.currencies.length,
+        f.commodities.length, x.commodities.length,
+        f.owners.length, x.owners.length,
+        f.users.length, x.users.length,
+        f.friends.length, x.friends.length,
+        f.sources.length, x.sources.length,
+        f.kinds.length, x.kinds.length,
+        f.categories.length, x.categories.length,
+        f.political.length, x.political.length,
+        f.economic.length, x.economic.length,
+        f.sentiment.length, x.sentiment.length,
         f.savedOnly ? 1 : 0,
         f.historyOnly ? 1 : 0,
         f.predictionOnly ? 1 : 0,
         f.dateFrom ? 1 : 0,
         f.dateTo ? 1 : 0,
-        f.areas.length,
+        f.areas.length, x.areas.length,
       ].reduce((sum, value) => sum + value, 0)
     },
   },
@@ -662,14 +667,25 @@ export const useNewsStore = defineStore('newsStore', {
       this.filters[key] = value
     },
 
+    cycleFacet(key: keyof NewsFacetExcludes, value: string) {
+      if (!this.filters.excluded) this.filters.excluded = EMPTY_NEWS_EXCLUDES()
+      const include = [...(this.filters[key] as string[])]
+      const exclude = [...(this.filters.excluded[key] as string[])]
+      const write = (nextIn: string[], nextOut: string[]) => {
+        ;(this.filters as unknown as Record<string, string[]>)[key] = nextIn
+        ;(this.filters.excluded as unknown as Record<string, string[]>)[key] = nextOut
+      }
+      if (include.includes(value)) write(include.filter(entry => entry !== value), [...exclude, value])
+      else if (exclude.includes(value)) write(include, exclude.filter(entry => entry !== value))
+      else write([...include, value], exclude)
+    },
+
     toggleFilterValue(key: 'companies' | 'currencies' | 'commodities' | 'owners' | 'users' | 'friends' | 'sources' | 'categories' | 'areas', value: string) {
-      const list = this.filters[key]
-      this.filters[key] = (list.includes(value) ? list.filter(entry => entry !== value) : [...list, value]) as NewsFilters[typeof key]
+      this.cycleFacet(key, value)
     },
 
     toggleEnumFilterValue(key: 'kinds' | 'political' | 'economic' | 'sentiment', value: string) {
-      const list = this.filters[key] as string[]
-      this.filters[key] = (list.includes(value) ? list.filter(entry => entry !== value) : [...list, value]) as NewsFilters[typeof key]
+      this.cycleFacet(key, value)
     },
 
     applyQuery(query: Record<string, string | string[] | undefined>) {
