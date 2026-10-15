@@ -297,34 +297,60 @@ const hiddenBets = computed(() =>
   countHiddenByHorizonStates(assetsStore.assets, horizonStates, Date.now())
 )
 
-// ── Market overview stats ─────────────────────────────────────────────────
+// ── Market overview stats (bound to the filtered list) ────────────────────
+function pctOf(asset: Asset): number {
+  return priceChanges[asset.id] ?? asset.change_24h_pct ?? 0
+}
+
+const filteredMoves = computed(() =>
+  filtered.value.map(a => ({ asset: a, pct: pctOf(a) }))
+)
+
 const gainers = computed(() =>
-  Object.entries(priceChanges).filter(([, v]) => v > 0).length
+  filteredMoves.value.filter(({ pct }) => pct > 0).length
 )
 const losers = computed(() =>
-  Object.entries(priceChanges).filter(([, v]) => v < 0).length
+  filteredMoves.value.filter(({ pct }) => pct < 0).length
 )
 const topGainer = computed(() => {
-  const entries = Object.entries(priceChanges)
-  if (!entries.length) return null
-  const [id, pct] = entries.reduce((a, b) => b[1] > a[1] ? b : a)
-  const a = assetsStore.getAssetById(id)
-  return a ? { symbol: a.symbol, pct } : null
+  const ups = filteredMoves.value.filter(({ pct }) => pct > 0)
+  if (!ups.length) return null
+  const best = ups.reduce((a, b) => b.pct > a.pct ? b : a)
+  return { symbol: best.asset.symbol, pct: best.pct }
 })
 const topLoser = computed(() => {
-  const entries = Object.entries(priceChanges)
-  if (!entries.length) return null
-  const [id, pct] = entries.reduce((a, b) => b[1] < a[1] ? b : a)
-  const a = assetsStore.getAssetById(id)
-  return a ? { symbol: a.symbol, pct } : null
+  const downs = filteredMoves.value.filter(({ pct }) => pct < 0)
+  if (!downs.length) return null
+  const worst = downs.reduce((a, b) => b.pct < a.pct ? b : a)
+  return { symbol: worst.asset.symbol, pct: worst.pct }
 })
 
-// Overall market sentiment: weighted avg of changes (bull > 0)
+// Overall sentiment of the visible list (bull ≥ 0)
 const marketSentiment = computed(() => {
-  const vals = Object.values(priceChanges)
+  const vals = filteredMoves.value
   if (!vals.length) return 0
-  return vals.reduce((a, b) => a + b, 0) / vals.length
+  return vals.reduce((sum, { pct }) => sum + pct, 0) / vals.length
 })
+
+const avgPrice = computed(() => {
+  const list = filtered.value
+  if (!list.length) return null
+  return list.reduce((sum, a) => sum + (a.current_price || 0), 0) / list.length
+})
+
+const totalMarketCap = computed(() => {
+  const sum = filtered.value.reduce((s, a) => s + (a.market_cap || 0), 0)
+  return sum > 0 ? sum : null
+})
+
+function formatCompactUsd(value: number): string {
+  const a = Math.abs(value)
+  if (a >= 1e12) return `$${(value / 1e12).toFixed(2)}T`
+  if (a >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
+  if (a >= 1e6) return `$${(value / 1e6).toFixed(1)}M`
+  if (a >= 1e3) return `$${(value / 1e3).toFixed(1)}k`
+  return `$${value.toFixed(value < 10 ? 2 : 0)}`
+}
 
 // ── Actions ───────────────────────────────────────────────────────────────
 function navigateToAsset(assetId: string) {
@@ -344,39 +370,6 @@ function navigateToAsset(assetId: string) {
         </div>
       </div>
     </Transition>
-
-    <!-- ── Market overview bar ──────────────────────────────────────── -->
-    <div class="market-bar" v-if="hasData">
-      <!-- Sentiment signal -->
-      <div class="market-sentiment"
-        :class="marketSentiment >= 0 ? 'bull' : 'bear'"
-      >
-        <span class="ms-icon">{{ marketSentiment >= 0.5 ? '🟢' : marketSentiment >= 0 ? '🟡' : '🔴' }}</span>
-        <span class="ms-label">{{ marketSentiment >= 0.5 ? 'Bullish' : marketSentiment >= 0 ? 'Neutral' : 'Bearish' }}</span>
-        <span class="ms-val">{{ marketSentiment >= 0 ? '+' : '' }}{{ marketSentiment.toFixed(2) }}%</span>
-      </div>
-
-      <div class="market-stats">
-        <!-- Gainers/Losers -->
-        <div class="mstat">
-          <span class="mstat-icon" style="color:var(--app-color-up, var(--success-green))">↑</span>
-          <span class="mstat-val">{{ gainers }}</span>
-        </div>
-        <div class="mstat">
-          <span class="mstat-icon" style="color:var(--app-color-down, var(--error-red))">↓</span>
-          <span class="mstat-val">{{ losers }}</span>
-        </div>
-
-        <!-- Top gainer / loser -->
-        <div v-if="topGainer" class="mstat highlight" style="color:var(--app-color-up, var(--success-green))">
-          ↑ {{ topGainer.symbol }} +{{ topGainer.pct.toFixed(1) }}%
-        </div>
-        <div v-if="topLoser" class="mstat highlight" style="color:var(--app-color-down, var(--error-red))">
-          ↓ {{ topLoser.symbol }} {{ topLoser.pct.toFixed(1) }}%
-        </div>
-      </div>
-
-    </div>
 
     <!-- ── Type + sort share one row; view and bet horizon sit below ─ -->
     <div class="controls-bar" v-if="hasData">
@@ -495,15 +488,63 @@ function navigateToAsset(assetId: string) {
       </Transition>
 
       <template v-if="viewMode !== 'tree'">
-      <div class="asset-grid">
-        <DisplayAsset
-          v-for="asset in visibleAssets"
-          :key="asset.id"
-          :asset="asset"
-          :priceChangePct="priceChanges[asset.id]"
-          :userId="'current_user'"
-          @click="navigateToAsset"
-        />
+      <div class="list-stack" v-if="filtered.length">
+        <!-- Market overview sits flush above the asset list; stats follow filters -->
+        <div
+          class="market-bar"
+          :class="marketSentiment >= 0 ? 'is-bull' : 'is-bear'"
+        >
+          <div
+            class="market-sentiment"
+            :class="marketSentiment >= 0 ? 'bull' : 'bear'"
+          >
+            <span class="ms-icon">{{ marketSentiment >= 0.5 ? '🟢' : marketSentiment >= 0 ? '🟡' : '🔴' }}</span>
+            <span class="ms-label">{{ marketSentiment >= 0.5 ? 'Bullish' : marketSentiment >= 0 ? 'Neutral' : 'Bearish' }}</span>
+            <span class="ms-val">{{ marketSentiment >= 0 ? '+' : '' }}{{ marketSentiment.toFixed(2) }}%</span>
+          </div>
+
+          <div class="market-stats">
+            <div class="mstat-pair up">
+              <div class="mstat">
+                <span class="mstat-icon">↑</span>
+                <span class="mstat-val">{{ gainers }}</span>
+              </div>
+              <div v-if="topGainer" class="mstat highlight">
+                ↑ {{ topGainer.symbol }} +{{ topGainer.pct.toFixed(1) }}%
+              </div>
+            </div>
+
+            <div class="mstat-pair down">
+              <div class="mstat">
+                <span class="mstat-icon">↓</span>
+                <span class="mstat-val">{{ losers }}</span>
+              </div>
+              <div v-if="topLoser" class="mstat highlight">
+                ↓ {{ topLoser.symbol }} {{ topLoser.pct.toFixed(1) }}%
+              </div>
+            </div>
+
+            <div class="mstat-meta" v-if="avgPrice != null || totalMarketCap">
+              <div v-if="avgPrice != null" class="mstat meta" title="Average price in this list">
+                Avg {{ formatCompactUsd(avgPrice) }}
+              </div>
+              <div v-if="totalMarketCap" class="mstat meta" title="Total market cap in this list">
+                Cap {{ formatCompactUsd(totalMarketCap) }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="asset-grid">
+          <DisplayAsset
+            v-for="asset in visibleAssets"
+            :key="asset.id"
+            :asset="asset"
+            :priceChangePct="priceChanges[asset.id]"
+            :userId="'current_user'"
+            @click="navigateToAsset"
+          />
+        </div>
       </div>
       <div
         v-if="hasMoreAssets"
@@ -537,7 +578,7 @@ function navigateToAsset(assetId: string) {
 .prices-page {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.3rem;
   padding: 0;
   min-height: 100%;
   color: var(--text-white);
@@ -548,54 +589,118 @@ function navigateToAsset(assetId: string) {
   width: 100%;
 }
 
-/* ── Market overview bar ── */
+/* ── Market overview bar — cap of the asset list ── */
+.list-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
 .market-bar {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: rgba(0,0,0,0.2);
+  gap: 8px;
+  padding: 4px 8px;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.22);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
+  /* Round top, square bottom — sits flush on the list below */
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom-color: transparent;
   flex-wrap: wrap;
+  min-width: 0;
+}
+
+.market-bar.is-bull {
+  border-color: color-mix(in srgb, var(--app-color-up, var(--success-green)) 28%, var(--border-primary));
+  border-bottom-color: transparent;
+}
+.market-bar.is-bear {
+  border-color: color-mix(in srgb, var(--app-color-down, var(--error-red)) 28%, var(--border-primary));
+  border-bottom-color: transparent;
 }
 
 .market-sentiment {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.72rem;
+  gap: 4px;
+  font-size: 0.68rem;
   font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 2px 8px;
   flex-shrink: 0;
+  transition: border-radius 0.35s ease, background 0.35s ease, border-color 0.35s ease;
 }
 
-.market-sentiment.bull { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: var(--app-color-up, var(--success-green)); }
-.market-sentiment.bear { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: var(--app-color-down, var(--error-red)); }
+/* Strades directional corners:
+ * up/green → right angles at top-right + bottom-left
+ * down/red → pointy (sharp) at top-left + bottom-right */
+.market-sentiment.bull {
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  color: var(--app-color-up, var(--success-green));
+  border-radius: 8px 0 8px 0;
+}
+.market-sentiment.bear {
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  color: var(--app-color-down, var(--error-red));
+  border-radius: 0 8px 0 8px;
+}
 
-.ms-icon  { font-size: 0.65rem; }
-.ms-label { font-size: 0.65rem; }
-.ms-val   { font-size: 0.72rem; font-weight: 800; }
+.ms-icon  { font-size: 0.6rem; }
+.ms-label { font-size: 0.62rem; }
+.ms-val   { font-size: 0.68rem; font-weight: 800; }
 
 .market-stats {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 1;
   flex-wrap: wrap;
+  min-width: 0;
 }
+
+.mstat-pair {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.mstat-pair.up { color: var(--app-color-up, var(--success-green)); }
+.mstat-pair.down { color: var(--app-color-down, var(--error-red)); }
 
 .mstat {
   display: flex;
   align-items: center;
-  gap: 3px;
-  font-size: 0.65rem;
+  gap: 2px;
+  font-size: 0.62rem;
+  line-height: 1.2;
 }
 
-.mstat-icon { font-size: 0.75rem; font-weight: 900; }
+.mstat-icon { font-size: 0.72rem; font-weight: 900; }
 .mstat-val  { font-weight: 700; }
-.mstat.highlight { font-weight: 700; font-size: 0.62rem; }
+.mstat.highlight { font-weight: 700; font-size: 0.6rem; white-space: nowrap; }
+
+.mstat-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.mstat.meta {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.58rem;
+  font-family: var(--font-market-data, inherit);
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .mstat-meta { display: none; }
+}
 
 /* ── Toolbar: type + sort on one row, view + horizon on the next ── */
 .controls-bar {
@@ -844,7 +949,7 @@ function navigateToAsset(assetId: string) {
 .assets-section {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
 }
 
 .heatmap-panel { margin-bottom: var(--spacing-sm); }
@@ -902,7 +1007,23 @@ function navigateToAsset(assetId: string) {
 .asset-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: 4px;
+  padding: 4px;
+  margin: 0;
+  border: 1px solid var(--border-primary);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.list-stack:has(.market-bar.is-bull) .asset-grid {
+  border-color: color-mix(in srgb, var(--app-color-up, var(--success-green)) 28%, var(--border-primary));
+}
+.list-stack:has(.market-bar.is-bear) .asset-grid {
+  border-color: color-mix(in srgb, var(--app-color-down, var(--error-red)) 28%, var(--border-primary));
+}
+
+.list-stack:has(.market-bar) .asset-grid {
+  border-top: none;
 }
 
 .list-sentinel { height: 1px; }

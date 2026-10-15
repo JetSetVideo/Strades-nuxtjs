@@ -53,11 +53,16 @@ export const useAuth = () => {
   // The user profile is not a secret and is safe to hydrate.
   const currentUser = useState<AuthUser | null>('auth.user', () => null)
 
-  // Refresh token stored in cookie (httpOnly in prod; plain for dev SPA)
+  // Refresh token cookie. The client sets it, so it cannot be httpOnly; at least make it Secure + SameSite=strict
+  // whenever the site runs over HTTPS (production/staging). Plain http://localhost dev keeps working.
+  // Target (programming manual §8): backend sets an httpOnly cookie itself — tracked as a P0 task.
+  const isHttps = import.meta.client
+    ? window.location.protocol === 'https:'
+    : (useRequestURL().protocol === 'https:')
   const refreshToken = useCookie<string | null>('strades_refresh', {
     maxAge: 60 * 60 * 24 * 30, // 30 days
-    sameSite: 'lax',
-    secure: false, // set to true in production (HTTPS)
+    sameSite: isHttps ? 'strict' : 'lax',
+    secure: isHttps,
   })
 
   const isAuthenticated = computed(() => !!accessToken.value)
