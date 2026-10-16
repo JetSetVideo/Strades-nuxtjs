@@ -4,7 +4,6 @@ import { useWalletStore } from '@/stores/wallet'
 import { useAllocationStore } from '@/stores/allocation'
 import { usePlatformsStore } from '@/stores/platforms'
 import { useBotsStore } from '@/stores/bots'
-import { useOpinionsStore } from '@/stores/opinions'
 import { useMacroStore } from '@/stores/macro'
 import { useAgentsStore } from '@/stores/agents'
 
@@ -41,7 +40,6 @@ const walletStore = useWalletStore()
 const allocation = useAllocationStore()
 const platforms = usePlatformsStore()
 const bots = useBotsStore()
-const opinions = useOpinionsStore()
 const macro = useMacroStore()
 const agents = useAgentsStore()
 const { userId } = useCurrentUser()
@@ -134,11 +132,7 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 
 <template>
   <WalletFlowVisualizer>
-    <UIScreenShell
-      title="Wallet"
-      :subtitle="`${platforms.connectedCount} platform${platforms.connectedCount === 1 ? '' : 's'} · ${opinions.activeCount} agent${opinions.activeCount === 1 ? '' : 's'} plugged`"
-      :kpis="kpis"
-    >
+    <UIScreenShell :kpis="kpis">
       <template #actions>
         <UIPill :tone="marketPulse.moodTone" show-dot>{{ marketPulse.mood }}</UIPill>
         <UIPill :tone="marketPulse.stressTone">Stress: {{ marketPulse.stress }}</UIPill>
@@ -148,13 +142,6 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
           {{ allocation.is100Percent ? '100%' : 'REBAL' }}
         </UIPill>
       </template>
-
-      <!-- Two wallet models exist (crawl 2026-10-08): this page shows SAMPLE platform
-           wallets; the user's own paper wallet and its bots live on /trade. Say so. -->
-      <div class="sample-banner" role="note">
-        <span><b>Sample portfolio.</b> These platform wallets are demo data. Your own paper wallet, its bots and its ledger are in Trade.</span>
-        <NuxtLink to="/trade" class="sample-cta">Open my wallet in Trade →</NuxtLink>
-      </div>
 
       <WalletHandTrade />
 
@@ -169,7 +156,7 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 
       <WalletPaperPanel />
 
-      <WalletAllocationSlider />
+      <WalletAllocationSlider :wallet="currentWallet" />
 
       <div class="row two-col">
         <UICard title="Performance">
@@ -220,10 +207,6 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 </template>
 
 <style scoped>
-.sample-banner { display: flex; justify-content: space-between; align-items: center; gap: .8rem; flex-wrap: wrap;
-  margin: 0 0 .8rem; padding: .6rem .9rem; border: 1px dashed var(--warning-orange, #f5a623); border-radius: var(--radius-md, 8px);
-  color: var(--text-primary); font-size: .85rem; }
-.sample-cta { color: var(--warning-orange, #f5a623); font-weight: 600; text-decoration: none; white-space: nowrap; }
 :deep(.screen-shell) { position: relative; z-index: 1; }
 .row { display: grid; gap: 0.6rem; }
 .row.two-col { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }

@@ -1,27 +1,42 @@
 <template>
-  <header class="page-header">
-    <div class="title-stack">
-      <div class="title-row">
-        <slot name="icon" />
-        <h1>{{ title }}</h1>
-        <span v-if="badge" class="badge">{{ badge }}</span>
+  <!-- Actions-only: one element — children spread evenly. With a title, keep the classic split. -->
+  <header
+    v-if="showHeader"
+    class="page-header"
+    :class="{ 'actions-only': !showTitle }"
+  >
+    <template v-if="showTitle">
+      <div class="title-stack">
+        <div class="title-row">
+          <slot name="icon" />
+          <h1>{{ title }}</h1>
+          <span v-if="badge" class="badge">{{ badge }}</span>
+        </div>
+        <p v-if="subtitle || $slots.subtitle" class="sub">
+          <slot name="subtitle">{{ subtitle }}</slot>
+        </p>
       </div>
-      <p v-if="subtitle || $slots.subtitle" class="sub">
-        <slot name="subtitle">{{ subtitle }}</slot>
-      </p>
-    </div>
-    <div class="actions" v-if="$slots.actions">
-      <slot name="actions" />
-    </div>
+      <div v-if="$slots.actions" class="actions">
+        <slot name="actions" />
+      </div>
+    </template>
+    <slot v-else name="actions" />
   </header>
 </template>
 
+
 <script setup lang="ts">
-defineProps<{
-  title: string
+import { computed, useSlots } from 'vue'
+
+const props = defineProps<{
+  title?: string
   subtitle?: string
   badge?: string | number
 }>()
+
+const slots = useSlots()
+const showTitle = computed(() => !!props.title)
+const showHeader = computed(() => showTitle.value || !!slots.actions)
 </script>
 
 <style scoped>
@@ -33,7 +48,24 @@ defineProps<{
   /* ScreenShell already spaces sections via --page-gap; avoid double gaps */
   margin-bottom: 0;
   flex-wrap: wrap;
+  width: 100%;
 }
+
+/* Single bar: pills / map / status sit as direct children, equal share */
+.page-header.actions-only {
+  align-items: stretch;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+}
+.page-header.actions-only > :slotted(*) {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .title-stack { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1; }
 .title-row { display: flex; align-items: baseline; gap: 0.55rem; }
 h1 {
@@ -64,6 +96,9 @@ h1 {
 .actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
 @media (max-width: 480px) {
   .actions { width: 100%; }
+  .page-header.actions-only {
+    flex-wrap: wrap;
+  }
 }
 
 @media (min-width: 768px) {

@@ -265,57 +265,56 @@ function onViewProfile(id) {
 .chatbot {
   background: var(--card-bg);
   border-radius: var(--radius-lg);
-  padding: var(--card-pad, 0.85rem);
+  padding: 0.55rem 0.65rem;
   border: 1px solid var(--border-primary);
   box-shadow: var(--shadow-primary);
 }
 
 .chatbot-header {
   text-align: center;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.35rem;
 }
 
 .chatbot-header h3 {
   color: var(--primary-green);
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.2rem 0;
   font-family: var(--font-chrome, var(--font-family-primary));
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
 .chatbot-header p {
   color: var(--text-gray);
   margin: 0;
   font-family: var(--font-family-secondary);
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 .chatbot-actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-@media (min-width: 640px) {
-  .chatbot-actions { flex-direction: row; }
-  .chatbot-btn { flex: 1; }
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.35rem;
 }
 
 .chatbot-btn {
+  flex: 1 1 0;
+  min-width: 0;
   background: var(--primary-gradient);
-  color: var(--secondary-darker);
+  color: #fff;
   border: none;
-  padding: 0.75rem 1rem;
+  padding: 0.4rem 0.55rem;
   border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 600;
   font-family: var(--font-family-secondary);
-  font-size: 0.95rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
   transition: var(--transition-normal);
   text-align: center;
 }
 
 .chatbot-btn:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: var(--shadow-accent);
 }
 

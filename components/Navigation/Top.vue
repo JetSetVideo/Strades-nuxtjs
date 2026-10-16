@@ -27,10 +27,7 @@ const { playHover, playClick } = useNavSound()
       @mouseenter="playHover"
       @click="toggleDrawer(); playClick()"
     >
-      <span class="brand-logo" aria-hidden="true">
-        <img src="/logos/strades-mark.png" alt="" />
-      </span>
-      <span class="brand-word">STRADES</span>
+      <img src="/logos/strades-mark.png" alt="" />
     </button>
 
     <SearchBar
@@ -75,71 +72,51 @@ const { playHover, playClick } = useNavSound()
   to   { transform: translateY(0);     opacity: 1; }
 }
 
-/* Brand mark and menu trigger are one control. */
+/* Brand mark IS the menu button — one element, larger hit target. */
 .brand-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  flex-shrink: 0;
-  height: 30px;
-  padding: 0 0.55rem 0 0.35rem;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: var(--app-border-radius, 6px);
-  color: #fff;
-  cursor: pointer;
-  font-family: 'Poppins', sans-serif;
-}
-.brand-btn:hover {
-  border-color: var(--primary-green, #00ff88);
-  color: var(--primary-green, #00ff88);
-}
-.brand-btn.is-covered { visibility: hidden; }
-.brand-word {
-  display: none;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  font-size: 0.78rem;
-}
-.brand-logo {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
   overflow: hidden;
   box-sizing: border-box;
-  border: 1.5px solid transparent;
-  border-radius: 5px 0 5px 0;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 7px 0 7px 0;
   background:
     linear-gradient(#fff, #fff) padding-box,
     conic-gradient(
       from 225deg at 50% 50%,
-      rgba(255, 26, 26, 0.59) 0deg,
-      #ff1a1a 18deg,
-      #ff1a1a 70deg,
-      #ffffff 96deg,
+      /* Perimeter-matched L-arcs (~64° red / ~72° green after radius compensation) */
+      #ff1a1a 0deg,
+      #ff1a1a 32deg,
+      #ffffff 46deg,
       #ffffff 128deg,
-      #00e25a 158deg,
-      rgba(0, 226, 90, 0.59) 180deg,
-      #00e25a 202deg,
-      #00e25a 220deg,
-      #ffffff 242deg,
-      #ffffff 272deg,
-      #ff1a1a 310deg,
-      #ff1a1a 342deg,
-      rgba(255, 26, 26, 0.59) 360deg
+      #00e25a 142deg,
+      #00e25a 214deg,
+      #ffffff 228deg,
+      #ffffff 314deg,
+      #ff1a1a 328deg,
+      #ff1a1a 360deg
     ) border-box;
+  transition: filter 0.15s ease, transform 0.15s ease;
 }
-.brand-logo img {
-  width: 112%;
-  height: 112%;
+.brand-btn:hover {
+  filter: brightness(1.06);
+  transform: scale(1.04);
+}
+.brand-btn.is-covered { visibility: hidden; }
+.brand-btn img {
+  width: 118%;
+  height: 118%;
   object-fit: contain;
   display: block;
   pointer-events: none;
-  transform: translateY(-0.5px);
+  transform: translateY(-2.5px);
 }
-.brand-word { display: none; }
 
 .search-bar {
   flex: 1;
@@ -175,7 +152,7 @@ const { playHover, playClick } = useNavSound()
     height: var(--nav-top-height-md, 3.5rem);
     gap: 0.75rem;
   }
-  .brand-word { display: inline; }
+  .brand-btn { width: 40px; height: 40px; }
   .search-bar { max-width: 32rem; margin: 0 auto; }
 }
 

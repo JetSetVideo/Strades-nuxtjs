@@ -10,6 +10,12 @@
       </select>
     </header>
 
+    <!-- Wallet page still shows sample platform wallets; this page is the real paper desk. -->
+    <div class="sample-banner" role="note">
+      <span><b>Sample portfolio.</b> Platform wallets on Wallet are demo data. This page holds your paper wallet, its bots, and its ledger.</span>
+      <NuxtLink to="/wallet" class="sample-cta">See sample wallets →</NuxtLink>
+    </div>
+
     <section v-if="signedOut" class="panel narrow">
       <template v-if="isDemo">
         <h2>This is where demo mode stops</h2>
@@ -244,6 +250,21 @@ h2 { margin: 0 0 .8rem; font-size: 1rem; }
 .clock-note { margin: .6rem 0 0; font-size: .78rem; color: var(--warning-orange, #f5a623); }
 .demo-banner { margin: 0; padding: .55rem .8rem; border: 1px dashed var(--warning-orange, #f5a623); border-radius: var(--radius-md, 8px);
   color: var(--warning-orange, #f5a623); font-size: .85rem; }
+.sample-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .8rem;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: .6rem .9rem;
+  border: 1px dashed var(--warning-orange, #f5a623);
+  border-radius: var(--radius-md, 8px);
+  color: var(--text-primary);
+  font-size: .85rem;
+}
+.sample-banner b { color: var(--warning-orange, #f5a623); }
+.sample-cta { color: var(--warning-orange, #f5a623); font-weight: 600; text-decoration: none; white-space: nowrap; }
 .cta { display: inline-block; margin: .4rem 1rem .2rem 0; padding: .6rem 1rem; border-radius: var(--radius-md, 8px);
   background: var(--primary-blue, #3b82f6); color: #fff; font-weight: 600; text-decoration: none; border: 0; cursor: pointer; font-size: inherit; }
 .err { color: var(--app-color-down, #e5484d); }

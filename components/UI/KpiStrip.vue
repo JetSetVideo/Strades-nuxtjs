@@ -32,23 +32,24 @@ function format(v: string | number | null | undefined) {
 <style scoped>
 .kpi-strip {
   display: grid;
-  gap: 0.35rem;
-  margin-bottom: 0.15rem;
+  gap: 0.25rem;
+  margin: 0;
+  width: 100%;
 }
-.cols-1 { grid-template-columns: 1fr; }
-.cols-2 { grid-template-columns: repeat(2, 1fr); }
-.cols-3 { grid-template-columns: repeat(3, 1fr); }
-.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.cols-1 { grid-template-columns: minmax(0, 1fr); }
+.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
-@media (max-width: 640px) {
-  .cols-3, .cols-4 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 480px) {
+  .cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .kpi {
   display: flex;
   flex-direction: column;
-  gap: 0.05rem;
-  padding: 0.35rem 0.5rem;
+  gap: 0.02rem;
+  padding: 0.25rem 0.4rem;
   background: var(--surface-raised, rgba(255,255,255,0.02));
   border: 1px solid var(--edge-raised, rgba(255,255,255,0.05));
   border-top-color: var(--edge-lit, rgba(255,255,255,0.14));

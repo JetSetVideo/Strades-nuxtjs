@@ -25,7 +25,7 @@ import UIKpiStrip, { type KpiItem } from '~/components/UI/KpiStrip.vue'
 import UISectionTabs, { type TabItem } from '~/components/UI/SectionTabs.vue'
 
 defineProps<{
-  title: string
+  title?: string
   subtitle?: string
   kpis?: KpiItem[]
   tabs?: TabItem[]
