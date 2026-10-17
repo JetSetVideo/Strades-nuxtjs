@@ -92,11 +92,15 @@ const portfolioTotals = computed(() => {
   const total = sum(w => w.total_value)
   const available = sum(w => w.available_balance)
   const invested = sum(w => w.invested_amount)
+  const daily = sum(w => w.daily_change)
+  const prior = total - daily
   return {
     total_value: total,
     available_balance: available,
     invested_amount: invested,
     unrealized: total - available - invested,
+    daily_change: daily,
+    daily_change_percentage: prior !== 0 ? (daily / prior) * 100 : 0,
     platform_count: ws.length
   }
 })
@@ -149,6 +153,8 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
         v-if="walletStore.wallets.length"
         :wallets="walletStore.wallets"
         :active-id="selectedWalletId"
+        :total-balance="portfolioTotals.total_value"
+        :total-change-pct="portfolioTotals.daily_change_percentage"
         @switch="selectedWalletId = $event"
       />
 

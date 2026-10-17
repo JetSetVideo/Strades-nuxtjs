@@ -17,18 +17,11 @@ interface Wallet {
 }
 
 /**
- * Totals across every connected platform.
+ * Portfolio totals feed Available / Invested / Unrealized in the secondary row.
+ * The headline Total Balance lives in WalletSwitcher (left of the wallet chips).
  *
- * The wallet page previously labelled ONE platform's `total_value` "Total
- * Balance", which contradicted the bottom-bar figure (that one sums all
- * platforms). Both numbers were right for their own definition, which is
- * exactly why the pair read as a bug. When this prop is supplied the hero shows
- * the portfolio figure and keeps the selected platform visible underneath.
- *
- * `invested_amount` is COST BASIS (Σ amount × average_price), not the market
- * value of the positions, so Available + Invested is deliberately not equal to
- * Total — the difference is `unrealized`. It is surfaced as its own row so the
- * arithmetic is legible instead of looking like missing money.
+ * `invested_amount` is COST BASIS (Σ amount × average_price), not market value,
+ * so Available + Invested ≠ Total — `unrealized` closes the gap.
  */
 interface PortfolioTotals {
   total_value: number
@@ -100,17 +93,8 @@ const unrealized = computed(() =>
 
 <template>
   <section class="wallet-hero" v-if="wallet">
-    <!-- Primary cluster: total balance + period PnL -->
+    <!-- Primary cluster: period PnL (total balance lives in the wallet switcher) -->
     <div class="primary-row">
-      <div class="balance-block">
-        <span class="label">{{ portfolio && portfolio.platform_count > 1 ? 'Total Balance · all platforms' : 'Total Balance' }}</span>
-        <span class="balance-value">${{ fmt(portfolio?.total_value ?? wallet.total_value) }}</span>
-        <span class="balance-currency">{{ wallet.currency || 'USD' }}</span>
-        <span v-if="portfolio && portfolio.platform_count > 1" class="balance-scope">
-          {{ wallet.name || 'this platform' }} ${{ fmt(wallet.total_value) }}
-        </span>
-      </div>
-
       <div class="pnl-block" :class="{ pos: isPositive, neg: !isPositive }">
         <div class="pnl-head">
           <span class="label">PnL {{ PERIOD_LABELS[period] }}</span>
@@ -118,6 +102,7 @@ const unrealized = computed(() =>
             <button
               v-for="p in (['1d','7d','30d','90d','1y'] as const)"
               :key="p"
+              type="button"
               :class="{ active: period === p }"
               @click="emit('update:period', p)"
             >{{ PERIOD_LABELS[p] }}</button>
@@ -184,24 +169,21 @@ const unrealized = computed(() =>
 .wallet-hero {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
-  padding: 0.85rem 1rem;
+  gap: 0.45rem;
+  padding: 0.55rem 0.7rem;
   background: linear-gradient(135deg, rgba(20,20,28,0.92), rgba(14,14,18,0.92));
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--app-border-radius, 10px);
   min-width: 0;
   box-sizing: border-box;
+  margin: 0;
 }
 
 .primary-row {
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  gap: 1.2rem;
+  display: flex;
+  justify-content: flex-end;
   align-items: flex-end;
-}
-
-@media (max-width: 720px) {
-  .primary-row { grid-template-columns: 1fr; gap: 0.5rem; }
+  min-width: 0;
 }
 
 /* Swarm advisory ghost overlay (Phase 22.1) */
@@ -266,12 +248,6 @@ const unrealized = computed(() =>
 }
 .swarm-seg { height: 100%; opacity: 0.6; }
 
-.balance-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.05rem;
-  min-width: 0;
-}
 .label {
   font-size: 0.6rem;
   letter-spacing: 0.16em;
@@ -279,36 +255,14 @@ const unrealized = computed(() =>
   color: rgba(255,255,255,0.45);
   font-weight: 700;
 }
-.balance-value {
-  font-size: 2rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #fff;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-.balance-currency {
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.4);
-  font-weight: 600;
-}
-
-/* Which platform the selected tab covers, now that the headline is the
-   portfolio total rather than this one platform's balance. */
-.balance-scope {
-  font-size: 0.6rem;
-  color: rgba(255,255,255,0.45);
-  letter-spacing: 0.02em;
-}
 
 .pnl-block {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.25rem;
   align-items: flex-end;
   min-width: 0;
+  width: 100%;
 }
 .pnl-head {
   display: flex;
@@ -348,7 +302,8 @@ const unrealized = computed(() =>
 }
 
 @media (max-width: 720px) {
-  .pnl-block { align-items: flex-start; }
+  .pnl-block { align-items: stretch; }
+  .pnl-head { justify-content: space-between; width: 100%; }
 }
 
 .period-strip {
@@ -381,8 +336,8 @@ const unrealized = computed(() =>
 .secondary-row {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  padding-top: 0.5rem;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
   border-top: 1px solid rgba(255,255,255,0.05);
   min-width: 0;
   flex-wrap: wrap;
@@ -431,7 +386,6 @@ const unrealized = computed(() =>
 }
 
 @media (max-width: 540px) {
-  .balance-value { font-size: 1.6rem; }
   .pnl-amount { font-size: 1.15rem; }
   .pnl-pct { font-size: 0.85rem; }
   .sub-divider { display: none; }
