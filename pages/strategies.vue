@@ -28,7 +28,6 @@ interface FilterState {
   assets: Record<string, FilterTriState>
   categories: Record<string, FilterTriState>
   frequency: Record<string, FilterTriState>
-  search: string
 }
 
 const currentFilters = ref<FilterState>({
@@ -37,7 +36,6 @@ const currentFilters = ref<FilterState>({
   drawdownMin: -100, drawdownMax: 0,
   winRateMin: 0, winRateMax: 100,
   assets: {}, categories: {}, frequency: {},
-  search: '',
 })
 
 // ── Filtering ────────────────────────────────────────────────────────────
@@ -45,12 +43,6 @@ const filteredStrategies = computed(() => {
   const f = currentFilters.value
   return strategies.value.filter((s: Record<string,any>) => {
     if (!allowsValue(s.status, f.status)) return false
-
-    if (f.search) {
-      const q = f.search.toLowerCase()
-      const haystack = `${s.name} ${s.description} ${s.creator} ${(s.tags ?? []).join(' ')}`.toLowerCase()
-      if (!haystack.includes(q)) return false
-    }
 
     const gain = s.monthlyGain ?? 0
     if (gain < f.profitMin || gain > f.profitMax) return false
@@ -148,6 +140,7 @@ onMounted(fetchStrategies)
   <div class="strategies-page">
 
     <StrategySavedList />
+    <StrategyLiveDesk :strategies="strategiesStore.strategies" />
 
     <!-- ── Page header: title + controls ── -->
     <div class="page-header">
@@ -158,7 +151,8 @@ onMounted(fetchStrategies)
         </span>
       </div>
       <div class="header-right">
-        <!-- Sort control -->
+        <!-- Filters teleports its toggle here, left of the sort. -->
+        <div id="strategy-filter-controls" class="filter-controls" />
         <div class="sort-wrap">
           <select v-model="sortBy" class="sort-select">
             <option v-for="opt in SORT_OPTIONS" :key="opt.id" :value="opt.id">
@@ -166,11 +160,6 @@ onMounted(fetchStrategies)
             </option>
           </select>
         </div>
-
-        <!-- New strategy CTA -->
-        <NuxtLink to="/creator" class="new-strategy-btn">
-          <span class="new-plus">+</span> New
-        </NuxtLink>
       </div>
     </div>
 
@@ -210,6 +199,10 @@ onMounted(fetchStrategies)
               {{ selectedStrategies[0]!.status === 'active' ? '⏸ Pause' : '▶ Start' }}
             </button>
             <NuxtLink
+              :to="`/strategy/${selectedStrategies[0]!.id}?tab=backtest`"
+              class="sel-btn"
+            >↺ Backtest</NuxtLink>
+            <NuxtLink
               :to="`/creator?edit=${selectedStrategies[0]!.id}`"
               class="sel-btn edit"
             >✏ Edit</NuxtLink>
@@ -243,7 +236,7 @@ onMounted(fetchStrategies)
 .strategies-page {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
   padding: 0;
   min-height: 100%;
 }
@@ -264,15 +257,15 @@ onMounted(fetchStrategies)
 }
 
 .page-title {
-  font-size: 1.5rem;
-  font-weight: 900;
+  font-size: 1.25rem;
+  font-weight: 800;
   margin: 0;
   color: var(--text-white);
   letter-spacing: -0.01em;
 }
 
 @media (min-width: 768px) {
-  .page-title { font-size: 2rem; }
+  .page-title { font-size: 1.45rem; }
 }
 
 .strategy-count {
@@ -288,6 +281,12 @@ onMounted(fetchStrategies)
   align-items: center;
   gap: 8px;
 }
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filter-controls:empty { display: none; }
 
 /* Sort */
 .sort-wrap { position: relative; }
@@ -309,38 +308,11 @@ onMounted(fetchStrategies)
 
 .sort-select:focus { border-color: var(--border-accent); }
 
-/* New button */
-.new-strategy-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  background: rgba(0,255,136,0.12);
-  border: 1px solid rgba(0,255,136,0.3);
-  color: var(--primary-green);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
-
-.new-strategy-btn:hover {
-  background: rgba(0,255,136,0.2);
-  border-color: rgba(0,255,136,0.5);
-}
-
-.new-plus {
-  font-size: 1rem;
-  line-height: 1;
-  font-weight: 400;
-}
-
 /* ── Content area ── */
 .content-area {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
 }
 
 /* ── Selection bar ── */
@@ -353,7 +325,7 @@ onMounted(fetchStrategies)
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  padding: 10px 16px;
+  padding: 6px 10px;
   background: rgba(18, 18, 20, 0.92);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border-primary);

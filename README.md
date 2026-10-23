@@ -53,12 +53,12 @@ A robust messaging layer where users share live strategies, debate articles, and
 The wallet is a closed pie. Increasing any asset class automatically compresses the others. Allocation sliders squeeze; they never simply add.
 
 ### Living Navigation & Micro-Dashboards
-Every menu icon is a tiny live component:
-- **Prices icon** pulses at a frequency derived from global volatility.
-- **News globe** rotates to face the geographic origin of the latest high-weight post.
-- **Wallet icon** is a miniature live pie chart of the 100% allocation.
-- **Chat badge** pulses with the emotional urgency of unread messages.
-- **Strategy orbit** spins at the frequency of the user's most active bot.
+Every bottom-bar icon is a tiny live component that reads the same data its page shows:
+- **Prices** draws today's live-market curve from 00:00 GMT to now.
+- **News globe** turns so the meridian where it is noon faces you, with a dot while news is unread.
+- **Wallet** shows two rings: each wallet's share of the total and the asset-type mix, with the total balance underneath.
+- **Lab** is a small 3-D globe with one dot per trading agent (green running, orange waiting, red error).
+- **Chat** shows a red badge with the unread count.
 
 ### User AI Avatars (Swarm Intelligence)
 Every user cultivates an avatar trained from their tracked behavior. Avatars expose:

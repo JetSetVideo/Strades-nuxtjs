@@ -35,9 +35,9 @@ Data flows strictly downwards. We use Pinia stores as the single source of truth
    - *Provides* this macro state to the entire app. No component should fetch macro data independently.
    - The mock tick loop starts in `app:mounted`, after the server markup has hydrated.
 
-2. **Top Navigation (`components/Navigation/Top.vue`)**
-   - Subscribes to specific Pinia getters for its Living Icons.
-   - Example: Fetches the `allocation_pie` from the Wallet Store to render the live pie-chart in the Wallet icon.
+2. **Bottom Navigation (`components/Navigation/Bar.vue`)**
+   - Renders the five Living Icons from `composables/useNavPanels.ts`, which reads the same store field each panel's page shows (`assets.liveMarket.history`, `news.items`, `wallet.wallets`, `agents.byId`, `chat.conversations`).
+   - Example: the Wallet icon draws `wallet.wallets` as two rings (wallet shares, asset-type shares) and prints the total balance. The icons themselves never touch a store.
 
 3. **Page Level (e.g., `pages/wallet.vue`)**
    - Checks if required data (e.g., user subwallets) is already cached in Pinia. If not, requests it.
@@ -84,7 +84,7 @@ There is no `stores/currency.ts`. Prices stay in the asset's quote currency and 
 ## Factorization & Modularity
 
 - **UI Modifiers as Composables**: Instead of writing complex CSS bindings in every component, use composables like `const { dynamicStyles } = useLivingUI(assetData, macroState)`. This returns an object of CSS variables (`{ '--border-radius': '4px', '--animation-speed': '0.8s' }`) that is bound to the component's root `div`.
-- **Living Icons**: Icons are no longer static SVGs. They are tiny Vue components wrapping Canvas or SVG elements that subscribe to specific data streams (e.g., `components/Navigation/Icons/GlobeIcon.vue` subscribes to the latest news coordinates).
+- **Living Icons**: Bottom-bar icons are not static SVGs. They are presentational Vue components (SVG, or CSS 3-D for the Lab globe) in `components/Navigation/Icons/` that take props from `composables/useNavPanels.ts`; their maths is in `utils/navIcons.ts`, `utils/navGlobe.ts` and `utils/navSphere.ts` (tested in `tests/nav*.test.ts`). Example: `NewsGlobeIcon.vue` turns a dot-matrix Earth so the noon meridian faces the viewer and shows an unread dot.
 
 ## Component Folder Layout
 
@@ -95,7 +95,8 @@ components/
 ├── App/              # Headless app-wide controllers (DynamicThemeController, SkeletonLoader)
 ├── UI/               # Design-system primitives (PageHeader, Card, Pill, Stat, MetricRow,
 │                     #   SectionTabs, EmptyState, DateRangePicker)
-├── Navigation/       # Top nav, drawer, bottom bar, SearchBar, Living Icons/
+├── Navigation/       # Top nav, drawer, bottom bar (Bar), SearchBar, Icons/ (5 living icons:
+│                     #   PricesIcon, NewsGlobeIcon, WalletIcon, LabSphereIcon, ChatBadgeIcon)
 ├── Overlay/          # Modals, slideovers (CountdownModal, Slideover)
 │
 ├── Wallet/           # 100% allocation engine UI

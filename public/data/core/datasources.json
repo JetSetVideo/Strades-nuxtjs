@@ -257,5 +257,57 @@
       "prediction_market",
       "free_credits"
     ]
+  },
+  {
+    "id": "ds_econ_calendar",
+    "name": "Economic Calendar",
+    "category": "macro",
+    "basis": "calendar",
+    "icon": "📅",
+    "description": "Scheduled releases — CPI, NFP, FOMC, earnings dates — so a strategy can wait on a print that has not happened yet.",
+    "latency": "daily",
+    "cost": 10,
+    "reliability": 0.98,
+    "supported_assets": ["stocks", "forex", "commodities"],
+    "tags": ["calendar", "earnings", "forecast", "macro"]
+  },
+  {
+    "id": "ds_forward_outlook",
+    "name": "Forward Outlook",
+    "category": "macro",
+    "basis": "calendar",
+    "icon": "🔮",
+    "description": "Consensus forecasts and prediction-market odds for dates still ahead.",
+    "latency": "1h",
+    "cost": 20,
+    "reliability": 0.84,
+    "supported_assets": ["crypto", "stocks", "forex", "commodities"],
+    "tags": ["prediction", "calendar", "forecast"]
+  },
+  {
+    "id": "ds_region_map",
+    "name": "Region Map",
+    "category": "macro",
+    "basis": "map",
+    "icon": "🗺️",
+    "description": "Exposure by place: ports, production regions, and conflict zones on a map.",
+    "latency": "1h",
+    "cost": 15,
+    "reliability": 0.9,
+    "supported_assets": ["forex", "commodities", "stocks"],
+    "tags": ["map", "region", "geo"]
+  },
+  {
+    "id": "ds_lane_weather",
+    "name": "Lanes & Weather",
+    "category": "macro",
+    "basis": "both",
+    "icon": "🌀",
+    "description": "Shipping lanes and storm calendars. A place on the map and a date in the future, together.",
+    "latency": "1h",
+    "cost": 18,
+    "reliability": 0.88,
+    "supported_assets": ["commodities", "forex"],
+    "tags": ["map", "calendar", "weather", "shipping"]
   }
 ]

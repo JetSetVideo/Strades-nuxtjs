@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   BINANCE_FEED,
   CATALOG_FEED,
+  assetFeedStreams,
   extraFeedKeys,
   feedKeyForAsset,
+  feedStreams,
   indexAssetsByFeed,
   STRADES_QUOTE_FEED,
 } from '~/utils/assetFeeds'
@@ -38,6 +40,28 @@ describe('feedKeyForAsset', () => {
 
   it('puts an unquoted asset in the catalog', () => {
     expect(feedKeyForAsset({ ...base, type: 'stock', symbol: 'AAPL' })).toBe(CATALOG_FEED)
+  })
+})
+
+describe('feedStreams', () => {
+  it('keeps an enabled live feed and drops a blocked one even when the switch is on', () => {
+    expect(feedStreams(true, 'live')).toBe(true)
+    expect(feedStreams(true, 'ok')).toBe(true)
+    expect(feedStreams(true, 'blocked')).toBe(false)
+    expect(feedStreams(false, 'live')).toBe(false)
+    expect(feedStreams(true, undefined)).toBe(true)
+  })
+
+  it('stops a Kalshi bet when that feed is disconnected', () => {
+    const bet = { ...base, type: 'bet', tags: ['kalshi'] }
+    const enabled = (id: string) => id !== 'kalshi'
+    expect(assetFeedStreams(bet, enabled, () => 'live')).toBe(false)
+    expect(assetFeedStreams(bet, () => true, () => 'live')).toBe(true)
+    expect(assetFeedStreams(
+      { ...base, type: 'bet', source: 'polymarket' },
+      () => true,
+      (id) => (id === 'polymarket' ? 'blocked' : 'live'),
+    )).toBe(false)
   })
 })
 

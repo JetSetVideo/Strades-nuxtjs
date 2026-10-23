@@ -395,7 +395,7 @@ const freqLabel = (f: string) => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px 16px 14px;
+  padding: 10px 12px 10px;
 }
 
 .feat-accent-bar {

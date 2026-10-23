@@ -293,20 +293,24 @@ This stream is the **training data** for the avatar ML pipeline and the opinion 
 
 ```
 macro_state ────┬─> DynamicThemeController ─> :root CSS vars
-                ├─> Navigation icons
                 └─> Every page background
 
-allocationPie ──┬─> WalletIcon (nav)
-                ├─> AllocationSlider
+allocationPie ──┬─> AllocationSlider
                 └─> Wallet page layout proportions
+
+Bottom-bar icons (stores ─> composables/useNavPanels.ts ─> Navigation/Bar.vue ─> Navigation/Icons/*):
+assets.liveMarket.history ──> PricesIcon (today's curve since 00:00 GMT)
+news.items[].readByUser ────> NewsGlobeIcon (unread dot; globe turned by the shared 30 s clock)
+wallet.wallets ─────────────> WalletIcon (wallet ring + asset-type ring, total balance)
+agents.byId ────────────────> LabSphereIcon (one dot per agent, run/wait/error)
+chat.conversations ─────────> ChatBadgeIcon (unread count)
 
 avatars[] ──────┬─> Agent cards
                 ├─> SwarmPlugs (creator)
                 ├─> Builder/Nodes/AvatarNode
                 └─> Profile/AvatarsSection
 
-posts[] ────────┬─> News globe rotation
-                ├─> Social/ArticlePost
+posts[] ────────┬─> Social/ArticlePost
                 ├─> Profile/PostsFeed
                 └─> Profile/PoliticalCard (aggregate)
 

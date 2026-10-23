@@ -1,80 +1,80 @@
 <script setup lang="ts">
+/**
+ * Chat tab — a speech bubble with a red dot holding the number of unread
+ * messages (99+ past 99). Data: useNavPanels() chat (unreadFor over the user's
+ * own conversations, the list /chat shows). Presentational only.
+ */
 import { computed } from 'vue'
-import { useChatStore } from '~/stores/chat'
-import { useCurrentUser } from '~/composables/useCurrentUser'
+import { badgeLabel } from '~/utils/navIcons'
 
-withDefaults(defineProps<{ size?: number }>(), { size: 24 })
+const props = withDefaults(defineProps<{
+  size?: number
+  active?: boolean
+  ready?: boolean
+  unread?: number
+  urgent?: boolean
+}>(), { size: 40, active: false, ready: false, unread: 0, urgent: false })
 
-const chat = useChatStore()
-const { userId } = useCurrentUser()
-
-const unreadCount = computed(() => chat.getUnreadCount(userId))
-const emotionalUrgency = computed(() => chat.getEmotionalUrgency(userId))
+const label = computed(() => (props.ready ? badgeLabel(props.unread) : ''))
+// The dot widens into a pill for 2-3 characters; centred on the bubble's top-right corner.
+const pill = computed(() => {
+  const w = label.value.length <= 1 ? 9 : label.value.length === 2 ? 11.5 : 14
+  return { x: 19.5 - w / 2, w, font: label.value.length >= 3 ? 5.4 : 6.6 }
+})
 </script>
 
 <template>
-  <div class="chat-icon" :style="{ width: `${size}px`, height: `${size}px` }">
-    <svg :width="size" :height="size" viewBox="0 0 24 24" aria-hidden="true">
-      <defs>
-        <linearGradient id="chat-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="rgba(0,255,136,0.85)" />
-          <stop offset="100%" stop-color="rgba(0,170,255,0.85)" />
-        </linearGradient>
-      </defs>
-
-      <path
-        d="M 4 5 Q 4 3 6 3 L 18 3 Q 20 3 20 5 L 20 13 Q 20 15 18 15 L 11 15 L 7 19 L 7 15 L 6 15 Q 4 15 4 13 Z"
-        fill="rgba(255,255,255,0.05)"
-        stroke="currentColor"
-        stroke-width="1.4"
-        stroke-linejoin="round"
-      />
-
-      <!-- Typing dots animate only when something is actually waiting -->
-      <g class="dots" :class="{ live: unreadCount > 0 }">
-        <circle cx="9" cy="9" r="1" fill="currentColor" class="dot dot-1" />
-        <circle cx="12" cy="9" r="1" fill="currentColor" class="dot dot-2" />
-        <circle cx="15" cy="9" r="1" fill="currentColor" class="dot dot-3" />
+  <span class="nav-icon chat-icon" :class="{ active, unread: !!label }" aria-hidden="true" :style="{ width: `${size}px`, height: `${size}px` }">
+    <svg viewBox="0 0 24 24" :width="size" :height="size" fill="none">
+      <g class="bubble">
+        <path
+          d="M4.2 6.2a3 3 0 0 1 3-3h9.6a3 3 0 0 1 3 3v7.1a3 3 0 0 1-3 3H11l-4.1 3.6v-3.6h0.3a3 3 0 0 1-3-3Z"
+          class="body"
+        />
+        <circle cx="8.6" cy="9.8" r="1.05" class="dot d1" />
+        <circle cx="12" cy="9.8" r="1.05" class="dot d2" />
+        <circle cx="15.4" cy="9.8" r="1.05" class="dot d3" />
       </g>
 
-      <!-- Unread dot (the count itself is printed by Navigation/Bar.vue under the label) -->
-      <g v-if="unreadCount > 0" class="badge" :class="{ urgent: emotionalUrgency > 0.7 }">
-        <circle cx="19" cy="4.5" r="4.6" fill="var(--bg-primary, #0e0e0f)" opacity="0.9" />
-        <circle cx="19" cy="4.5" r="4" :fill="emotionalUrgency > 0.7 ? 'var(--error-red, #ff4444)' : 'url(#chat-gradient)'" />
+      <g v-if="label" class="badge" :class="{ urgent }" data-nav-badge>
+        <rect :x="pill.x - 1" y="-1" :width="pill.w + 2" height="11" rx="5.5" class="badge-cut" />
+        <rect :x="pill.x" y="0" :width="pill.w" height="9" rx="4.5" class="badge-dot" />
+        <text :x="19.5" y="6.7" text-anchor="middle" :font-size="pill.font" class="badge-num">{{ label }}</text>
       </g>
     </svg>
-  </div>
+  </span>
 </template>
 
 <style scoped>
-.chat-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: inherit;
-}
-svg { overflow: visible; }
+.nav-icon { display: inline-flex; align-items: center; justify-content: center; }
+svg { display: block; overflow: visible; }
 
-.dots .dot { opacity: 0.55; }
-.dots.live .dot {
-  animation: dot-blink 1.4s infinite ease-in-out;
-}
-.dot-1 { animation-delay: 0s; }
-.dot-2 { animation-delay: 0.2s; }
-.dot-3 { animation-delay: 0.4s; }
+.body { fill: rgba(255,255,255,0.05); stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; }
+.active .body { fill: rgba(var(--accent, 120,220,180), 0.16); }
+.bubble { transform-origin: 12px 12px; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+.active .bubble { transform: scale(1.06); }
+.dot { fill: currentColor; opacity: 0.45; }
+/* Typing dots move only when something is waiting AND the tab is selected. */
+.active.unread .dot { animation: blink 1.4s ease-in-out infinite; }
+.d2 { animation-delay: 0.2s !important; }
+.d3 { animation-delay: 0.4s !important; }
+@keyframes blink { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
 
-@keyframes dot-blink {
-  0%, 60%, 100% { opacity: 0.3; }
-  30% { opacity: 1; }
+.badge-cut { fill: var(--secondary-darker, #0b0b0d); }
+.badge-dot { fill: var(--app-color-down, #ff4444); }
+.badge-num {
+  fill: #fff;
+  font-family: var(--font-market-data, 'IBM Plex Mono', monospace);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
+.badge { transform-box: fill-box; transform-origin: center; animation: pop 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+/* Urgent: a throb, but only on the selected tab (no endless repaint on every page). */
+.active .badge.urgent { animation: pop 0.35s cubic-bezier(0.34,1.56,0.64,1), throb 1.2s ease-in-out 0.35s infinite; }
+@keyframes pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes throb { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 
-.badge.urgent {
-  animation: badge-pulse 1.1s infinite ease-out;
-  transform-origin: 19px 4.5px;
-}
-@keyframes badge-pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-  100% { transform: scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .active.unread .dot, .badge, .badge.urgent { animation: none; }
 }
 </style>

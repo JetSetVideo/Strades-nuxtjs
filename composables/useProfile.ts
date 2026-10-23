@@ -146,8 +146,8 @@ export function useProfile(userId: Ref<string> | string) {
         sectionErrors.value.strategies = e.message
       }),
       loadPosts(),
-      loadCommunities(),
     ])
+    await loadCommunities()
 
     loading.value = false
   }

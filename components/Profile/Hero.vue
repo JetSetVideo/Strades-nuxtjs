@@ -1,9 +1,20 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { User } from '@/stores/users'
+import ProfileMark from '@/components/Profile/Mark.vue'
+import { profileMask } from '~/utils/profileMask'
 
 const props = defineProps<{
   user: User
   isOwn?: boolean
+  /** Desk override. The signed-in page can publish a different name. */
+  name?: string
+  handle?: string
+  /** Uploaded picture. Empty draws the performance mask. */
+  portrait?: string
+  note?: string
+  plan?: string
+  paid?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -31,11 +42,6 @@ const styleLabel = computed(() => {
   return map[props.user.trading_style] ?? props.user.trading_style
 })
 
-const perfColor = (pct: number) => {
-  const sat = Math.min(100, Math.abs(pct) * 2.5)
-  return pct >= 0 ? `oklch(70% ${sat / 100 * 0.3 + 0.05} 145)` : `oklch(55% ${sat / 100 * 0.3 + 0.05} 25)`
-}
-
 // CSS border-radius driven by risk score (Design.md)
 const dynamicRadius = computed(() => {
   const r = props.user.psychology_profile?.risk_score ?? 0.5
@@ -45,50 +51,82 @@ const dynamicRadius = computed(() => {
 const joinedYear = computed(() =>
   new Date(props.user.joined_date).getFullYear()
 )
+
+const shownName = computed(() => props.name || `${props.user.first_name} ${props.user.last_name}`)
+const shownHandle = computed(() => (props.handle || props.user.username).replace(/^@/, ''))
+const face = computed(() => profileMask(props.user.id, {
+  style: props.user.trading_style,
+  risk: props.user.psychology_profile?.risk_score,
+  discipline: props.user.psychology_profile?.discipline_score,
+  patience: props.user.psychology_profile?.patience_index,
+  aggression: props.user.psychology_profile?.aggression_score,
+}))
+const photo = computed(() => {
+  const url = props.portrait || ''
+  if (!url || url.includes('/avatars/Ellipse') || url.includes('pravatar.cc')) return ''
+  return url
+})
 </script>
 
 <template>
   <div class="hero" :style="{ '--profile-radius': dynamicRadius }">
-    <!-- Cover / background accent -->
-    <div class="hero-cover">
+    <div class="hero-cover" :style="{ background: `linear-gradient(120deg, ${face.from}, ${face.to})` }">
       <div class="cover-gradient" />
     </div>
 
-    <!-- Identity row -->
     <div class="hero-body">
-      <div class="avatar-wrap">
-        <img :src="user.avatar_url" :alt="user.username" class="avatar" />
+      <component
+        :is="isOwn ? 'a' : 'div'"
+        class="avatar-wrap"
+        :href="isOwn ? '/settings#identity' : undefined"
+        :title="isOwn ? 'Name and picture in Settings' : undefined"
+      >
+        <img v-if="photo" :src="photo" :alt="shownName" class="avatar">
+        <ProfileMark
+          v-else
+          class="avatar"
+          :seed="user.id"
+          :trade-style="user.trading_style"
+          :risk="user.psychology_profile?.risk_score"
+          :discipline="user.psychology_profile?.discipline_score"
+          :patience="user.psychology_profile?.patience_index"
+          :aggression="user.psychology_profile?.aggression_score"
+        />
         <span class="online-dot" :class="{ online: user.is_online, offline: !user.is_online }" />
-      </div>
+      </component>
 
       <div class="identity">
         <div class="name-row">
-          <h1 class="display-name">{{ user.first_name }} {{ user.last_name }}</h1>
-          <span v-if="user.is_verified" class="verified" title="Verified">✓</span>
-          <span class="role-tag">{{ user.role }}</span>
+          <h1 class="display-name">
+            <NuxtLink v-if="isOwn" to="/settings#identity">{{ shownName }}</NuxtLink>
+            <template v-else>{{ shownName }}</template>
+          </h1>
+          <span class="verified" :class="{ on: user.is_verified }" :title="user.is_verified ? 'Verified' : 'Not verified'">✓</span>
+          <span class="role-tag" :class="{ paid }">{{ plan || user.role }}</span>
         </div>
-        <div class="handle">@{{ user.username }} · <span class="user-id">#{{ user.id }}</span></div>
+        <div class="handle">@{{ shownHandle }} · {{ user.city }}, {{ user.country }}</div>
         <p class="bio">{{ user.bio }}</p>
+        <p v-if="note" class="bio note">{{ note }}</p>
       </div>
     </div>
 
     <!-- Performance ribbon -->
     <div class="perf-ribbon">
-      <div class="perf-tile" :style="{ '--tile-color': perfColor(user.performance_30d) }">
+      <div class="perf-tile">
         <span class="perf-label">30d</span>
-        <span class="perf-value">{{ user.performance_30d >= 0 ? '+' : '' }}{{ user.performance_30d.toFixed(2) }}%</span>
-      </div>
-      <div class="perf-tile" :style="{ '--tile-color': perfColor(user.performance_7d) }">
-        <span class="perf-label">7d</span>
-        <span class="perf-value">{{ user.performance_7d >= 0 ? '+' : '' }}{{ user.performance_7d.toFixed(2) }}%</span>
-      </div>
-      <div class="perf-tile" :style="{ '--tile-color': perfColor(user.performance_1d) }">
-        <span class="perf-label">24h</span>
-        <span class="perf-value">{{ user.performance_1d >= 0 ? '+' : '' }}{{ user.performance_1d.toFixed(2) }}%</span>
+        <span class="perf-value" :class="user.performance_30d < 0 ? 'down' : 'up'">{{ user.performance_30d >= 0 ? '+' : '' }}{{ user.performance_30d.toFixed(1) }}%</span>
       </div>
       <div class="perf-tile">
-        <span class="perf-label">Win Rate</span>
-        <span class="perf-value">{{ user.win_rate.toFixed(1) }}%</span>
+        <span class="perf-label">7d</span>
+        <span class="perf-value" :class="user.performance_7d < 0 ? 'down' : 'up'">{{ user.performance_7d >= 0 ? '+' : '' }}{{ user.performance_7d.toFixed(1) }}%</span>
+      </div>
+      <div class="perf-tile">
+        <span class="perf-label">24h</span>
+        <span class="perf-value" :class="user.performance_1d < 0 ? 'down' : 'up'">{{ user.performance_1d >= 0 ? '+' : '' }}{{ user.performance_1d.toFixed(1) }}%</span>
+      </div>
+      <div class="perf-tile">
+        <span class="perf-label">Win</span>
+        <span class="perf-value up">{{ user.win_rate.toFixed(1) }}%</span>
       </div>
       <div class="perf-tile">
         <span class="perf-label">Trades</span>
@@ -110,44 +148,57 @@ const joinedYear = computed(() =>
       <span><strong>{{ user.followers_count.toLocaleString(APP_LOCALE) }}</strong> followers</span>
       <span><strong>{{ user.following_count.toLocaleString(APP_LOCALE) }}</strong> following</span>
       <span><strong>{{ user.friends_count }}</strong> contacts</span>
-      <span v-if="user.active_strategies_count"><strong>{{ user.active_strategies_count }}</strong> strategies</span>
+      <span><strong>{{ user.active_strategies_count }}</strong> strategies</span>
     </div>
 
     <!-- CTA -->
     <div v-if="!isOwn" class="cta-row">
       <button class="btn-follow" @click="emit('follow')">Follow</button>
-      <button class="btn-message" @click="emit('message')">Message</button>
+      <button class="btn-message" @click="emit('message')">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.2 8.1 13.6 2.6 8.4 13.6 7.2 8.8z" /></svg>
+        Message
+      </button>
     </div>
   </div>
 </template>
 
 <style scoped>
 .hero {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   background: linear-gradient(160deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
   border: 1px solid var(--border-primary);
   border-radius: var(--profile-radius, var(--radius-lg));
   overflow: hidden;
-  padding-bottom: var(--spacing-lg);
+  padding: 0 0 clamp(0.35rem, 1vw, 0.6rem);
   transition: border-radius var(--app-animation-speed, 0.5s) ease;
 }
 
 .hero-cover {
-  height: 80px;
+  width: 100%;
+  height: clamp(48px, 7vw, 72px);
+  flex: 0 0 auto;
   position: relative;
 }
 
 .cover-gradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, oklch(25% 0.05 270) 0%, oklch(15% 0.03 200) 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(10,12,16,0.2) 40%, var(--bg-secondary, #12141c) 100%);
 }
 
 .hero-body {
   display: flex;
-  gap: var(--spacing-md);
-  padding: 0 var(--spacing-lg);
-  margin-top: -36px;
+  gap: clamp(0.4rem, 1vw, 0.65rem);
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 clamp(0.4rem, 1.2vw, 0.7rem);
+  margin-top: clamp(-28px, -3.2vw, -32px);
   align-items: flex-end;
   position: relative;
   z-index: 1;
@@ -158,14 +209,15 @@ const joinedYear = computed(() =>
   flex-shrink: 0;
 }
 
-.avatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  border: 3px solid var(--border-accent);
+.avatar,
+.avatar-wrap :deep(.mark) {
+  width: clamp(56px, 12vw, 68px);
+  height: clamp(56px, 12vw, 68px);
+  border-radius: 14px 0 14px 0;
   object-fit: cover;
-  box-shadow: 0 0 16px var(--shadow-accent);
+  display: block;
 }
+a.avatar-wrap { text-decoration: none; color: inherit; }
 
 .online-dot {
   position: absolute;
@@ -201,10 +253,12 @@ const joinedYear = computed(() =>
 }
 
 .verified {
-  color: var(--primary-blue);
+  color: rgba(255,255,255,0.28);
   font-size: 0.85rem;
   font-weight: 700;
 }
+.verified.on { color: var(--primary-blue, #00aaff); }
+.display-name a { color: inherit; text-decoration: none; }
 
 .role-tag {
   font-size: 0.7rem;
@@ -216,6 +270,7 @@ const joinedYear = computed(() =>
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+.role-tag.paid { color: #f5d90a; border-color: rgba(245,217,10,0.45); background: rgba(245,217,10,0.1); }
 
 .handle {
   font-size: 0.8rem;
@@ -234,14 +289,17 @@ const joinedYear = computed(() =>
   margin: 6px 0 0;
   line-height: 1.4;
 }
+.bio.note { font-size: 0.72rem; color: rgba(255,255,255,0.5); }
 
 /* ── Performance ribbon ─── */
 .perf-ribbon {
   display: flex;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  gap: clamp(0.2rem, 0.55vw, 0.32rem);
+  padding: clamp(0.4rem, 1vw, 0.55rem) clamp(0.4rem, 1.2vw, 0.7rem) clamp(0.12rem, 0.4vw, 0.22rem);
+  box-sizing: border-box;
 }
 
 .perf-ribbon::-webkit-scrollbar { display: none; }
@@ -250,13 +308,16 @@ const joinedYear = computed(() =>
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 72px;
-  padding: var(--spacing-sm) var(--spacing-md);
+  flex: 1 1 auto;
+  min-width: min-content;
+  white-space: nowrap;
+  padding: clamp(0.16rem, 0.4vw, 0.28rem) clamp(0.22rem, 0.6vw, 0.38rem);
   background: rgba(255,255,255,0.04);
   border: 1px solid var(--border-secondary);
-  border-radius: var(--radius-md);
-  flex-shrink: 0;
+  border-radius: 10px 0 10px 0;
 }
+.perf-value.up { color: var(--primary-green, #00ff88); }
+.perf-value.down { color: #ff5555; }
 
 .perf-label {
   font-size: 0.65rem;
@@ -276,13 +337,17 @@ const joinedYear = computed(() =>
 .meta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-xs);
-  padding: 0 var(--spacing-lg) var(--spacing-sm);
+  width: 100%;
+  max-width: 100%;
+  gap: clamp(0.16rem, 0.45vw, 0.28rem);
+  padding: 0 clamp(0.4rem, 1.2vw, 0.7rem) clamp(0.12rem, 0.4vw, 0.22rem);
+  box-sizing: border-box;
 }
+.meta-row .tag { flex: 1 1 auto; min-width: min-content; text-align: center; white-space: nowrap; }
 
 .tag {
   font-size: 0.7rem;
-  padding: 3px 10px;
+  padding: 2px clamp(4px, 0.7vw, 8px);
   border-radius: 999px;
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--border-primary);
@@ -296,11 +361,16 @@ const joinedYear = computed(() =>
 /* ── Social stats ─── */
 .social-stats {
   display: flex;
-  gap: var(--spacing-lg);
-  padding: 0 var(--spacing-lg) var(--spacing-sm);
-  font-size: 0.8rem;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  gap: clamp(0.16rem, 0.5vw, 0.32rem);
+  padding: 0 clamp(0.4rem, 1.2vw, 0.7rem) clamp(0.12rem, 0.4vw, 0.22rem);
+  font-size: 0.75rem;
   color: var(--text-gray);
+  box-sizing: border-box;
 }
+.social-stats > span { flex: 1 1 auto; min-width: min-content; text-align: center; white-space: nowrap; }
 
 .social-stats strong {
   color: var(--text-white);
@@ -309,8 +379,8 @@ const joinedYear = computed(() =>
 /* ── CTA ─── */
 .cta-row {
   display: flex;
-  gap: var(--spacing-sm);
-  padding: 0 var(--spacing-lg);
+  gap: clamp(0.25rem, 0.7vw, 0.4rem);
+  padding: 0 clamp(0.4rem, 1.2vw, 0.7rem);
 }
 
 .btn-follow, .btn-message {
@@ -329,10 +399,18 @@ const joinedYear = computed(() =>
 }
 
 .btn-message {
-  background: transparent;
-  border: 1px solid var(--border-accent);
-  color: var(--primary-green);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  background: rgba(0, 140, 255, 0.16);
+  border: 1px solid rgba(79, 168, 255, 0.7);
+  color: #8ec8ff;
+  border-radius: 10px 0 10px 0;
 }
+.btn-message svg { width: 14px; height: 14px; fill: currentColor; }
+.cta-row { width: 100%; box-sizing: border-box; }
+.cta-row .btn-follow, .cta-row .btn-message { flex: 1 1 0; }
 
 .btn-follow:hover  { opacity: 0.85; }
 .btn-message:hover { background: rgba(0,255,136,0.08); }

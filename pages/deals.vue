@@ -175,7 +175,7 @@ const filteredDeals = computed(() => {
   <div class="deal-pipeline">
     <UIPageHeader title="Deal Pipeline" subtitle="Cross-strategy trade desk — track every deal, its counterparty exposure, commodity flows, and live P&L.">
       <template #actions>
-        <NuxtLink to="/monitor" class="nav-link">Monitor →</NuxtLink>
+        <NuxtLink to="/strategies" class="nav-link">Strategies →</NuxtLink>
         <NuxtLink to="/risk" class="nav-link">Risk Dashboard →</NuxtLink>
       </template>
     </UIPageHeader>

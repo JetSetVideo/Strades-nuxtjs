@@ -39,7 +39,7 @@ This document is the designer's contract with the codebase. It describes how the
 ### 1.1 Opening the App (Global Glance)
 The user should understand the state of their finances and the world **without clicking anything**:
 - Background lighting (`oklch` hue + shadow angle) communicates market sentiment (cool/bright for bull, warm/dim for bear).
-- Top navigation icons are animated micro-dashboards, each streaming its own slice of state.
+- Bottom navigation icons are live micro-dashboards, each drawing its own panel's slice of state.
 - The dominant asset class already drives the global border-radius and padding density via `App/DynamicThemeController.vue`.
 
 ### 1.2 First Run: Profile & Avatar Bootstrap
@@ -47,24 +47,35 @@ On first login, the app has no behavioral history. The avatar starts as a **cold
 
 ### 1.3 Returning User: The Hub
 Returning users land on `pages/prices.vue` — the market hub. From here they can:
-- See their own wallet allocation pulsing in the nav icon.
-- Spot at a glance which friends are active (presence dots on the chat icon).
+- See their total balance and its split across wallets and asset types in the Wallet nav icon.
+- See their unread messages as a count on the chat icon.
 - Notice a spike in geopolitical stress through the warm shift in ambient lighting.
 
 ---
 
 ## 2. The Living Navigation Icons (Micro-Dashboards)
 
-Every menu icon is a live component. These are not static SVGs.
+The five icons of the bottom bar (`components/Navigation/Bar.vue`) are live components, not static SVGs. Each reads the same store field its page shows at the top, through `composables/useNavPanels.ts`; the icons in `components/Navigation/Icons/` only draw what they are given, and the maths lives in `utils/navIcons.ts` (unit-tested).
 
 | Icon | Data source | Visual behavior |
 |------|-------------|-----------------|
-| **Prices** | `macro.global_volatility_index` | Pulse frequency = `1 / (0.5 + volatility)` Hz. Color swings green/red with daily delta. |
-| **News (globe)** | Latest weighted post's `geographic_origin` | Smooth 3D rotation to face the coordinates. A small "pulse ring" emanates when a new high-weight post arrives. |
-| **Wallet** | `allocation.allocationPie` | Tiny D3 pie chart inside the 24×24 icon. Sectors visibly grow/shrink as the strategy code rebalances. |
-| **Chat** | `chat.unread[].emotional_urgency` | Badge count + pulse speed. Urgency ≥ 0.7 → sharp fast pulse; ≤ 0.3 → slow breath. |
-| **Strategy orbit** | Max `execution_frequency` across active strategies | Two nodes orbit the icon. Orbit period = `4s - 3.5s × execution_frequency`. |
-| **Avatar (profile)** | `agents.personal.training_state.loss_ema` | A subtle ring around the avatar icon fills as training loss decreases. |
+| **Prices** (`PricesIcon.vue`) | `assets.liveMarket.history` (blended from live assets' hourly returns when the tree has no aggregate) | Sparkline of today's market from 00:00 GMT to now on a fixed 24 h axis, so the line also tells the time of day. Green up / red down via `--app-color-up/down`, blue when flat or unknown. Value line: signed % since 00:00 GMT (hours aligned on the quote fetch time). |
+| **News (globe)** (`NewsGlobeIcon.vue`) | `news.items[].readByUser` + the shared 30 s clock | Dot-matrix Earth turned so the meridian where it is noon now faces the viewer, marked by a red vertical line (12:00 GMT → Greenwich). A blue dot sits on the rim while news is unread (pinging only when News is selected). Value line: `N new` / `all read`. |
+| **Wallet** (`WalletIcon.vue`) | `wallet.wallets` | Outer ring: each wallet's share of the total (amber, pink, teal, yellow, lime). Inner ring: asset types across all wallets (asset-class colours, cash grey). Value line: total balance, the same TOTAL BALANCE the wallet switcher prints. |
+| **Lab** (`LabSphereIcon.vue`) | `agents.byId` | Small CSS 3-D globe; each agent is a dot. Colour = run state (green running, orange waiting, red error), latitude = risk, longitude = patience/contrarian, size = activity (√trades). Turns only while Lab is selected (paused, not reset, otherwise). Value line: `N run`, or coloured counts `●8 ●2 ●1` (phones) / `8 run 2 wait 1 error` (≥ 768 px). Replaces the old Strategy orbit icon. |
+| **Chat** (`ChatBadgeIcon.vue`) | `chat.conversations` (the user's own) + `chat.getEmotionalUrgency` | Speech bubble with a red dot holding the unread count (`99+` past 99), the same per-user counts /chat shows; it throbs when Chat is selected and urgency > 0.7. Value line: `unread` / `no new`. |
+
+The bar has no profile/avatar icon; the `loss_ema` training ring is drawn on `Agent/AvatarCard.vue`.
+
+**Selected tab.** One style for all five: the icon grows (scale 1.2) without leaving the bar, a 2 px accent bar lights at the top of the tab, the label turns white and bold, a halo in the panel's accent fades in, and the icon switches to its own zoomed `active` drawing (taller Prices plot with a "now" ping, closer globe, thicker Wallet rings, faster Lab spin with breathing dots, Chat typing dots when unread). A tab stays selected on its detail routes (longest matching prefix).
+
+**Sizes.** 32 px under 380 px wide, 36 px on phones (and on the server render), 38 px from 768 px, 40 px from 1600 px.
+
+**Time and refresh.** One shared 30 s clock moves the globe and the end of the Prices curve; live quotes are re-pulled every 5 min while the tab is visible, unless something fetched them in the last 4.5 min. Neither runs on the server.
+
+**SSR.** Until the bar mounts, icons get `ready = false` and draw a static placeholder with an empty value line, so server and client markup match.
+
+**Motion.** Transform and opacity only. Loops run only on the selected tab (unread ping, Lab spin, urgent throb, typing dots). `prefers-reduced-motion` turns every transition and animation in the bar off.
 
 ---
 
@@ -156,7 +167,7 @@ Every piece of secondary data translates to a CSS custom property bound by `useL
 ## 8. UX Loading & Predictive Rendering
 
 - **No generic spinners.** Skeleton layouts inherit the user's geometric preferences (sharp vs. rounded, compact vs. spacious) from `userPreferences` before data arrives.
-- **Hover intent** — hovering a nav icon > 200 ms triggers the prefetch store. If prediction confidence exceeds 65%, the next page's JSON is already in Pinia before the click.
+- **Hover intent** — hovering a nav icon > 200 ms triggers the prefetch store. If prediction confidence exceeds 65%, the next page's JSON is already in Pinia before the click. Not wired in the bottom bar today: hovering a tab in `Navigation/Bar.vue` only plays a hover sound.
 - **First paint** — wallet totals, macro lighting, and living-UI padding come from the same catalog on the server and the client. Browser-only journals (paper ledger, appearance, news bookmarks) fill in after mount.
 - **Progressive disclosure** — dense pages (risk, monitor) render KPI strip first, then charts, then tables, so the user sees value within 200 ms even on slow connections.
 

@@ -16,6 +16,12 @@ export interface CommunityUser {
   followers: number
   match_score: number
   last_active_at: string
+  /** Catalog @ name when it differs from the display name. */
+  handle?: string
+  verified?: boolean
+  premium?: boolean
+  /** How often an AI avatar acts. 0–1. */
+  execution_frequency?: number
 }
 
 export interface CommunityState {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { BASIS_META, sourceBasis, type SourceBasis } from '~/utils/strategyDraft'
 
 interface DataSource {
   id: string
@@ -12,6 +13,7 @@ interface DataSource {
   reliability: number
   supported_assets: string[]
   tags: string[]
+  basis?: string
 }
 
 const props = defineProps<{
@@ -22,7 +24,16 @@ const emit = defineEmits<{ 'update:modelValue': [v: string[]] }>()
 
 const sources   = ref<DataSource[]>([])
 const activecat = ref('all')
+const activeBasis = ref<'all' | SourceBasis>('all')
 const expanded  = ref(false)
+
+const BASES: { id: 'all' | SourceBasis; label: string }[] = [
+  { id: 'all', label: 'Any basis' },
+  { id: 'price', label: 'Price' },
+  { id: 'calendar', label: 'Calendar' },
+  { id: 'map', label: 'Map' },
+  { id: 'both', label: 'Both' },
+]
 
 const VISIBLE_ROWS = 2  // rows visible before expand
 const COLS         = 2  // grid columns
@@ -43,9 +54,12 @@ onMounted(async () => {
   catch { sources.value = [] }
 })
 
+const basisOf = (src: DataSource) => sourceBasis(src)
+
 const filtered = computed(() => {
   let list = sources.value
   if (activecat.value !== 'all') list = list.filter(s => s.category === activecat.value)
+  if (activeBasis.value !== 'all') list = list.filter(s => basisOf(s) === activeBasis.value)
   const q = (props.searchQuery ?? '').trim().toLowerCase()
   if (q) {
     list = list.filter(s =>
@@ -103,6 +117,18 @@ const reliabilityColor = (r: number) => {
       </button>
     </div>
 
+    <div class="cat-strip basis-strip">
+      <button
+        v-for="b in BASES"
+        :key="b.id"
+        type="button"
+        class="cat-btn"
+        :class="{ active: activeBasis === b.id }"
+        :style="b.id !== 'all' ? { '--tone': BASIS_META[b.id].color } : undefined"
+        @click="activeBasis = b.id"
+      >{{ b.label }}</button>
+    </div>
+
     <!-- Grid of cards (height-limited) -->
     <div class="ds-grid" :class="{ expanded }">
       <button
@@ -111,7 +137,7 @@ const reliabilityColor = (r: number) => {
         type="button"
         class="ds-card"
         :class="{ selected: isSelected(src.id) }"
-        :style="{ '--pulse-dur': pulseMs(src.latency) }"
+        :style="{ '--pulse-dur': pulseMs(src.latency), '--tone': BASIS_META[basisOf(src)].color }"
         @click="toggle(src.id)"
       >
         <div v-if="isSelected(src.id)" class="sel-ring" />
@@ -119,6 +145,7 @@ const reliabilityColor = (r: number) => {
         <div class="ds-card-head">
           <span class="ds-icon">{{ src.icon }}</span>
           <span class="ds-name">{{ src.name }}</span>
+          <span class="basis-tag">{{ BASIS_META[basisOf(src)].label }}</span>
           <span class="ds-check">{{ isSelected(src.id) ? '✓' : '' }}</span>
         </div>
 
@@ -192,15 +219,21 @@ const reliabilityColor = (r: number) => {
 
 .cat-btn:hover { background: rgba(255,255,255,0.05); color: var(--text-white); }
 .cat-btn.active {
-  background: rgba(0,255,136,0.1);
-  border-color: rgba(0,255,136,0.4);
-  color: var(--primary-green);
+  background: color-mix(in srgb, var(--tone, var(--primary-green)) 14%, transparent);
+  border-color: var(--tone, rgba(0,255,136,0.4));
+  color: var(--tone, var(--primary-green));
+}
+
+.basis-strip { margin-top: -2px; }
+
+@media (min-width: 720px) {
+  .cat-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); }
 }
 
 /* ── Cards grid ── */
 .ds-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--spacing-sm);
   /* Clip to ~2 rows of content; smooth expand */
   max-height: 300px;
@@ -239,14 +272,24 @@ const reliabilityColor = (r: number) => {
 }
 
 .ds-card.selected {
-  border-color: var(--primary-green);
-  background: rgba(0,255,136,0.06);
+  border-color: var(--tone, var(--primary-green));
+  background: color-mix(in srgb, var(--tone, var(--primary-green)) 10%, transparent);
+}
+
+.ds-icon { color: var(--tone, inherit); }
+.basis-tag {
+  margin-left: auto;
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tone, var(--text-gray));
+  flex-shrink: 0;
 }
 
 .sel-ring {
   position: absolute;
   inset: -1px;
-  border: 2px solid var(--primary-green);
+  border: 2px solid var(--tone, var(--primary-green));
   border-radius: inherit;
   pointer-events: none;
   animation: ring-pulse 2s ease infinite;

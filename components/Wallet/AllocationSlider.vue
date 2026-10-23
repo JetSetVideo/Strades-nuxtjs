@@ -1,13 +1,45 @@
 <template>
   <div class="allocation-slider-container" :style="rootStyle">
+    <WalletEquityCurve
+      v-if="chartTotal > 0"
+      class="book-chart"
+      :wallet-id="chartId"
+      :total-value="chartTotal"
+      :performance-history="wallet?.performance_history"
+      :period="chartPeriod"
+      :layers="paintedLayers"
+      :breakdown="isAll ? 'Wallets' : 'Holdings'"
+    />
+
+    <div class="risk-strip">
+      <div class="risk-head">
+        <span class="risk-title">Risk profile</span>
+        <span :class="['risk-pill', `lv-${risk.riskLevel}`]">{{ risk.riskLevel }}</span>
+      </div>
+      <div class="risk-metrics">
+        <div class="metric">
+          <span class="m-label">Sharpe</span>
+          <span class="m-value">{{ risk.sharpe.toFixed(1) }}</span>
+        </div>
+        <div class="metric">
+          <span class="m-label">Win rate</span>
+          <span class="m-value">{{ risk.winRate.toFixed(1) }}%</span>
+        </div>
+        <div class="metric">
+          <span class="m-label">Concentration</span>
+          <span class="m-value">{{ (risk.concentration * 100).toFixed(0) }}</span>
+        </div>
+        <div class="metric">
+          <span class="m-label">Risk score</span>
+          <span class="m-value">{{ risk.riskScore }}/100</span>
+        </div>
+      </div>
+    </div>
+
     <header class="slider-header">
       <div class="title-block">
         <h3 class="title">100% Allocation</h3>
-        <p class="lede">
-          Class breakdown of
-          <strong>{{ walletName }}</strong>
-          — holdings sum to 100% of this wallet’s invested value.
-        </p>
+        <p class="lede">{{ lede }}</p>
         <span class="subtitle" :class="{ ok: allocationStore.is100Percent }">
           {{ allocationStore.is100Percent ? 'Balanced' : 'Rebalancing…' }}
         </span>
@@ -26,22 +58,22 @@
 
     <div class="total-bar" role="img" :aria-label="barAria">
       <div
-        v-for="key in visibleClasses"
-        :key="key"
+        v-for="seg in barSegments"
+        :key="seg.id"
         class="total-segment"
-        :class="[`bg-${key}`, { dominant: macro.dominant_asset_class === key }]"
-        :style="{ width: `${pie[key]}%` }"
-        :title="`${LABELS[key]}: ${pie[key].toFixed(1)}%`"
+        :class="[{ dominant: !isAll && macro.dominant_asset_class === seg.id, muted: isHidden(seg.id) }]"
+        :style="{ width: `${seg.pct}%`, background: seg.color }"
+        :title="`${seg.label}: ${seg.pct.toFixed(1)}%`"
       >
-        <span v-if="pie[key] >= 10" class="segment-label">
-          <span v-if="pie[key] >= 18" class="seg-name">{{ LABELS[key] }}</span>
-          {{ pie[key].toFixed(1) }}%
+        <span v-if="seg.pct >= 10" class="segment-label">
+          <span v-if="seg.pct >= 18" class="seg-name">{{ seg.label }}</span>
+          {{ seg.pct.toFixed(1) }}%
         </span>
       </div>
     </div>
 
     <!-- Swarm advisory overlay: ghost markers showing where agents want the user to be -->
-    <div v-if="opinions.activeCount > 0" class="swarm-advisory">
+    <div v-if="!isAll && opinions.activeCount > 0" class="swarm-advisory">
       <div class="swarm-row">
         <span class="swarm-label">SWARM ({{ opinions.activeCount }}) · diverges {{ Math.round(opinions.divergence) }}%</span>
         <button type="button" class="apply-swarm" @click="opinions.commitToWallet()">Match swarm</button>
@@ -60,39 +92,60 @@
       This wallet has no holdings to allocate yet.
     </div>
 
-    <div v-else class="sliders" :class="{ compact: isCompact }">
+    <div v-else class="sliders" :class="{ compact: isCompact, wallets: isAll }">
       <div
-        v-for="key in visibleClasses"
-        :key="key"
+        v-for="row in rows"
+        :key="row.id"
         class="slider-row"
-        :class="[`row-${key}`, { dominant: macro.dominant_asset_class === key }]"
+        :class="[`row-${row.id}`, { dominant: !isAll && macro.dominant_asset_class === row.id, 'is-hidden': isHidden(row.id) }]"
       >
         <button
+          v-if="!isAll"
           type="button"
           class="key-name"
-          :title="`Set ${LABELS[key]} as the dominant class`"
-          @click="setDominant(key)"
+          :title="`Set ${row.label} as the dominant class`"
+          @click="setDominant(row.id)"
         >
-          <span class="swatch" :class="`bg-${key}`" />
-          {{ LABELS[key] }}
+          <span class="swatch" :style="{ background: row.color }" />
+          {{ row.label }}
         </button>
+        <span v-else class="key-name static">
+          <span class="swatch" :style="{ background: row.color }" />
+          {{ row.label }}
+        </span>
         <input
+          v-if="!isAll"
           type="range"
           :min="0"
           :max="100"
           :step="0.5"
-          :value="pie[key]"
-          :aria-label="`${LABELS[key]} allocation`"
+          :value="pie[row.id]"
+          :aria-label="`${row.label} allocation`"
           class="range-slider"
-          :class="`range-${key}`"
-          :style="{ '--fill': `${pie[key]}%`, '--track': COLORS[key] }"
-          @input="onInput(key, Number(($event.target as HTMLInputElement).value))"
+          :style="{ '--fill': `${row.pct}%`, '--track': row.color }"
+          @input="onInput(row.id, Number(($event.target as HTMLInputElement).value))"
         />
-        <span class="percent">{{ pie[key].toFixed(1) }}%</span>
+        <span v-else class="share-track" aria-hidden="true">
+          <span class="share-fill" :style="{ width: `${row.pct}%`, background: row.color }" />
+        </span>
+        <span class="percent">{{ row.pct.toFixed(1) }}%</span>
+        <button
+          type="button"
+          class="eye"
+          :aria-pressed="!isHidden(row.id)"
+          :title="isHidden(row.id) ? `Show ${row.label} on the chart` : `Hide ${row.label} on the chart`"
+          @click="toggleEye(row.id)"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z" fill="none" stroke="currentColor" stroke-width="1.7" />
+            <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+            <path v-if="isHidden(row.id)" d="M5 19L19 5" stroke="currentColor" stroke-width="1.7" />
+          </svg>
+        </button>
       </div>
     </div>
 
-    <footer v-if="visibleClasses.length" class="slider-footer">
+    <footer v-if="!isAll && visibleClasses.length" class="slider-footer">
       <button type="button" class="reset-btn" :disabled="isEqual" @click="resetEqual">
         Reset equal
       </button>
@@ -109,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useAllocationStore, type AllocationPie } from '~/stores/allocation'
 import { EMPTY_ALLOCATION_PIE, normalizeAllocationPie } from '~/types/allocation'
 import { useMacroStore, type AssetClass } from '~/stores/macro'
@@ -117,23 +170,46 @@ import { useOpinionsStore } from '~/stores/opinions'
 import { useLivingUI } from '~/composables/useLivingUI'
 import { useAgentTracker } from '~/composables/useAgentTracker'
 import { resolveAssetClass, type AssetClassId } from '~/utils/assetClass'
+import {
+  ALL_WALLETS,
+  CLASS_COLORS,
+  POINTS_FOR,
+  WALLET_COLORS,
+  assetLayers,
+  riskProfile,
+  sharePaths,
+  walletLayers,
+  type PieClass,
+} from '~/utils/walletBook'
 
 interface WalletAsset {
+  asset_id?: string
   symbol: string
   current_value?: number
   allocation_percentage?: number
+  return_percentage?: number
 }
 
 interface WalletLike {
   id?: string
   name?: string
+  total_value?: number
   assets?: WalletAsset[]
+  performance_history?: Record<string, { change: number; change_percentage: number }>
 }
 
-const props = defineProps<{
-  /** Selected wallet — pie is derived from its holdings by asset class. */
+const props = withDefaults(defineProps<{
+  /** Selected wallet, or the aggregated book when scope is `all`. */
   wallet?: WalletLike | null
-}>()
+  /** Every wallet. Used when the total chip is selected. */
+  wallets?: WalletLike[]
+  scope?: 'wallet' | 'all'
+  period?: '1d' | '7d' | '30d' | '90d' | '1y'
+}>(), {
+  scope: 'wallet',
+  period: '30d',
+  wallets: () => [],
+})
 
 const allocationStore = useAllocationStore()
 const macro = useMacroStore()
@@ -157,11 +233,25 @@ const LABELS: Record<keyof AllocationPie, string> = {
   stocks: 'Stocks',
   commodities: 'Commodities',
 }
-const COLORS: Record<keyof AllocationPie, string> = {
-  fiat: '#4A90E2',
-  crypto: '#F5A623',
-  stocks: '#7ED321',
-  commodities: '#F8E71C',
+const COLORS: Record<keyof AllocationPie, string> = CLASS_COLORS
+
+const chartPeriod = computed(() => props.period)
+const isAll = computed(() => props.scope === 'all')
+const chartId = computed(() => props.wallet?.id || (isAll.value ? ALL_WALLETS : 'wallet'))
+const chartTotal = computed(() => Number(props.wallet?.total_value) || 0)
+
+/** Groups hidden on the chart. A class in wallet scope, a wallet id when the total is selected. */
+const hiddenGroups = ref<Set<string>>(new Set())
+watch(() => [props.scope, props.wallet?.id], () => {
+  hiddenGroups.value = new Set()
+})
+
+const isHidden = (id: string) => hiddenGroups.value.has(id)
+const toggleEye = (id: string) => {
+  const next = new Set(hiddenGroups.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  hiddenGroups.value = next
 }
 
 function toPieClass(id: AssetClassId): keyof AllocationPie {
@@ -196,6 +286,66 @@ function pieFromWallet(wallet: WalletLike | null | undefined): AllocationPie {
 
 const pie = computed(() => allocationStore.allocationPie)
 const walletName = computed(() => props.wallet?.name ?? 'this wallet')
+const lede = computed(() =>
+  isAll.value
+    ? 'Each wallet’s share of the combined book. The chart splits the same way.'
+    : `Class breakdown of ${walletName.value}. Holdings sum to 100% of invested value.`,
+)
+
+const risk = computed(() => riskProfile(props.wallet?.assets ?? [], props.wallet?.performance_history))
+
+interface BookRow { id: string; label: string; pct: number; color: string }
+
+const walletRows = computed<BookRow[]>(() => {
+  const list = props.wallets ?? []
+  const sum = list.reduce((total, wallet) => total + (Number(wallet.total_value) || 0), 0) || 1
+  return list.map((wallet, index) => ({
+    id: wallet.id || `wallet-${index}`,
+    label: wallet.name || 'Wallet',
+    pct: ((Number(wallet.total_value) || 0) / sum) * 100,
+    color: WALLET_COLORS[index % WALLET_COLORS.length],
+  }))
+})
+
+const classRows = computed<BookRow[]>(() =>
+  visibleClasses.value.map(key => ({
+    id: key,
+    label: LABELS[key],
+    pct: pie.value[key],
+    color: COLORS[key],
+  })),
+)
+
+const rows = computed(() => (isAll.value ? walletRows.value : classRows.value))
+const barSegments = computed(() => rows.value.filter(row => row.pct > 0))
+
+const bookLayers = computed(() => {
+  if (isAll.value) {
+    return walletLayers((props.wallets ?? []).map((wallet, index) => ({
+      id: wallet.id || `wallet-${index}`,
+      name: wallet.name || 'Wallet',
+      total_value: Number(wallet.total_value) || 0,
+    })))
+  }
+  return assetLayers((props.wallet?.assets ?? []).map(asset => ({
+    asset_id: asset.asset_id || asset.symbol,
+    symbol: asset.symbol,
+    current_value: asset.current_value,
+  })))
+})
+
+const paintedLayers = computed(() => {
+  const layers = bookLayers.value
+  const n = POINTS_FOR[chartPeriod.value] ?? 30
+  const grid = sharePaths(layers, n, `${chartId.value}::${chartPeriod.value}`)
+  return layers.map((layer, index) => ({
+    id: layer.id,
+    label: layer.label,
+    color: layer.color,
+    hidden: hiddenGroups.value.has(layer.group),
+    shares: grid.map(row => row[index] ?? 0),
+  }))
+})
 
 /** Classes present in the selected wallet’s holdings — these are the only draggable rows. */
 const visibleClasses = computed(() => {
@@ -210,7 +360,7 @@ const flow = computed(() => allocationStore.flowVelocity || macro.flow_velocity 
 const flowPct = computed(() => Math.round(flow.value * 100))
 
 const barAria = computed(() =>
-  visibleClasses.value.map(k => `${LABELS[k]} ${pie.value[k].toFixed(1)}%`).join(', ')
+  barSegments.value.map(seg => `${seg.label} ${seg.pct.toFixed(1)}%`).join(', ')
 )
 
 const isEqual = computed(() => {
@@ -241,11 +391,13 @@ watch(
   }
 )
 
-const onInput = (category: keyof AllocationPie, value: number) => {
-  const previous = allocationStore.allocationPie[category]
+const onInput = (category: string, value: number) => {
+  if (!ORDER.includes(category as PieClass)) return
+  const key = category as keyof AllocationPie
+  const previous = allocationStore.allocationPie[key]
   // Keep absent classes at 0 while squeezing among the visible set
   const locked = ORDER.filter(k => !visibleClasses.value.includes(k))
-  allocationStore.updateAllocation(category, value)
+  allocationStore.updateAllocation(key, value)
   for (const k of locked) allocationStore.allocationPie[k] = 0
   // Renormalize visible share to 100 after locking zeros
   const vis = visibleClasses.value
@@ -258,7 +410,8 @@ const onInput = (category: keyof AllocationPie, value: number) => {
   tracker.track('allocation_change', { category, magnitude: value - previous, new_value: value })
 }
 
-const setDominant = (k: keyof AllocationPie) => {
+const setDominant = (k: string) => {
+  if (!ORDER.includes(k as PieClass)) return
   macro.applyTick({ dominant_asset_class: k as AssetClass })
 }
 
@@ -458,12 +611,15 @@ const resetEqual = () => {
 
 .sliders { display: flex; flex-direction: column; gap: 0.45rem; }
 .sliders.compact { gap: 0.3rem; }
+.sliders.wallets .slider-row {
+  grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) 3.2rem 1.4rem;
+}
 
 .slider-row {
   display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr) 3.2rem;
+  grid-template-columns: 5.5rem minmax(0, 1fr) 3.2rem 1.4rem;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   padding: 0.25rem 0.4rem;
   border-radius: var(--app-border-radius, 8px);
   background: rgba(255, 255, 255, 0.03);
@@ -471,6 +627,110 @@ const resetEqual = () => {
 }
 .slider-row.dominant {
   background: rgba(0, 255, 136, 0.07);
+}
+.slider-row.is-hidden { opacity: 0.42; }
+
+.key-name.static { cursor: default; }
+.key-name.static:hover { color: inherit; }
+
+.share-track {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.share-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.eye {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+}
+.eye svg { width: 14px; height: 14px; }
+.eye:hover { border-color: rgba(255, 255, 255, 0.4); color: #fff; }
+.eye[aria-pressed="false"] { color: rgba(255, 255, 255, 0.35); }
+
+.total-segment.muted { opacity: 0.28; }
+
+.book-chart { margin-bottom: 0.45rem; }
+
+.risk-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.risk-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.risk-title {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 700;
+}
+.risk-pill {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.lv-low { background: rgba(0, 255, 136, 0.12); color: var(--success-green, #00ff88); }
+.lv-medium { background: rgba(255, 170, 0, 0.12); color: #ffaa00; }
+.lv-high { background: rgba(255, 77, 106, 0.15); color: #ff4d6a; }
+.risk-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.02rem;
+  min-width: 0;
+  padding: 0.28rem 0.4rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 5px;
+}
+.m-label {
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+  font-weight: 700;
+}
+.m-value {
+  font-size: 0.86rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+@media (max-width: 540px) {
+  .risk-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .slider-row { grid-template-columns: 4.6rem minmax(0, 1fr) 2.8rem 1.35rem; }
+  .slider-header { flex-wrap: wrap; }
+  .title-block { flex: 1 1 100%; }
+  .health-indicator { margin-left: auto; }
 }
 
 .key-name {

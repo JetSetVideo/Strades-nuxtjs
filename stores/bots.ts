@@ -34,6 +34,7 @@ export const useBotsStore = defineStore('bots', {
   state: (): BotsState => ({ list: [], hydrated: false, loading: false, error: null }),
   actions: {
     async fetchBots() {
+      if (this.hydrated || this.loading) return
       this.loading = true
       try {
         const url = publicAssetUrl('/data/core/bots.json')

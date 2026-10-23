@@ -14,8 +14,6 @@ import AgentAvatarCard from '@/components/Agent/AvatarCard.vue'
 import WalletSwitcher from '@/components/Wallet/Switcher.vue'
 import WalletHero from '@/components/Wallet/Hero.vue'
 import WalletPositions from '@/components/Wallet/Positions.vue'
-import WalletEquityCurve from '@/components/Wallet/EquityCurve.vue'
-import WalletRiskPanel from '@/components/Wallet/RiskPanel.vue'
 import WalletBotContribution from '@/components/Wallet/BotContribution.vue'
 import WalletTrades from '@/components/Wallet/Trades.vue'
 import WalletAllocationSlider from '@/components/Wallet/AllocationSlider.vue'
@@ -24,6 +22,7 @@ import WalletPlatformBreakdown from '@/components/Wallet/PlatformBreakdown.vue'
 import WalletPaperPanel from '@/components/Wallet/PaperPanel.vue'
 import MapButton from '@/components/Map/MapButton.vue'
 import type { MapMarker } from '@/components/Map/WorldMap.vue'
+import { ALL_WALLETS, aggregateWallets } from '@/utils/walletBook'
 
 definePageMeta({ title: 'Wallet', layout: 'default' })
 
@@ -52,7 +51,8 @@ onMounted(async () => {
   if (!platforms.hydrated) await platforms.fetchPlatforms()
   if (!bots.hydrated) await bots.fetchBots()
   if (!agents.hydrated) await agents.fetchAgents().catch(() => {})
-  if (!selectedWalletId.value || !walletStore.getWalletById(selectedWalletId.value)) {
+  const selected = selectedWalletId.value
+  if (selected !== ALL_WALLETS && !walletStore.getWalletById(selected)) {
     const def = walletStore.getDefaultWallet(userId.value)
     selectedWalletId.value = def?.id ?? walletStore.wallets[0]?.id
   }
@@ -73,7 +73,10 @@ const marketPulse = computed(() => {
 
 const personalAvatar = computed(() => agents.personal)
 
-const currentWallet = computed<any>(() => walletStore.getWalletById(selectedWalletId.value))
+const isAll = computed(() => selectedWalletId.value === ALL_WALLETS)
+const currentWallet = computed<any>(() =>
+  isAll.value ? aggregateWallets(walletStore.wallets) : walletStore.getWalletById(selectedWalletId.value)
+)
 const positions = computed(() => currentWallet.value?.assets ?? [])
 const transactions = computed(() => currentWallet.value?.transactions ?? [])
 
@@ -162,26 +165,15 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 
       <WalletPaperPanel />
 
-      <WalletAllocationSlider :wallet="currentWallet" />
+      <WalletAllocationSlider
+        v-if="currentWallet"
+        :wallet="currentWallet"
+        :wallets="walletStore.wallets"
+        :scope="isAll ? 'all' : 'wallet'"
+        :period="period"
+      />
 
       <div class="row two-col">
-        <UICard title="Performance">
-          <WalletEquityCurve
-            v-if="currentWallet"
-            :wallet-id="currentWallet.id"
-            :total-value="currentWallet.total_value"
-            :performance-history="currentWallet.performance_history"
-            :period="period"
-          />
-          <WalletRiskPanel
-            v-if="currentWallet"
-            class="risk-inline"
-            :positions="positions"
-            :performance-history="currentWallet.performance_history"
-            :wallet-id="currentWallet.id"
-          />
-        </UICard>
-
         <UICard title="Bots & platforms">
           <WalletBotContribution :total-today="currentWallet?.daily_change ?? 0" />
         </UICard>
@@ -216,5 +208,4 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 :deep(.screen-shell) { position: relative; z-index: 1; }
 .row { display: grid; gap: 0.6rem; }
 .row.two-col { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
-.risk-inline { margin-top: 0.5rem; }
 </style>

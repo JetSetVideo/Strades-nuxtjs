@@ -38,7 +38,6 @@ const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(APP_
   <section class="saved" aria-labelledby="saved-h">
     <header>
       <h2 id="saved-h">Saved strategies <small>backtested on real prices</small></h2>
-      <NuxtLink to="/creator" class="new">+ New strategy</NuxtLink>
     </header>
     <p v-if="state === 'loading'" class="muted">Loading…</p>
     <p v-else-if="state === 'signed-out'" class="muted">Sign in to see the strategies you saved.</p>
@@ -64,11 +63,9 @@ const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(APP_
 </template>
 
 <style scoped>
-.saved { border: 1px solid var(--border-primary); border-radius: var(--radius-lg, 12px); padding: .9rem 1rem; margin-bottom: 1rem; }
-header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
-h2 { margin: 0 0 .6rem; font-size: 1rem; }
+.saved { border: 1px solid var(--border-primary); border-radius: var(--radius-lg, 12px); padding: .55rem .7rem; margin: 0; }
+h2 { margin: 0 0 .35rem; font-size: .92rem; }
 h2 small { font-weight: 400; color: var(--text-secondary); font-size: .75rem; margin-left: .4rem; }
-.new { color: var(--primary-blue, #3b82f6); text-decoration: none; font-weight: 600; font-size: .85rem; }
 table { width: 100%; border-collapse: collapse; font-size: .8rem; }
 th { text-align: left; color: var(--text-secondary); font-weight: 500; padding: .3rem; }
 td { padding: .35rem .3rem; border-top: 1px solid var(--border-primary); font-family: var(--font-market-data, monospace); }

@@ -57,7 +57,6 @@ const GROUPS: MenuGroup[] = [
       { label: 'Predict', to: '/predict', hint: 'Paper bot on a market', icon: '◐' },
       { label: 'Community bots', to: '/community', hint: 'Public bots from other traders', icon: '◎' },
       { label: 'Strategy Creator', to: '/creator', hint: 'Build rules and backtest them', icon: '✎' },
-      { label: 'Strategy Monitor', to: '/monitor', hint: 'What is running now', icon: '▶' },
     ],
   },
   {

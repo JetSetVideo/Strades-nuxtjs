@@ -1,143 +1,64 @@
-<template>
-  <div class="wallet-icon" :style="{ width: `${size}px`, height: `${size}px` }">
-    <svg :width="size" :height="size" viewBox="0 0 24 24" aria-hidden="true">
-      <defs>
-        <radialGradient id="wallet-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" :stop-color="dominantColor" stop-opacity="0.5" />
-          <stop offset="100%" :stop-color="dominantColor" stop-opacity="0" />
-        </radialGradient>
-      </defs>
-
-      <!-- Glow halo (only when the wallet has data) -->
-      <circle v-if="segments.length" cx="12" cy="12" r="11" fill="url(#wallet-glow)" />
-
-      <!-- One slice per asset in the main wallet -->
-      <g transform="translate(12, 12)">
-        <path
-          v-for="seg in segments"
-          :key="seg.key"
-          :d="seg.path"
-          :fill="seg.color"
-          :opacity="seg.dominant ? 1 : 0.85"
-          :stroke="seg.dominant ? '#fff' : 'rgba(0,0,0,0.35)'"
-          :stroke-width="seg.dominant ? 0.6 : 0.4"
-          stroke-linejoin="round"
-          class="seg"
-        >
-          <title>{{ seg.label }}</title>
-        </path>
-      </g>
-
-      <!-- Hollow center for the "donut" look -->
-      <circle cx="12" cy="12" r="2.6" fill="var(--bg-primary, #0e0e0f)" />
-      <text x="12" y="13.6" text-anchor="middle" font-size="4" font-weight="700" fill="rgba(255,255,255,0.85)" font-family="Poppins, sans-serif">$</text>
-    </svg>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { useWalletStore } from '~/stores/wallet'
-import { useAllocationStore } from '~/stores/allocation'
-import { useMacroStore } from '~/stores/macro'
+/**
+ * Wallet tab — two rings over the user's total balance.
+ *   outer ring  each wallet's share of the total (amber family, one per wallet)
+ *   inner ring  asset types across all wallets (the app's class colours, cash grey)
+ * Data: useNavPanels() wallet (walletRings). Presentational only.
+ */
+import { computed } from 'vue'
+import { donutArcPath, sharesToArcs } from '~/utils/navIcons'
+import type { ColoredShare } from '~/composables/useNavPanels'
 
-const props = withDefaults(defineProps<{ size?: number }>(), { size: 24 })
+const props = withDefaults(defineProps<{
+  size?: number
+  active?: boolean
+  ready?: boolean
+  wallets?: ColoredShare[]
+  classes?: ColoredShare[]
+}>(), { size: 40, active: false, ready: false, wallets: () => [], classes: () => [] })
 
-const walletStore = useWalletStore()
-const allocation = useAllocationStore()
-const macro = useMacroStore()
-const { getUserId } = useCurrentUser()
+const C = 12
+// Ring radii — selected = zoomed in: thicker rings, smaller hole.
+const R = computed(() => (props.active
+  ? { o1: 11.6, o0: 9.4, i1: 8.5, i0: 4.4 }
+  : { o1: 10.6, o0: 8.9, i1: 8.0, i0: 5.0 }))
 
-// Hydrate lazily on the client so the donut reflects the real main wallet
-onMounted(() => {
-  if (!walletStore.hydrated && !walletStore.loading) {
-    walletStore.fetchWallets().catch(() => {/* falls back to allocation pie */})
-  }
-})
+const ring = (list: ColoredShare[], r1: number, r0: number, gap: number) =>
+  sharesToArcs(list, gap).map(a => ({ key: a.key, color: a.color, d: donutArcPath(C, C, r1, r0, a.a0, a.a1) }))
 
-// Known asset colors + fallback palette for anything else
-const SYMBOL_COLOR: Record<string, string> = {
-  BTC: '#f7931a', ETH: '#627eea', SOL: '#9945ff', ADA: '#0033ad',
-  DOT: '#e6007a', LINK: '#2a5ada', USD: '#4A90E2', EUR: '#3b6fb5',
-  GOLD: '#F8E71C', XAU: '#F8E71C', OIL: '#8B6F47',
-}
-const PALETTE = ['#F5A623', '#00aaff', '#00ff88', '#9945ff', '#F8E71C', '#ff6b9d', '#4A90E2', '#7ED321']
-
-const CLASS_COLOR: Record<string, string> = {
-  fiat: '#4A90E2',
-  crypto: '#F5A623',
-  stocks: '#7ED321',
-  commodities: '#F8E71C'
-}
-
-/** Shares of the current main wallet: symbol + value share (0..1). */
-const shares = computed<Array<{ key: string; label: string; share: number; color: string }>>(() => {
-  const wallet = walletStore.getDefaultWallet(getUserId()) ?? walletStore.wallets[0]
-  if (wallet && wallet.assets.length > 0) {
-    const total = wallet.assets.reduce((s, a) => s + a.current_value, 0) || 1
-    const sorted = [...wallet.assets].sort((a, b) => b.current_value - a.current_value)
-    const top = sorted.slice(0, 6)
-    const rest = sorted.slice(6).reduce((s, a) => s + a.current_value, 0)
-    const out = top.map((a, i) => ({
-      key: a.symbol,
-      label: `${a.symbol} ${Math.round((a.current_value / total) * 100)}%`,
-      share: a.current_value / total,
-      color: SYMBOL_COLOR[a.symbol.toUpperCase()] ?? PALETTE[i % PALETTE.length]
-    }))
-    if (rest > 0.001 * total) {
-      out.push({ key: 'other', label: `Other ${Math.round((rest / total) * 100)}%`, share: rest / total, color: 'rgba(255,255,255,0.35)' })
-    }
-    return out
-  }
-  // Fallback before wallet hydration: class-level allocation pie
-  const a = allocation.allocationPie
-  const totalAlloc = a.fiat + a.crypto + a.stocks + a.commodities || 100
-  return (['fiat', 'crypto', 'stocks', 'commodities'] as const)
-    .filter(k => a[k] > 0.01)
-    .map(k => ({ key: k, label: `${k} ${Math.round((a[k] / totalAlloc) * 100)}%`, share: a[k] / totalAlloc, color: CLASS_COLOR[k] }))
-})
-
-const dominantColor = computed(() => {
-  const lead = [...shares.value].sort((a, b) => b.share - a.share)[0]
-  return lead?.color ?? CLASS_COLOR[macro.dominant_asset_class] ?? '#4A90E2'
-})
-
-const segments = computed(() => {
-  const r = 9.4
-  let cumulative = -Math.PI / 2 // start at 12 o'clock
-  const maxShare = Math.max(...shares.value.map(s => s.share), 0)
-  return shares.value.map(s => {
-    const slice = s.share * Math.PI * 2
-    const x1 = Math.cos(cumulative) * r
-    const y1 = Math.sin(cumulative) * r
-    const x2 = Math.cos(cumulative + slice) * r
-    const y2 = Math.sin(cumulative + slice) * r
-    const large = slice > Math.PI ? 1 : 0
-    const path = `M 0 0 L ${x1.toFixed(3)} ${y1.toFixed(3)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(3)} ${y2.toFixed(3)} Z`
-    cumulative += slice
-    return {
-      key: s.key,
-      label: s.label,
-      path,
-      color: s.color,
-      dominant: s.share === maxShare
-    }
-  })
-})
+const outer = computed(() => (props.ready ? ring(props.wallets, R.value.o1, R.value.o0, 0.16) : []))
+const inner = computed(() => (props.ready ? ring(props.classes, R.value.i1, R.value.i0, 0.14) : []))
+const lead = computed(() => props.classes[0]?.color ?? 'rgba(255,255,255,0.4)')
 </script>
 
-<style scoped>
-.wallet-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: inherit;
-  transition: transform var(--app-animation-speed, 0.3s) ease;
-}
-.wallet-icon:hover { transform: rotate(-6deg) scale(1.06); }
+<template>
+  <span class="nav-icon wallet-icon" :class="{ active }" aria-hidden="true" :style="{ width: `${size}px`, height: `${size}px` }">
+    <svg viewBox="0 0 24 24" :width="size" :height="size">
+      <!-- Track rings: also the SSR / empty placeholder -->
+      <circle :cx="C" :cy="C" :r="(R.o1 + R.o0) / 2" :stroke-width="R.o1 - R.o0" class="track" />
+      <circle :cx="C" :cy="C" :r="(R.i1 + R.i0) / 2" :stroke-width="R.i1 - R.i0" class="track" />
 
-.seg {
-  transition: opacity 0.4s ease, stroke 0.4s ease;
-  transform-origin: center;
-}
+      <g class="rings">
+        <path v-for="a in outer" :key="`w-${a.key}`" :d="a.d" :fill="a.color" class="seg outer" />
+        <path v-for="a in inner" :key="`c-${a.key}`" :d="a.d" :fill="a.color" class="seg" />
+      </g>
+
+      <!-- Hole + a pip in the largest asset type's colour -->
+      <circle :cx="C" :cy="C" :r="R.i0 - 0.6" class="hole" />
+      <circle :cx="C" :cy="C" :r="active ? 1.6 : 1.3" :fill="ready && classes.length ? lead : 'rgba(255,255,255,0.3)'" class="hub" />
+    </svg>
+  </span>
+</template>
+
+<style scoped>
+.nav-icon { display: inline-flex; align-items: center; justify-content: center; }
+svg { display: block; overflow: visible; }
+.track { fill: none; stroke: rgba(255,255,255,0.08); }
+.outer { opacity: 0.92; }
+.hole { fill: rgba(0,0,0,0.55); }
+.hub { opacity: 0.9; }
+/* Rings turn slightly on selection (one-shot, transform only) so the change of state is felt. */
+.rings { transform-origin: 12px 12px; transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+.active .rings { transform: rotate(-12deg); }
+@media (prefers-reduced-motion: reduce) { .rings { transition: none; } }
 </style>

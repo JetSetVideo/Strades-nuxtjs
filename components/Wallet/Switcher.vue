@@ -41,17 +41,19 @@ const openTrade = () => navigateTo('/trade')
 
 <template>
   <nav class="wallet-switcher" aria-label="Wallets">
-    <div
+    <button
       v-if="totalBalance != null"
-      :class="['chip', 'total', { neg: totalPct < 0 }]"
-      title="Total balance across your wallets"
+      type="button"
+      :class="['chip', 'total', { active: activeId === 'all', neg: totalPct < 0 }]"
+      title="Combined book across your wallets"
+      @click="emit('switch', 'all')"
     >
       <span class="label">Total Balance</span>
       <span class="meta">
         <span class="bal">{{ fmtFull(totalBalance) }}</span>
         <span class="pct">{{ totalPctLabel }}</span>
       </span>
-    </div>
+    </button>
 
     <button
       v-for="w in wallets"
@@ -120,13 +122,13 @@ const openTrade = () => navigateTo('/trade')
 }
 
 .chip.total {
-  cursor: default;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
   border-color: rgba(255, 255, 255, 0.12);
 }
-.chip.total:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+.chip.total.active {
+  border-color: var(--primary-green, #00ff88);
+  background: rgba(0, 255, 136, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .chip.total .label {
   font-size: 0.52rem;

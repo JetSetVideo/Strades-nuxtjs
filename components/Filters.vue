@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { cycleKey, type FilterTriState } from '~/utils/priceFilters'
 
 interface FilterState {
@@ -13,7 +13,6 @@ interface FilterState {
   assets: Record<string, FilterTriState>
   categories: Record<string, FilterTriState>
   frequency: Record<string, FilterTriState>
-  search: string
 }
 
 const ASSETS = ['BTC','ETH','SOL','TSLA','AAPL','NVDA','MSFT','EUR/USD','XAU','WTI','USD','USDC','USDT','WBTC']
@@ -51,7 +50,6 @@ const filters = ref<FilterState>({
   assets: {},
   categories: {},
   frequency: {},
-  search: '',
 })
 
 const emit = defineEmits<{ 'filter-changed': [f: FilterState] }>()
@@ -74,7 +72,6 @@ const activeCount = computed(() => {
   n += activeIn(filters.value.assets)
   n += activeIn(filters.value.categories)
   n += activeIn(filters.value.frequency)
-  if (filters.value.search.trim()) n++
   return n
 })
 
@@ -83,9 +80,12 @@ function reset() {
     status: {}, profitMin: -100, profitMax: 100,
     drawdownMin: -100, drawdownMax: 0,
     winRateMin: 0, winRateMax: 100,
-    assets: {}, categories: {}, frequency: {}, search: '',
+    assets: {}, categories: {}, frequency: {},
   }
 }
+
+const controlsReady = ref(false)
+onMounted(() => { controlsReady.value = true })
 
 // Dual range gradient helper
 function dualGradient(min: number, max: number, absMin: number, absMax: number, color: string): string {
@@ -119,33 +119,17 @@ const CAT_COLOR: Record<string, string> = {
 </script>
 
 <template>
-  <div class="filters-root">
-    <!-- ── Header bar (always visible) ── -->
-    <div class="filter-bar">
-      <!-- Search input -->
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input
-          v-model="filters.search"
-          class="search-input"
-          placeholder="Search strategies…"
-        />
-        <button v-if="filters.search" class="search-clear" @click="filters.search = ''">✕</button>
-      </div>
+  <!-- Toggle is teleported into the page header, left of the sort. -->
+  <Teleport v-if="controlsReady" to="#strategy-filter-controls">
+    <button type="button" class="expand-btn" :class="{ active: expanded }" @click="expanded = !expanded">
+      <span>Filters</span>
+      <span v-if="activeCount" class="filter-badge">{{ activeCount }}</span>
+      <span class="chevron" :class="{ open: expanded }">▾</span>
+    </button>
+    <button v-if="activeCount" type="button" class="reset-btn" @click="reset">Reset</button>
+  </Teleport>
 
-      <!-- Expand toggle -->
-      <button class="expand-btn" :class="{ active: expanded }" @click="expanded = !expanded">
-        <span>Filters</span>
-        <span v-if="activeCount" class="filter-badge">{{ activeCount }}</span>
-        <span class="chevron" :class="{ open: expanded }">▾</span>
-      </button>
-
-      <!-- Reset -->
-      <button v-if="activeCount" class="reset-btn" @click="reset">Reset</button>
-    </div>
-
-    <!-- ── Expanded panel ── -->
-    <div v-if="expanded" class="filter-panel">
+  <div v-if="expanded" class="filter-panel">
       <!-- Tab strip -->
       <div class="tab-strip">
         <button
@@ -262,59 +246,9 @@ const CAT_COLOR: Record<string, string> = {
       </div>
 
     </div>
-  </div>
 </template>
 
 <style scoped>
-.filters-root {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-/* ── Header bar ── */
-.filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-}
-
-.search-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(0,0,0,0.25);
-  border: 1px solid var(--border-secondary);
-  border-radius: var(--radius-md);
-  padding: 7px 12px;
-  transition: border-color 0.15s;
-}
-
-.search-wrap:focus-within { border-color: var(--border-accent); }
-
-.search-icon { font-size: 0.7rem; opacity: 0.5; flex-shrink: 0; }
-
-.search-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-white);
-  font-size: 0.78rem;
-  outline: none;
-  font-family: inherit;
-}
-
-.search-input::placeholder { color: var(--text-gray); }
-
-.search-clear {
-  background: transparent; border: none;
-  color: var(--text-gray); cursor: pointer;
-  font-size: 0.6rem; flex-shrink: 0;
-}
-.search-clear:hover { color: var(--text-white); }
-
 .expand-btn {
   display: flex;
   align-items: center;

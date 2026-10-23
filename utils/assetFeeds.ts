@@ -54,7 +54,27 @@ export interface FeedAssetInput {
   type?: string | null
   tags?: string[] | null
   source?: string | null
+  category?: string | null
   live?: { pair?: string } | null
+}
+
+/**
+ * A feed streams only when the user has not switched it off and the provider
+ * is actually up. Blocked, unconfigured, and error states never count as on.
+ * A feed with no provider record (a local overlay) follows the user switch.
+ */
+export function feedStreams(enabled: boolean, state?: string | null): boolean {
+  if (state === 'blocked' || state === 'error' || state === 'unconfigured') return false
+  return enabled
+}
+
+export function assetFeedStreams(
+  asset: FeedAssetInput,
+  isEnabled: (id: string) => boolean,
+  stateOf: (id: string) => string | undefined,
+): boolean {
+  const key = feedKeyForAsset(asset)
+  return feedStreams(isEnabled(key), stateOf(key))
 }
 
 export function feedKeyForAsset(asset: FeedAssetInput): string {

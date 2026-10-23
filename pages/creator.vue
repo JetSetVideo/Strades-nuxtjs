@@ -10,6 +10,14 @@ import StrategyVisualizer from '@/components/Creator/StrategyFlow.vue'
 import StrategyCodeView from '@/components/Strategy/CodeView.vue'
 import StrategyRating from '@/components/Strategy/Rating.vue'
 import FrequencySelector from '@/components/Creator/FrequencySelector.vue'
+import AllocationWheel from '@/components/Creator/AllocationWheel.vue'
+import StrategyBlueprint from '@/components/Creator/Blueprint.vue'
+import BuilderFormula from '@/components/Builder/Formula.vue'
+import {
+  SECTION_TONE, sourceBasis, strategyParameters, suggestFromProfile, wheelModel, patchFromParameters,
+  CLASS_META, assetClass, type PoolMember, type BlockType,
+} from '~/utils/strategyDraft'
+import { useAllocationStore } from '~/stores/allocation'
 import CountdownModal from '@/components/Overlay/CountdownModal.vue'
 import AvatarCard from '@/components/Card/Avatar.vue'
 import StrategySwarmPlugs from '@/components/Strategy/SwarmPlugs.vue'
@@ -43,9 +51,10 @@ const strategy = ref({
   assetFrom: '',
   assetTo: '',
   allocation: 50,          // % of portfolio to shift
+  pool: [] as PoolMember[],
   frequency: '1D',
   variables: [] as { key: string; value: string }[],
-  blocks: [] as { type: 'condition' | 'action'; id: number; data: Record<string, unknown> }[],
+  blocks: [] as { type: BlockType; id: number; data: Record<string, unknown> }[],
   selectedProfiles: [] as string[],
   period: { start: null as string | null, end: null as string | null },
 })
@@ -72,8 +81,9 @@ const profileSearch = ref('')
 const logicSearch   = ref('')
 const blockStates = reactive<Record<string, FilterTriState>>({})
 const BLOCK_OPTIONS = [
-  { id: 'condition', label: '📋 IF' },
-  { id: 'action', label: '⚡ THEN' },
+  { id: 'condition', label: 'IF' },
+  { id: 'formula', label: 'Math' },
+  { id: 'action', label: 'Exchange' },
 ]
 
 // ── Date range presets ─────────────────────────────────────────────────────
@@ -161,10 +171,10 @@ const neededCredit = computed(() => {
 })
 
 const hasEnoughCredit = computed(() => credit.value >= neededCredit.value)
+const includedAssets = computed(() => strategy.value.pool.filter(p => p.op === 'include'))
 const isValid = computed(() =>
   strategy.value.name.trim() !== '' &&
-  strategy.value.assetFrom !== '' &&
-  strategy.value.assetTo !== '' &&
+  (strategy.value.assetFrom !== '' || includedAssets.value.length > 0) &&
   strategy.value.dataSources.length > 0
 )
 
@@ -185,8 +195,30 @@ const complexityRating = computed(() => {
 })
 
 // ── Blocks ────────────────────────────────────────────────────────────────────
-function addBlock(type: 'condition' | 'action') {
-  strategy.value.blocks.push({ type, id: Date.now(), data: {} })
+function addBlock(type: BlockType) {
+  const data = type === 'formula' ? { op: 'if', left: '', right: '', into: '' } : {}
+  strategy.value.blocks.push({ type, id: Date.now(), data })
+}
+
+function cyclePool(id: string) {
+  const pool = strategy.value.pool
+  const idx = pool.findIndex(p => p.id === id)
+  if (idx < 0) pool.push({ id, op: 'include' })
+  else if (pool[idx].op === 'include') pool[idx].op = 'exclude'
+  else pool.splice(idx, 1)
+  const member = strategy.value.pool.find(p => p.id === id)
+  if (member?.op === 'include') {
+    if (!strategy.value.assetFrom) strategy.value.assetFrom = id
+    else if (!strategy.value.assetTo && id !== strategy.value.assetFrom) strategy.value.assetTo = id
+  }
+  if (!member || member.op === 'exclude') {
+    if (strategy.value.assetFrom === id) strategy.value.assetFrom = includedAssets.value.find(p => p.id !== id)?.id ?? ''
+    if (strategy.value.assetTo === id) strategy.value.assetTo = ''
+  }
+}
+
+function poolState(id: string) {
+  return strategy.value.pool.find(p => p.id === id)?.op ?? 'off'
 }
 
 function updateBlock(id: number, data: Record<string, unknown>) {
@@ -212,15 +244,66 @@ function toggleProfile(id: string) {
 // ── Sections UI ──────────────────────────────────────────────────────────────
 const activeSection = ref<string | null>(null)
 const sections = [
-  { id: 'identity',   label: 'Identity',     icon: '✏' },
-  { id: 'assets',     label: 'Asset Flow',   icon: '↔' },
-  { id: 'sources',    label: 'Data Sources', icon: '📡' },
-  { id: 'logic',      label: 'Logic',        icon: '⚙' },
-  { id: 'avatars',    label: 'AI Avatars',   icon: '🤖' },
-  { id: 'swarm',      label: 'Swarm',        icon: '🧠' },
-  { id: 'variables',  label: 'Variables',    icon: '🔧' },
-  { id: 'preview',    label: 'Preview',      icon: '👁' },
+  { id: 'identity',   label: 'Identity',     icon: '✎', tone: SECTION_TONE.identity },
+  { id: 'assets',     label: 'Asset Flow',   icon: '↔', tone: SECTION_TONE.assets },
+  { id: 'sources',    label: 'Sources',      icon: '◎', tone: SECTION_TONE.sources },
+  { id: 'logic',      label: 'Logic',        icon: 'ƒ', tone: SECTION_TONE.logic },
+  { id: 'avatars',    label: 'Avatars',      icon: '◈', tone: SECTION_TONE.avatars },
+  { id: 'swarm',      label: 'Swarm',        icon: '✶', tone: SECTION_TONE.swarm },
+  { id: 'variables',  label: 'Variables',    icon: '𝑥', tone: SECTION_TONE.variables },
+  { id: 'preview',    label: 'Preview',      icon: '▤', tone: SECTION_TONE.preview },
 ]
+
+const viewMode = ref<'card' | 'blueprint' | 'json'>('card')
+const allocationStore = useAllocationStore()
+const sourceBases = computed(() => strategy.value.dataSources.map(id => sourceBasis({ id })))
+const parameters = computed(() => strategyParameters({ ...strategy.value }, sourceBases.value))
+const wheel = computed(() => wheelModel({
+  pool: strategy.value.pool,
+  assetFrom: strategy.value.assetFrom,
+  assetTo: strategy.value.assetTo,
+  allocation: strategy.value.allocation,
+  wallet: strategy.value.pool.some(p => p.op === 'include') ? null : allocationStore.allocationPie,
+  blocks: strategy.value.blocks,
+  sourceBases: sourceBases.value,
+  frequency: strategy.value.frequency,
+}))
+const namedSources = computed(() => strategy.value.dataSources.map(id => ({ id, basis: sourceBasis({ id }) })))
+const jsonFocused = ref(false)
+const jsonDraft = ref('')
+const jsonError = ref('')
+watch(parameters, (value) => {
+  if (jsonFocused.value) return
+  jsonDraft.value = JSON.stringify(value, null, 2)
+}, { immediate: true })
+
+function onJsonInput(text: string) {
+  jsonDraft.value = text
+  let parsed: unknown
+  try { parsed = JSON.parse(text) }
+  catch { jsonError.value = 'JSON is not valid yet.'; return }
+  const patch = patchFromParameters(parsed)
+  if (!patch) { jsonError.value = 'Expected an object of strategy parameters.'; return }
+  jsonError.value = ''
+  Object.assign(strategy.value, patch)
+}
+
+function showCard(section?: string) {
+  viewMode.value = 'card'
+  if (section) activeSection.value = section
+}
+
+function fillFromProfile() {
+  const draft = suggestFromProfile({
+    pie: allocationStore.allocationPie,
+    swarm: opinionsStore.swarmVector,
+    periodS: tradingPrefs.defaultPeriodS,
+    bars: tradingPrefs.backtestBars,
+  })
+  Object.assign(strategy.value, draft)
+  viewMode.value = 'card'
+  activeSection.value = 'assets'
+}
 
 const toggleSection = (id: string) =>
   (activeSection.value = activeSection.value === id ? null : id)
@@ -237,6 +320,9 @@ function buildCodePayload() {
     dataSources: strategy.value.dataSources,
     conditions: strategy.value.blocks.filter(b => b.type === 'condition').map(b => b.data),
     actions:    strategy.value.blocks.filter(b => b.type === 'action').map(b => b.data),
+    formulas:   strategy.value.blocks.filter(b => b.type === 'formula').map(b => b.data),
+    pool:       strategy.value.pool,
+    mix:        parameters.value.mix,
     variables:  vars,
     profiles:   strategy.value.selectedProfiles,
     rights:     { owners: ['current_user'], editors: [], viewers: [], is_public: false },
@@ -259,7 +345,7 @@ const saveSuccess   = ref(false)
 
 function guard() {
   if (!isValid.value) {
-    actionError.value = 'Fill in strategy name, both assets and at least one data source.'
+    actionError.value = 'Name the strategy, include at least one asset, and pick a data source.'
     return false
   }
   if (!hasEnoughCredit.value) {
@@ -454,6 +540,13 @@ async function onCountdownFinish() {
       <div class="hero-text">
         <h1 class="hero-title">Strategy Creator</h1>
         <p class="hero-sub">Design capital reallocation flows between any financial assets, driven by live data and AI avatars.</p>
+        <button type="button" class="ai-fill" title="Fill every parameter from your profile" @click="fillFromProfile">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 3.2 13.4 8l4.6 1.2L13.4 10.4 12 15.2 10.6 10.4 6 9.2 10.6 8Z" />
+            <path d="M18 14.5 18.7 16.8 19.9 17.5 18.7 18.2 18 20.5 17.3 18.2 16.1 17.5 17.3 16.8Z" />
+          </svg>
+          Fill from profile
+        </button>
       </div>
       <!-- Credit widget -->
       <div class="credit-widget">
@@ -483,25 +576,57 @@ async function onCountdownFinish() {
     </div>
 
     <!-- ── Sections nav ───────────────────────────────────────────────────── -->
-    <div class="sections-nav">
+    <div class="view-switch" role="tablist" aria-label="Strategy representation">
+      <button type="button" role="tab" :aria-selected="viewMode === 'card'" :class="{ on: viewMode === 'card' }" @click="viewMode = 'card'">Card</button>
+      <button type="button" role="tab" :aria-selected="viewMode === 'blueprint'" :class="{ on: viewMode === 'blueprint' }" @click="viewMode = 'blueprint'">Blueprint</button>
+      <button type="button" role="tab" :aria-selected="viewMode === 'json'" :class="{ on: viewMode === 'json' }" @click="viewMode = 'json'">JSON</button>
+    </div>
+
+    <StrategyBlueprint
+      v-if="viewMode === 'blueprint'"
+      :pool="strategy.pool"
+      :asset-from="strategy.assetFrom"
+      :asset-to="strategy.assetTo"
+      :allocation="strategy.allocation"
+      :blocks="strategy.blocks"
+      :sources="namedSources"
+      :frequency="strategy.frequency"
+      @focus="showCard"
+    />
+    <div v-else-if="viewMode === 'json'" class="json-view">
+      <p class="json-note">These are the same parameters the card and the blueprint use. Edit the JSON and the other views follow.</p>
+      <textarea
+        class="json-editor"
+        :value="jsonDraft"
+        spellcheck="false"
+        @focus="jsonFocused = true"
+        @blur="jsonFocused = false"
+        @input="onJsonInput(($event.target as HTMLTextAreaElement).value)"
+      />
+      <p v-if="jsonError" class="json-error">{{ jsonError }}</p>
+    </div>
+
+    <div v-show="viewMode === 'card'" class="sections-nav">
       <button
         v-for="s in sections"
         :key="s.id"
         class="sec-nav-btn"
         :class="{ active: activeSection === s.id }"
+        :style="{ '--tone': s.tone }"
         @click="toggleSection(s.id)"
       >
-        {{ s.icon }} {{ s.label }}
+        <span class="sec-glyph">{{ s.icon }}</span>
+        <span>{{ s.label }}</span>
       </button>
     </div>
 
     <!-- ── Form body ──────────────────────────────────────────────────────── -->
-    <div class="form-body">
+    <div v-show="viewMode === 'card'" class="form-body">
 
       <!-- IDENTITY -->
-      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'identity' }">
+      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'identity' }" :style="{ '--tone': SECTION_TONE.identity }">
         <button class="section-toggle" @click="toggleSection('identity')">
-          <span class="sec-icon">✏</span>
+          <span class="sec-icon">✎</span>
           <span class="sec-title">Identity</span>
           <span class="sec-status">{{ strategy.name || 'Unnamed strategy' }}</span>
           <span class="sec-chevron" :class="{ open: activeSection === 'identity' }">▾</span>
@@ -542,7 +667,7 @@ async function onCountdownFinish() {
       </section>
 
       <!-- ASSETS + FREQUENCY + ALLOCATION -->
-      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'assets' }">
+      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'assets' }" :style="{ '--tone': SECTION_TONE.assets }">
         <button class="section-toggle" @click="toggleSection('assets')">
           <span class="sec-icon">↔</span>
           <span class="sec-title">Asset Flow</span>
@@ -572,14 +697,14 @@ async function onCountdownFinish() {
               </div>
             </div>
 
-            <!-- Centre: allocation bubble -->
             <div class="flow-mid-col">
-              <div class="flow-line-v" />
-              <div class="alloc-bubble-v">
-                <span class="abv-pct">{{ strategy.allocation }}%</span>
-                <span class="abv-sub">allocated</span>
-              </div>
-              <div class="flow-arrow-v">↓</div>
+              <AllocationWheel
+                :start="wheel.start"
+                :end="wheel.end"
+                :marks="wheel.marks"
+                :allocation="strategy.allocation"
+                :frequency="strategy.frequency"
+              />
             </div>
 
             <!-- TO slot -->
@@ -595,6 +720,25 @@ async function onCountdownFinish() {
                 </div>
                 <span class="amc-cat">{{ assetInfo(strategy.assetTo)!.cat }}</span>
               </div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Universe · click to include, again to exclude</label>
+            <div class="pool-grid">
+              <button
+                v-for="(info, id) in ASSET_INFO"
+                :key="id"
+                type="button"
+                class="pool-asset"
+                :class="poolState(String(id))"
+                :style="{ '--asset': info.color }"
+                @click="cyclePool(String(id))"
+              >
+                <span class="pool-op">{{ poolState(String(id)) === 'include' ? '+' : poolState(String(id)) === 'exclude' ? '−' : '' }}</span>
+                <span class="pool-sym">{{ info.symbol }}</span>
+                <span class="pool-cat">{{ CLASS_META[assetClass(String(id))].label }}</span>
+              </button>
             </div>
           </div>
 
@@ -669,11 +813,11 @@ async function onCountdownFinish() {
       </section>
 
       <!-- DATA SOURCES -->
-      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'sources' }">
+      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'sources' }" :style="{ '--tone': SECTION_TONE.sources }">
         <!-- Fused header: toggle + count + inline search -->
         <div class="section-toggle-bar">
           <button class="toggle-trigger" @click="toggleSection('sources')">
-            <span class="sec-icon">📡</span>
+            <span class="sec-icon">◎</span>
             <span class="sec-title">Data Sources *</span>
             <span class="sec-count-badge" :class="{ zero: !strategy.dataSources.length }">{{ strategy.dataSources.length }}</span>
             <span class="sec-chevron" :class="{ open: activeSection === 'sources' }">▾</span>
@@ -700,11 +844,11 @@ async function onCountdownFinish() {
       </section>
 
       <!-- LOGIC (CONDITIONS + ACTIONS) -->
-      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'logic' }">
+      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'logic' }" :style="{ '--tone': SECTION_TONE.logic }">
         <button class="section-toggle" @click="toggleSection('logic')">
-          <span class="sec-icon">⚙</span>
+          <span class="sec-icon">ƒ</span>
           <span class="sec-title">Logic</span>
-          <span class="sec-status">{{ strategy.blocks.filter(b=>b.type==='condition').length }} cond · {{ strategy.blocks.filter(b=>b.type==='action').length }} actions</span>
+          <span class="sec-status">{{ strategy.blocks.filter(b=>b.type==='condition').length }} if · {{ strategy.blocks.filter(b=>b.type==='formula').length }} math · {{ strategy.blocks.filter(b=>b.type==='action').length }} exchange</span>
           <span class="sec-chevron" :class="{ open: activeSection === 'logic' }">▾</span>
         </button>
         <div v-show="activeSection === 'logic' || activeSection === null" class="section-body">
@@ -714,8 +858,11 @@ async function onCountdownFinish() {
             <button class="add-block-btn cond-btn" @click="addBlock('condition')">
               + Condition
             </button>
+            <button class="add-block-btn formula-btn" @click="addBlock('formula')">
+              + Formula
+            </button>
             <button class="add-block-btn action-btn" @click="addBlock('action')">
-              + Action
+              + Exchange
             </button>
           </div>
 
@@ -744,12 +891,17 @@ async function onCountdownFinish() {
             >
               <div class="block-head">
                 <span class="block-type-badge" :class="block.type">
-                  {{ block.type === 'condition' ? '📋 IF' : '⚡ THEN' }}
+                  {{ block.type === 'condition' ? 'IF' : block.type === 'formula' ? 'MATH' : 'EXCHANGE' }}
                 </span>
                 <button class="remove-block" @click="removeBlock(block.id)">✕</button>
               </div>
               <BuilderCondition
                 v-if="block.type === 'condition'"
+                :model-value="(block.data as any)"
+                @update:model-value="updateBlock(block.id, $event)"
+              />
+              <BuilderFormula
+                v-else-if="block.type === 'formula'"
                 :model-value="(block.data as any)"
                 @update:model-value="updateBlock(block.id, $event)"
               />
@@ -765,16 +917,16 @@ async function onCountdownFinish() {
             <p>No blocks match "{{ logicSearch }}". <button class="clear-link" @click="logicSearch = ''">Clear search</button></p>
           </div>
           <div v-else class="blocks-empty">
-            <p>No logic blocks yet. Add conditions (WHEN) and actions (THEN) to define your strategy's behaviour.</p>
+            <p>No logic yet. Add an if, a formula, or an exchange.</p>
           </div>
         </div>
       </section>
 
       <!-- AI AVATARS -->
-      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'avatars' }">
+      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'avatars' }" :style="{ '--tone': SECTION_TONE.avatars }">
         <div class="section-toggle-bar">
           <button class="toggle-trigger" @click="toggleSection('avatars')">
-            <span class="sec-icon">🤖</span>
+            <span class="sec-icon">◈</span>
             <span class="sec-title">AI Avatars</span>
             <span class="sec-count-badge" :class="{ zero: !strategy.selectedProfiles.length }">{{ strategy.selectedProfiles.length }}</span>
             <span class="sec-chevron" :class="{ open: activeSection === 'avatars' }">▾</span>
@@ -816,9 +968,9 @@ async function onCountdownFinish() {
       </section>
 
       <!-- SWARM -->
-      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'swarm' }">
+      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'swarm' }" :style="{ '--tone': SECTION_TONE.swarm }">
         <button class="section-toggle" @click="toggleSection('swarm')">
-          <span class="sec-icon">🧠</span>
+          <span class="sec-icon">✶</span>
           <span class="sec-title">Swarm Intelligence</span>
           <span class="sec-status">{{ opinionsStore?.plugs?.length ?? 0 }} plugged</span>
           <span class="sec-chevron" :class="{ open: activeSection === 'swarm' }">▾</span>
@@ -830,9 +982,9 @@ async function onCountdownFinish() {
       </section>
 
       <!-- VARIABLES -->
-      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'variables' }">
+      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'variables' }" :style="{ '--tone': SECTION_TONE.variables }">
         <button class="section-toggle" @click="toggleSection('variables')">
-          <span class="sec-icon">🔧</span>
+          <span class="sec-icon">𝑥</span>
           <span class="sec-title">Variables</span>
           <span class="sec-status">{{ strategy.variables.length }} defined</span>
           <span class="sec-chevron" :class="{ open: activeSection === 'variables' }">▾</span>
@@ -850,9 +1002,9 @@ async function onCountdownFinish() {
       </section>
 
       <!-- PREVIEW -->
-      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'preview' }">
+      <section class="form-section" :class="{ collapsed: activeSection !== null && activeSection !== 'preview' }" :style="{ '--tone': SECTION_TONE.preview }">
         <button class="section-toggle" @click="toggleSection('preview')">
-          <span class="sec-icon">👁</span>
+          <span class="sec-icon">▤</span>
           <span class="sec-title">Preview</span>
           <span class="sec-status">Code view</span>
           <span class="sec-chevron" :class="{ open: activeSection === 'preview' }">▾</span>
@@ -981,9 +1133,28 @@ async function onCountdownFinish() {
   font-size: 0.75rem;
   color: var(--text-gray);
   margin: 4px 0 0;
-  max-width: 340px;
+  max-width: 420px;
   line-height: 1.4;
 }
+
+.ai-fill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 7px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,176,32,0.45);
+  background: rgba(255,176,32,0.1);
+  color: #ffb020;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.ai-fill:hover { background: rgba(255,176,32,0.18); }
+.ai-fill svg { flex-shrink: 0; }
 
 /* Credit widget */
 .credit-widget {
@@ -1038,33 +1209,82 @@ async function onCountdownFinish() {
 }
 
 /* ── Section nav strip ── */
+.view-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.view-switch button {
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-secondary);
+  background: transparent;
+  color: var(--text-gray);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.view-switch button.on {
+  color: var(--text-white);
+  border-color: rgba(61,214,140,0.5);
+  background: rgba(61,214,140,0.1);
+}
+.json-view { display: flex; flex-direction: column; gap: 6px; }
+.json-note, .json-error { margin: 0; font-size: 0.72rem; color: var(--text-gray); }
+.json-error { color: var(--error-red); }
+.json-editor {
+  width: 100%;
+  min-height: 360px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-secondary);
+  background: rgba(0,0,0,0.35);
+  color: #d6d3d1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
 .sections-nav {
   display: flex;
   overflow-x: auto;
   scrollbar-width: none;
-  gap: 4px;
+  gap: 6px;
+}
+@media (min-width: 900px) {
+  .sections-nav { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); }
 }
 
 .sections-nav::-webkit-scrollbar { display: none; }
 
 .sec-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   white-space: nowrap;
   font-size: 0.65rem;
-  padding: 5px 12px;
+  padding: 6px 8px;
   border-radius: 999px;
   border: 1px solid var(--border-secondary);
   background: transparent;
   color: var(--text-gray);
   cursor: pointer;
-  flex-shrink: 0;
+  min-width: 0;
   transition: all 0.15s ease;
 }
+.sec-glyph { color: var(--tone); font-weight: 700; width: 0.9rem; text-align: center; }
 
 .sec-nav-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-white); }
 .sec-nav-btn.active {
-  background: rgba(0,255,136,0.1);
-  border-color: rgba(0,255,136,0.4);
-  color: var(--primary-green);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  border-color: var(--tone);
+  color: var(--text-white);
 }
 
 /* ── Form sections ── */
@@ -1077,6 +1297,7 @@ async function onCountdownFinish() {
 .form-section {
   background: rgba(0,0,0,0.2);
   border: 1px solid var(--border-primary);
+  border-left: 2px solid var(--tone, var(--border-primary));
   border-radius: var(--radius-md);
   overflow: hidden;
   transition: opacity 0.2s ease;
@@ -1187,7 +1408,7 @@ async function onCountdownFinish() {
   min-height: 44px;
 }
 
-.sec-icon { font-size: 0.9rem; flex-shrink: 0; }
+.sec-icon { font-size: 0.85rem; flex-shrink: 0; width: 1.1rem; text-align: center; color: var(--tone, var(--text-gray)); }
 
 .sec-title {
   font-size: 0.82rem;
@@ -1295,21 +1516,60 @@ async function onCountdownFinish() {
 .asset-flow-row {
   display: flex;
   align-items: flex-start;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
+  width: 100%;
 }
 
 .asset-slot { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 
-/* Centre column with vertical allocation display */
 .flow-mid-col {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding-top: 20px;
-  flex-shrink: 0;
-  width: 52px;
+  flex: 0 1 220px;
+  width: min(220px, 34%);
+  min-width: 160px;
 }
+
+@media (max-width: 720px) {
+  .asset-flow-row { flex-direction: column; }
+  .flow-mid-col { width: 100%; flex-basis: auto; }
+}
+
+.pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+.pool-asset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-secondary);
+  background: transparent;
+  color: var(--text-gray);
+  cursor: pointer;
+  text-align: left;
+}
+.pool-asset.include {
+  border-color: var(--asset);
+  background: color-mix(in srgb, var(--asset) 16%, transparent);
+  color: var(--text-white);
+}
+.pool-asset.exclude {
+  border-color: rgba(255,90,106,0.7);
+  color: #ff8b96;
+  text-decoration: line-through;
+}
+.pool-op { font-size: 0.62rem; font-weight: 800; min-height: 0.7rem; color: var(--asset); }
+.pool-asset.exclude .pool-op { color: #ff8b96; }
+.pool-sym { font-size: 0.75rem; font-weight: 800; color: var(--asset); }
+.pool-cat { font-size: 0.52rem; letter-spacing: 0.04em; text-transform: uppercase; }
 
 .flow-line-v { width: 1px; height: 14px; background: var(--border-secondary); }
 
@@ -1548,6 +1808,11 @@ async function onCountdownFinish() {
 .action-btn:hover {
   background: rgba(255,160,0,0.1);
 }
+.formula-btn {
+  color: #c084fc;
+  border-color: #c084fc;
+}
+.formula-btn:hover { background: rgba(192,132,252,0.12); }
 
 .blocks-list {
   display: flex;
@@ -1562,8 +1827,9 @@ async function onCountdownFinish() {
   overflow: hidden;
 }
 
-.block-card.condition { border-left: 3px solid var(--primary-blue); }
-.block-card.action    { border-left: 3px solid var(--warning-orange); }
+.block-card.condition { border-left: 3px solid #5b9cff; }
+.block-card.formula   { border-left: 3px solid #c084fc; }
+.block-card.action    { border-left: 3px solid #ffb020; }
 
 .block-head {
   display: flex;
@@ -1586,9 +1852,13 @@ async function onCountdownFinish() {
   background: rgba(33,150,243,0.12);
 }
 
+.block-type-badge.formula {
+  color: #c084fc;
+  background: rgba(192,132,252,0.12);
+}
 .block-type-badge.action {
-  color: var(--warning-orange);
-  background: rgba(255,160,0,0.12);
+  color: #ffb020;
+  background: rgba(255,176,32,0.12);
 }
 
 .remove-block {

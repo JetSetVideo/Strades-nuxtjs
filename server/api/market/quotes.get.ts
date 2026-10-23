@@ -7,7 +7,8 @@
  * Everything else is simply absent; the client keeps its bundled price and
  * says so. Cached 30 s per symbol set, server-side.
  */
-const PAIRS: Record<string, { pair: string; proxy?: string }> = {
+/** Shared with ./history.get.ts. */
+export const PAIRS: Record<string, { pair: string; proxy?: string }> = {
   BTC: { pair: 'BTCUSDT' }, ETH: { pair: 'ETHUSDT' }, SOL: { pair: 'SOLUSDT' },
   BNB: { pair: 'BNBUSDT' }, XRP: { pair: 'XRPUSDT' }, ADA: { pair: 'ADAUSDT' },
   DOGE: { pair: 'DOGEUSDT' }, AVAX: { pair: 'AVAXUSDT' }, LINK: { pair: 'LINKUSDT' },

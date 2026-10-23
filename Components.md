@@ -56,18 +56,34 @@ Reactive skeleton that inherits the user's `personality_matrix.risk` (compact vs
 
 ## 2. Navigation: The Living Icons (Micro-Dashboards)
 
-Every nav icon is a live component that double-dashes as an info display.
+The bottom bar (`Navigation/Bar.vue`, mounted once in `layouts/default.vue`, so it is on every page) has five tabs. Each icon is a micro-dashboard of the panel it opens and reads the same store field that panel shows at the top, so the bar never disagrees with the page.
 
-| Icon component | Data source | Visual behavior |
-|----------------|-------------|-----------------|
-| `Navigation/Icons/WalletIcon.vue` | `allocation.allocationPie` | Tiny D3 pie chart inside 24×24px |
-| `Navigation/Icons/PricesIcon.vue` | `macro.global_volatility_index` | Pulse frequency tied to volatility |
-| `Navigation/Icons/NewsGlobeIcon.vue` | `prefetch.latestNewsCoords` | Smooth 3D rotation toward geography |
-| `Navigation/Icons/ChatBadgeIcon.vue` | `chat.unread[].emotional_urgency` | Badge + pulse speed |
-| `Navigation/Icons/StrategyOrbitIcon.vue` | `max execution_frequency` | Orbiting nodes |
+| Panel | Route (tab also selected on) | Icon component | Data source (store field) | What is drawn | Value line |
+|-------|------------------------------|----------------|---------------------------|---------------|------------|
+| Prices | `/prices` (`/assets`, `/predict`, `/deals`) | `Navigation/Icons/PricesIcon.vue` | `assets.liveMarket.history` (hourly returns). When the live tree has no aggregate, `blendHistory` of the live assets' `return_history`, cap-weighted by `market_cap` | Sparkline of today's cumulative move from 00:00 GMT to the time of the last quote fetch (hours aligned on `assets[].live.at`, not the clock) on a fixed 24 h axis, with 06/12/18 h ticks, a dotted zero line and an end dot. Green / red (`--app-color-up/down`) beyond ±0.01 %, blue otherwise | Signed % since 00:00 GMT (falls back to `liveMarket.ret` over 24 h); `—` with no live quote |
+| News | `/news` (`/articles`, `/summarizer`) | `Navigation/Icons/NewsGlobeIcon.vue` | `news.items[].readByUser`; the shared clock `now` | Dot-matrix Earth (Natural Earth 110m on a 4° grid, `utils/navGlobeLand.ts`) tilted 18° and turned so the meridian where it is noon right now faces the viewer; a red vertical line marks that meridian. A blue dot sits on the rim while something is unread (it pings only when News is selected) | `N new` or `all read` |
+| Wallet | `/wallet` (`/trade`, `/risk`) | `Navigation/Icons/WalletIcon.vue` | `wallet.wallets` (`total_value`, `available_balance`, `assets[].current_value`) | Two rings: outer = each wallet's share of the total (amber, pink, teal, yellow, lime; the last wallet never repeats the first's colour), inner = asset types across every wallet (`assetClassTheme` colours, cash grey). Centre pip in the largest type's colour | Total (`compactUsd`, same as the switcher's TOTAL BALANCE); `—` when no wallet is loaded |
+| Lab | `/strategies` (`/strategy`, `/agents`, `/bots`, `/creator`, `/monitor`, `/arena`) | `Navigation/Icons/LabSphereIcon.vue` | `agents.byId` (`training_state.status`, `personality_matrix.risk/patience/contrarian`, `performance.trades_total`) | CSS 3-D globe, one dot per agent (at most 24: errors first, then waiting, then the busiest). Latitude = risk, longitude = patience nudged by contrarian, size = √trades. Agents without personality data are spread by an id hash. Green running (live/training), orange waiting, red error. Turns once per 18 s only while Lab is selected; otherwise the spin is paused at its angle | `N run`; with several states `●8 ●2 ●1` on phones and `8 run 2 wait 1 error` from 768 px; `—` with no agents |
+| Chat | `/chat` (`/conversations`) | `Navigation/Icons/ChatBadgeIcon.vue` | `chat.conversations` (only the user's own, summing `unread_count_<userId>`: exactly the badges `pages/chat.vue` draws) and `chat.getEmotionalUrgency(userId)` | Speech bubble with a red dot holding the unread count (`99+` past 99). When Chat is selected and urgency > 0.7 the dot throbs | `unread` or `no new` (the number is in the dot) |
+
+The selected tab is the longest matching route prefix (`activePanelFor`), so detail pages keep their tab selected. `StrategyOrbitIcon.vue` no longer exists; `LabSphereIcon.vue` replaced it.
+
+**Data flow.** Pinia stores → `composables/useNavPanels.ts` (one view model per panel: route, accent, value line, screen-reader summary, icon props) → `Navigation/Bar.vue` (layout + selected state) → `Navigation/Icons/*.vue` (presentational: props in, SVG/CSS out, no store, no timer). Every number comes from pure functions in `utils/navIcons.ts` (`intradayCurve`, `blendHistory`, `sparkline`, `walletRings`, `sharesToArcs`, `donutArcPath`, `agentSphere`, `subsolarLongitude`, `orthographic`, `unreadFor`, `badgeLabel`, `activePanelFor`, `compactUsd`, `signedPct`), plus `utils/navGlobe.ts` (News land dots) and `utils/navSphere.ts` (Lab dot placement). Tests: `tests/navIcons.test.ts`, `tests/navGlobe.test.ts`, `tests/navSphere.test.ts`. On mount, `useNavPanels` also loads any of the assets, wallet, agents or chat stores that are still empty, because the bar can't assume the current page loaded them.
+
+**Clock and refresh.** One 30 s clock (`now`, client only, ticks while the tab is visible and again when it becomes visible) drives the News globe rotation and the end of the Prices curve. Every 5 min, while the tab is visible and only if no quote fetch happened in the last 4.5 min (/prices pulls every 30 s itself), live quotes are re-pulled with `assets.mergeLiveQuotes()`.
+
+**Selected state.** One style for every tab: the icon scales to 1.2 inside the bar (sizes are chosen so it never crosses the bar's top edge), a 2 px accent bar lights up at the top of the tab, a halo and wash in the panel's accent fade in, the label turns white and bold, and the value line takes the accent colour (unselected value lines are neutral grey; up/down/waiting/error colours stay because they are state). Each icon also switches to its own zoomed `active` drawing: Prices enlarges the plot, tightens the value span (0.35 % instead of 0.6 %) and pings the end dot; News zooms the globe (radius 9.5 → 10.8) and brightens the land; Wallet thickens the rings, shrinks the hole and turns them −12° once; Lab zooms ×1.15, starts turning and makes running dots breathe; Chat scales the bubble to 1.06 and blinks the typing dots when something is unread.
+
+**Sizes.** Icons get a pixel size from `matchMedia` because the Lab globe uses px geometry: 32 px at ≤ 379 px wide, 36 px by default, 38 px from 768 px, 40 px from 1600 px. The server render uses 36 px.
+
+**SSR placeholder.** Live readouts differ between server and client, so the bar passes `ready = false` until it has mounted. Until then each icon draws a static placeholder (Prices: dashed flat line; News: ocean disc, outline and noon line without land; Wallet: empty track rings; Lab: globe body and wireframe, no dots, no spin; Chat: bubble without badge), the value line is empty, and the link's `aria-label` is the plain label. Once mounted, `aria-label` carries the panel's summary sentence. `aria-current` is `page` on the tab's own route and `true` on its detail routes.
+
+**Motion.** Animations use transform and opacity only (glows are static `box-shadow`). The News globe is not animated: it re-renders on the 30 s clock and only recomputes dots when the noon longitude moves by 0.25°. Loops run only on the selected tab (measured: 0 running animations in the bar with Wallet selected, 1 on Prices/News, 3 on Chat, 20 on Lab). Under `prefers-reduced-motion` every transition and animation in the bar and its icons is off (measured: 0 on every tab).
+
+**Land map.** `utils/navGlobeLand.ts` is generated; do not edit it by hand. Regenerate with `deno run -A scripts/nav-globe-land.ts`. The run touches `deno.lock`; revert that file afterwards.
 
 ### Navigation/Top.vue
-Composes the 5 living icons + the search bar (`Navigation/SearchBar.vue`). SearchBar logs `search_used` training events.
+Composes the brand/menu button, the search bar (`Navigation/SearchBar.vue`), the context actions and the GMT clock. It holds no living icons; those are in the bottom bar above. SearchBar logs `search_used` training events.
 
 ### Navigation/DrawerMenu.vue
 Side drawer with links to all pages. Highlights the current route.
@@ -341,7 +357,31 @@ No store access — inputs are props only.
 ## 11. Widgets & Charts
 
 ### Widget/DisplayAsset.vue
-Asset card with price, change%, liquidity glow, specials, price intuition slider.
+Price-list card. Name flush left on top, friends who called the asset top right (button: show / hide their calls, hidden by default), logo with the ticker under it, price + 24h move, mini chart (time scale bottom, prices right, the user's calls at their date + price). Click the card → `/assets/:id`; click the chart → the card morphs (View Transitions) into `Asset/PredictPanel`. No Details / Predict buttons.
+
+### Asset/PredictChart.vue
+The one SVG price chart (line or candles from `appearance.chartStyle`). `size="mini"` for cards, `"large"` for the prediction / alert charts. Right-hand future zone: x = target date, y = price; calls, friends' calls, paper trades and alert levels all go through `utils/assetChart.makeScales`, so a dot is drawn where it was placed (tests/assetChart.test.ts).
+
+### Asset/PredictPanel.vue
+> v2 (2026-10-20): the point is a draft until **Save prediction** (on the card: save & close; the call stays on the mini chart). Magnets at exactly 1D/1W/1M/… and at the right edge (the zone covers the price scale). Range ≥ 3σ of the expected move, widens when pushed against an edge. Your and friends' predictions are listed under the chart.
+Record a call: horizon chips (1D…1Y, past shown = 1.5 × horizon), tap / drag / arrow keys in the future zone, release saves (`predictions.savePrediction`, keeps revisions) and sends `prediction_set` to the training buffer + `prediction_create` to the backend activity log. Offered range = largest rise / fall seen over the same length in the past (×1.25).
+
+### Asset/ChartStyleToggle.vue
+Line / Candles for every chart at once (prices page and asset page tops).
+
+### Asset/PriceChart.vue
+Price alerts on the asset page: drag up / down to arm an alert; draws with PredictChart.
+
+### Asset/SupplyTree.vue
+Suppliers → asset → clients tree for the asset page, with similar assets stacked under the asset (dashed). Link width follows each partner's share; nodes show share % and nominal value, column headers show the totals. Nodes that are listed assets open their page. Data: `public/data/supply_chain/<id>.json` (shares, values), else names from `public/data/asset_profiles.json`.
+
+### Asset/WorldMap.vue
+Dot-matrix world map (land grid shared with the nav globe, `utils/navGlobe.landPoints`) with headquarters, facilities, suppliers, clients and market hubs; arcs from suppliers into the HQ and out to clients. (Not `Map/WorldMap.vue`, the founder's news map.)
+
+`public/data/asset_profiles.json`: hand-curated public facts per asset and per bet-ticker prefix (tags, people, institutions, linked companies, supplier/client names, places, recurring calendar). No invented figures.
+
+### Asset/DataTree.vue
+Renders any asset JSON (backend `/api/assets/<sym>/detail/`, bundled company files) as label/value grids, chips and tables, so the asset page shows all available data.
 
 ### Widget/Asset.vue
 Generic asset display (icon + symbol + price).
@@ -423,16 +463,20 @@ Shared strategy/data card for the feed.
 
 ```
 macro_state ──┬─> DynamicThemeController ─> :root CSS
-              ├─> PricesIcon (pulse)
-              ├─> NewsGlobeIcon (rotation)
               ├─> FlowVisualizer (particles)
               ├─> AllocationSlider (dominant highlight)
               └─> Widget/DisplayAsset (sentiment tone)
 
-allocationPie ──┬─> WalletIcon (nav pie)
-                ├─> AllocationSlider
+allocationPie ──┬─> AllocationSlider
                 ├─> Wallet/Hero (swarm ghost)
                 └─> Wallet/Positions (row heights)
+
+Bottom bar: stores ─> useNavPanels ─> Navigation/Bar ─> Navigation/Icons/*
+assets.liveMarket.history ─> PricesIcon (today's curve since 00:00 GMT)
+news.items[].readByUser ───> NewsGlobeIcon (unread dot; noon meridian from the 30 s clock)
+wallet.wallets ────────────> WalletIcon (wallet ring + asset-type ring)
+agents.byId ───────────────> LabSphereIcon (one dot per agent)
+chat.conversations ────────> ChatBadgeIcon (unread badge)
 
 wallets[] ──┬─> Wallet/Hero
             ├─> Wallet/Positions

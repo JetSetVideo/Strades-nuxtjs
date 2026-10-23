@@ -3,7 +3,7 @@ import { computed } from 'vue'
 
 interface Block {
   id: number
-  type: 'condition' | 'action'
+  type: 'condition' | 'action' | 'formula'
   data: Record<string, unknown>
 }
 
@@ -37,7 +37,13 @@ function actionLabel(data: Record<string, unknown>): string {
 }
 
 const conditions = computed(() => props.blocks.filter(b => b.type === 'condition'))
+const formulas   = computed(() => props.blocks.filter(b => b.type === 'formula'))
 const actions    = computed(() => props.blocks.filter(b => b.type === 'action'))
+
+function formulaLabel(data: Record<string, unknown>): string {
+  const op = String(data.op ?? 'op')
+  return `${op} ${data.left ?? ''} ${data.right ?? ''}`.replace(/\s+/g, ' ').trim()
+}
 const hasBlocks  = computed(() => props.blocks.length > 0)
 </script>
 
@@ -79,6 +85,15 @@ const hasBlocks  = computed(() => props.blocks.length > 0)
           </template>
 
           <div class="arrow-connector">▼</div>
+
+          <template v-if="formulas.length">
+            <div class="col-label">MATH</div>
+            <div v-for="block in formulas" :key="block.id" class="flow-node formula-node">
+              <span class="node-dot formula-dot" />
+              <span class="node-label">{{ formulaLabel(block.data) }}</span>
+            </div>
+            <div class="arrow-connector">▼</div>
+          </template>
 
           <template v-if="actions.length">
             <div class="col-label">THEN</div>
@@ -184,8 +199,9 @@ const hasBlocks  = computed(() => props.blocks.length > 0)
 .from-node { border-color: var(--primary-blue); background: rgba(33,150,243,0.08); }
 .to-node   { border-color: var(--success-green); background: rgba(76,175,80,0.08); }
 
-.cond-node   { border-color: var(--primary-blue); background: rgba(33,150,243,0.08); }
-.action-node { border-color: var(--warning-orange); background: rgba(255,160,0,0.08); }
+.cond-node   { border-color: #5b9cff; background: rgba(91,156,255,0.1); }
+.formula-node { border-color: #c084fc; background: rgba(192,132,252,0.1); }
+.action-node { border-color: #ffb020; background: rgba(255,176,32,0.1); }
 
 .node-icon  { font-size: 1rem; }
 .node-label { font-size: 0.65rem; font-weight: 600; color: var(--text-white); text-align: center; }
@@ -202,8 +218,9 @@ const hasBlocks  = computed(() => props.blocks.length > 0)
   left: 6px;
 }
 
-.cond-dot   { background: var(--primary-blue); }
-.action-dot { background: var(--warning-orange); }
+.cond-dot   { background: #5b9cff; }
+.formula-dot { background: #c084fc; }
+.action-dot { background: #ffb020; }
 
 .flow-col {
   display: flex;

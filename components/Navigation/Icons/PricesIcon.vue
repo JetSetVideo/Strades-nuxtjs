@@ -1,219 +1,86 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useMacroStore } from '~/stores/macro'
-import { useAssetsStore } from '~/stores/assets'
-import { buildMarketTree } from '~/utils/marketTree'
+/**
+ * Prices tab — today's live market as a sparkline over a fixed 00:00→24:00 GMT
+ * axis, so the line also tells the time of day. Data: useNavPanels() prices
+ * (intradayCurve of assets.liveMarket.history). Presentational only.
+ */
+import { computed, useId } from 'vue'
+import { sparkline, type IntradayCurve } from '~/utils/navIcons'
 
-const props = defineProps({ size: { type: Number, default: 22 } })
-const macro = useMacroStore()
-const assetsStore = useAssetsStore()
+const props = withDefaults(defineProps<{
+  size?: number
+  active?: boolean
+  ready?: boolean
+  curve?: IntradayCurve | null
+  tone?: 'up' | 'down' | 'muted' | 'accent' | 'wait'
+}>(), { size: 40, active: false, ready: false, curve: null, tone: 'muted' })
 
-// The server render has no store data while the client's first paint does, so
-// a data-driven SVG produced hydration mismatches (a different point set,
-// stroke-width and node count) and the graph visibly jumped the moment the
-// page settled. Render a stable placeholder until mounted, then the real
-// lines — placeholder is identical on both sides, so nothing mismatches.
-const ready = ref(false)
+const uid = useId()
+// Plot box inside the 24×24 viewBox: zoomed in (taller, tighter) when the tab is selected.
+const box = computed(() => (props.active ? { x: 0.5, y: 2, w: 23, h: 18 } : { x: 1.5, y: 3.5, w: 21, h: 15.5 }))
 
-// The nav is on every page; don't depend on /prices having loaded the market.
-onMounted(() => {
-  ready.value = true
-  if (!assetsStore.assets.length && !assetsStore.isRefreshing) assetsStore.initializeStore()
+const geo = computed(() => {
+  if (!props.ready || !props.curve || props.curve.t.length < 2) return null
+  // Selected: a tighter value span magnifies the day's moves.
+  return sparkline(props.curve, box.value.w, box.value.h, 0.8, props.active ? 0.35 : 0.6)
 })
 
-// Flat reference line — same geometry on the server and on the client's first
-// paint, so hydration matches; the real curve replaces it after mount.
-const placeholderPoints = computed(() => {
-  const w = props.size - 3
-  const y = (props.size * 0.35).toFixed(1)
-  const step = w / (N_POINTS - 1)
-  return Array.from({ length: N_POINTS }, (_, i) => `${(1.5 + i * step).toFixed(1)},${y}`).join(' ')
-})
+const color = computed(() =>
+  props.tone === 'up' ? 'var(--app-color-up, #00ff88)'
+  : props.tone === 'down' ? 'var(--app-color-down, #ff4444)'
+  : 'rgb(0,180,255)')
 
-// Class → color, matching the rest of the app
-const CLASS_COLOR: Record<string, string> = {
-  cryptocurrency: '#F5A623',
-  stock:          '#00ff88',
-  fiat_currency:  '#4A90E2',
-  commodity:      '#F8E71C',
-}
-
-// Icon tint follows the live average % change of the whole market
-const colorRGB = computed(() => {
-  const a = (assetsStore.liveMarket?.ret ?? 0) * 100
-  if (a >  0.4) return '0,255,136'
-  if (a < -0.4) return '255,68,68'
-  return '0,180,255'
-})
-const color = computed(() => `rgb(${colorRGB.value})`)
-
-const pulseDur = computed(() => {
-  const v = macro.global_volatility_index
-  return Math.max(3.5, 6.0 - v * 3.5)
-})
-
-// ── One sparkline per asset class, from the real asset universe ─────────
-interface ClassLine {
-  key: string
-  color: string
-  points: string
-  opacity: number
-  width: number
-  tip: [string, string]
-  avg: number
-}
-
-const N_POINTS = 9
-
-// A single clean, monotone line per class, read straight from that class's
-// real 24h return. The old version added fixed "noise" jitter and a
-// volatility-driven amplitude, so the graph was decorative rather than data —
-// it never matched the /prices panel and read as broken.
-const buildLine = (key: string, avgChangePct: number, share: number): ClassLine => {
-  const w   = props.size - 3
-  const h   = props.size * 0.62
-  const top = props.size * 0.04
-  const mid = top + h / 2
-  const xs  = w / (N_POINTS - 1)
-
-  // ±3% daily change spans the full band height
-  const slopeNorm = Math.max(-1, Math.min(1, avgChangePct / 3))
-  const slope     = slopeNorm * h * 0.55
-
-  const pts: string[] = []
-  for (let i = 0; i < N_POINTS; i++) {
-    const x = 1.5 + i * xs
-    const t = i / (N_POINTS - 1)
-    const y = Math.max(top + 0.5, Math.min(top + h - 0.5, mid + slope / 2 - slope * t))
-    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`)
-  }
-  const tipParts = pts[pts.length - 1].split(',')
-  return {
-    key,
-    color: CLASS_COLOR[key] ?? '#00aaff',
-    points: pts.join(' '),
-    opacity: 0.5 + share * 0.5,
-    width: 0.9 + share * 0.5,
-    tip: [tipParts[0], tipParts[1]],
-    avg: avgChangePct
-  }
-}
-
-const classLines = computed<ClassLine[]>(() => {
-  const assets = assetsStore.assets
-  if (!assets || assets.length === 0) {
-    // Fallback before the store hydrates: one macro-driven line
-    return [buildLine('stock', macro.market_sentiment * 2, 1)]
-  }
-  // Same UP equation as the /prices tree, over live markets only.
-  const tree = assetsStore.liveMarket
-  if (!tree) return [buildLine('stock', 0, 1)]
-  return tree.children
-    .map(c => buildLine(c.id.replace('class:', ''), c.ret * 100, c.weight))
-    .sort((a, b) => a.opacity - b.opacity)   // strongest class drawn last (on top)
-})
-
-// Live dot rides the strongest (most represented) class line
-const leadLine = computed(() => classLines.value[classLines.value.length - 1])
-
+// 06:00 / 12:00 / 18:00 GMT ticks on the time axis
+const ticks = computed(() => [6, 12, 18].map(hr => box.value.x + 0.8 + (hr / 24) * (box.value.w - 1.6)))
 </script>
 
 <template>
-  <div
-    class="prices-icon"
-    :style="{
-      width:         `${size}px`,
-      height:        `${size}px`,
-      '--clr':       ready ? color : 'rgb(0,180,255)',
-      '--pulse-dur': ready ? `${pulseDur}s` : '5s',
-    }"
-  >
-    <svg :viewBox="`0 0 ${size} ${size}`" fill="none" overflow="visible">
+  <span class="nav-icon prices-icon" :class="{ active, [tone]: true }" aria-hidden="true" :style="{ width: `${size}px`, height: `${size}px` }">
+    <svg viewBox="0 0 24 24" :width="size" :height="size" fill="none">
+      <defs>
+        <linearGradient :id="`${uid}-fill`" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" :stop-color="color" stop-opacity="0.3" />
+          <stop offset="100%" :stop-color="color" stop-opacity="0" />
+        </linearGradient>
+      </defs>
 
-      <!-- Placeholder until mounted: byte-identical on server and client, so
-           hydration matches and the graph does not jump on settle. -->
-      <polyline
-        v-if="!ready"
-        :points="placeholderPoints"
-        :stroke="color"
-        stroke-width="1"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        opacity="0.5"
-        fill="none"
+      <line v-for="(x, i) in ticks" :key="i" :x1="x" :x2="x" :y1="box.y + box.h" :y2="box.y + box.h + 1.4" class="tick" />
+
+      <!-- Placeholder (SSR + first paint, or no live quotes): a flat dashed day -->
+      <line
+        v-if="!geo"
+        :x1="box.x + 0.8" :x2="box.x + box.w - 0.8" :y1="box.y + box.h / 2" :y2="box.y + box.h / 2"
+        class="flat"
       />
 
-      <!-- One sparkline per asset class: the whole market at a glance -->
-      <template v-if="ready">
-        <template v-for="line in classLines" :key="line.key">
-          <!-- Soft glow underlay -->
-          <polyline
-            :points="line.points"
-            :stroke="line.color"
-            :stroke-width="line.width * 2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            :opacity="line.opacity * 0.16"
-          />
-          <!-- Crisp line -->
-          <polyline
-            :points="line.points"
-            :stroke="line.color"
-            :stroke-width="line.width"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            :opacity="line.opacity"
-            fill="none"
-          />
-        </template>
-      </template>
-
-      <!-- Live dot + pulse ring at the tip of the dominant class -->
-      <circle
-        v-if="ready && leadLine"
-        :cx="leadLine.tip[0]"
-        :cy="leadLine.tip[1]"
-        r="1.5"
-        :fill="leadLine.color"
-        class="live-dot"
-      />
-      <circle
-        v-if="ready && leadLine"
-        :cx="leadLine.tip[0]"
-        :cy="leadLine.tip[1]"
-        r="2.8"
-        :stroke="leadLine.color"
-        stroke-width="0.5"
-        fill="none"
-        class="live-ring"
-      />
-
-      <!-- No number here: Navigation/Bar.vue prints the market move under the label. -->
-
+      <g v-else :transform="`translate(${box.x} ${box.y})`" class="plot">
+        <line x1="0" :x2="box.w" :y1="geo.zeroY" :y2="geo.zeroY" class="zero" />
+        <path :d="geo.area" :fill="`url(#${uid}-fill)`" />
+        <path :d="geo.line" :stroke="color" class="line" />
+        <circle :cx="geo.end[0]" :cy="geo.end[1]" r="1.35" :fill="color" />
+        <circle :cx="geo.end[0]" :cy="geo.end[1]" r="1.35" :stroke="color" class="ping" />
+      </g>
     </svg>
-  </div>
+  </span>
 </template>
 
 <style scoped>
-.prices-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  animation: spark-pulse var(--pulse-dur, 5s) ease-in-out infinite;
-}
-@keyframes spark-pulse {
-  0%, 100% { filter: drop-shadow(0 0 0px   var(--clr)); opacity: 0.84; }
-  50%       { filter: drop-shadow(0 0 2px var(--clr));   opacity: 1.0;  }
-}
+.nav-icon { display: inline-flex; align-items: center; justify-content: center; }
+svg { display: block; overflow: visible; }
 
-.live-dot {
-  animation: dot-blink 2.5s ease-in-out infinite;
+.tick { stroke: rgba(255,255,255,0.22); stroke-width: 0.5; }
+.flat { stroke: rgba(255,255,255,0.35); stroke-width: 1; stroke-dasharray: 1.4 1.6; stroke-linecap: round; }
+.zero { stroke: rgba(255,255,255,0.22); stroke-width: 0.45; stroke-dasharray: 0.8 1.2; }
+.line { stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+
+/* The "now" ping runs only on the selected tab: transform + opacity, composited. */
+.ping { fill: none; stroke-width: 0.5; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.active .ping { animation: ping 2.2s ease-out infinite; }
+@keyframes ping {
+  0%   { transform: scale(1);   opacity: 0.9; }
+  100% { transform: scale(3.2); opacity: 0; }
 }
-.live-ring {
-  animation: dot-blink 2.5s ease-in-out infinite reverse;
-}
-@keyframes dot-blink {
-  0%, 100% { opacity: 1;    }
-  50%       { opacity: 0.15; }
+@media (prefers-reduced-motion: reduce) {
+  .active .ping { animation: none; }
 }
 </style>

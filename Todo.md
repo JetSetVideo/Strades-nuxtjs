@@ -11,6 +11,7 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **2.1 Wallet Allocation Pie Icon**: Replace the static wallet icon in `Navigation/Top.vue` with `Navigation/Icons/WalletIcon.vue`. Use D3 to render the 100% allocation data directly into the 24px SVG space.
 - [x] **2.2 Fluctuating Prices Icon**: Build `PricesIcon.vue`. Map the `global_volatility_index` to a CSS `@keyframes` pulse animation duration.
 - [x] **2.3 Rotating News Globe Icon**: Build `NewsGlobeIcon.vue`. Map the latest news `geographic_origin` coordinates to an SVG 3D rotation transform.
+- [x] **2.4 Living bottom bar redesign (2026-10-20)**: `Navigation/Bar.vue` + `composables/useNavPanels.ts` + pure maths in `utils/navIcons.ts` (tested). Prices = today's curve since 00:00 GMT, News = noon-meridian globe + unread, Wallet = wallet/asset-type rings, Lab = `LabSphereIcon.vue` agent globe (replaces `StrategyOrbitIcon.vue`), Chat = unread badge. Supersedes the data sources in 2.1–2.3.
 
 ## Phase 3: The 100% Allocation UI
 - [x] **3.1 Proportional Allocation Slider**: Build `Wallet/AllocationSlider.vue`. Ensure that dragging one asset class slider mathematically shrinks the others so the sum is always exactly 100%.
@@ -214,3 +215,19 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **34.3** Browser journals (activity log, news bookmarks) apply after mount. Chat does not call the Django API during SSR.
 - [x] **34.4** Pinia no longer auto-imports `actions` from option stores.
 - [x] **34.5** `npx vitest run` — 46/46. History SSR shows 8 trades. Summarizer for `strategy_001` shows Mean Reversion BTC, BTC → USD, RSI and SMA.
+
+## Phase 35: One sign-in page (2026-10-20)
+- [x] **35.1** `pages/index.vue` (a second login card that only linked to `/auth`) is removed; `/` redirects to `/auth` (`routeRules` in `nuxt.config.ts`), which forwards signed-in users to the app. `public/icons/StradeLogoPrototype_icon.svg` (only used there) is removed.
+- [x] **35.2** `pages/auth.vue` redesigned: metal mark + STRADES wordmark (`public/brand/`, exported from OneDrive `05_Design_Brand/01_Logo`), Sign in / Create account switch, visible labels, password eye toggle, one green call to action, demo mode kept; brand panel with three features from 960 px.
+- [x] **35.3** Verified in Chromium: `/` → `/auth`; wrong password shows "Invalid email or password."; register → `/prices`; sign out → `/auth`; sign in again → `/prices`; reload keeps the session; demo → `/prices`.
+- [ ] **35.4** No password-reset endpoint on the backend yet, so the page has no "Forgot password?" link.
+
+## Phase 36: Asset card + asset pages, predictions on the chart (2026-10-20)
+- [x] **36.1** `Widget/DisplayAsset.vue` rebuilt: name top-left, ticker under the logo, friends' faces top right (calls hidden until clicked), mini chart with time + price scales, tighter padding. Details → and Predict buttons removed: card → detail page, chart → morphs into the prediction chart.
+- [x] **36.2** Bug fixed: a saved call was drawn at a fixed spot of the past history (index 62 %) at the history price. Calls are now drawn at (target date, predicted price) through the same scale they were picked with (Playwright: dot within 0.3 % of the tap, 3 positions).
+- [x] **36.3** `Asset/PredictChart` + `Asset/PredictPanel` + `utils/assetChart.ts` + `composables/useAssetSeries.ts`: one chart for every surface, real Binance candles where a feed exists (`server/api/market/history.get.ts`), seeded simulated path otherwise (flagged sim). Offered range from past moves of the same length.
+- [x] **36.4** One Line / Candles switch (`Asset/ChartStyleToggle`) at the top of /prices and /assets/:id drives every chart.
+- [x] **36.5** `pages/assets/[id].vue` rewritten per type (company, crypto, forex, commodity, bet, index): key facts, bet order book, supply chain, alerts, paper trade, related, and "All data" (DataTree) for everything else, incl. `/api/assets/<sym>/detail/` and `public/data/companies/*.json`. Fake performance numbers removed.
+- [x] **36.6** Predictions store price, date (`targetTs`), % move, horizon hours, offered range + position, `sawFriendsFirst`, source, chart style, simulated-history flag, revisions; `prediction_set` training events. `Widget/PriceIntuition.vue` deleted (replaced).
+- [ ] **36.7** Predictions are local (localStorage) + training buffer + activity log only: the backend has no predictions model / endpoint yet, and friends' calls are demo personas (`public/data/predictions-friends.json`).
+

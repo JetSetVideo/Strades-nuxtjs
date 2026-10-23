@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { usePriceCache } from '~/composables/usePriceCache'
 import { publicAssetUrl } from '~/composables/useLocalJson'
+import { feedKeyForAsset } from '~/utils/assetFeeds'
+import { useDataFeedsStore } from '~/stores/dataFeeds'
 import type { Asset } from '~/types/asset'
 import { buildMarketTree, type MarketNode } from '~/utils/marketTree'
 import type { LiveQuote } from '~/server/api/market/quotes.get'
@@ -158,7 +160,10 @@ export const useAssetsStore = defineStore('assets', {
         const { quotes, at } = await $fetch<{ quotes: Record<string, LiveQuote>; at: string }>(quotesUrl, {
           query: { symbols: symbols.join(',') },
         })
+        const feeds = useDataFeedsStore()
         for (const a of this.assets) {
+          // A stopped feed keeps its last quote and simply leaves the list.
+          if (!feeds.receiving(feedKeyForAsset(a))) continue
           const q = quotes[a.symbol?.toUpperCase()]
           if (!q) continue
           a.current_price = q.price

@@ -1,0 +1,2350 @@
+{
+ "_about": "Hand-curated public facts per asset (people, institutions, links, places, recurring calendar). Names and roles only, no invented figures: shares and nominal values come from public/data/supply_chain/*.json where they exist. Bets are keyed by their event ticker prefix.",
+ "assets": {
+  "AAPL": {
+   "tags": [
+    "smartphones",
+    "services",
+    "wearables",
+    "buybacks",
+    "dow-jones",
+    "nasdaq-100",
+    "mega-cap"
+   ],
+   "people": [
+    {
+     "name": "Tim Cook",
+     "role": "CEO"
+    },
+    {
+     "name": "Kevan Parekh",
+     "role": "CFO"
+    },
+    {
+     "name": "Steve Jobs",
+     "role": "Co-founder (1955–2011)"
+    },
+    {
+     "name": "Steve Wozniak",
+     "role": "Co-founder"
+    },
+    {
+     "name": "Warren Buffett",
+     "role": "Berkshire Hathaway, top shareholder"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NASDAQ",
+     "role": "Listing exchange"
+    },
+    {
+     "name": "U.S. SEC",
+     "role": "Securities regulator"
+    },
+    {
+     "name": "European Commission",
+     "role": "DMA gatekeeper rules"
+    },
+    {
+     "name": "U.S. Department of Justice",
+     "role": "Antitrust case"
+    },
+    {
+     "name": "Berkshire Hathaway",
+     "role": "Major shareholder"
+    },
+    {
+     "name": "Vanguard / BlackRock",
+     "role": "Index-fund holders"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Alphabet",
+     "symbol": "GOOGL",
+     "relation": "Default-search deal, mobile OS rival"
+    },
+    {
+     "name": "TSMC",
+     "relation": "Sole leading-edge chip foundry"
+    },
+    {
+     "name": "Foxconn",
+     "relation": "Main assembler"
+    },
+    {
+     "name": "Samsung",
+     "relation": "Supplier and smartphone rival"
+    },
+    {
+     "name": "Microsoft",
+     "symbol": "MSFT",
+     "relation": "PC / software rival"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Late Jan · late Apr · late Jul · late Oct",
+     "event": "Quarterly earnings",
+     "type": "earnings"
+    },
+    {
+     "when": "June",
+     "event": "WWDC developer conference",
+     "type": "product"
+    },
+    {
+     "when": "September",
+     "event": "iPhone launch event",
+     "type": "product"
+    }
+   ]
+  },
+  "AMZN": {
+   "tags": [
+    "e-commerce",
+    "cloud",
+    "aws",
+    "advertising",
+    "logistics",
+    "nasdaq-100",
+    "mega-cap"
+   ],
+   "people": [
+    {
+     "name": "Andy Jassy",
+     "role": "CEO"
+    },
+    {
+     "name": "Jeff Bezos",
+     "role": "Founder, executive chair"
+    },
+    {
+     "name": "Matt Garman",
+     "role": "CEO, AWS"
+    },
+    {
+     "name": "Brian Olsavsky",
+     "role": "CFO"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NASDAQ",
+     "role": "Listing exchange"
+    },
+    {
+     "name": "U.S. FTC",
+     "role": "Antitrust lawsuit"
+    },
+    {
+     "name": "European Commission",
+     "role": "DMA gatekeeper rules"
+    },
+    {
+     "name": "U.S. SEC",
+     "role": "Securities regulator"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Microsoft",
+     "symbol": "MSFT",
+     "relation": "Cloud rival (Azure)"
+    },
+    {
+     "name": "Alphabet",
+     "symbol": "GOOGL",
+     "relation": "Cloud and ads rival"
+    },
+    {
+     "name": "NVIDIA",
+     "symbol": "NVDA",
+     "relation": "GPU supplier for AWS"
+    },
+    {
+     "name": "Anthropic",
+     "relation": "AI partner, AWS investment"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Early Feb · late Apr · late Jul · late Oct",
+     "event": "Quarterly earnings",
+     "type": "earnings"
+    },
+    {
+     "when": "July",
+     "event": "Prime Day",
+     "type": "sales"
+    },
+    {
+     "when": "Late Nov – Dec",
+     "event": "AWS re:Invent and holiday season",
+     "type": "product"
+    }
+   ]
+  },
+  "GOOGL": {
+   "tags": [
+    "search",
+    "advertising",
+    "youtube",
+    "cloud",
+    "ai",
+    "android",
+    "nasdaq-100",
+    "mega-cap"
+   ],
+   "people": [
+    {
+     "name": "Sundar Pichai",
+     "role": "CEO"
+    },
+    {
+     "name": "Larry Page",
+     "role": "Co-founder"
+    },
+    {
+     "name": "Sergey Brin",
+     "role": "Co-founder"
+    },
+    {
+     "name": "Demis Hassabis",
+     "role": "CEO, Google DeepMind"
+    },
+    {
+     "name": "Anat Ashkenazi",
+     "role": "CFO"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NASDAQ",
+     "role": "Listing exchange"
+    },
+    {
+     "name": "U.S. Department of Justice",
+     "role": "Search and ad-tech antitrust cases"
+    },
+    {
+     "name": "European Commission",
+     "role": "DMA, antitrust fines"
+    },
+    {
+     "name": "U.S. SEC",
+     "role": "Securities regulator"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Apple",
+     "symbol": "AAPL",
+     "relation": "Pays for default search on Safari"
+    },
+    {
+     "name": "Meta Platforms",
+     "symbol": "META",
+     "relation": "Digital-ads rival"
+    },
+    {
+     "name": "Microsoft",
+     "symbol": "MSFT",
+     "relation": "Search, cloud and AI rival"
+    },
+    {
+     "name": "Broadcom",
+     "relation": "TPU chip design partner"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "Broadcom",
+     "product": "TPU accelerators"
+    },
+    {
+     "name": "TSMC",
+     "product": "Chip manufacturing"
+    },
+    {
+     "name": "NVIDIA",
+     "product": "GPUs for Google Cloud"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Advertisers",
+     "product": "Search, YouTube and network ads"
+    },
+    {
+     "name": "Google Cloud customers",
+     "product": "Cloud and AI services"
+    },
+    {
+     "name": "Android OEMs",
+     "product": "Play services licences"
+    }
+   ],
+   "places": [
+    {
+     "name": "Googleplex",
+     "lat": 37.422,
+     "lng": -122.084,
+     "kind": "hq"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Early Feb · late Apr · late Jul · late Oct",
+     "event": "Quarterly earnings",
+     "type": "earnings"
+    },
+    {
+     "when": "May",
+     "event": "Google I/O",
+     "type": "product"
+    }
+   ]
+  },
+  "JNJ": {
+   "tags": [
+    "pharma",
+    "medtech",
+    "dividend-king",
+    "defensive",
+    "dow-jones",
+    "healthcare"
+   ],
+   "people": [
+    {
+     "name": "Joaquin Duato",
+     "role": "Chairman and CEO"
+    },
+    {
+     "name": "Joseph Wolk",
+     "role": "CFO"
+    },
+    {
+     "name": "Robert Wood Johnson I",
+     "role": "Co-founder (1886)"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NYSE",
+     "role": "Listing exchange"
+    },
+    {
+     "name": "U.S. FDA",
+     "role": "Drug and device approvals"
+    },
+    {
+     "name": "EMA",
+     "role": "EU drug approvals"
+    },
+    {
+     "name": "CMS (Medicare)",
+     "role": "Drug-price negotiation"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Kenvue",
+     "relation": "Former consumer-health unit (spun off 2023)"
+    },
+    {
+     "name": "Pfizer",
+     "relation": "Pharma rival"
+    },
+    {
+     "name": "Merck & Co.",
+     "relation": "Pharma rival"
+    }
+   ],
+   "clients": [
+    {
+     "name": "McKesson",
+     "product": "US drug distribution"
+    },
+    {
+     "name": "Cencora",
+     "product": "US drug distribution"
+    },
+    {
+     "name": "Cardinal Health",
+     "product": "US drug distribution"
+    },
+    {
+     "name": "Hospitals",
+     "product": "MedTech devices"
+    }
+   ],
+   "places": [
+    {
+     "name": "New Brunswick HQ",
+     "lat": 40.4862,
+     "lng": -74.4518,
+     "kind": "hq"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Mid Jan · mid Apr · mid Jul · mid Oct",
+     "event": "Quarterly earnings",
+     "type": "earnings"
+    },
+    {
+     "when": "April",
+     "event": "Dividend increase (60+ years running)",
+     "type": "dividend"
+    }
+   ]
+  },
+  "JPM": {
+   "tags": [
+    "banking",
+    "investment-bank",
+    "dividends",
+    "dow-jones",
+    "g-sib",
+    "finance"
+   ],
+   "people": [
+    {
+     "name": "Jamie Dimon",
+     "role": "Chairman and CEO"
+    },
+    {
+     "name": "Jeremy Barnum",
+     "role": "CFO"
+    },
+    {
+     "name": "Marianne Lake",
+     "role": "CEO, Consumer & Community Banking"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NYSE",
+     "role": "Listing exchange"
+    },
+    {
+     "name": "Federal Reserve",
+     "role": "Supervisor, stress tests"
+    },
+    {
+     "name": "OCC",
+     "role": "National bank regulator"
+    },
+    {
+     "name": "FDIC",
+     "role": "Deposit insurance"
+    },
+    {
+     "name": "Financial Stability Board",
+     "role": "G-SIB list"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Visa",
+     "symbol": "V",
+     "relation": "Card network partner"
+    },
+    {
+     "name": "Bank of America",
+     "relation": "Banking rival"
+    },
+    {
+     "name": "Goldman Sachs",
+     "relation": "Investment-banking rival"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Retail customers",
+     "product": "Chase deposits, cards, mortgages"
+    },
+    {
+     "name": "Corporations",
+     "product": "Lending, payments, treasury"
+    },
+    {
+     "name": "Institutional investors",
+     "product": "Markets and asset management"
+    }
+   ],
+   "places": [
+    {
+     "name": "270 Park Avenue",
+     "lat": 40.7558,
+     "lng": -73.9755,
+     "kind": "hq"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Mid Jan · mid Apr · mid Jul · mid Oct",
+     "event": "Quarterly earnings (kicks off bank season)",
+     "type": "earnings"
+    },
+    {
+     "when": "June",
+     "event": "Fed stress-test results",
+     "type": "regulation"
+    }
+   ]
+  },
+  "META": {
+   "tags": [
+    "social-media",
+    "advertising",
+    "ai",
+    "vr",
+    "whatsapp",
+    "instagram",
+    "nasdaq-100",
+    "mega-cap"
+   ],
+   "people": [
+    {
+     "name": "Mark Zuckerberg",
+     "role": "Founder, chairman and CEO"
+    },
+    {
+     "name": "Susan Li",
+     "role": "CFO"
+    },
+    {
+     "name": "Javier Olivan",
+     "role": "COO"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NASDAQ",
+     "role": "Listing exchange"
+    },
+    {
+     "name": "U.S. FTC",
+     "role": "Antitrust case (Instagram, WhatsApp)"
+    },
+    {
+     "name": "European Commission",
+     "role": "DMA / DSA"
+    },
+    {
+     "name": "Irish Data Protection Commission",
+     "role": "GDPR lead regulator"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Alphabet",
+     "symbol": "GOOGL",
+     "relation": "Digital-ads rival"
+    },
+    {
+     "name": "NVIDIA",
+     "symbol": "NVDA",
+     "relation": "GPU supplier"
+    },
+    {
+     "name": "EssilorLuxottica",
+     "relation": "Ray-Ban smart-glasses partner"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "NVIDIA",
+     "product": "AI GPUs"
+    },
+    {
+     "name": "Broadcom",
+     "product": "Custom accelerators"
+    },
+    {
+     "name": "Arista Networks",
+     "product": "Data-centre networking"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Advertisers",
+     "product": "Facebook, Instagram, WhatsApp ads"
+    }
+   ],
+   "places": [
+    {
+     "name": "Menlo Park HQ",
+     "lat": 37.4848,
+     "lng": -122.1484,
+     "kind": "hq"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Late Jan · late Apr · late Jul · late Oct",
+     "event": "Quarterly earnings",
+     "type": "earnings"
+    },
+    {
+     "when": "September",
+     "event": "Meta Connect",
+     "type": "product"
+    }
+   ]
+  },
+  "MSFT": {
+   "tags": [
+    "software",
+    "cloud",
+    "azure",
+    "ai",
+    "gaming",
+    "dow-jones",
+    "nasdaq-100",
+    "mega-cap"
+   ],
+   "people": [
+    {
+     "name": "Satya Nadella",
+     "role": "Chairman and CEO"
+    },
+    {
+     "name": "Amy Hood",
+     "role": "CFO"
+    },
+    {
+     "name": "Bill Gates",
+     "role": "Co-founder"
+    },
+    {
+     "name": "Paul Allen",
+     "role": "Co-founder (1953–2018)"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NASDAQ",
+     "role": "Listing exchange"
+    },
+    {
+     "name": "European Commission",
+     "role": "DMA, Teams antitrust"
+    },
+    {
+     "name": "U.S. FTC",
+     "role": "Activision review, AI scrutiny"
+    },
+    {
+     "name": "UK CMA",
+     "role": "Cloud-market investigation"
+    }
+   ],
+   "linked": [
+    {
+     "name": "OpenAI",
+     "relation": "Major investor and cloud provider"
+    },
+    {
+     "name": "Amazon",
+     "symbol": "AMZN",
+     "relation": "Cloud rival"
+    },
+    {
+     "name": "NVIDIA",
+     "symbol": "NVDA",
+     "relation": "GPU supplier"
+    },
+    {
+     "name": "Activision Blizzard",
+     "relation": "Acquired 2023"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "NVIDIA",
+     "product": "AI GPUs"
+    },
+    {
+     "name": "AMD",
+     "product": "GPUs and CPUs"
+    },
+    {
+     "name": "Intel",
+     "product": "CPUs"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Enterprises",
+     "product": "Microsoft 365, Azure, Dynamics"
+    },
+    {
+     "name": "Governments",
+     "product": "Cloud and licences"
+    },
+    {
+     "name": "OpenAI",
+     "product": "Azure compute"
+    },
+    {
+     "name": "Gamers",
+     "product": "Xbox, Game Pass"
+    }
+   ],
+   "places": [
+    {
+     "name": "Redmond campus",
+     "lat": 47.6396,
+     "lng": -122.1283,
+     "kind": "hq"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Late Jan · late Apr · late Jul · late Oct",
+     "event": "Quarterly earnings",
+     "type": "earnings"
+    },
+    {
+     "when": "May",
+     "event": "Microsoft Build",
+     "type": "product"
+    },
+    {
+     "when": "30 June",
+     "event": "Fiscal year end",
+     "type": "earnings"
+    }
+   ]
+  },
+  "NVDA": {
+   "tags": [
+    "semiconductors",
+    "ai",
+    "gpus",
+    "data-centre",
+    "gaming",
+    "nasdaq-100",
+    "mega-cap"
+   ],
+   "people": [
+    {
+     "name": "Jensen Huang",
+     "role": "Co-founder and CEO"
+    },
+    {
+     "name": "Colette Kress",
+     "role": "CFO"
+    },
+    {
+     "name": "Chris Malachowsky",
+     "role": "Co-founder"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NASDAQ",
+     "role": "Listing exchange"
+    },
+    {
+     "name": "U.S. Department of Commerce",
+     "role": "AI-chip export controls"
+    },
+    {
+     "name": "SAMR (China)",
+     "role": "Antitrust review"
+    },
+    {
+     "name": "U.S. SEC",
+     "role": "Securities regulator"
+    }
+   ],
+   "linked": [
+    {
+     "name": "TSMC",
+     "relation": "Sole foundry for its GPUs"
+    },
+    {
+     "name": "Microsoft",
+     "symbol": "MSFT",
+     "relation": "Large customer"
+    },
+    {
+     "name": "Meta Platforms",
+     "symbol": "META",
+     "relation": "Large customer"
+    },
+    {
+     "name": "AMD",
+     "relation": "GPU rival"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "TSMC",
+     "product": "Wafer fabrication and CoWoS packaging"
+    },
+    {
+     "name": "SK hynix",
+     "product": "HBM memory"
+    },
+    {
+     "name": "Micron",
+     "product": "HBM memory"
+    },
+    {
+     "name": "Samsung",
+     "product": "Memory"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Microsoft",
+     "product": "Data-centre GPUs"
+    },
+    {
+     "name": "Meta Platforms",
+     "product": "Data-centre GPUs"
+    },
+    {
+     "name": "Amazon (AWS)",
+     "product": "Data-centre GPUs"
+    },
+    {
+     "name": "Alphabet",
+     "product": "Data-centre GPUs"
+    },
+    {
+     "name": "Oracle",
+     "product": "Data-centre GPUs"
+    },
+    {
+     "name": "Gamers",
+     "product": "GeForce cards"
+    }
+   ],
+   "places": [
+    {
+     "name": "Santa Clara HQ",
+     "lat": 37.3707,
+     "lng": -121.9669,
+     "kind": "hq"
+    },
+    {
+     "name": "TSMC Hsinchu",
+     "lat": 24.8138,
+     "lng": 120.9675,
+     "kind": "supplier"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Late Feb · late May · late Aug · late Nov",
+     "event": "Quarterly earnings",
+     "type": "earnings"
+    },
+    {
+     "when": "March",
+     "event": "GTC conference",
+     "type": "product"
+    }
+   ]
+  },
+  "TSLA": {
+   "tags": [
+    "electric-vehicles",
+    "energy-storage",
+    "autonomy",
+    "robotics",
+    "nasdaq-100",
+    "high-beta"
+   ],
+   "people": [
+    {
+     "name": "Elon Musk",
+     "role": "CEO, largest individual shareholder"
+    },
+    {
+     "name": "Vaibhav Taneja",
+     "role": "CFO"
+    },
+    {
+     "name": "Robyn Denholm",
+     "role": "Chair"
+    },
+    {
+     "name": "JB Straubel",
+     "role": "Co-founder, board member"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NASDAQ",
+     "role": "Listing exchange"
+    },
+    {
+     "name": "NHTSA",
+     "role": "Vehicle safety, Autopilot probes"
+    },
+    {
+     "name": "U.S. SEC",
+     "role": "Securities regulator"
+    },
+    {
+     "name": "Delaware Court of Chancery",
+     "role": "CEO pay ruling"
+    }
+   ],
+   "linked": [
+    {
+     "name": "SpaceX",
+     "relation": "Musk company"
+    },
+    {
+     "name": "xAI",
+     "relation": "Musk company"
+    },
+    {
+     "name": "Panasonic",
+     "relation": "Battery cells"
+    },
+    {
+     "name": "BYD",
+     "relation": "EV rival"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Early Jan · early Apr · early Jul · early Oct",
+     "event": "Quarterly deliveries",
+     "type": "sales"
+    },
+    {
+     "when": "Late Jan · late Apr · late Jul · late Oct",
+     "event": "Quarterly earnings",
+     "type": "earnings"
+    }
+   ]
+  },
+  "V": {
+   "tags": [
+    "payments",
+    "card-network",
+    "dow-jones",
+    "fintech",
+    "finance"
+   ],
+   "people": [
+    {
+     "name": "Ryan McInerney",
+     "role": "CEO"
+    },
+    {
+     "name": "Chris Suh",
+     "role": "CFO"
+    },
+    {
+     "name": "Dee Hock",
+     "role": "Founder (1929–2022)"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NYSE",
+     "role": "Listing exchange"
+    },
+    {
+     "name": "U.S. Department of Justice",
+     "role": "Debit-monopoly lawsuit"
+    },
+    {
+     "name": "Federal Reserve",
+     "role": "Debit interchange rules"
+    },
+    {
+     "name": "European Commission",
+     "role": "Interchange fee caps"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Mastercard",
+     "relation": "Card-network rival"
+    },
+    {
+     "name": "JPMorgan Chase",
+     "symbol": "JPM",
+     "relation": "Largest issuing bank"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "Issuing banks",
+     "product": "Cards in consumers' hands"
+    }
+   ],
+   "clients": [
+    {
+     "name": "JPMorgan Chase",
+     "product": "Network services"
+    },
+    {
+     "name": "Bank of America",
+     "product": "Network services"
+    },
+    {
+     "name": "Citi",
+     "product": "Network services"
+    },
+    {
+     "name": "Wells Fargo",
+     "product": "Network services"
+    },
+    {
+     "name": "Merchants",
+     "product": "Acceptance"
+    }
+   ],
+   "places": [
+    {
+     "name": "San Francisco HQ",
+     "lat": 37.7749,
+     "lng": -122.4194,
+     "kind": "hq"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Late Jan · late Apr · late Jul · late Oct",
+     "event": "Quarterly earnings",
+     "type": "earnings"
+    },
+    {
+     "when": "30 Sept",
+     "event": "Fiscal year end",
+     "type": "earnings"
+    }
+   ]
+  },
+  "BTC": {
+   "tags": [
+    "store-of-value",
+    "proof-of-work",
+    "halving",
+    "etf",
+    "digital-gold"
+   ],
+   "people": [
+    {
+     "name": "Satoshi Nakamoto",
+     "role": "Pseudonymous creator"
+    },
+    {
+     "name": "Hal Finney",
+     "role": "First transaction recipient"
+    },
+    {
+     "name": "Michael Saylor",
+     "role": "Strategy (MicroStrategy), largest corporate holder"
+    },
+    {
+     "name": "Larry Fink",
+     "role": "BlackRock, IBIT ETF"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "U.S. SEC",
+     "role": "Spot-ETF approvals"
+    },
+    {
+     "name": "CME",
+     "role": "Bitcoin futures"
+    },
+    {
+     "name": "BlackRock iShares",
+     "role": "IBIT spot ETF"
+    },
+    {
+     "name": "El Salvador",
+     "role": "Legal tender (2021)"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Ethereum",
+     "symbol": "ETH",
+     "relation": "Second-largest crypto"
+    },
+    {
+     "name": "Strategy (MSTR)",
+     "relation": "Corporate treasury holder"
+    },
+    {
+     "name": "Coinbase",
+     "relation": "Custodian for most US ETFs"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "About every 4 years (next ~2028)",
+     "event": "Block-reward halving",
+     "type": "protocol"
+    },
+    {
+     "when": "Every ~2 weeks",
+     "event": "Mining difficulty adjustment",
+     "type": "protocol"
+    },
+    {
+     "when": "Last Friday of the month",
+     "event": "CME futures expiry",
+     "type": "expiry"
+    }
+   ]
+  },
+  "ETH": {
+   "tags": [
+    "smart-contracts",
+    "proof-of-stake",
+    "defi",
+    "nfts",
+    "layer2",
+    "etf"
+   ],
+   "people": [
+    {
+     "name": "Vitalik Buterin",
+     "role": "Co-founder"
+    },
+    {
+     "name": "Gavin Wood",
+     "role": "Co-founder"
+    },
+    {
+     "name": "Joseph Lubin",
+     "role": "Co-founder, Consensys"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Ethereum Foundation",
+     "role": "Protocol research"
+    },
+    {
+     "name": "U.S. SEC",
+     "role": "Spot-ETF approvals"
+    },
+    {
+     "name": "CME",
+     "role": "Ether futures"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Bitcoin",
+     "symbol": "BTC",
+     "relation": "Largest crypto"
+    },
+    {
+     "name": "Solana",
+     "symbol": "SOL",
+     "relation": "Smart-contract rival"
+    },
+    {
+     "name": "Lido",
+     "relation": "Largest staking protocol"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Every 12 s / 6.4 min",
+     "event": "Slots and epochs",
+     "type": "protocol"
+    },
+    {
+     "when": "Planned upgrades",
+     "event": "Hard forks (Pectra, Fusaka…)",
+     "type": "protocol"
+    }
+   ]
+  },
+  "SOL": {
+   "tags": [
+    "smart-contracts",
+    "high-throughput",
+    "memecoins",
+    "defi",
+    "proof-of-stake"
+   ],
+   "people": [
+    {
+     "name": "Anatoly Yakovenko",
+     "role": "Co-founder"
+    },
+    {
+     "name": "Raj Gokal",
+     "role": "Co-founder"
+    },
+    {
+     "name": "Lily Liu",
+     "role": "President, Solana Foundation"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Solana Foundation",
+     "role": "Ecosystem steward"
+    },
+    {
+     "name": "Solana Labs",
+     "role": "Core development"
+    },
+    {
+     "name": "Jump Crypto",
+     "role": "Firedancer client"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Ethereum",
+     "symbol": "ETH",
+     "relation": "Smart-contract rival"
+    },
+    {
+     "name": "Jupiter",
+     "relation": "Largest DEX aggregator"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "About every 2 days",
+     "event": "Epoch change (staking rewards)",
+     "type": "protocol"
+    }
+   ]
+  },
+  "ADA": {
+   "tags": [
+    "proof-of-stake",
+    "academic",
+    "smart-contracts",
+    "governance"
+   ],
+   "people": [
+    {
+     "name": "Charles Hoskinson",
+     "role": "Founder, Input Output (IOG)"
+    },
+    {
+     "name": "Jeremy Wood",
+     "role": "Co-founder"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Input Output Global",
+     "role": "Core development"
+    },
+    {
+     "name": "Cardano Foundation",
+     "role": "Standards"
+    },
+    {
+     "name": "EMURGO",
+     "role": "Commercial arm"
+    },
+    {
+     "name": "Intersect",
+     "role": "On-chain governance"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Ethereum",
+     "symbol": "ETH",
+     "relation": "Smart-contract rival"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "Stake-pool operators",
+     "product": "Block production"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Binance",
+     "product": "Trading venue"
+    },
+    {
+     "name": "Coinbase",
+     "product": "Trading venue"
+    },
+    {
+     "name": "Delegators",
+     "product": "Staking"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Every 5 days",
+     "event": "Epoch change (staking rewards)",
+     "type": "protocol"
+    }
+   ]
+  },
+  "DOGE": {
+   "tags": [
+    "meme",
+    "payments",
+    "community",
+    "inflationary"
+   ],
+   "people": [
+    {
+     "name": "Billy Markus",
+     "role": "Co-creator"
+    },
+    {
+     "name": "Jackson Palmer",
+     "role": "Co-creator"
+    },
+    {
+     "name": "Elon Musk",
+     "role": "High-profile supporter"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Dogecoin Foundation",
+     "role": "Development and advocacy"
+    },
+    {
+     "name": "Robinhood",
+     "role": "Large retail venue"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Tesla",
+     "symbol": "TSLA",
+     "relation": "Accepts DOGE for merchandise"
+    },
+    {
+     "name": "Litecoin",
+     "relation": "Merged-mining with DOGE"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "Litecoin merged miners",
+     "product": "Hash power"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Robinhood",
+     "product": "Trading venue"
+    },
+    {
+     "name": "Binance",
+     "product": "Trading venue"
+    },
+    {
+     "name": "Coinbase",
+     "product": "Trading venue"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Every minute",
+     "event": "New block, 10,000 DOGE issued",
+     "type": "protocol"
+    }
+   ]
+  },
+  "XRP": {
+   "tags": [
+    "payments",
+    "cross-border",
+    "ripple",
+    "ledger"
+   ],
+   "people": [
+    {
+     "name": "Brad Garlinghouse",
+     "role": "CEO, Ripple"
+    },
+    {
+     "name": "David Schwartz",
+     "role": "Co-creator of the XRP Ledger"
+    },
+    {
+     "name": "Chris Larsen",
+     "role": "Co-founder, Ripple"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Ripple Labs",
+     "role": "Largest holder, payments company"
+    },
+    {
+     "name": "U.S. SEC",
+     "role": "Ripple lawsuit (2020–2025)"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Stellar",
+     "relation": "Payments-ledger rival"
+    },
+    {
+     "name": "SWIFT",
+     "relation": "Incumbent it competes with"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "Ripple escrow",
+     "product": "Monthly XRP releases"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Payment providers",
+     "product": "Cross-border liquidity"
+    },
+    {
+     "name": "Binance",
+     "product": "Trading venue"
+    },
+    {
+     "name": "Upbit",
+     "product": "Trading venue"
+    }
+   ],
+   "places": [
+    {
+     "name": "Ripple HQ",
+     "lat": 37.7897,
+     "lng": -122.3942,
+     "kind": "hq"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "1st of each month",
+     "event": "Ripple escrow release",
+     "type": "supply"
+    }
+   ]
+  },
+  "EUR": {
+   "tags": [
+    "reserve-currency",
+    "eurozone",
+    "ecb",
+    "major-pair"
+   ],
+   "people": [
+    {
+     "name": "Christine Lagarde",
+     "role": "ECB President"
+    },
+    {
+     "name": "Philip Lane",
+     "role": "ECB Chief Economist"
+    },
+    {
+     "name": "Isabel Schnabel",
+     "role": "ECB Executive Board"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "European Central Bank",
+     "role": "Sets euro interest rates"
+    },
+    {
+     "name": "Eurogroup",
+     "role": "Euro-area finance ministers"
+    },
+    {
+     "name": "Eurostat",
+     "role": "Inflation and GDP data"
+    }
+   ],
+   "linked": [
+    {
+     "name": "US Dollar",
+     "relation": "Quote currency of EUR/USD"
+    },
+    {
+     "name": "British Pound",
+     "symbol": "GBP",
+     "relation": "EUR/GBP cross"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Every 6 weeks (Thursday)",
+     "event": "ECB monetary-policy decision",
+     "type": "central-bank"
+    },
+    {
+     "when": "Start of each month",
+     "event": "Euro-area flash inflation (HICP)",
+     "type": "data"
+    }
+   ]
+  },
+  "GBP": {
+   "tags": [
+    "major-pair",
+    "cable",
+    "bank-of-england",
+    "reserve-currency"
+   ],
+   "people": [
+    {
+     "name": "Andrew Bailey",
+     "role": "Governor, Bank of England"
+    },
+    {
+     "name": "Rachel Reeves",
+     "role": "Chancellor of the Exchequer"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Bank of England",
+     "role": "Sets UK interest rates"
+    },
+    {
+     "name": "HM Treasury",
+     "role": "Fiscal policy"
+    },
+    {
+     "name": "Office for National Statistics",
+     "role": "Inflation and GDP data"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Euro",
+     "symbol": "EUR",
+     "relation": "EUR/GBP cross"
+    },
+    {
+     "name": "US Dollar",
+     "relation": "GBP/USD (cable)"
+    }
+   ],
+   "places": [
+    {
+     "name": "Bank of England",
+     "lat": 51.5142,
+     "lng": -0.0885,
+     "kind": "hq"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "8 times a year (Thursday)",
+     "event": "BoE Monetary Policy Committee",
+     "type": "central-bank"
+    },
+    {
+     "when": "Mid-month",
+     "event": "UK CPI",
+     "type": "data"
+    }
+   ]
+  },
+  "JPY": {
+   "tags": [
+    "safe-haven",
+    "carry-trade",
+    "bank-of-japan",
+    "major-pair"
+   ],
+   "people": [
+    {
+     "name": "Kazuo Ueda",
+     "role": "Governor, Bank of Japan"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Bank of Japan",
+     "role": "Sets Japanese interest rates, yield-curve policy"
+    },
+    {
+     "name": "Ministry of Finance",
+     "role": "FX intervention"
+    }
+   ],
+   "linked": [
+    {
+     "name": "US Dollar",
+     "relation": "USD/JPY"
+    },
+    {
+     "name": "Euro",
+     "symbol": "EUR",
+     "relation": "EUR/JPY cross"
+    }
+   ],
+   "places": [
+    {
+     "name": "Bank of Japan",
+     "lat": 35.6865,
+     "lng": 139.771,
+     "kind": "hq"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "8 times a year",
+     "event": "BoJ policy meeting",
+     "type": "central-bank"
+    },
+    {
+     "when": "Quarterly",
+     "event": "Tankan business survey",
+     "type": "data"
+    }
+   ]
+  },
+  "XAU": {
+   "tags": [
+    "safe-haven",
+    "inflation-hedge",
+    "central-bank-reserves",
+    "precious-metal",
+    "jewellery"
+   ],
+   "people": [
+    {
+     "name": "David Tait",
+     "role": "CEO, World Gold Council"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "LBMA",
+     "role": "London price benchmark"
+    },
+    {
+     "name": "COMEX (CME)",
+     "role": "Gold futures"
+    },
+    {
+     "name": "World Gold Council",
+     "role": "Market data"
+    },
+    {
+     "name": "People's Bank of China",
+     "role": "Large central-bank buyer"
+    },
+    {
+     "name": "SPDR Gold Shares (GLD)",
+     "role": "Largest gold ETF"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Silver",
+     "symbol": "XAG",
+     "relation": "Sister precious metal"
+    },
+    {
+     "name": "US Dollar",
+     "relation": "Usually moves against gold"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "China",
+     "product": "Mine output"
+    },
+    {
+     "name": "Australia",
+     "product": "Mine output"
+    },
+    {
+     "name": "Russia",
+     "product": "Mine output"
+    },
+    {
+     "name": "Canada",
+     "product": "Mine output"
+    },
+    {
+     "name": "Newmont",
+     "product": "Largest gold miner"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Jewellery (India, China)",
+     "product": "Physical demand"
+    },
+    {
+     "name": "Central banks",
+     "product": "Reserves"
+    },
+    {
+     "name": "ETFs and bar & coin buyers",
+     "product": "Investment"
+    },
+    {
+     "name": "Electronics",
+     "product": "Industrial use"
+    }
+   ],
+   "places": [
+    {
+     "name": "London (LBMA vaults)",
+     "lat": 51.5074,
+     "lng": -0.1278,
+     "kind": "hub"
+    },
+    {
+     "name": "New York (COMEX)",
+     "lat": 40.7128,
+     "lng": -74.006,
+     "kind": "hub"
+    },
+    {
+     "name": "Shanghai Gold Exchange",
+     "lat": 31.2304,
+     "lng": 121.4737,
+     "kind": "hub"
+    },
+    {
+     "name": "Zurich refiners",
+     "lat": 47.3769,
+     "lng": 8.5417,
+     "kind": "facility"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Daily 10:30 & 15:00 London",
+     "event": "LBMA gold price auctions",
+     "type": "benchmark"
+    },
+    {
+     "when": "Every 6 weeks",
+     "event": "Fed decision (rates drive gold)",
+     "type": "central-bank"
+    }
+   ]
+  },
+  "XAG": {
+   "tags": [
+    "precious-metal",
+    "industrial",
+    "solar",
+    "safe-haven"
+   ],
+   "people": [],
+   "institutions": [
+    {
+     "name": "LBMA",
+     "role": "London price benchmark"
+    },
+    {
+     "name": "COMEX (CME)",
+     "role": "Silver futures"
+    },
+    {
+     "name": "The Silver Institute",
+     "role": "Market data"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Gold",
+     "symbol": "XAU",
+     "relation": "Sister precious metal"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "Mexico",
+     "product": "Mine output"
+    },
+    {
+     "name": "Peru",
+     "product": "Mine output"
+    },
+    {
+     "name": "China",
+     "product": "Mine output"
+    },
+    {
+     "name": "Fresnillo",
+     "product": "Largest primary silver miner"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Solar panels",
+     "product": "Industrial demand"
+    },
+    {
+     "name": "Electronics",
+     "product": "Industrial demand"
+    },
+    {
+     "name": "Jewellery & silverware",
+     "product": "Physical demand"
+    },
+    {
+     "name": "Coins, bars, ETFs",
+     "product": "Investment"
+    }
+   ],
+   "places": [
+    {
+     "name": "London (LBMA)",
+     "lat": 51.5074,
+     "lng": -0.1278,
+     "kind": "hub"
+    },
+    {
+     "name": "Mexico mines",
+     "lat": 23.6345,
+     "lng": -102.5528,
+     "kind": "supplier"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Daily 12:00 London",
+     "event": "LBMA silver price",
+     "type": "benchmark"
+    }
+   ]
+  },
+  "WTI": {
+   "tags": [
+    "energy",
+    "oil",
+    "opec",
+    "inflation",
+    "cushing"
+   ],
+   "people": [
+    {
+     "name": "Haitham Al Ghais",
+     "role": "OPEC Secretary General"
+    },
+    {
+     "name": "Abdulaziz bin Salman",
+     "role": "Saudi energy minister"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "OPEC+",
+     "role": "Production quotas"
+    },
+    {
+     "name": "U.S. EIA",
+     "role": "Weekly inventories"
+    },
+    {
+     "name": "NYMEX (CME)",
+     "role": "WTI futures"
+    },
+    {
+     "name": "International Energy Agency",
+     "role": "Market reports"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Natural Gas",
+     "symbol": "NG",
+     "relation": "Energy complex"
+    },
+    {
+     "name": "Brent",
+     "relation": "Global oil benchmark"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "Permian Basin producers",
+     "product": "US shale crude"
+    },
+    {
+     "name": "ExxonMobil",
+     "product": "Crude production"
+    },
+    {
+     "name": "Chevron",
+     "product": "Crude production"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Valero",
+     "product": "Refining"
+    },
+    {
+     "name": "Marathon Petroleum",
+     "product": "Refining"
+    },
+    {
+     "name": "Phillips 66",
+     "product": "Refining"
+    },
+    {
+     "name": "Exporters",
+     "product": "Gulf Coast exports"
+    }
+   ],
+   "places": [
+    {
+     "name": "Cushing, Oklahoma",
+     "lat": 35.985,
+     "lng": -96.767,
+     "kind": "hub"
+    },
+    {
+     "name": "Permian Basin",
+     "lat": 31.8457,
+     "lng": -102.3676,
+     "kind": "supplier"
+    },
+    {
+     "name": "Houston refining",
+     "lat": 29.7604,
+     "lng": -95.3698,
+     "kind": "client"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Wednesdays 10:30 ET",
+     "event": "EIA weekly petroleum status",
+     "type": "data"
+    },
+    {
+     "when": "Around the 20th",
+     "event": "Front-month futures expiry",
+     "type": "expiry"
+    },
+    {
+     "when": "Monthly / ad hoc",
+     "event": "OPEC+ meetings",
+     "type": "policy"
+    }
+   ]
+  },
+  "NG": {
+   "tags": [
+    "energy",
+    "gas",
+    "lng",
+    "weather",
+    "henry-hub"
+   ],
+   "people": [],
+   "institutions": [
+    {
+     "name": "NYMEX (CME)",
+     "role": "Henry Hub futures"
+    },
+    {
+     "name": "U.S. EIA",
+     "role": "Weekly storage report"
+    },
+    {
+     "name": "FERC",
+     "role": "Pipeline regulator"
+    }
+   ],
+   "linked": [
+    {
+     "name": "Crude Oil (WTI)",
+     "symbol": "WTI",
+     "relation": "Energy complex"
+    },
+    {
+     "name": "Cheniere Energy",
+     "relation": "Largest US LNG exporter"
+    }
+   ],
+   "suppliers": [
+    {
+     "name": "EQT",
+     "product": "Appalachian gas"
+    },
+    {
+     "name": "Expand Energy",
+     "product": "Gas production"
+    }
+   ],
+   "clients": [
+    {
+     "name": "Power plants",
+     "product": "Electricity generation"
+    },
+    {
+     "name": "LNG exporters",
+     "product": "Exports to Europe and Asia"
+    },
+    {
+     "name": "Homes and industry",
+     "product": "Heating, feedstock"
+    }
+   ],
+   "places": [
+    {
+     "name": "Henry Hub, Louisiana",
+     "lat": 29.96,
+     "lng": -92.03,
+     "kind": "hub"
+    },
+    {
+     "name": "Sabine Pass LNG",
+     "lat": 29.75,
+     "lng": -93.87,
+     "kind": "client"
+    }
+   ],
+   "calendar": [
+    {
+     "when": "Thursdays 10:30 ET",
+     "event": "EIA storage report",
+     "type": "data"
+    },
+    {
+     "when": "Nov – Mar",
+     "event": "Heating season",
+     "type": "season"
+    }
+   ]
+  }
+ },
+ "bets": {
+  "KXCOLONIZEMARS": {
+   "tags": [
+    "space",
+    "mars",
+    "long-dated",
+    "science"
+   ],
+   "people": [
+    {
+     "name": "Elon Musk",
+     "role": "SpaceX CEO"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "SpaceX",
+     "role": "Starship"
+    },
+    {
+     "name": "NASA",
+     "role": "Moon to Mars programme"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue (CFTC-regulated)"
+    }
+   ]
+  },
+  "KXELONMARS": {
+   "tags": [
+    "space",
+    "mars",
+    "elon-musk"
+   ],
+   "people": [
+    {
+     "name": "Elon Musk",
+     "role": "Subject"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "SpaceX",
+     "role": "Starship"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXMARSVRAIL": {
+   "tags": [
+    "space",
+    "infrastructure",
+    "california"
+   ],
+   "institutions": [
+    {
+     "name": "SpaceX",
+     "role": "Mars landing"
+    },
+    {
+     "name": "California High-Speed Rail Authority",
+     "role": "Rail project"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXERUPTSUPER": {
+   "tags": [
+    "geology",
+    "natural-disaster",
+    "long-dated"
+   ],
+   "institutions": [
+    {
+     "name": "USGS",
+     "role": "Volcano monitoring"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXG7LEADEROUT": {
+   "tags": [
+    "politics",
+    "g7",
+    "leaders"
+   ],
+   "institutions": [
+    {
+     "name": "G7",
+     "role": "Group of Seven"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXMILLENNIUMNEXT": {
+   "tags": [
+    "mathematics",
+    "millennium-prize",
+    "science"
+   ],
+   "institutions": [
+    {
+     "name": "Clay Mathematics Institute",
+     "role": "Millennium Prize ($1M)"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXNEWPOPE": {
+   "tags": [
+    "religion",
+    "vatican",
+    "conclave"
+   ],
+   "people": [
+    {
+     "name": "Pope Leo XIV",
+     "role": "Current pope (since 2025)"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Holy See",
+     "role": "Vatican"
+    },
+    {
+     "name": "College of Cardinals",
+     "role": "Elects the pope"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXNEXTDNCCHAIR": {
+   "tags": [
+    "politics",
+    "us",
+    "democrats"
+   ],
+   "people": [
+    {
+     "name": "Ken Martin",
+     "role": "Current DNC chair"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Democratic National Committee",
+     "role": "Elects its chair"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXNEXTISRAELPM": {
+   "tags": [
+    "politics",
+    "israel",
+    "elections"
+   ],
+   "people": [
+    {
+     "name": "Benjamin Netanyahu",
+     "role": "Current prime minister"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Knesset",
+     "role": "Israeli parliament"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXNEXTNATOSECGEN": {
+   "tags": [
+    "politics",
+    "nato",
+    "defence"
+   ],
+   "people": [
+    {
+     "name": "Mark Rutte",
+     "role": "Current NATO Secretary General"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "NATO",
+     "role": "North Atlantic Council appoints"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXNEXTROMANIAPM": {
+   "tags": [
+    "politics",
+    "romania",
+    "eu"
+   ],
+   "institutions": [
+    {
+     "name": "Parliament of Romania",
+     "role": "Confidence vote"
+    },
+    {
+     "name": "President of Romania",
+     "role": "Nominates the PM"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXPERSONPRES": {
+   "tags": [
+    "politics",
+    "us",
+    "presidency",
+    "long-dated"
+   ],
+   "institutions": [
+    {
+     "name": "U.S. Electoral College",
+     "role": "Elects the president"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXWARMING": {
+   "tags": [
+    "climate",
+    "temperature",
+    "long-dated",
+    "science"
+   ],
+   "institutions": [
+    {
+     "name": "IPCC",
+     "role": "Climate assessments"
+    },
+    {
+     "name": "Copernicus (C3S)",
+     "role": "Temperature records"
+    },
+    {
+     "name": "WMO",
+     "role": "Climate monitoring"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  },
+  "KXXISUCCESSOR": {
+   "tags": [
+    "politics",
+    "china",
+    "succession"
+   ],
+   "people": [
+    {
+     "name": "Xi Jinping",
+     "role": "General Secretary of the CCP"
+    }
+   ],
+   "institutions": [
+    {
+     "name": "Chinese Communist Party",
+     "role": "Politburo Standing Committee"
+    },
+    {
+     "name": "Kalshi",
+     "role": "Market venue"
+    }
+   ]
+  }
+ }
+}

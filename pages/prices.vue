@@ -9,14 +9,17 @@
  *  • asset.volatility_index   → per-card pulse speed (handled in DisplayAsset)
  *  • Stable price simulation: % changes are computed once and updated
  *    at a fixed interval instead of re-randomised on every render
- *  • PriceIntuition widget is embedded in each DisplayAsset card
+ *  • Each DisplayAsset card opens into its own prediction chart (PredictPanel)
+ *  • One Line / Candles switch (ChartStyleToggle) drives every chart
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, reactive } from 'vue'
-import { useAssetsStore } from '@/stores/assets'
 import { useTradingPrefsStore } from '@/stores/tradingPrefs'
+import { useStreamedAssets } from '~/composables/useStreamedAssets'
+import { feedKeyForAsset, feedStreams } from '~/utils/assetFeeds'
 import { usePredictionsStore } from '@/stores/predictions'
 import { useMacroStore } from '@/stores/macro'
 import DisplayAsset from '@/components/Widget/DisplayAsset.vue'
+import ChartStyleToggle from '@/components/Asset/ChartStyleToggle.vue'
 import Heatmap from '@/components/Asset/Heatmap.vue'
 import PricesMap from '@/components/Map/PricesMap.vue'
 import PricesApiPanel from '@/components/Prices/ApiPanel.vue'
@@ -41,7 +44,7 @@ definePageMeta({
   layout: 'default',
 })
 
-const assetsStore      = useAssetsStore()
+const { assetsStore, feedPrefs, dataFeeds, streamed } = useStreamedAssets()
 const tradingPrefs     = useTradingPrefsStore()
 onMounted(() => tradingPrefs.hydrate())
 const predStore        = usePredictionsStore()
@@ -62,7 +65,7 @@ const selectedRegionIso = ref<string | null>(null)
 // Default horizon EXCLUDES far-future bets (see utils/betAssets.ts).
 const horizonStates = reactive<Record<string, FilterTriState>>(defaultHorizonStates())
 const showApiPanel = ref(false)
-const hasBetAssets = computed(() => assetsStore.assets.some(isBetAsset))
+const hasBetAssets = computed(() => streamed.value.some(isBetAsset))
 
 // Aliases to store reactive state
 const loading      = computed(() => assetsStore.loading)
@@ -107,6 +110,8 @@ function startTicker() {
       seedChanges()
     }
     assetsStore.assets.forEach(asset => {
+      const key = feedKeyForAsset(asset)
+      if (!feedStreams(feedPrefs.isEnabled(key), dataFeeds.stateOf(key))) return
       if (asset.live) return
       const vol  = assetVolatility(asset)
       const prev = priceChanges[asset.id] ?? 0
@@ -159,7 +164,7 @@ onUnmounted(() => {
 
 // ── Available filter types (no All — every chip neutral shows everything) ─
 const filterTypes = computed(() => {
-  const types = new Set(assetsStore.assets.map(a => a.type))
+  const types = new Set(streamed.value.map(a => a.type))
   return Array.from(types)
 })
 
@@ -186,6 +191,12 @@ function resetHorizon() {
   Object.assign(horizonStates, defaultHorizonStates())
 }
 
+watch(hasBetAssets, (on) => {
+  if (on) return
+  delete typeStates.bet
+  resetHorizon()
+})
+
 function resetFilters() {
   searchQuery.value = ''
   sortBy.value = 'default'
@@ -204,7 +215,7 @@ const SORTS: { id: 'default' | 'gainers' | 'losers' | 'vol_high' | 'cap'; label:
 
 // ── Filter + search + sort ─────────────────────────────────────────────────
 const filtered = computed(() => {
-  let list = assetsStore.assets
+  let list = streamed.value
 
   // Settings › Trading › "Hide simulated assets"
   if (tradingPrefs.hideSimulated) list = list.filter(a => !!a.live)
@@ -294,7 +305,7 @@ watch(() => tradingPrefs.hideSimulated, resetListWindow)
 
 /** Bets the current horizon is hiding (shown next to the horizon chips). */
 const hiddenBets = computed(() =>
-  countHiddenByHorizonStates(assetsStore.assets, horizonStates, Date.now())
+  countHiddenByHorizonStates(streamed.value, horizonStates, Date.now())
 )
 
 // ── Market overview stats (bound to the filtered list) ────────────────────
@@ -426,6 +437,8 @@ function navigateToAsset(assetId: string) {
           <button :class="{ active: viewMode === 'tree' }" @click="viewMode = 'tree'" title="Market tree: parents ↔ children">⌥ Tree</button>
           <button :class="{ active: viewMode === 'map' }" @click="viewMode = 'map'" title="Map view">🌍 Map</button>
         </div>
+
+        <ChartStyleToggle />
 
         <!-- Bet-only time horizon: hides bets resolving beyond the window. -->
         <div v-if="hasBetAssets" class="horizon-chips">
@@ -563,7 +576,7 @@ function navigateToAsset(assetId: string) {
     </div>
 
     <!-- ── Data APIs, grouped by what they feed ────────────────────── -->
-    <PricesApiPanel v-model:open="showApiPanel" :assets="filtered" />
+    <PricesApiPanel v-model:open="showApiPanel" :catalog="assetsStore.assets" :active="filtered" />
   </div>
 </template>
 

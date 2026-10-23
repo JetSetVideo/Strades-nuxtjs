@@ -1,0 +1,195 @@
+{
+ "_about": "Demo friend predictions. Times and prices are relative: recorded `ageHours` ago, target `targetHours` after recording, price = asset price at recording x (1 + predictedChangePct/100). Materialised once per browser by composables/useFriendPredictions.ts and flagged demo:true.",
+ "predictions": [
+  {
+   "userId": "kevin_scalper",
+   "assetId": "BTC",
+   "ageHours": 5,
+   "timeframe": "1D",
+   "targetHours": 20,
+   "predictedChangePct": 2.4,
+   "confidence": 3,
+   "note": "Funding flipped positive, squeeze into the US open"
+  },
+  {
+   "userId": "simon_trader",
+   "assetId": "BTC",
+   "ageHours": 30,
+   "timeframe": "1W",
+   "targetHours": 150,
+   "predictedChangePct": -4.5,
+   "confidence": 4,
+   "note": "Weekly RSI divergence, expecting a pullback"
+  },
+  {
+   "userId": "arthuro_investor",
+   "assetId": "BTC",
+   "ageHours": 60,
+   "timeframe": "1M",
+   "targetHours": 700,
+   "predictedChangePct": 9.0,
+   "confidence": 4,
+   "note": "ETF inflows keep accelerating"
+  },
+  {
+   "userId": "user_002",
+   "assetId": "BTC",
+   "ageHours": 12,
+   "timeframe": "1W",
+   "targetHours": 160,
+   "predictedChangePct": 3.1,
+   "confidence": 2,
+   "note": ""
+  },
+  {
+   "userId": "kevin_scalper",
+   "assetId": "ETH",
+   "ageHours": 8,
+   "timeframe": "1D",
+   "targetHours": 22,
+   "predictedChangePct": -1.8,
+   "confidence": 3,
+   "note": "Rejected at the range high twice"
+  },
+  {
+   "userId": "simon_trader",
+   "assetId": "ETH",
+   "ageHours": 40,
+   "timeframe": "1W",
+   "targetHours": 140,
+   "predictedChangePct": 5.5,
+   "confidence": 3,
+   "note": "Staking unlock absorbed, rotation from BTC"
+  },
+  {
+   "userId": "user_003",
+   "assetId": "SOL",
+   "ageHours": 20,
+   "timeframe": "1W",
+   "targetHours": 150,
+   "predictedChangePct": 7.0,
+   "confidence": 3,
+   "note": "Memecoin volume back on chain"
+  },
+  {
+   "userId": "kevin_scalper",
+   "assetId": "SOL",
+   "ageHours": 3,
+   "timeframe": "1D",
+   "targetHours": 20,
+   "predictedChangePct": -2.2,
+   "confidence": 2,
+   "note": ""
+  },
+  {
+   "userId": "arthuro_investor",
+   "assetId": "AAPL",
+   "ageHours": 70,
+   "timeframe": "3M",
+   "targetHours": 2000,
+   "predictedChangePct": 6.0,
+   "confidence": 4,
+   "note": "Services margin keeps expanding"
+  },
+  {
+   "userId": "simon_trader",
+   "assetId": "AAPL",
+   "ageHours": 18,
+   "timeframe": "1W",
+   "targetHours": 150,
+   "predictedChangePct": -2.0,
+   "confidence": 3,
+   "note": "Into earnings: guidance risk"
+  },
+  {
+   "userId": "user_007",
+   "assetId": "NVDA",
+   "ageHours": 26,
+   "timeframe": "1M",
+   "targetHours": 650,
+   "predictedChangePct": 8.5,
+   "confidence": 4,
+   "note": "Data-centre orders still outrunning supply"
+  },
+  {
+   "userId": "kevin_scalper",
+   "assetId": "NVDA",
+   "ageHours": 4,
+   "timeframe": "1D",
+   "targetHours": 20,
+   "predictedChangePct": 1.5,
+   "confidence": 2,
+   "note": ""
+  },
+  {
+   "userId": "arthuro_investor",
+   "assetId": "MSFT",
+   "ageHours": 50,
+   "timeframe": "3M",
+   "targetHours": 2100,
+   "predictedChangePct": 4.0,
+   "confidence": 3,
+   "note": "Copilot seats ramping"
+  },
+  {
+   "userId": "simon_trader",
+   "assetId": "AMZN",
+   "ageHours": 33,
+   "timeframe": "1M",
+   "targetHours": 690,
+   "predictedChangePct": -3.5,
+   "confidence": 3,
+   "note": "Retail margins under pressure"
+  },
+  {
+   "userId": "user_002",
+   "assetId": "EUR",
+   "ageHours": 15,
+   "timeframe": "1W",
+   "targetHours": 150,
+   "predictedChangePct": 0.6,
+   "confidence": 3,
+   "note": "ECB on hold, Fed cutting"
+  },
+  {
+   "userId": "arthuro_investor",
+   "assetId": "EUR",
+   "ageHours": 90,
+   "timeframe": "1M",
+   "targetHours": 700,
+   "predictedChangePct": -0.9,
+   "confidence": 2,
+   "note": ""
+  },
+  {
+   "userId": "user_003",
+   "assetId": "XAU",
+   "ageHours": 22,
+   "timeframe": "1M",
+   "targetHours": 680,
+   "predictedChangePct": 3.2,
+   "confidence": 4,
+   "note": "Central-bank buying"
+  },
+  {
+   "userId": "kevin_scalper",
+   "assetId": "WTI",
+   "ageHours": 9,
+   "timeframe": "1W",
+   "targetHours": 150,
+   "predictedChangePct": -3.0,
+   "confidence": 3,
+   "note": "Inventories building"
+  },
+  {
+   "userId": "user_007",
+   "assetId": "KXCOLONIZEMARS-50",
+   "ageHours": 48,
+   "timeframe": "1M",
+   "targetHours": 700,
+   "predictedChangePct": -15.0,
+   "confidence": 3,
+   "note": "Timeline too optimistic, priced too high"
+  }
+ ]
+}

@@ -145,7 +145,7 @@ A Markov-chain model in a WebWorker predicts the next click.
 
 ### Implementation (`stores/prefetch.ts`)
 - **Inputs**: mouse coordinates, hover duration on nav icons, current page, time of day, historical `behavioral_history.click_priors`.
-- **Trigger**: hover > 200 ms on any nav icon.
+- **Trigger**: hover > 200 ms on any nav icon. Not wired in the bottom bar today: hovering a tab in `Navigation/Bar.vue` only plays `useNavSound().playHover`.
 - **Action**: if `P(click) > 0.65`, silently `$fetch` the target page's JSON into the relevant Pinia store.
 
 ### Routes currently wired

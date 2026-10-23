@@ -59,7 +59,7 @@ const isSelected = (s: StrategySummary) =>
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-  gap: 10px;
+  gap: var(--spacing-sm);
   align-items: start;
 }
 

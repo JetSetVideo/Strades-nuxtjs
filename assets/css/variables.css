@@ -10,11 +10,11 @@
   /* Layout density. Each token is clamp(min, preferred, max)
      so phone, tablet, laptop, and large screens share one equation. */
   --page-gutter-min: 0.5rem;
-  --page-gutter-max: 1.5rem;
+  --page-gutter-max: 1.1rem;
   --page-gutter: clamp(var(--page-gutter-min), 1.6vw, var(--page-gutter-max));
 
   --page-gap-min: 0.35rem;
-  --page-gap-max: 1rem;
+  --page-gap-max: 0.7rem;
   --page-gap: clamp(var(--page-gap-min), 1vw, var(--page-gap-max));
 
   --card-gap-min: 0.35rem;
@@ -129,16 +129,16 @@
   --spacing-sm-max: 10px;
   --spacing-sm: clamp(var(--spacing-sm-min), 0.5rem, var(--spacing-sm-max));
   --spacing-md-min: 10px;
-  --spacing-md-max: 16px;
+  --spacing-md-max: 12px;
   --spacing-md: clamp(var(--spacing-md-min), 0.75rem, var(--spacing-md-max));
   --spacing-lg-min: 14px;
-  --spacing-lg-max: 20px;
+  --spacing-lg-max: 16px;
   --spacing-lg: clamp(var(--spacing-lg-min), 1rem, var(--spacing-lg-max));
   --spacing-xl-min: 20px;
-  --spacing-xl-max: 32px;
+  --spacing-xl-max: 24px;
   --spacing-xl: clamp(var(--spacing-xl-min), 1.5rem, var(--spacing-xl-max));
   --spacing-xxl-min: 32px;
-  --spacing-xxl-max: 48px;
+  --spacing-xxl-max: 36px;
   --spacing-xxl: clamp(var(--spacing-xxl-min), 2.5rem, var(--spacing-xxl-max));
 
   /* Border Radius — min / max so a risk score cannot collapse or balloon a corner */
@@ -216,7 +216,7 @@
   --drawer-tree-columns-wide: 2;
   --drawer-tree-columns-min: 40rem;
 
-  --drawer-tree-row-min: 2.75rem;
+  --drawer-tree-row-min: 2.2rem;
   --drawer-tree-radius: var(--radius-sm);
   --drawer-tree-rule-width: 1px;
   --drawer-tree-rule: var(--edge-raised);

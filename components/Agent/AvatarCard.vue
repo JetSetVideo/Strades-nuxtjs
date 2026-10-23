@@ -9,12 +9,19 @@
       <!-- Avatar frame: shape encodes personality (hexagon = aggressive, circle = conservative) -->
       <div
         class="avatar-frame"
-        :class="frameShape"
-        :title="glyph.isClassifier
+        :title="isClassifier
           ? `Calibration ${((agent.classifier_state?.calibration ?? 0) * 100).toFixed(0)}% · Predicted ${agent.classifier_state?.predicted_regime}`
           : `Risk ${(agent.personality_matrix.risk * 100).toFixed(0)}% · Aggression ${(agent.personality_matrix.aggression * 100).toFixed(0)}%`"
       >
-        <div class="avatar glyph" :style="glyph.style" aria-hidden="true">{{ glyph.initials }}</div>
+        <ProfileMark
+          class="avatar"
+          :seed="agent.id"
+          :trade-style="maskStyle"
+          :risk="agent.personality_matrix.risk"
+          :discipline="agent.confidence"
+          :patience="patienceScore"
+          :aggression="agent.personality_matrix.aggression"
+        />
         <!-- Training progress ring driven by loss_ema -->
         <svg class="training-ring" viewBox="0 0 56 56">
           <circle class="ring-bg" cx="28" cy="28" r="26" />
@@ -29,8 +36,8 @@
       <div class="head-text">
         <div class="name-line">
           <h3 class="name">{{ agent.name }}</h3>
-          <span class="kind-pill" :class="{ 'model-classifier': glyph.isClassifier }">
-            {{ glyph.isClassifier ? 'classifier' : agent.kind }}
+          <span class="kind-pill" :class="{ 'model-classifier': isClassifier }">
+            {{ isClassifier ? 'classifier' : agent.kind }}
           </span>
         </div>
         <p class="tagline">{{ agent.tagline }}</p>
@@ -40,8 +47,7 @@
       </div>
     </header>
 
-    <!-- Classifier agents surface a regime simplex instead of an authored opinion -->
-    <div v-if="glyph.isClassifier && agent.classifier_state" class="regime-strip" title="Regime probability simplex (sums to 100%)">
+    <div v-if="isClassifier && agent.classifier_state" class="regime-strip" title="Regime probability simplex (sums to 100%)">
       <div
         v-for="r in regimeBars"
         :key="r.key"
@@ -50,6 +56,16 @@
         :style="{ width: `${r.pct}%` }"
       >
         <span v-if="r.pct >= 12" class="regime-label">{{ r.key }} {{ Math.round(r.pct) }}%</span>
+      </div>
+    </div>
+    <div v-else class="regime-strip alloc" title="Allocation across classes">
+      <div
+        v-for="seg in allocationBars"
+        :key="seg.key"
+        class="regime-seg"
+        :style="{ width: `${seg.pct}%`, background: seg.color }"
+      >
+        <span v-if="seg.pct >= 12" class="regime-label light">{{ seg.key }} {{ Math.round(seg.pct) }}%</span>
       </div>
     </div>
 
@@ -62,7 +78,7 @@
         <span class="m-label">Sharpe</span>
         <span class="m-value">{{ agent.performance.sharpe.toFixed(2) }}</span>
       </div>
-      <div class="metric" v-if="!glyph.isClassifier">
+      <div class="metric" v-if="!isClassifier">
         <span class="m-label">Win</span>
         <span class="m-value">{{ Math.round(agent.performance.win_rate * 100) }}%</span>
       </div>
@@ -107,7 +123,7 @@
         @click.stop="fork"
         :title="`Fork into your roster (${agent.share_state.price_credits} cr)`"
       >
-        ⑂ Fork · {{ agent.share_state.price_credits }} cr
+        Fork · {{ agent.share_state.price_credits }} cr
       </button>
       <button class="compare-btn" @click.stop="$emit('compare', agent.id)" title="Add to comparison">⇄</button>
     </footer>
@@ -121,7 +137,9 @@ import { useAgentsStore } from '~/stores/agents'
 import { useOpinionsStore } from '~/stores/opinions'
 import { useAgentTracker } from '~/composables/useAgentTracker'
 import { useLivingUI } from '~/composables/useLivingUI'
-import { useAgentGlyph } from '~/composables/useAgentGlyph'
+import ProfileMark from '@/components/Profile/Mark.vue'
+import { assetClassTheme } from '~/utils/assetClass'
+import { profileMask } from '~/utils/profileMask'
 
 const props = defineProps<{ agent: Agent }>()
 defineEmits<{
@@ -134,11 +152,43 @@ const opinions = useOpinionsStore()
 const tracker = useAgentTracker()
 
 // Living UI: card morphs with the agent's confidence and dominant specialization
-const { dynamicStyles } = useLivingUI({
+const living = useLivingUI({
   assetClass: props.agent.specialization[0],
   confidence: props.agent.confidence,
   liquidity: Math.min(1, props.agent.performance.sharpe / 3)
 })
+
+const STYLE_ALIAS: Record<string, string> = {
+  swing_intraday: 'swing_trader',
+  generalist_multi_asset: 'position_trader',
+  capital_preservation: 'buy_hold',
+  diversified_systematic: 'carry',
+  high_octane_contrarian: 'scalper',
+  community_consensus: 'macro_overlay',
+  regime_classifier: 'day_trader',
+}
+
+const isClassifier = computed(() => props.agent.model_type === 'classifier')
+const maskStyle = computed(() => STYLE_ALIAS[props.agent.trading_style] || props.agent.trading_style)
+const patienceScore = computed(() => {
+  const fromBook = Math.min(1, Math.max(0, 0.5 + props.agent.performance.live_pnl_pct / 80))
+  return props.agent.personality_matrix.patience * 0.65 + fromBook * 0.35
+})
+const look = computed(() => profileMask(props.agent.id, {
+  style: maskStyle.value,
+  risk: props.agent.personality_matrix.risk,
+  discipline: props.agent.confidence,
+  patience: patienceScore.value,
+  aggression: props.agent.personality_matrix.aggression,
+}))
+const dynamicStyles = computed(() => ({
+  ...living.dynamicStyles.value,
+  opacity: 1,
+  transform: 'none',
+  padding: 'clamp(0.4rem, 1vw, 0.65rem)',
+  background: look.value.wash,
+  borderColor: look.value.edge,
+}))
 
 const sparkW = 240
 const sparkH = 36
@@ -156,8 +206,6 @@ const sparkPoints = computed(() => {
   }).join(' ')
 })
 
-const glyph = computed(() => useAgentGlyph(props.agent))
-
 const REGIME_ORDER = ['bull', 'chop', 'bear', 'crisis'] as const
 const regimeBars = computed(() => {
   const probs = props.agent.classifier_state?.regime_probs
@@ -165,20 +213,20 @@ const regimeBars = computed(() => {
   return REGIME_ORDER.map(key => ({ key, pct: probs[key] * 100 }))
 })
 
+const allocationBars = computed(() => {
+  const pie = props.agent.opinion_vector
+  const keys = ['fiat', 'crypto', 'stocks', 'commodities'] as const
+  const total = keys.reduce((sum, key) => sum + Number(pie[key] ?? 0), 0) || 1
+  return keys.map(key => ({
+    key,
+    pct: (Number(pie[key] ?? 0) / total) * 100,
+    color: assetClassTheme(key).color,
+  }))
+})
+
 const trainingFill = computed(() => {
   const samples = props.agent.training_state.samples_since_last_train
   return Math.min(1, samples / 100)
-})
-
-// ── Personality shape encoding (Phase 22.2) ──────────────────────────────
-// Hexagon = aggressive (sharp edges), Circle = conservative (soft edges),
-// Rounded square = balanced.  Driven by risk + aggression average.
-const frameShape = computed(() => {
-  if (glyph.value.isClassifier) return 'frame-diamond'
-  const agg = (props.agent.personality_matrix.risk + props.agent.personality_matrix.aggression) / 2
-  if (agg > 0.65) return 'frame-hexagon'
-  if (agg < 0.35) return 'frame-circle'
-  return 'frame-rounded'
 })
 
 // ── Training progress ring (Phase 22.3) ──────────────────────────────────
@@ -238,38 +286,14 @@ const fork = () => {
 /* Personality-shaped avatar frame (Phase 22.2) */
 .avatar-frame {
   position: relative;
-  width: 56px; height: 56px;
+  width: 56px;
+  height: 56px;
   flex-shrink: 0;
 }
-.avatar {
-  width: 100%; height: 100%;
-  border: 2px solid rgba(255,255,255,0.12);
-  transition: border-radius 0.3s ease;
+.avatar-frame :deep(.mark) {
+  width: 56px;
+  height: 56px;
 }
-.avatar.glyph {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  color: rgba(255,255,255,0.92);
-  text-shadow: 0 1px 3px rgba(0,0,0,0.55);
-  user-select: none;
-}
-.frame-circle   .avatar { border-radius: 50%; }
-.frame-rounded  .avatar { border-radius: 18%; }
-.frame-hexagon  .avatar {
-  border-radius: 0;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-}
-.frame-diamond  .avatar {
-  border-radius: 4px;
-  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-}
-.frame-hexagon  { filter: drop-shadow(0 0 4px rgba(255, 80, 80, 0.3)); }
-.frame-circle   { filter: drop-shadow(0 0 4px rgba(80, 180, 255, 0.3)); }
-.frame-diamond  { filter: drop-shadow(0 0 4px rgba(180, 180, 255, 0.35)); }
 
 /* Training progress ring (Phase 22.3) */
 .training-ring {
@@ -361,9 +385,13 @@ const fork = () => {
   font-size: 0.5rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: rgba(0,0,0,0.65);
+  color: rgba(0,0,0,0.72);
   text-transform: uppercase;
   white-space: nowrap;
+}
+.regime-label.light {
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.45);
 }
 .regime-bull    { background: var(--success-green, #00ff88); }
 .regime-chop    { background: rgba(255,255,255,0.25); }
@@ -372,17 +400,19 @@ const fork = () => {
 .regime-seg.predicted { outline: 2px solid rgba(255,255,255,0.7); outline-offset: -2px; }
 
 .metrics-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  width: 100%;
   gap: 0.3rem;
 }
 .metric {
   display: flex;
+  flex: 1 1 0;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
   background: rgba(255,255,255,0.03);
   border-radius: 6px;
-  padding: 0.35rem 0.2rem;
+  padding: 0.28rem 0.15rem;
 }
 .m-label { font-size: 0.55rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.45); text-transform: uppercase; }
 .m-value { font-family: var(--font-market-data, inherit); font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; }

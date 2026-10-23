@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { usePlatformsStore, type TradingPlatform } from '@/stores/platforms'
+import { useStreamedAssets } from '~/composables/useStreamedAssets'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UIStat from '@/components/UI/Stat.vue'
@@ -9,11 +10,13 @@ import UIEmptyState from '@/components/UI/EmptyState.vue'
 import UISectionTabs, { type TabItem } from '@/components/UI/SectionTabs.vue'
 
 import APIsPlatformCard from '@/components/APIs/PlatformCard.vue'
+import APIsFeedBoard from '@/components/APIs/FeedBoard.vue'
 import APIsAddConnectionModal from '@/components/APIs/AddConnectionModal.vue'
 
 definePageMeta({ title: 'API Connections', layout: 'default' })
 
 const platforms = usePlatformsStore()
+const { assetsStore, dataFeeds, streamed } = useStreamedAssets()
 
 const filter = ref<'all' | 'connected' | 'rate_limited' | 'disconnected'>('all')
 const showAddModal = ref(false)
@@ -21,6 +24,7 @@ const testingId = ref<string | null>(null)
 
 onMounted(async () => {
   if (!platforms.hydrated) await platforms.fetchPlatforms()
+  if (!assetsStore.assets.length) assetsStore.initializeStore()
 })
 
 const filteredPlatforms = computed<TradingPlatform[]>(() => {
@@ -87,6 +91,16 @@ const emptyMessage = computed(() =>
       <UIStat label="Fees 30d"       :value="totalFees30d"             :precision="0" suffix="USD" tone="negative" size="md" />
     </UIMetricRow>
 
+    <section class="price-feeds">
+      <header class="feeds-head">
+        <h2>Price feeds</h2>
+        <p>{{ streamed.length }} streaming<template v-if="dataFeeds.providers.length"> · {{ dataFeeds.providers.length }} providers</template></p>
+      </header>
+      <p v-if="dataFeeds.loading && !dataFeeds.providers.length" class="feeds-note">Loading price feeds…</p>
+      <p v-else-if="dataFeeds.error && !dataFeeds.providers.length" class="feeds-note">{{ dataFeeds.error }}</p>
+      <APIsFeedBoard :catalog="assetsStore.assets" :active="streamed" />
+    </section>
+
     <UISectionTabs v-model="filter" :tabs="tabs" />
 
     <UIEmptyState
@@ -141,6 +155,30 @@ const emptyMessage = computed(() =>
 .cta-add:hover { transform: translateY(-1px); }
 
 .overview { margin-bottom: 0.1rem; }
+
+.price-feeds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-primary, #2a2a33);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+}
+.feeds-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.feeds-head h2 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.feeds-head p, .feeds-note {
+  margin: 0;
+  font-size: 0.64rem;
+  color: var(--text-secondary, #9aa0a6);
+}
 
 .plat-grid {
   display: grid;

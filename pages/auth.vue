@@ -1,21 +1,26 @@
 <script setup lang="ts">
+/**
+ * The one sign-in page: sign in, create an account, or try the demo.
+ * `/` redirects here (nuxt.config routeRules); signed-in users are sent on to
+ * `?redirect=` (same-site paths only) or /prices by middleware/auth.global.ts.
+ */
 definePageMeta({ layout: false })
+useHead({ title: 'Sign in · Strades' })
 
 const { login, register, startDemo, isAuthenticated } = useAuth()
 
+type Mode = 'login' | 'register'
 const route = useRoute()
-const mode = ref<'login' | 'register'>(route.query.mode === 'register' ? 'register' : 'login')
+const mode = ref<Mode>(route.query.mode === 'register' ? 'register' : 'login')
 const email = ref('')
 const password = ref('')
 const firstName = ref('')
 const lastName = ref('')
-const loading = ref(false)
+const showPassword = ref(false)
+const loading = ref<'form' | 'demo' | null>(null)
 const error = ref<string | null>(null)
 
-const demoCookie = useCookie('strades_demo', {
-  maxAge: 60 * 60 * 24 * 30,
-  sameSite: 'lax',
-})
+const demoCookie = useCookie('strades_demo', { maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
 
 // Only same-site paths: never let ?redirect= send a fresh login to another origin.
 const redirectTo = computed(() => {
@@ -23,13 +28,16 @@ const redirectTo = computed(() => {
   return typeof r === 'string' && /^\/(?![\/\\])/.test(r) && !r.includes('\\') ? r : '/prices'
 })
 
-if (isAuthenticated.value) {
-  await navigateTo(redirectTo.value)
+if (isAuthenticated.value) await navigateTo(redirectTo.value)
+
+function setMode(m: Mode) {
+  mode.value = m
+  error.value = null
 }
 
 async function submit() {
   error.value = null
-  loading.value = true
+  loading.value = 'form'
   try {
     if (mode.value === 'login') {
       await login(email.value.trim(), password.value)
@@ -46,11 +54,9 @@ async function submit() {
   } catch (e: unknown) {
     error.value = authErrorMessage(e)
   } finally {
-    loading.value = false
+    loading.value = null
   }
 }
-
-const showPassword = ref(false)
 
 /** Human message; never the raw fetch error (it leaked the API URL and "<no response>"). */
 function authErrorMessage(e: unknown): string {
@@ -62,20 +68,24 @@ function authErrorMessage(e: unknown): string {
   if (typeof data.detail === 'string') return data.detail
   // DRF field errors: { email: ["user with this email already exists."] }
   const first = Object.entries(data).find(([, v]) => Array.isArray(v) && v.length)
-  if (first) return `${first[0].replace(/_/g, ' ')}: ${String((first[1] as unknown[])[0])}`
+  if (first) {
+    const msg = String((first[1] as unknown[])[0])
+    // Form-level errors ("Invalid email or password.") read on their own; field ones get the field name.
+    return first[0] === 'non_field_errors' ? msg : `${first[0].replace(/_/g, ' ')}: ${msg}`
+  }
   return mode.value === 'login' ? 'Wrong email or password.' : 'Could not create the account.'
 }
 
 async function enterDemoMode() {
   error.value = null
-  loading.value = true
+  loading.value = 'demo'
   try {
     // Preferred: a real throwaway account, so the whole product (wallets, bots) works.
     await startDemo()
     demoCookie.value = null
     await navigateTo(redirectTo.value)
   } catch (e: unknown) {
-    const status = (e as { statusCode?: number; response?: { status?: number } })?.response?.status
+    const status = (e as { response?: { status?: number } })?.response?.status
       ?? (e as { statusCode?: number }).statusCode
     if (status === 429) {
       error.value = 'Too many demo sessions from this network right now. Please create a free account instead.'
@@ -85,219 +95,396 @@ async function enterDemoMode() {
     demoCookie.value = '1'
     await navigateTo('/prices')
   } finally {
-    loading.value = false
+    loading.value = null
   }
 }
 
+const FEATURES = [
+  { title: 'Every platform, one wallet', text: 'Binance, Coinbase, IBKR and more in a single view.' },
+  { title: 'Paper-trade any idea', text: 'Test a move as a share of your wallet, with no money at risk.' },
+  { title: 'Trade with a swarm', text: 'Plug AI agents and your circle into your strategies.' },
+]
 </script>
 
 <template>
   <main class="auth-page">
-    <div class="auth-card">
-      <NuxtLink to="/" class="brand">STRADES</NuxtLink>
-      <p class="subtitle">
-        {{ mode === 'login' ? 'Sign in to your account' : 'Create your account' }}
-      </p>
+    <div class="glow glow-up" aria-hidden="true" />
+    <div class="glow glow-down" aria-hidden="true" />
 
-      <form class="auth-form" @submit.prevent="submit">
-        <template v-if="mode === 'register'">
-          <input v-model="firstName" type="text" placeholder="First name" autocomplete="given-name" />
-          <input v-model="lastName" type="text" placeholder="Last name" autocomplete="family-name" />
-        </template>
+    <div class="auth-layout">
+      <!-- Brand: logo + company name. On phones it shrinks to a compact header above the form. -->
+      <section class="brand" aria-label="Strades">
+        <img class="mark" src="/brand/strades-mark-metal.png" alt="" width="250" height="250" />
+        <h1 class="wordmark">
+          <img src="/brand/strades-wordmark.png" alt="Strades" width="720" height="99" />
+        </h1>
+        <p class="tagline">The trading hub where people and their AI&nbsp;agents predict better together.</p>
+        <ul class="features">
+          <li v-for="f in FEATURES" :key="f.title">
+            <span class="tick" aria-hidden="true" />
+            <span><strong>{{ f.title }}</strong> {{ f.text }}</span>
+          </li>
+        </ul>
+      </section>
 
-        <input
-          v-model="email"
-          type="email"
-          placeholder="Email"
-          autocomplete="email"
-          required
-        />
-        <div class="pw-wrap">
-          <input
-            v-model="password"
-            :type="showPassword ? 'text' : 'password'"
-            placeholder="Password"
-            :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
-            required
-            minlength="6"
-          />
-          <button type="button" class="pw-toggle" :aria-label="showPassword ? 'Hide password' : 'Show password'"
-            :aria-pressed="showPassword" @click="showPassword = !showPassword">{{ showPassword ? 'Hide' : 'Show' }}</button>
+      <section class="card" :aria-label="mode === 'login' ? 'Sign in' : 'Create an account'">
+        <div class="tabs" role="group" aria-label="Account">
+          <button
+            type="button" class="tab" :class="{ on: mode === 'login' }"
+            :aria-pressed="mode === 'login'" @click="setMode('login')"
+          >Sign in</button>
+          <button
+            type="button" class="tab" :class="{ on: mode === 'register' }"
+            :aria-pressed="mode === 'register'" @click="setMode('register')"
+          >Create account</button>
+          <span class="tab-thumb" :class="mode" aria-hidden="true" />
         </div>
 
-        <p v-if="error" class="error">{{ error }}</p>
+        <h2 class="card-title">{{ mode === 'login' ? 'Welcome back' : 'Get started' }}</h2>
 
-        <button type="submit" class="primary-btn" :disabled="loading">
-          {{ loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account' }}
+        <form class="form" @submit.prevent="submit">
+          <div v-if="mode === 'register'" class="row">
+            <label class="field">
+              <span>First name</span>
+              <input v-model="firstName" type="text" autocomplete="given-name" />
+            </label>
+            <label class="field">
+              <span>Last name</span>
+              <input v-model="lastName" type="text" autocomplete="family-name" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Email</span>
+            <input v-model="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required />
+          </label>
+
+          <label class="field">
+            <span>Password</span>
+            <span class="pw">
+              <input
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
+                :placeholder="mode === 'register' ? 'At least 6 characters' : ''"
+                required
+                minlength="6"
+              />
+              <button
+                type="button" class="pw-toggle" :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                :aria-pressed="showPassword" @click="showPassword = !showPassword"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+                  <circle cx="12" cy="12" r="3" />
+                  <path v-if="showPassword" d="M4 4l16 16" />
+                </svg>
+              </button>
+            </span>
+          </label>
+
+          <p v-if="error" class="error" role="alert">{{ error }}</p>
+
+          <button type="submit" class="btn primary" :disabled="!!loading">
+            <span v-if="loading === 'form'" class="spinner" aria-hidden="true" />
+            {{ loading === 'form' ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create free account' }}
+          </button>
+        </form>
+
+        <div class="divider"><span>or</span></div>
+
+        <button type="button" class="btn ghost" :disabled="!!loading" @click="enterDemoMode">
+          <span v-if="loading === 'demo'" class="spinner" aria-hidden="true" />
+          Continue in demo mode
         </button>
-      </form>
-
-      <button type="button" class="ghost-btn" @click="mode = mode === 'login' ? 'register' : 'login'">
-        {{ mode === 'login' ? 'Need an account? Register' : 'Already have an account? Sign in' }}
-      </button>
-
-      <div class="divider"><span>or</span></div>
-
-      <button type="button" class="demo-btn" :disabled="loading" @click="enterDemoMode">
-        Continue in demo mode
-      </button>
-      <p class="hint">
-        Try everything with a temporary demo account (deleted after 24 h). In demo you can create a paper wallet, not import a real one.
-      </p>
+        <p class="hint">
+          Temporary account, deleted after 24&nbsp;h. Paper wallets only.
+        </p>
+      </section>
     </div>
+
+    <footer class="foot">
+      <NuxtLink to="/about">About</NuxtLink>
+      <span aria-hidden="true">·</span>
+      <NuxtLink to="/contact">Contact</NuxtLink>
+      <span aria-hidden="true">·</span>
+      <span>© {{ new Date().getFullYear() }} Strades</span>
+    </footer>
   </main>
 </template>
 
 <style scoped>
+/* Designed dark on purpose (white text, glass fills): never inherit the light colour mode. */
 .auth-page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100dvh;
-  padding: 1.5rem;
-  /* The card is designed dark (white text, translucent fills). Don't inherit the
-     colour-mode background: in light mode it turned grey-on-white and unreadable. */
-  background: #05070a;
-  background-image: radial-gradient(circle at center, rgba(0, 170, 255, 0.1) 0%, transparent 70%);
-  color: #fff;
-  color-scheme: dark;
-  font-family: 'Poppins', sans-serif;
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 400px;
-  padding: 2.5rem 2rem;
-  border-radius: var(--app-border-radius, 16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(25, 25, 25, 0.65);
-  backdrop-filter: blur(15px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
-.brand {
-  display: block;
-  text-align: center;
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  color: #fff;
-  text-decoration: none;
-  margin-bottom: 0.5rem;
-}
-
-.subtitle {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.65);
-  margin: 0 0 1.5rem;
-  font-size: 0.95rem;
-}
-
-.auth-form {
+  --up: var(--primary-green, #00ff88);
+  --sky: var(--primary-blue, #00aaff);
+  --down: var(--error-red, #ff4444);
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  box-sizing: border-box;
+  min-height: 100dvh;
+  padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem max(1rem, env(safe-area-inset-bottom));
+  overflow: hidden;
+  background: #05070a;
+  color: #fff;
+  color-scheme: dark;
+  font-family: var(--font-family-primary, 'Poppins'), sans-serif;
 }
+
+/* The logo's own colours, as two soft lights behind everything (static, no animation). */
+.glow {
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  filter: blur(10px);
+  pointer-events: none;
+}
+.glow-up { top: -32vmax; right: -24vmax; background: radial-gradient(circle, rgba(0, 255, 136, 0.16), transparent 62%); }
+.glow-down { bottom: -34vmax; left: -26vmax; background: radial-gradient(circle, rgba(255, 68, 68, 0.12), transparent 62%); }
+
+.auth-layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 26rem;
+}
+
+/* ── Brand ─────────────────────────────────────────────────────────── */
+.brand { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.mark {
+  width: 3.75rem;
+  height: 3.75rem;
+  filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.18));
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.wordmark { margin: 0.75rem 0 0; line-height: 0; }
+.wordmark img { width: 10rem; height: auto; animation: rise 0.6s 0.06s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.tagline {
+  max-width: 22rem;
+  margin: 0.6rem 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.features { display: none; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ── Card ──────────────────────────────────────────────────────────── */
+.card {
+  padding: 1.5rem 1.4rem 1.4rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(28, 31, 38, 0.78), rgba(16, 18, 23, 0.86));
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: rise 0.6s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.tab {
+  position: relative;
+  z-index: 1;
+  padding: 0.6rem 0.5rem;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.tab.on { color: #fff; }
+.tab-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.11);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tab-thumb.register { transform: translateX(100%); }
+
+.card-title { margin: 1.1rem 0 0.9rem; font-size: 1.15rem; font-weight: 600; letter-spacing: 0.01em; }
+
+.form { display: flex; flex-direction: column; gap: 0.85rem; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.field { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.field > span:first-child { font-size: 0.78rem; font-weight: 500; color: rgba(255, 255, 255, 0.7); }
 
 input {
   width: 100%;
-  padding: 0.8rem 0.9rem;
-  border-radius: 8px;
+  box-sizing: border-box;
+  padding: 0.78rem 0.9rem;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
   color: #fff;
   font: inherit;
-  box-sizing: border-box;
+  font-size: 1rem; /* ≥16 px: iOS does not zoom into the field */
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
+input::placeholder { color: rgba(255, 255, 255, 0.42); }
+input:hover { border-color: rgba(255, 255, 255, 0.2); }
+input:focus { outline: none; border-color: rgba(0, 170, 255, 0.7); background: rgba(255, 255, 255, 0.07); box-shadow: 0 0 0 3px rgba(0, 170, 255, 0.18); }
 
-input:focus {
-  outline: none;
-  border-color: rgba(0, 170, 255, 0.5);
+.pw { position: relative; display: flex; }
+.pw input { padding-right: 3.2rem; }
+.pw-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.3rem;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
 }
+.pw-toggle:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
 
 .error {
   margin: 0;
-  font-size: 0.85rem;
-  color: var(--error-red, #ff4444);
-}
-
-.primary-btn,
-.ghost-btn,
-.demo-btn {
-  width: 100%;
-  padding: 0.85rem;
+  padding: 0.6rem 0.75rem;
   border-radius: 8px;
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease;
-}
-
-.primary-btn {
-  margin-top: 0.25rem;
-  border: none;
-  background: linear-gradient(45deg, var(--primary-green, #00ff88), var(--primary-blue, #00aaff));
-  color: #000;
-}
-
-.primary-btn:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
-
-.ghost-btn {
-  margin-top: 0.75rem;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-/* Secondary action: must read quieter than "Sign in". */
-.demo-btn {
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.pw-wrap { position: relative; display: flex; }
-.pw-wrap input { flex: 1; padding-right: 4.2rem; }
-.pw-toggle {
-  position: absolute; right: .5rem; top: 50%; transform: translateY(-50%);
-  border: 0; background: transparent; color: rgba(255, 255, 255, 0.6); cursor: pointer; font: inherit; font-size: .8rem;
-  padding: .25rem .4rem;
-}
-.pw-toggle:hover { color: #fff; }
-
-.primary-btn:hover:not(:disabled),
-.demo-btn:hover,
-.ghost-btn:hover {
-  transform: translateY(-1px);
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  margin: 1.25rem 0 1rem;
-  color: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 68, 68, 0.35);
+  background: rgba(255, 68, 68, 0.08);
+  color: #ff8a8a;
   font-size: 0.85rem;
 }
 
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+.btn:disabled { opacity: 0.6; cursor: wait; }
+/* The logo's green (its "up" arrow) is the one call-to-action colour on the page. */
+.btn.primary {
+  margin-top: 0.3rem;
+  border: 0;
+  background: linear-gradient(180deg, #2bff9f, #00d977);
+  color: #03130b;
+  box-shadow: 0 6px 20px rgba(0, 230, 130, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+/* Secondary action: must read quieter than "Sign in". */
+.btn.ghost { border: 1px solid rgba(255, 255, 255, 0.16); background: transparent; color: rgba(255, 255, 255, 0.85); }
+.btn.ghost:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.04); }
+.btn:active:not(:disabled) { transform: scale(0.98); }
+
+.tab:focus-visible, .btn:focus-visible, .pw-toggle:focus-visible, .foot a:focus-visible {
+  outline: 2px solid var(--sky);
+  outline-offset: 2px;
 }
 
-.divider span {
-  padding: 0 0.75rem;
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.divider { display: flex; align-items: center; margin: 1.15rem 0 0.9rem; color: rgba(255, 255, 255, 0.4); font-size: 0.8rem; }
+.divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.divider span { padding: 0 0.75rem; }
+
+.hint { margin: 0.7rem 0 0; text-align: center; font-size: 0.78rem; line-height: 1.45; color: rgba(255, 255, 255, 0.62); }
+
+.foot {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+.foot a { color: rgba(255, 255, 255, 0.72); text-decoration: none; }
+.foot a:hover { color: #fff; }
+
+/* ── Wide screens: brand panel on the left, form on the right ──────── */
+@media (min-width: 960px) {
+  .auth-layout {
+    grid-template-columns: 1.1fr 1fr;
+    align-items: center;
+    gap: 4.5rem;
+    max-width: 62rem;
+  }
+  .brand { align-items: flex-start; text-align: left; }
+  .mark { width: 6rem; height: 6rem; }
+  .wordmark { margin-top: 1.4rem; }
+  .wordmark img { width: 14rem; }
+  .tagline { margin-top: 1.1rem; font-size: 1.05rem; }
+  .features {
+    display: grid;
+    gap: 0.9rem;
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.62);
+  }
+  .features li { display: flex; gap: 0.75rem; align-items: baseline; }
+  .features strong { color: #fff; font-weight: 600; }
+  .tick {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--up);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
+    transform: translateY(-0.1rem);
+  }
+  .card { padding: 2rem 1.9rem 1.75rem; }
 }
 
-.hint {
-  margin: 0.75rem 0 0;
-  text-align: center;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.45);
-  line-height: 1.4;
+/* Short phones in landscape: drop the tagline so the form fits. */
+@media (max-height: 560px) and (max-width: 959px) {
+  .tagline { display: none; }
+  .mark { width: 3rem; height: 3rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mark, .wordmark img, .card { animation: none; }
+  .tab-thumb, .btn, input, .tab { transition: none; }
 }
 </style>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useProfileFaceStore } from '@/stores/profileFace'
 import { useTradingPrefsStore } from '~/stores/tradingPrefs'
 import { TradingApiError, useTradingApi } from '~/composables/useTradingApi'
 import UIPageHeader from '@/components/UI/PageHeader.vue'
@@ -16,6 +17,13 @@ const appearance = useAppearanceStore()
 appearance.hydrate()
 
 const auth = useAuth()
+const face = useProfileFaceStore()
+const paidDesk = computed(() => auth.user.value?.role === 'premium' || auth.user.value?.role === 'admin')
+onMounted(() => face.hydrate())
+function onPicture(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (file) face.setAvatar(file)
+}
 const signingOut = ref(false)
 async function signOut() {
   signingOut.value = true
@@ -126,6 +134,46 @@ const saveSettings = () => { /* persist later */ }
       </form>
       <p v-if="claimed" class="acct-meta">Done: this is now a permanent account. Sign in with {{ claimEmail }} from now on.</p>
     </UICard>
+
+    <div id="identity">
+      <UICard title="Profile">
+        <div class="prefs">
+          <label>Name on the desk
+            <input
+              type="text"
+              :value="face.displayName"
+              placeholder="Display name"
+              @change="face.setDisplayName(($event.target as HTMLInputElement).value)"
+            />
+            <small>Opens from the portrait on your profile. Leave it empty to keep the current name.</small>
+          </label>
+          <label>@ name
+            <input
+              type="text"
+              :value="face.handle"
+              placeholder="handle"
+              @change="face.setHandle(($event.target as HTMLInputElement).value)"
+            />
+          </label>
+          <label>Picture
+            <input type="file" accept="image/*" @change="onPicture" />
+            <small>Stored in this browser. 1.5 MB maximum.</small>
+          </label>
+          <label class="row">
+            <input
+              type="checkbox"
+              :checked="paidDesk && face.hideRealName"
+              :disabled="!paidDesk"
+              @change="paidDesk && face.setHideRealName(($event.target as HTMLInputElement).checked)"
+            />
+            Publish the @ name and hide the real name
+          </label>
+          <small v-if="!paidDesk">A paid desk can publish only the @ name.</small>
+          <button v-if="face.avatarDataUrl" class="btn ghost" type="button" @click="face.clearAvatar()">Remove picture</button>
+          <span v-if="face.note" class="claim-err">{{ face.note }}</span>
+        </div>
+      </UICard>
+    </div>
 
     <!-- Trading: defaults the trade forms start from. -->
     <UICard title="Trading">
@@ -282,7 +330,7 @@ const saveSettings = () => { /* persist later */ }
 .prefs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .9rem; align-items: start; }
 .prefs label { display: flex; flex-direction: column; gap: .3rem; font-size: .85rem; }
 .prefs label.row { flex-direction: row; align-items: center; gap: .5rem; grid-column: 1 / -1; }
-.prefs input[type=number], .prefs select { padding: .5rem .6rem; border-radius: 6px; border: 1px solid var(--border-primary); background: var(--surface-sunken, transparent); color: var(--text-primary); font: inherit; }
+.prefs input[type=number], .prefs input[type=text], .prefs input[type=file], .prefs select { padding: .5rem .6rem; border-radius: 6px; border: 1px solid var(--border-primary); background: var(--surface-sunken, transparent); color: var(--text-primary); font: inherit; }
 .prefs small { color: var(--text-secondary); font-size: .72rem; }
 .btn { padding: .5rem .9rem; border-radius: 8px; border: 1px solid var(--border-primary); background: var(--surface-raised, transparent); color: var(--text-primary); cursor: pointer; font: inherit; }
 .btn.ghost { background: transparent; justify-self: start; }

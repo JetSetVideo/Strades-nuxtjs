@@ -245,6 +245,7 @@ export const useStrategiesStore = defineStore('strategies', {
 
   actions: {
     async fetchStrategies() {
+      if (this.loading) return
       this.loading = true
       const primary = publicAssetUrl('/data/core/strategies.json')
       const fallback = publicAssetUrl('/data/strategies/index.json')

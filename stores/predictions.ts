@@ -33,7 +33,32 @@ export interface Prediction {
   status: PredictionStatus
   actualPrice?: number
   accuracyScore?: number  // 0-100
+  // ── Prediction-on-chart context (training features for the trading profile) ──
+  /** exact target instant, epoch ms (targetDate keeps the ISO form) */
+  targetTs?: number
+  /** hours between recording and the target */
+  horizonHours?: number
+  /** plausible range offered for that horizon, read from past moves */
+  rangeMin?: number
+  rangeMax?: number
+  /** where the call sits in that range: -1 = at the low, 0 = current price, +1 = at the high */
+  rangePosition?: number
+  /** the user had revealed friends' predictions before recording (biased call) */
+  sawFriendsFirst?: boolean
+  /** friends' predictions that existed on this asset when the call was recorded */
+  friendsCountAtRecord?: number
+  source?: 'card' | 'detail' | 'legacy'
+  assetType?: string
+  chartStyle?: 'line' | 'candle'
+  /** true when the price history behind the chart was simulated */
+  simulatedHistory?: boolean
+  /** previous versions when the user moved the call: oldest first */
+  revisions?: { at: string; predictedPrice: number; predictedChangePct: number; targetDate: string }[]
+  /** demo persona data, not a real person */
+  demo?: boolean
 }
+
+export type PredictionInput = Omit<Prediction, 'id' | 'status' | 'targetDate' | 'revisions'> & { targetDate: string }
 
 export interface PredictionStats {
   total: number
@@ -240,6 +265,46 @@ export const usePredictionsStore = defineStore('predictions', {
       this.predictions.push(prediction)
       saveToStorage(this.predictions)
       return prediction
+    },
+
+    /**
+     * Record a call from the chart: one live call per user + asset + horizon.
+     * Moving it keeps the previous version in `revisions` (useful training signal:
+     * how the user changes their mind), so nothing the user said is lost.
+     */
+    savePrediction(input: PredictionInput): Prediction {
+      const idx = this.predictions.findIndex(p =>
+        p.userId === input.userId && p.assetId === input.assetId &&
+        p.timeframe === input.timeframe && p.status === 'pending')
+      if (idx === -1) {
+        const prediction: Prediction = {
+          ...input,
+          id: `pred_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          status: 'pending',
+          revisions: [],
+        }
+        this.predictions.push(prediction)
+        saveToStorage(this.predictions)
+        return prediction
+      }
+      const prev = this.predictions[idx]!
+      const revisions = [...(prev.revisions ?? []), {
+        at: prev.timestamp, predictedPrice: prev.predictedPrice,
+        predictedChangePct: prev.predictedChangePct, targetDate: prev.targetDate,
+      }].slice(-50)
+      const next: Prediction = { ...prev, ...input, id: prev.id, status: 'pending', revisions }
+      this.predictions[idx] = next
+      saveToStorage(this.predictions)
+      return next
+    },
+
+    /** Add predictions that are not in the store yet (by id). */
+    importPredictions(list: Prediction[]) {
+      const have = new Set(this.predictions.map(p => p.id))
+      const fresh = list.filter(p => !have.has(p.id))
+      if (!fresh.length) return
+      this.predictions.push(...fresh)
+      saveToStorage(this.predictions)
     },
 
     /** Update outcome when actual price is known */

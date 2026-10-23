@@ -24,6 +24,12 @@ export default defineNuxtConfig({
     preset: 'vercel-edge',
   },
   css: ['~/assets/css/variables.css'],
+  // One sign-in page: the old "/" landing card duplicated /auth. Signed-in users
+  // are forwarded from /auth to the app by middleware/auth.global.ts.
+  routeRules: {
+    '/': { redirect: '/auth' },
+    '/monitor': { redirect: '/strategies' },
+  },
   alias: {
     '@public/data': '/public/data'
   },

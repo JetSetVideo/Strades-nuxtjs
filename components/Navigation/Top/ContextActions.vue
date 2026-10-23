@@ -36,7 +36,7 @@ const ACTIONS: Array<{ match: (path: string) => boolean; items: ContextAction[] 
   {
     match: p => p.startsWith('/strategies'),
     items: [
-      { id: 'strategy-new', label: 'Strategy', title: 'Create a new strategy', icon: 'strategy', tone: 'green', to: '/creator' }
+      { id: 'strategy-new', label: 'Strategy', title: 'Create a new strategy', icon: 'strategy', tone: 'amber', to: '/creator' }
     ]
   },
   {
