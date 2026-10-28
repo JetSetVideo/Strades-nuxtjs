@@ -18,6 +18,8 @@ export interface Candle {
   h: number
   l: number
   c: number
+  /** traded volume in the base asset, when the source has it (real candles only) */
+  v?: number
   /** true when the candle is simulated (no market data for that period) */
   sim?: boolean
 }
@@ -44,6 +46,18 @@ export function horizonById(id: string): Horizon {
 /** Smallest horizon that contains `hours` (falls back to the largest). */
 export function horizonFor(hours: number): Horizon {
   return HORIZONS.find(h => h.hours >= hours - 1e-9) ?? HORIZONS[HORIZONS.length - 1]!
+}
+
+/** Horizon closest to `hours`, so a dragged window changes category at the midpoint. */
+export function nearestHorizon(hours: number): Horizon {
+  const h = Math.max(1e-6, hours)
+  let best = HORIZONS[0]!
+  let bestD = Infinity
+  for (const item of HORIZONS) {
+    const d = Math.abs(Math.log(h) - Math.log(item.hours))
+    if (d < bestD) { best = item; bestD = d }
+  }
+  return best
 }
 
 /** The past shown next to a horizon: 1.5× as long, so the future zone is the right 40 %. */
@@ -296,10 +310,22 @@ export interface MapPoint { name: string; lat: number; lng: number; kind: 'hq' |
 
 export interface TreeNode {
   name: string
+  /** Legal or catalog name when `name` is a short label or ticker. */
+  realName?: string
   sub?: string
+  /** Partner, Competitor, or Peer — the carousel under the asset. */
+  role?: string
   share_pct?: number | null
+  /** Nominal amount in US dollars, converted for display from the settings currency. */
   value_usd?: number | null
   flag?: string
+  /** ISO region code, when the row has one. */
+  countryCode?: string
+  country?: string
+  city?: string
+  lat?: number | null
+  lng?: number | null
+  logo?: string
   /** listed asset id: the node links to its page */
   assetId?: string
 }
@@ -453,6 +479,25 @@ export function fmtPct(v: number, digits = 1): string {
 
 export function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v))
+}
+
+/**
+ * The part of a saved call that sits inside the chart window [t0, t1].
+ * The line always runs from the price when the call was made to the predicted price
+ * at the target time. Sliding the window only clips that segment; it does not
+ * re-anchor the start to the live price.
+ */
+export function clipPrediction(
+  made: number, target: number, priceThen: number, priceTarget: number, t0: number, t1: number,
+): { from: number; to: number; priceFrom: number; priceTo: number } | null {
+  if (!Number.isFinite(made) || !Number.isFinite(target) || !(target > made)) return null
+  if (!Number.isFinite(priceThen) || !Number.isFinite(priceTarget)) return null
+  if (target < t0 || made > t1) return null
+  const from = Math.max(made, t0)
+  const to = Math.min(target, t1)
+  if (!(to > from)) return null
+  const at = (t: number) => priceThen + (priceTarget - priceThen) * ((t - made) / (target - made))
+  return { from, to, priceFrom: at(from), priceTo: at(to) }
 }
 
 /** Bets trade as 0–1 probabilities. */

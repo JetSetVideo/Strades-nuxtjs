@@ -107,8 +107,8 @@ components/
 ├── Builder/          # Node-tree editor for the Creator page
 │                     #   NodeCanvas, BlockEditor, Condition, Action, Nodes/AvatarNode
 ├── Agent/            # AI avatars / swarm (AvatarCard, OpinionVector, Compare, Training)
-├── Asset/            # Single-asset detail blocks (CandleChart, Heatmap, Map,
-│                     #   MoversStrip, NewsSnippets, Suppliers, Shipments …)
+├── Asset/            # Single-asset blocks: PredictChart, PredictPanel, PriceChart, ChartStyleToggle,
+│                     #   SupplyTree, WorldMap, DataTree, Heatmap, Suppliers, Shipments, QuickPaperBet …
 ├── Corporate/        # Company / supply-chain graphs (NetworkGraph)
 ├── Social/           # Posts, opinions (ArticlePost)
 ├── News/             # CalendarStrip, InfluencerRail
@@ -117,12 +117,12 @@ components/
 ├── Profile/          # Header, UserStats, Achievements, PortfolioSnapshot, Preferences
 ├── Leaderboard/      # Competition
 ├── Quest/            # Filter
-├── Screener/         # ScreenerHeader, ScreenerToolbar, ScreenerStatus
 ├── Transactions/     # History, Next
 ├── Selector/         # Form selectors (Asset, Assets, Datasources, Users, Conditions, Entry)
 ├── Button/           # Atomic icon buttons (Avatar, Bookmark, Notification, Settings …)
 ├── Card/             # Generic cards (Asset, Avatar, Datasource, Friend, SharedData)
-├── Chart/            # Chart variants (BarChart, CandleChart)
+├── Chart/            # Workspace (the /CandleChart chart: panes, indicators, drawings, zoom)
+├── Notification/     # Row, Filters, Calendar, Digest (the /notifications page)
 ├── Map/              # MapButton, MapOverlay, WorldMap
 └── Widget/           # Dashboard widgets (Asset, Chart, NewsCard, NewsListItem,
                       #   Treemap, Heatmap, Sentiment, Quest, Transactions …)

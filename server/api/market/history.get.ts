@@ -27,7 +27,7 @@ export default defineCachedEventHandler(async (event) => {
     ...(meta.proxy ? { proxy: meta.proxy } : {}),
     interval,
     source: rows.length ? 'binance' : 'none',
-    candles: rows.map(r => ({ t: r[0], o: Number(r[1]), h: Number(r[2]), l: Number(r[3]), c: Number(r[4]) })),
+    candles: rows.map(r => ({ t: r[0], o: Number(r[1]), h: Number(r[2]), l: Number(r[3]), c: Number(r[4]), v: Number(r[5]) || 0 })),
   }
 }, {
   maxAge: 60,

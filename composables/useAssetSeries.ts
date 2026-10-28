@@ -26,7 +26,7 @@ function startClock() {
   setInterval(() => { chartNow.value = Date.now() }, 60_000)
 }
 
-type HistoryRow = { t: number; o: number; h: number; l: number; c: number }
+type HistoryRow = { t: number; o: number; h: number; l: number; c: number; v?: number }
 const HISTORY = new Map<string, { at: number; candles: Candle[]; promise?: Promise<void> }>()
 const historyTick = ref(0)
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { SearchHistory, SearchSuggestion, Notification } from '@/types'
+import { computed, onMounted } from 'vue'
+import type { SearchHistory, SearchSuggestion } from '@/types'
+import { useNotificationsStore } from '~/stores/notifications'
 import NavigationTop from '~/components/Navigation/Top.vue'
 import NavigationBar from '~/components/Navigation/Bar.vue'
 import NotificationButton from '~/components/Button/Notification.vue'
@@ -15,16 +16,11 @@ const { data: searchSuggestions } = await useAsyncData<SearchSuggestion[]>(
   () => useLocalJson<SearchSuggestion[]>('search/suggestions.json'),
   { default: () => [] }
 )
-const { data: notifications } = await useAsyncData<Notification[]>(
-  'notifications',
-  () => useLocalJson<Notification[]>('social/notifications.json'),
-  { default: () => [] }
-)
-
-const unreadCount = computed(() => {
-  if (!Array.isArray(notifications.value)) return 0
-  return notifications.value.filter(n => !n.read).length
-})
+// One feed for the badge and /notifications (stores/notifications.ts). It fills on the client
+// after mount, so the server render and the first client render both show no badge.
+const notificationsStore = useNotificationsStore()
+onMounted(() => notificationsStore.init())
+const unreadCount = computed(() => notificationsStore.unreadCount)
 </script>
 
 <template>

@@ -26,6 +26,7 @@ export type TrainingEventType =
   | 'share_article'
   | 'data_challenge_posted'
   | 'data_bet_placed'
+  | 'notification_schedule'
 
 export interface TrainingEvent {
   id: string
@@ -154,7 +155,17 @@ const EVENT_DELTA_MAP: Record<TrainingEventType, (payload: any) => Partial<Perso
       aggression: stakeFraction * 0.006,
       contrarian: p.against_majority ? 0.005 : -0.001
     }
-  }
+  },
+  notification_schedule: (p) => {
+    // A list of deadlines the user is about to meet. Looking ahead reads as patience;
+    // a near deadline reads as reaction speed. The raw list rides in the payload for
+    // the server-side retrain; this delta is the on-device step.
+    const soon = typeof p.next_in_ms === 'number' && p.next_in_ms >= 0 && p.next_in_ms < 3_600_000
+    return {
+      patience: p.opened_panel ? 0.004 : 0.002,
+      reaction_speed: soon ? 0.003 : 0.001,
+    }
+  },
 }
 
 const sumDeltas = (deltas: Partial<PersonalityMatrix>[]): Partial<PersonalityMatrix> => {

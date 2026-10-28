@@ -10,6 +10,7 @@ import {
   useAppearanceStore, TIMEZONE_LABELS,
   type FontScaleKey, type ChromeFontKey, type MarketDataFontKey, type ColorSchemeKey, type ChartStyleKey, type TimezoneKey
 } from '~/stores/appearance'
+import { CURRENCY_CHOICES } from '~/utils/supplyDesk'
 
 definePageMeta({ title: 'Settings', description: 'Account, security, preferences.', layout: 'default' })
 
@@ -293,6 +294,18 @@ const saveSettings = () => { /* persist later */ }
               :class="['chip', { active: appearance.chartStyle === opt.key }]"
               @click="appearance.setChartStyle(opt.key)"
             >{{ opt.label }}</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-label">Display currency <em>(supply-chain capitals)</em></span>
+          <div class="chip-row">
+            <button
+              v-for="code in CURRENCY_CHOICES" :key="code"
+              type="button"
+              :class="['chip', { active: appearance.displayCurrency === code }]"
+              @click="appearance.setDisplayCurrency(code)"
+            >{{ code }}</button>
           </div>
         </div>
 

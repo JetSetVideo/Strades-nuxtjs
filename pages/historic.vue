@@ -1,254 +1,333 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useWalletStore } from '@/stores/wallet'
-import { usePaperStore } from '@/stores/paper'
-
+/**
+ * /historic — you across time. Past · Now · Next in one view:
+ *   You card   who you are as a trader, now (calls, money, agents, opinions, when you're active)
+ *   River      every lane on one time axis, NOW fixed, the future hatched
+ *   Book       one panel, three tabs: Past · Present · Future
+ * Data: composables/useHistoryTimeline.ts (server GET /api/v1/history/ + this browser's stores).
+ */
+import { computed, nextTick, ref, watch } from 'vue'
 import UIPageHeader from '@/components/UI/PageHeader.vue'
-import UIStat from '@/components/UI/Stat.vue'
-import UIMetricRow from '@/components/UI/MetricRow.vue'
-import UISectionTabs, { type TabItem } from '@/components/UI/SectionTabs.vue'
-import UIEmptyState from '@/components/UI/EmptyState.vue'
-import UIPill from '@/components/UI/Pill.vue'
 import UICard from '@/components/UI/Card.vue'
-import WalletTrades from '@/components/Wallet/Trades.vue'
+import UIEmptyState from '@/components/UI/EmptyState.vue'
+import UISectionTabs from '@/components/UI/SectionTabs.vue'
+import {
+  HISTORY_LANES, OPEN_ENDED, historyDay, historySections, matchesHistoryFilter,
+  type HistoryEvent, type HistoryFilter, type Lane,
+} from '~/utils/historyTimeline'
 
-definePageMeta({ title: 'History', description: 'Closed, open and upcoming trades across all wallets.', layout: 'default' })
+definePageMeta({ title: 'History', description: 'Your calls, trades, agents and opinions — past, now and next.', layout: 'default' })
 
-interface Trade {
-  id: string
-  asset_id: string
-  status?: 'closed' | 'open' | 'upcoming' | string
-  pnl_usd?: number
-  [key: string]: any
+const h = useHistoryTimeline()
+const { status, error, now, events, summary, payload } = h
+
+const filter = ref<HistoryFilter>({
+  lanes: new Set(HISTORY_LANES.map(l => l.id)),
+  modes: new Set(['real', 'paper', 'backtest']),
+  q: '',
+  range: '90d',
+  showSample: true,
+})
+
+const visible = computed(() => events.value.filter(e => matchesHistoryFilter(e, filter.value, now.value)))
+const secs = computed(() => historySections(visible.value))
+
+// NEXT is an agenda of moments still ahead: scheduled events AND the end of every open span (a call's
+// target, the demo clock). Open-ended spans (running agents, positions) have no "next" moment.
+const agenda = computed(() => visible.value
+  .filter(e => !OPEN_ENDED.has(e.kind) && Date.parse(e.at) > now.value)
+  .sort((a, b) => Date.parse(a.at) - Date.parse(b.at)))
+
+// the user's own scored calls; only when there are none, the (chipped) sample ones
+const scored = computed(() => {
+  const all = events.value.filter(e => e.kind === 'call_resolved' && typeof e.score === 'number')
+  const own = all.filter(e => !e.sample)
+  return (own.length ? own : filter.value.showSample ? all : [])
+  .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  .slice(-60)
+  .map(e => ({ id: e.id, at: e.at, score: e.score as number, right: (e.data?.direction_correct ?? e.status === 'accurate') === true, asset: e.asset, sample: e.sample }))
+})
+
+const laneCounts = computed(() => {
+  const c: Record<string, number> = {}
+  for (const e of events.value) if (matchesHistoryFilter(e, { ...filter.value, lanes: new Set([e.lane]) }, now.value)) c[e.lane] = (c[e.lane] ?? 0) + 1
+  return c
+})
+const modeCounts = computed(() => {
+  const c: Record<string, number> = {}
+  for (const e of events.value) if (e.mode && matchesHistoryFilter(e, { ...filter.value, modes: new Set([e.mode]) }, now.value)) c[e.mode] = (c[e.mode] ?? 0) + 1
+  return c
+})
+const sampleCount = computed(() => events.value.filter(e => e.sample).length)
+
+// One expanded row at a time; the river selects and scrolls to it.
+const expandedId = ref<string | null>(null)
+const selectedId = ref<string | null>(null)
+function toggle(id: string) {
+  expandedId.value = expandedId.value === id ? null : id
+  selectedId.value = id
+}
+function selectFromRiver(id: string) {
+  // a span and its dot share an id; activity bars too — open the row and bring it into view
+  const e = events.value.find(x => x.id === id)
+  if (!e) return
+  // widen the range only when the range is what hides it (not a lane, a search or the Sample toggle)
+  if (!matchesHistoryFilter(e, filter.value, now.value) && matchesHistoryFilter(e, { ...filter.value, range: 'all' }, now.value)) {
+    keepLimit = true
+    filter.value = { ...filter.value, range: 'all' }
+  }
+  selectedId.value = id
+  expandedId.value = id
+  tab.value = e.tense
+  nextTick(() => {
+    ensurePastVisible(id)
+  }).then(() => nextTick()).then(() => {
+    // instant jump (smooth scrolling is unreliable in throttled tabs); the row flashes to orient the eye
+    document.getElementById(`ev-${cssId(id)}`)?.scrollIntoView({ behavior: 'auto', block: 'center' })
+  })
+}
+const cssId = (id: string) => id.replace(/[^\w-]/g, '_')
+
+// Past paging: days are cheap to render, hundreds of rows are not.
+const PAGE = 40
+const pastLimit = ref(PAGE)
+let keepLimit = false   // a river/strip pick widens the range AND needs its row rendered: skip one reset
+watch(filter, () => {
+  if (keepLimit) { keepLimit = false; return }
+  pastLimit.value = PAGE
+}, { deep: true })
+const pastShown = computed(() => {
+  let n = 0
+  const out: { day: string; events: HistoryEvent[] }[] = []
+  for (const g of secs.value.past) {
+    if (n >= pastLimit.value) break
+    const take = g.events.slice(0, pastLimit.value - n)
+    n += take.length
+    out.push({ day: g.day, events: take })
+  }
+  return out
+})
+const pastTotal = computed(() => secs.value.past.reduce((s, g) => s + g.events.length, 0))
+function ensurePastVisible(id: string) {
+  let idx = 0
+  for (const g of secs.value.past) for (const e of g.events) { idx++; if (e.id === id && idx > pastLimit.value) pastLimit.value = idx + 5 }
 }
 
-const walletStore = useWalletStore()
-const paper = usePaperStore()
-const { signedUsd, notional, sources: paperSources } = usePaperFormat()
-
-const tab = ref<'closed' | 'open' | 'upcoming' | 'paper'>('closed')
-const search = ref('')
-const loading = ref(true)
-
-if (!walletStore.hydrated) await walletStore.initializeStore()
-loading.value = false
-
-onMounted(() => {
-  paper.hydrate()
-})
-
-const allTrades = computed<Trade[]>(() =>
-  walletStore.wallets.flatMap(w => (w.transactions ?? []) as Trade[])
-)
-
-function statusOf(t: Trade): 'closed' | 'open' | 'upcoming' {
-  if (t.status === 'open' || t.status === 'upcoming' || t.status === 'closed') return t.status
-  return 'closed'
-}
-
-const filtered = computed(() => {
-  const term = search.value.trim().toLowerCase()
-  return allTrades.value.filter(t => {
-    if (statusOf(t) !== tab.value) return false
-    if (!term) return true
-    return (t.asset_id ?? '').toLowerCase().includes(term) || (t.asset_symbol ?? '').toLowerCase().includes(term)
-  })
-})
-
-/** Paper ledger rows, filtered by current search */
-const paperFiltered = computed(() => {
-  const term = search.value.trim().toLowerCase()
-  return paper.trades.filter(t => {
-    if (!term) return true
-    return t.asset_symbol.toLowerCase().includes(term) || t.asset_id.toLowerCase().includes(term)
-  })
-})
-
-const tabs = computed<TabItem[]>(() => [
-  { id: 'closed',   label: 'Closed',   count: allTrades.value.filter(t => statusOf(t) === 'closed').length },
-  { id: 'open',     label: 'Open',     count: allTrades.value.filter(t => statusOf(t) === 'open').length },
-  { id: 'upcoming', label: 'Upcoming', count: allTrades.value.filter(t => statusOf(t) === 'upcoming').length },
-  { id: 'paper',    label: 'Paper',    count: paper.trades.length }
+const tab = ref('present')
+const tabs = computed(() => [
+  { id: 'past', label: 'Past', count: pastTotal.value },
+  { id: 'present', label: 'Present', count: secs.value.present.length },
+  { id: 'future', label: 'Future', count: agenda.value.length },
 ])
 
-const stats = computed(() => {
-  // Only trades that carry a realized outcome count — plain buy fills have no pnl_usd,
-  // and scoring them as 0 reported a false "0.0%" win rate.
-  const settled = allTrades.value.filter(t => statusOf(t) === 'closed' && typeof t.pnl_usd === 'number')
-  const totalPnl = settled.length ? settled.reduce((s, t) => s + (t.pnl_usd as number), 0) : null
-  const winners = settled.filter(t => (t.pnl_usd as number) > 0).length
-  const winRate = settled.length ? (winners / settled.length) * 100 : null
-  return {
-    total: allTrades.value.length,
-    totalPnl,
-    winRate,
-    wallets: walletStore.wallets.length
-  }
-})
+const today = computed(() => historyDay(new Date(now.value).toISOString()))
+const yesterday = computed(() => historyDay(new Date(now.value - 86_400_000).toISOString()))
+function dayLabel(day: string) {
+  if (day === today.value) return 'Today'
+  if (day === yesterday.value) return 'Yesterday'
+  const d = new Date(`${day}T12:00:00`)
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: d.getFullYear() === new Date(now.value).getFullYear() ? undefined : 'numeric' })
+}
+/** Realised paper P&L of the user's own closes that day (sample rows and other modes excluded). */
+function dayTotal(evs: HistoryEvent[]) {
+  const pnl = evs.reduce((s, e) => s + (!e.sample && e.mode === 'paper' && typeof e.pnl_usd === 'number' && ['agent_closed', 'paper_closed', 'trade_sell'].includes(e.kind) ? e.pnl_usd : 0), 0)
+  return pnl ? pnl : null
+}
+
+const riverLanes = computed<Lane[]>(() => HISTORY_LANES.map(l => l.id).filter(id => filter.value.lanes.has(id)))
+const isDemo = computed(() => !!payload.value?.profile?.is_demo)
 </script>
 
 <template>
-  <div class="historic-page">
-    <UIPageHeader
-      title="History"
-      subtitle="Every closed, open and upcoming trade — across every wallet you connect."
-    >
+  <div class="historic">
+    <UIPageHeader title="History" subtitle="Your calls, trades, agents and opinions — what printed, what's running, what's next.">
       <template #actions>
-        <UIPill tone="info">{{ stats.wallets }} wallets</UIPill>
+        <button type="button" class="hd-refresh" :disabled="h.refreshing.value" @click="h.load()">
+          {{ h.refreshing.value ? 'Loading…' : 'Refresh' }}
+        </button>
       </template>
     </UIPageHeader>
 
-    <UIMetricRow :cols="4">
-      <UIStat label="Total trades" :value="stats.total"   :precision="0" size="md" />
-      <UIStat label="Realized PnL" :value="stats.totalPnl" tone="auto" :suffix="stats.totalPnl === null ? undefined : 'USD'" :precision="0" size="md" />
-      <UIStat label="Win rate"     :value="stats.winRate"  :suffix="stats.winRate === null ? undefined : '%'" :precision="1" size="md" />
-      <UIStat label="Currently"    :value="tab"            size="md" />
-    </UIMetricRow>
+    <UIEmptyState
+      v-if="status === 'signed-out'"
+      icon="⌖"
+      title="Sign in to see your timeline"
+      message="Your history lives on your account: calls, agents, paper trades and backtests."
+    />
 
-    <UICard title="Filters" padding="tight">
-      <div class="filter-bar">
-        <input
-          v-model="search"
-          type="search"
-          placeholder="Search by asset symbol…"
-          class="search-input"
-          aria-label="Search history"
+    <!-- Client only: the timeline merges this browser's stores (localStorage) with the server feed,
+         so a server render could never match the first client paint. -->
+    <ClientOnly v-else>
+      <template #fallback>
+        <div class="skeleton" aria-busy="true" aria-label="Loading your history"><span v-for="i in 4" :key="i" class="sk-tile" /></div>
+      </template>
+      <p v-if="status === 'error'" class="hd-banner" data-tone="error" role="alert">
+        Server history unavailable ({{ error }}). Showing what this device knows. <button type="button" class="hd-link" @click="h.load()">Retry</button>
+      </p>
+      <p v-if="h.foreignLocal.value" class="hd-banner" data-tone="warn" role="status">
+        {{ h.foreignLocal.value }} paper bet{{ h.foreignLocal.value === 1 ? '' : 's' }} / call{{ h.foreignLocal.value === 1 ? '' : 's' }} saved in this browser belong to another account and are hidden.
+      </p>
+      <p v-if="payload?.window?.clipped" class="hd-banner" data-tone="warn" role="status">
+        Showing up to {{ new Date(payload.window.to).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) }}: events further out are not loaded.
+      </p>
+      <p v-for="f in h.failedSources.value" :key="f.source" class="hd-banner" data-tone="warn" role="status">{{ f.note }}</p>
+      <p v-if="sampleCount && payload?.profile?.sample_before" class="hd-banner" data-tone="sample">
+        {{ isDemo ? 'Demo account: e' : 'E' }}verything before “{{ isDemo ? 'Demo session started' : 'Joined Strades' }}” is <b>sample history</b>, replayed on real daily closes so you can explore. It is chipped <i>Sample</i> and can be hidden with the Sample filter.
+      </p>
+
+      <UICard padding="normal" depth="raised">
+        <div v-if="status === 'loading' && !payload" class="skeleton" aria-busy="true" aria-label="Loading your history">
+          <span v-for="i in 4" :key="i" class="sk-tile" />
+        </div>
+        <HistoryYouCard
+          v-else
+          :profile="payload?.profile ?? null"
+          :summary="summary"
+          :sample-summary="h.sampleSummary.value"
+          :heatmap="payload?.heatmap ?? []"
+          :reading="h.readingProfile.value"
+          :personal-agent="h.personalAgent.value"
+          :followed="h.followed.value"
+          :now="now"
+          :scored="scored"
+          @select="selectFromRiver"
         />
-      </div>
-    </UICard>
+      </UICard>
 
-    <UISectionTabs v-model="tab" :tabs="tabs" />
+      <UICard padding="tight" class="river-card">
+        <HistoryFilters v-model="filter" :lane-counts="laneCounts" :mode-counts="modeCounts" :sample-count="sampleCount" />
+        <HistoryRiver
+            v-if="riverLanes.length"
+            :events="visible"
+            :lanes="riverLanes"
+            :range="filter.range"
+            :now="now"
+            :selected-id="selectedId"
+            @select="selectFromRiver"
+          />
+      </UICard>
 
-    <UICard v-if="tab !== 'paper'" :title="`${tab[0].toUpperCase() + tab.slice(1)} trades`">
-      <UIEmptyState
-        v-if="!loading && filtered.length === 0"
-        icon="◯"
-        title="No trades match this filter"
-        message="Try another tab or clear the search box."
-      />
-      <WalletTrades v-else :trades="filtered" />
-    </UICard>
+      <UICard padding="tight" depth="raised" class="book">
+        <UISectionTabs v-model="tab" :tabs="tabs" />
 
-    <UICard v-else title="Paper trades ledger" padding="tight">
-      <UIEmptyState
-        v-if="!loading && paperFiltered.length === 0"
-        icon="P"
-        title="No paper trades yet"
-        message="Place a simulated bet from any asset page or strategy to see it here."
-      />
-      <div v-else class="paper-ledger">
-        <div
-          v-for="t in paperFiltered"
-          :key="t.id"
-          class="paper-row"
-          :data-side="t.side"
-          :data-status="t.status"
-        >
-          <div class="pr-left">
-            <span class="pr-chip">P</span>
-            <div class="pr-id">
-              <span class="pr-symbol">{{ t.asset_symbol }}</span>
-              <span class="pr-meta">
-                {{ t.side.toUpperCase() }} · {{ t.wallet_pct.toFixed(1) }}% wallet · {{ notional(t.notional_value) }} notional
+        <section v-if="tab === 'past'" id="panel-past" role="tabpanel" aria-label="Past" class="sec">
+          <UIEmptyState
+            v-if="status !== 'loading' && !pastTotal"
+            size="sm"
+            icon="◯"
+            title="Nothing in this window"
+            message="Widen the range, switch lanes back on, or clear the search."
+          />
+          <div v-for="g in pastShown" :key="g.day" class="day">
+            <h3 class="day-h">
+              <span>{{ dayLabel(g.day) }}</span>
+              <span class="day-meta">
+                {{ g.events.length }} event{{ g.events.length === 1 ? '' : 's' }}
+                <b v-if="dayTotal(g.events) !== null" class="num" :data-tone="dayTotal(g.events)! >= 0 ? 'up' : 'down'" title="Realised paper P&L that day">
+                  {{ dayTotal(g.events)! >= 0 ? '+' : '−' }}${{ Math.abs(dayTotal(g.events)!).toFixed(2) }}
+                </b>
               </span>
-              <span class="pr-time">{{ new Date(t.timestamp).toLocaleString(APP_LOCALE) }}</span>
-              <span v-if="t.strategy_id || t.agent_id" class="pr-source">
-                <template v-for="(s, i) in paperSources(t)" :key="s.kind">
-                  <template v-if="i"> · </template>{{ s.kind }}: <NuxtLink :to="s.to" class="pr-source-link">{{ s.name }}</NuxtLink>
-                </template>
-              </span>
+            </h3>
+            <div class="list">
+              <div v-for="e in g.events" :id="`ev-${cssId(e.id)}`" :key="e.id">
+                <HistoryEventRow :event="e" :now="now" :expanded="expandedId === e.id" :selected="selectedId === e.id" @toggle="toggle" />
+              </div>
             </div>
           </div>
-          <div class="pr-right">
-            <template v-if="t.status === 'open'">
-              <span class="pr-pnl" :data-tone="t.hypothetical_pnl_value >= 0 ? 'pos' : 'neg'">
-                {{ signedUsd(t.hypothetical_pnl_value) }}
-              </span>
-              <span class="pr-tag open">open</span>
-            </template>
-            <template v-else>
-              <span class="pr-pnl" :data-tone="(t.realized_pnl_value ?? 0) >= 0 ? 'pos' : 'neg'">
-                {{ signedUsd(t.realized_pnl_value ?? 0) }}
-              </span>
-              <span class="pr-tag closed">closed</span>
-            </template>
+          <button v-if="pastTotal > pastLimit" type="button" class="more" @click="pastLimit += PAGE">
+            Show {{ Math.min(PAGE, pastTotal - pastLimit) }} more of {{ pastTotal - pastLimit }}
+          </button>
+        </section>
+
+        <section v-else-if="tab === 'present'" id="panel-present" role="tabpanel" aria-label="Present" class="sec">
+          <HistoryNowPanel
+            :events="secs.present"
+            :now="now"
+            :expanded-id="expandedId"
+            :selected-id="selectedId"
+            :engine-note="h.engineNote.value"
+            :live-state="h.liveState.value"
+            @toggle="toggle"
+            @load-live="h.loadLiveAgents()"
+          />
+        </section>
+
+        <section v-else id="panel-future" role="tabpanel" aria-label="Future" class="sec">
+          <p v-if="!agenda.length" class="sec-empty">Nothing scheduled. A call you make gets its target date here.</p>
+          <div class="list">
+            <div v-for="e in agenda" :id="`ev-${cssId(e.id)}`" :key="e.id">
+              <HistoryEventRow :event="e" :now="now" :expanded="expandedId === e.id" :selected="selectedId === e.id" @toggle="toggle" />
+            </div>
           </div>
-        </div>
-      </div>
-    </UICard>
+        </section>
+      </UICard>
+    </ClientOnly>
   </div>
 </template>
 
 <style scoped>
-.historic-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--page-gap, 0.6rem);
-  min-width: 0;
+.historic { display: flex; flex-direction: column; gap: var(--page-gap, 0.6rem); min-width: 0; }
+.hd-refresh, .hd-link, .more {
+  all: unset; cursor: pointer; font-size: 0.76rem; color: var(--primary-blue);
+  padding: 0.3rem 0.6rem; border-radius: var(--radius-md, 8px); border: 1px solid var(--edge-raised); min-height: 24px;
 }
+.hd-link { border: 0; padding: 0; }
+.hd-refresh:disabled { opacity: 0.6; cursor: progress; }
+.hd-refresh:focus-visible, .hd-link:focus-visible, .more:focus-visible { outline: 2px solid var(--primary-blue); outline-offset: 2px; }
+.hd-banner { margin: 0; font-size: 0.76rem; padding: 0.5rem 0.75rem; border-radius: var(--radius-md, 8px); color: var(--text-light-gray); background: rgba(255,255,255,0.03); border: 1px solid var(--edge-raised); }
+.hd-banner[data-tone='error'] { border-color: color-mix(in oklch, var(--error-red) 60%, transparent); }
+.hd-banner[data-tone='warn'] { border-color: color-mix(in oklch, var(--warning-orange) 50%, transparent); }
+.hd-banner[data-tone='sample'] { border-style: dashed; border-color: color-mix(in oklch, var(--warning-orange) 45%, transparent); }
 
-.filter-bar { display: flex; gap: 0.5rem; align-items: center; }
-.search-input {
-  flex: 1;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
-  color: var(--text-white, #fff);
-  padding: 0.45rem 0.65rem;
-  border-radius: var(--app-border-radius, 6px);
-  font-family: inherit;
-  font-size: 0.8rem;
-  transition: border-color 0.18s ease, background 0.18s ease;
-}
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary-green, #00ff88);
-  background: rgba(0,255,136,0.04);
-}
+.skeleton { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--card-gap); }
+.sk-tile { height: 6.5rem; border-radius: var(--radius-md, 8px); background: rgba(255,255,255,0.04); }
+@media (max-width: 560px) { .skeleton { grid-template-columns: 1fr 1fr; } }
 
-/* Paper ledger — dotted left border per Design.md §4 */
-.paper-ledger { display: flex; flex-direction: column; gap: 0.4rem; }
-.paper-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.55rem 0.7rem;
-  background: rgba(255,255,255,0.02);
-  border-radius: var(--app-border-radius, 6px);
-  border-left: 2px dotted color-mix(in oklch, var(--primary-blue) 50%, transparent);
-}
-.paper-row[data-side="sell"] { border-left-color: oklch(0.65 0.2 25 / 0.5); }
+.river-card :deep(.hf) { margin-bottom: 0.5rem; }
 
-.pr-left { display: flex; align-items: center; gap: 0.55rem; min-width: 0; flex: 1; }
-.pr-chip {
-  display: inline-flex;
-  align-items: center; justify-content: center;
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  background: color-mix(in oklch, var(--primary-blue) 50%, transparent);
-  color: white;
-  font-size: 0.7rem; font-weight: 700;
-  flex-shrink: 0;
-}
-.pr-id { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-.pr-symbol { font-weight: 600; font-size: 0.9rem; }
-.pr-meta { font-size: 0.72rem; color: var(--text-gray); }
-.pr-time { font-size: 0.65rem; color: var(--text-gray); opacity: 0.7; }
-.pr-source { font-size: 0.65rem; color: var(--primary-blue); font-style: italic; }
-.pr-source-link { color: inherit; text-decoration: none; }
-.pr-source-link:hover { text-decoration: underline; }
+/* Sticky offsets follow the fixed bars of layouts/default.vue (same tokens, same breakpoints). */
+.historic { --hist-top: var(--nav-top-height, 3.25rem); --hist-bottom: var(--nav-bottom-height, 4.1rem); }
+@media (min-width: 640px) { .historic { --hist-top: var(--nav-top-height-md, 3.5rem); } }
+@media (min-width: 768px) { .historic { --hist-bottom: var(--nav-bottom-height-md, 4.4rem); } }
+@media (min-width: 1024px) { .historic { --hist-top: var(--nav-top-height-lg, 3.75rem); } }
 
-.pr-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
-.pr-pnl { font-weight: 600; font-size: 0.9rem; }
-.pr-pnl[data-tone="pos"] { color: oklch(0.7 0.2 145); }
-.pr-pnl[data-tone="neg"] { color: oklch(0.65 0.2 25); }
-.pr-tag {
-  font-size: 0.65rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.book.pad-tight { padding-top: 0 !important; }
+.book :deep(.card-body) { gap: 0.35rem; }
+.book :deep(.section-tabs) {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; gap: 0;
+  margin: 0 -0.65rem 0.15rem; padding: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: rgba(8, 9, 14, 0.88);
+  backdrop-filter: blur(12px);
 }
-.pr-tag.open { background: oklch(0.7 0.15 220 / 0.2); color: oklch(0.75 0.15 220); }
-.pr-tag.closed { background: rgba(255,255,255,0.06); color: var(--text-gray); }
+.book :deep(.section-tabs button) {
+  flex: 1 1 0; justify-content: center; border-radius: 0; border: 0;
+  border-bottom: 2px solid transparent; padding: 0.62rem 0.4rem; background: transparent;
+}
+.book :deep(.section-tabs button.active) {
+  color: #fff;
+  background: rgba(255,255,255,0.07);
+  border-bottom-color: #fff;
+  box-shadow: none;
+}
+.book :deep(.section-tabs button.active .tab-count) {
+  color: #fff;
+  background: rgba(255,255,255,0.16);
+}
+.list { display: flex; flex-direction: column; gap: 0.22rem; }
+.sec { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.sec-empty { margin: 0; font-size: 0.76rem; color: var(--text-gray); }
+
+.day { display: flex; flex-direction: column; gap: 0.1rem; }
+.day + .day { margin-top: 0.35rem; }
+.day-h {
+  margin: 0; display: flex; justify-content: space-between; align-items: baseline;
+  padding: 0.4rem 0.1rem 0.15rem; font-size: 0.74rem; font-weight: 600; color: var(--text-light-gray);
+}
+.day-meta { font-size: 0.68rem; color: var(--text-gray); font-weight: 400; display: inline-flex; gap: 0.5rem; }
+.num { font-family: var(--font-market-data); font-variant-numeric: tabular-nums; }
+.num[data-tone='up'] { color: var(--app-color-up); }
+.num[data-tone='down'] { color: var(--app-color-down); }
+.more { align-self: center; margin-top: 0.4rem; }
 </style>

@@ -16,9 +16,12 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Prediction } from '~/stores/predictions'
 import {
   HOUR, makeScales, priceDomain, niceTicks, timeTicks, fmtAxisPrice, fmtTarget, clamp,
-  snapTarget, type Candle, type PriceKind,
+  snapTarget, clipPrediction, type Candle, type PriceKind,
 } from '~/utils/assetChart'
 import { friendProfile, targetTsOf } from '~/composables/useFriendPredictions'
+import { userStops, type PathStop } from '~/utils/predictionPath'
+import { limitTone } from '~/utils/priceApproach'
+import AxisEnds from '~/components/Chart/AxisEnds.vue'
 
 const props = withDefaults(defineProps<{
   candles: Candle[]
@@ -31,7 +34,9 @@ const props = withDefaults(defineProps<{
   size?: 'mini' | 'large'
   height?: number
   range?: { min: number; max: number } | null
-  aim?: { t: number; price: number } | null
+  /** Use `range` as the exact price window instead of fitting every candle. */
+  rangeLock?: boolean
+  aim?: { t: number; price: number; fromT?: number; fromPrice?: number } | null
   mine?: Prediction[]
   friends?: Prediction[]
   trades?: { t: number; price: number; side: 'buy' | 'sell' }[]
@@ -44,16 +49,19 @@ const props = withDefaults(defineProps<{
   label?: string
   /** colour the line by this move (e.g. the 24h % shown next to it) instead of first → last */
   trendPct?: number | null
-  /** horizontal price levels (e.g. armed alerts) */
-  levels?: { id: string; price: number; color: string; label: string }[]
+  /** horizontal price levels. `fade` draws them clear on the left and solid at the price scale. */
+  levels?: { id: string; price: number; color: string; label: string; hot?: boolean; ink?: string; fade?: boolean }[]
   /** drag vertically anywhere on the plot to pick a level (alerts) instead of a prediction */
   levelMode?: boolean
   /** view-transition-name, so the card's mini chart can morph into this one */
   morphName?: string
+  /** The horizon already has a call, so the hint asks for a later point. */
+  extending?: boolean
 }>(), {
-  kind: 'money', chartStyle: 'line', size: 'mini', height: 64, range: null, aim: null,
+  kind: 'money', chartStyle: 'line', size: 'mini', height: 64, range: null, rangeLock: false, aim: null,
   mine: () => [], friends: () => [], trades: () => [], interactive: false, realFrom: null,
   snapHours: 1, minLeadHours: 1, label: 'Price chart', trendPct: null, levels: () => [], levelMode: false,
+  extending: false,
 })
 
 const emit = defineEmits<{
@@ -61,6 +69,12 @@ const emit = defineEmits<{
   commit: [t: number, price: number]
   level: [price: number]
   levelCommit: [price: number]
+  /** A click on the price scale (the gutter right of the plot), not a prediction point. */
+  limit: [price: number]
+  /** Drag an end of the date axis. `start` is the left edge, `end` the right. */
+  window: [edge: 'start' | 'end', t: number]
+  /** Drag an end of the price axis. Values are the new bottom and top. */
+  scale: [min: number, max: number]
 }>()
 
 // ── Size ────────────────────────────────────────────────────────────────────
@@ -89,13 +103,17 @@ const box = computed(() => ({
 
 // ── Domain & scales ─────────────────────────────────────────────────────────
 const domain = computed(() => {
+  if (props.rangeLock && props.range && props.range.max > props.range.min) return [props.range.min, props.range.max]
   const vals: number[] = [props.current]
   for (const c of props.candles) {
     if (props.chartStyle === 'candle') vals.push(c.h, c.l)
     else vals.push(c.c, c.o)
   }
   if (props.range) vals.push(props.range.min, props.range.max)
-  for (const p of props.mine) if (targetTsOf(p) <= props.t1) vals.push(p.predictedPrice)
+  for (const p of props.mine) {
+    if (targetTsOf(p) <= props.t1) vals.push(p.predictedPrice)
+    for (const leg of p.legs ?? []) vals.push(leg.price)
+  }
   for (const p of props.friends) if (targetTsOf(p) <= props.t1) vals.push(p.predictedPrice)
   for (const tr of props.trades) if (tr.t >= props.t0) vals.push(tr.price)
   for (const l of props.levels) vals.push(l.price)
@@ -229,31 +247,57 @@ function dirColor(p: { direction?: string; predictedChangePct?: number }) {
   return (p.predictedChangePct ?? 0) < 0 ? down : up
 }
 
-function segment(p: Prediction) {
-  const s = S.value
-  const tT = targetTsOf(p)
-  if (tT > props.t1 + 1 || tT < props.now) return null
-  // The ray leaves the live price (the white dot) and ends on the call.
-  return {
-    id: p.id,
-    x1: tip.value.x, y1: tip.value.y,
-    x2: s.x(tT), y2: s.y(p.predictedPrice),
-    color: dirColor(p),
+function chainOf(p: Prediction): PathStop[] {
+  const made = Date.parse(p.timestamp)
+  const chain: PathStop[] = []
+  if (Number.isFinite(made) && Number.isFinite(p.currentPrice)) chain.push({ t: made, price: p.currentPrice })
+  for (const s of userStops(p)) {
+    const prev = chain[chain.length - 1]
+    if (!prev || s.t > prev.t) chain.push(s)
   }
+  if (!chain.length) {
+    const tT = targetTsOf(p)
+    if (Number.isFinite(tT)) chain.push({ t: props.now, price: props.current }, { t: tT, price: p.predictedPrice })
+  }
+  return chain
 }
 
-const mineSegs = computed(() => props.mine.map(segment).filter(Boolean) as NonNullable<ReturnType<typeof segment>>[])
-const friendSegs = computed(() => props.friends.map((p) => {
-  const seg = segment(p)
-  return seg ? { ...seg, avatar: friendProfile(p.userId).avatar, name: friendProfile(p.userId).name } : null
-}).filter(Boolean) as (NonNullable<ReturnType<typeof segment>> & { avatar: string; name: string })[])
+function pieces(p: Prediction) {
+  const s = S.value
+  const chain = chainOf(p)
+  const out: { id: string; x1: number; y1: number; x2: number; y2: number; color: string; anchored: boolean; dot: boolean }[] = []
+  for (let i = 1; i < chain.length; i++) {
+    const a = chain[i - 1]!
+    const b = chain[i]!
+    const clip = clipPrediction(a.t, b.t, a.price, b.price, props.t0, props.t1)
+    if (!clip) continue
+    out.push({
+      id: `${p.id}:${i}`,
+      x1: s.x(clip.from), y1: s.y(clip.priceFrom),
+      x2: s.x(clip.to), y2: s.y(clip.priceTo),
+      color: b.price >= a.price ? up : down,
+      anchored: i === 1 && Math.abs(clip.from - a.t) < 2,
+      dot: Math.abs(clip.to - b.t) < 2,
+    })
+  }
+  return out
+}
+
+const mineSegs = computed(() => props.mine.flatMap(pieces))
+const friendSegs = computed(() => props.friends.flatMap((p) => {
+  const segs = pieces(p)
+  const last = segs[segs.length - 1]
+  if (!last) return []
+  const profile = friendProfile(p.userId)
+  return segs.map((seg, i) => ({ ...seg, avatar: profile.avatar, name: profile.name, face: i === segs.length - 1 }))
+}))
 
 const tradeMarks = computed(() => props.trades
   .filter(t => t.t >= props.t0 && t.t <= props.now)
   .map(t => ({ x: S.value.x(t.t), y: S.value.y(t.price), side: t.side })))
 
 const rangeBand = computed(() => {
-  if (!props.range || !hasFuture.value) return null
+  if (props.rangeLock || !props.range || !hasFuture.value) return null
   const s = S.value
   return {
     x: xNow.value, w: s.box.left + s.box.width - xNow.value,
@@ -270,8 +314,11 @@ const aimMark = computed(() => {
   const color = props.aim.price >= props.current ? up : down
   const dateLabel = fmtTarget(props.aim.t, (props.t1 - props.now) / HOUR)
   const dateW = dateLabel.length * G.value.font * 0.58 + 10
+  const from = props.aim.fromT != null && props.aim.fromPrice != null
+    ? { x: s.x(props.aim.fromT), y: s.y(props.aim.fromPrice) }
+    : { x: tip.value.x, y: tip.value.y }
   return {
-    x, y, color,
+    x, y, color, fromX: from.x, fromY: from.y,
     priceLabel: fmtAxisPrice(props.aim.price, props.kind),
     dateLabel, dateW,
     dateX: clamp(x - dateW / 2, box.value.left, box.value.left + box.value.width - dateW),
@@ -281,7 +328,16 @@ const aimMark = computed(() => {
 // ── Pointer: tap / drag in the future zone ──────────────────────────────────
 const zone = ref<HTMLElement | null>(null)
 const dragging = ref(false)
+const placingLimit = ref(false)
+const railHover = ref(false)
 let last: { t: number; price: number } | null = null
+
+function inRail(clientX: number) {
+  const el = root.value
+  if (!el) return false
+  const x = clientX - el.getBoundingClientRect().left
+  return x >= box.value.left + box.value.width - 1
+}
 
 function pick(clientX: number, clientY: number) {
   const el = root.value
@@ -302,10 +358,56 @@ function pick(clientX: number, clientY: number) {
   return { t, price }
 }
 
+// A trackpad click is pointerdown + pointerup, and some browsers also emit click.
+// `sawPointer` keeps that second event from recording the same point twice.
+// Moves are painted once per frame so a drag does not rebuild the chart on every event.
+let sawPointer = false
+let committedAt = 0
+let aimFrame = 0
+let levelFrame = 0
+let hoverFrame = 0
+let levelPending: number | null = null
+let hoverPending: { t: number; price: number } | null = null
+function queueAim() {
+  if (aimFrame) return
+  aimFrame = requestAnimationFrame(() => {
+    aimFrame = 0
+    if (dragging.value && last) emit('aim', last.t, last.price)
+  })
+}
+function queueLevel(price: number) {
+  levelPending = price
+  if (levelFrame) return
+  levelFrame = requestAnimationFrame(() => {
+    levelFrame = 0
+    if (!placingLimit.value || levelPending == null) return
+    dragLevel.value = levelPending
+    emit('level', levelPending)
+  })
+}
+function cancelFrames() {
+  if (aimFrame) cancelAnimationFrame(aimFrame)
+  if (levelFrame) cancelAnimationFrame(levelFrame)
+  if (hoverFrame) cancelAnimationFrame(hoverFrame)
+  aimFrame = 0
+  levelFrame = 0
+  hoverFrame = 0
+}
+
 function onDown(e: PointerEvent) {
   if (!props.interactive || e.button > 0) return
   e.preventDefault()
+  sawPointer = true
   try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* released */ }
+  if (inRail(e.clientX)) {
+    placingLimit.value = true
+    dragging.value = false
+    dragLevel.value = levelAt(e.clientY)
+    levelPending = dragLevel.value
+    emit('level', dragLevel.value)
+    return
+  }
+  placingLimit.value = false
   dragging.value = true
   last = pick(e.clientX, e.clientY)
   if (last) emit('aim', last.t, last.price)
@@ -314,21 +416,61 @@ const hover = ref<{ t: number; price: number } | null>(null)
 const canHover = ref(false)
 onMounted(() => { canHover.value = !!window.matchMedia?.('(hover: hover)').matches })
 
+function queueHover(next: { t: number; price: number } | null) {
+  hoverPending = next
+  if (hoverFrame) return
+  hoverFrame = requestAnimationFrame(() => {
+    hoverFrame = 0
+    if (dragging.value || placingLimit.value) return
+    hover.value = hoverPending
+  })
+}
 function onMove(e: PointerEvent) {
+  railHover.value = inRail(e.clientX)
+  if (placingLimit.value) {
+    queueLevel(levelAt(e.clientY))
+    return
+  }
   if (!dragging.value) {
-    // mouse: preview where a click would land
-    hover.value = e.pointerType === 'mouse' ? pick(e.clientX, e.clientY) : null
+    queueHover(e.pointerType === 'mouse' && !railHover.value ? pick(e.clientX, e.clientY) : null)
     return
   }
   hover.value = null
   last = pick(e.clientX, e.clientY)
-  if (last) emit('aim', last.t, last.price)
+  queueAim()
 }
-function onLeave() { hover.value = null }
+function onLeave() { hover.value = null; railHover.value = false }
+function finishGesture() {
+  sawPointer = false
+  committedAt = performance.now()
+  cancelFrames()
+}
+onBeforeUnmount(cancelFrames)
 function onUp() {
-  if (!dragging.value) return
+  if (placingLimit.value) {
+    finishGesture()
+    placingLimit.value = false
+    const price = levelPending ?? dragLevel.value
+    levelPending = null
+    dragLevel.value = null
+    if (price != null) emit('limit', price)
+    return
+  }
+  if (!dragging.value) { sawPointer = false; return }
+  finishGesture()
   dragging.value = false
   if (last) emit('commit', last.t, last.price)
+}
+/** A click that arrived without a pointer gesture (or after one was lost) still records. */
+function onClick(e: MouseEvent) {
+  if (!props.interactive || e.button > 0) return
+  if (sawPointer || performance.now() - committedAt < 400) return
+  if (inRail(e.clientX)) {
+    emit('limit', levelAt(e.clientY))
+    return
+  }
+  const picked = pick(e.clientX, e.clientY)
+  if (picked) emit('commit', picked.t, picked.price)
 }
 
 function onKey(e: KeyboardEvent) {
@@ -373,10 +515,28 @@ function onLevelUp() {
   emit('levelCommit', dragLevel.value)
   dragLevel.value = null
 }
-const levelMarks = computed(() => [
-  ...props.levels.map(l => ({ ...l, y: S.value.y(l.price), live: false })),
-  ...(dragLevel.value !== null ? [{ id: 'drag', price: dragLevel.value, color: 'rgba(120,170,255,.95)', label: fmtAxisPrice(dragLevel.value, props.kind), y: S.value.y(dragLevel.value), live: true }] : []),
-])
+const nowFrac = computed(() => {
+  const w = box.value.width
+  if (!(w > 0)) return 0.5
+  return clamp((xNow.value - box.value.left) / w, 0.02, 0.98)
+})
+const levelMarks = computed(() => {
+  const saved = props.levels.map(l => ({
+    ...l, gid: String(l.id).replace(/[^A-Za-z0-9_-]/g, ''),
+    y: S.value.y(l.price), live: false, ink: l.ink || '#fff', fade: !!l.fade,
+  }))
+  if (dragLevel.value === null) return saved
+  const tone = limitTone(dragLevel.value, props.current)
+  return [...saved, {
+    id: 'drag', gid: 'drag', price: dragLevel.value, color: tone.color, ink: tone.ink,
+    label: fmtAxisPrice(dragLevel.value, props.kind), y: S.value.y(dragLevel.value),
+    live: true, hot: false, fade: true,
+  }]
+})
+const hint = computed(() => {
+  if (canHover.value) return props.extending ? 'click further right to extend' : 'click to predict'
+  return props.extending ? 'tap further right' : 'tap to predict'
+})
 const plotStyle = computed(() => ({
   left: `${box.value.left}px`, top: `${box.value.top}px`, width: `${box.value.width}px`, height: `${box.value.height}px`,
 }))
@@ -506,6 +666,46 @@ const zoneStyle = computed(() => ({
   width: `${Math.max(0, width.value - xNow.value)}px`,
   height: `${box.value.height}px`,
 }))
+
+// Each strip stops short of the corner so the date grip and the price grip
+// can both be grabbed. The corner used to belong to whichever rendered last.
+const timeAxisStyle = computed(() => ({
+  left: `${box.value.left}px`,
+  top: `${box.value.top + box.value.height - 8}px`,
+  width: `${Math.max(16, box.value.width - 20)}px`,
+  height: '16px',
+}))
+const priceAxisStyle = computed(() => ({
+  left: `${box.value.left + box.value.width - 8}px`,
+  top: `${box.value.top}px`,
+  width: '16px',
+  height: `${Math.max(16, box.value.height - 20)}px`,
+}))
+
+let axis0: { axis: 'time' | 'price'; edge: 'start' | 'end'; x: number; y: number; t0: number; t1: number; min: number; max: number; pxPerMs: number; pxPerPrice: number } | null = null
+function onAxis(axis: 'time' | 'price', edge: 'start' | 'end', x: number, y: number, phase: 'start' | 'move' | 'end') {
+  if (phase === 'start') {
+    const spanT = Math.max(1, props.t1 - props.t0)
+    const spanP = Math.max(1e-9, domain.value[1] - domain.value[0])
+    axis0 = {
+      axis, edge, x, y, t0: props.t0, t1: props.t1,
+      min: domain.value[0], max: domain.value[1],
+      pxPerMs: box.value.width / spanT,
+      pxPerPrice: box.value.height / spanP,
+    }
+    return
+  }
+  const d = axis0
+  if (!d || d.axis !== axis || d.edge !== edge) return
+  if (axis === 'time') {
+    const dt = (x - d.x) / d.pxPerMs
+    emit('window', edge, edge === 'start' ? d.t0 + dt : d.t1 + dt)
+  } else {
+    const dp = -(y - d.y) / d.pxPerPrice
+    emit('scale', edge === 'end' ? d.min : d.min + dp, edge === 'end' ? d.max + dp : d.max)
+  }
+  if (phase === 'end') axis0 = null
+}
 </script>
 
 <template>
@@ -524,6 +724,15 @@ const zoneStyle = computed(() => ({
       :aria-label="label"
     >
       <defs>
+        <linearGradient
+          v-for="l in levelMarks.filter(l => l.fade)" :key="'lg' + l.id"
+          :id="`${clipId}-lv-${l.gid}`" gradientUnits="userSpaceOnUse"
+          :x1="box.left" :x2="box.left + box.width" y1="0" y2="0"
+        >
+          <stop offset="0" :stop-color="l.color" stop-opacity="0.15" />
+          <stop :offset="nowFrac" :stop-color="l.color" stop-opacity="0.5" />
+          <stop offset="1" :stop-color="l.color" stop-opacity="1" />
+        </linearGradient>
         <linearGradient :id="gradId" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" :stop-color="lineColor" stop-opacity="0.22" />
           <stop offset="100%" :stop-color="lineColor" stop-opacity="0" />
@@ -585,10 +794,10 @@ const zoneStyle = computed(() => ({
         <!-- friends' calls (only passed in once revealed) -->
         <g v-for="(f, i) in friendSegs" :key="f.id" class="pc-friend">
           <line :x1="f.x1" :y1="f.y1" :x2="f.x2" :y2="f.y2" :stroke="f.color" stroke-width="1" stroke-dasharray="2 3" stroke-opacity="0.75" />
-          <template v-if="mini">
+          <template v-if="f.face && mini">
             <circle :cx="f.x2" :cy="f.y2" r="2.6" fill="#0b0d10" :stroke="f.color" stroke-width="1.3" />
           </template>
-          <template v-else>
+          <template v-else-if="f.face">
             <circle :cx="f.x2" :cy="f.y2" r="10" :fill="f.color" />
             <image :href="f.avatar" :x="f.x2 - 8.5" :y="f.y2 - 8.5" width="17" height="17" :clip-path="`url(#${clipId}-f${i})`" preserveAspectRatio="xMidYMid slice"><title>{{ f.name }}</title></image>
           </template>
@@ -597,7 +806,8 @@ const zoneStyle = computed(() => ({
         <!-- my calls -->
         <g v-for="m in mineSegs" :key="m.id">
           <line :x1="m.x1" :y1="m.y1" :x2="m.x2" :y2="m.y2" :stroke="m.color" :stroke-width="mini ? 1.2 : 1.6" stroke-dasharray="4 3" />
-          <circle :cx="m.x2" :cy="m.y2" :r="mini ? 3.2 : 5" :fill="m.color" stroke="#0b0d10" stroke-width="1.4" class="pc-mine" />
+          <circle v-if="m.anchored" :cx="m.x1" :cy="m.y1" :r="mini ? 1.6 : 2.2" :fill="m.color" />
+          <circle v-if="m.dot" :cx="m.x2" :cy="m.y2" :r="mini ? 3.2 : 5" :fill="m.color" stroke="#0b0d10" stroke-width="1.4" class="pc-mine" />
         </g>
       </g>
 
@@ -613,16 +823,16 @@ const zoneStyle = computed(() => ({
 
       <!-- price levels (alerts) -->
       <g v-for="l in levelMarks" :key="'l' + l.id">
-        <line :x1="box.left" :x2="box.left + box.width" :y1="l.y" :y2="l.y" :stroke="l.color" :stroke-dasharray="l.live ? '2 2' : '5 3'" stroke-width="1.2" />
+        <line :x1="box.left" :x2="box.left + box.width" :y1="l.y" :y2="l.y" :stroke="l.fade ? `url(#${clipId}-lv-${l.gid})` : l.color" :stroke-dasharray="l.live ? '2 2' : '5 3'" :stroke-width="l.hot ? 2.4 : 1.6" />
         <rect :x="box.left + box.width + 1" :y="l.y - G.font * 0.75" :width="G.right - 2" :height="G.font * 1.5" rx="2" :fill="l.color" />
-        <text :x="box.left + box.width + 4" :y="l.y + G.font * 0.35" class="pc-tag-text" :font-size="G.font">{{ l.label }}</text>
+        <text :x="box.left + box.width + 4" :y="l.y + G.font * 0.35" class="pc-tag-text" :fill="l.ink" :font-size="G.font">{{ l.label }}</text>
       </g>
 
       <!-- live aim -->
       <g v-if="aimMark" class="pc-aim">
         <line :x1="aimMark.x" :x2="box.left + box.width" :y1="aimMark.y" :y2="aimMark.y" :stroke="aimMark.color" stroke-dasharray="2 2" />
         <line :x1="aimMark.x" :x2="aimMark.x" :y1="aimMark.y" :y2="box.top + box.height" :stroke="aimMark.color" stroke-dasharray="2 2" />
-        <line :x1="tip.x" :y1="tip.y" :x2="aimMark.x" :y2="aimMark.y" :stroke="aimMark.color" stroke-width="2" />
+        <line :x1="aimMark.fromX" :y1="aimMark.fromY" :x2="aimMark.x" :y2="aimMark.y" :stroke="aimMark.color" stroke-width="2" />
         <circle :cx="aimMark.x" :cy="aimMark.y" r="11" :fill="aimMark.color" opacity="0.18" />
         <circle :cx="aimMark.x" :cy="aimMark.y" r="6" :fill="aimMark.color" stroke="#0b0d10" stroke-width="1.5" />
         <rect :x="box.left + box.width + 1" :y="aimMark.y - G.font * 0.8" :width="G.right - 2" :height="G.font * 1.6" rx="2" :fill="aimMark.color" />
@@ -664,7 +874,7 @@ const zoneStyle = computed(() => ({
       </g>
 
       <text v-if="!mini && realFrom" :x="box.left + 4" :y="box.top + G.font" class="pc-axis" :font-size="G.font - 1">simulated before {{ fmtTarget(realFrom, 999) }}</text>
-      <text v-if="interactive && !aim && hasFuture" :x="xNow + (box.left + box.width - xNow) / 2" :y="box.top + box.height / 2" text-anchor="middle" class="pc-hint" :font-size="G.font">{{ canHover ? 'click to predict' : 'tap to predict' }}</text>
+      <text v-if="interactive && !aim && hasFuture" :x="xNow + (box.left + box.width - xNow) / 2" :y="box.top + box.height / 2" text-anchor="middle" class="pc-hint" :font-size="G.font">{{ hint }}</text>
     </svg>
 
     <div
@@ -693,6 +903,7 @@ const zoneStyle = computed(() => ({
       v-if="interactive && hasFuture"
       ref="zone"
       class="pc-zone"
+      :class="{ rail: railHover }"
       :style="zoneStyle"
       tabindex="0"
       role="slider"
@@ -704,7 +915,24 @@ const zoneStyle = computed(() => ({
       @pointerup="onUp"
       @pointercancel="onUp"
       @pointerleave="onLeave"
+      @click="onClick"
       @keydown="onKey"
+    />
+    <AxisEnds
+      v-if="interactive && !mini && !levelMode"
+      orientation="horizontal"
+      start-label="Drag the start of the date range"
+      end-label="Drag the end of the date range"
+      :style="timeAxisStyle"
+      @drag="(edge, x, y, phase) => onAxis('time', edge, x, y, phase)"
+    />
+    <AxisEnds
+      v-if="interactive && !mini && !levelMode"
+      orientation="vertical"
+      start-label="Drag the low end of the price range"
+      end-label="Drag the high end of the price range"
+      :style="priceAxisStyle"
+      @drag="(edge, x, y, phase) => onAxis('price', edge, x, y, phase)"
     />
   </div>
 </template>
@@ -747,7 +975,7 @@ const zoneStyle = computed(() => ({
   touch-action: none;
   border-radius: 2px;
 }
-.pc-zone.level { cursor: ns-resize; }
+.pc-zone.level, .pc-zone.rail { cursor: ns-resize; }
 .pc-zone:focus-visible { outline: 2px solid rgba(120, 170, 255, 0.8); outline-offset: 1px; }
 .pc.dragging .pc-zone { cursor: grabbing; }
 .pc-mine { filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.5)); }

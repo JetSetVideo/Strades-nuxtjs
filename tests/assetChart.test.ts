@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   HOUR, makeScales, simPriceAt, simCandles, stitchCandles, predictionRange, priceDomain,
   niceTicks, timeTicks, pickInterval, candlesFromHourlyCloses, closesFromReturns, priceAtTime,
-  fmtAxisPrice, horizonFor, hourlySigma, snapTarget, type Candle,
+  fmtAxisPrice, horizonFor, nearestHorizon, hourlySigma, snapTarget, clipPrediction, type Candle,
 } from '~/utils/assetChart'
 
 const NOW = Date.UTC(2026, 9, 20, 12, 0, 0)
@@ -22,6 +22,33 @@ describe('makeScales — a prediction is drawn where it was placed', () => {
     expect(s.y(180)).toBeLessThan(s.y(120))
     // now sits at 2/3 of the width when the future is one third of the window
     expect(s.x(NOW)).toBeCloseTo(200, 6)
+  })
+})
+
+describe('clipPrediction — a saved call keeps its timestamps when the window slides', () => {
+  const made = NOW - 24 * HOUR
+  const target = NOW + 6 * 24 * HOUR
+  const box = { left: 0, top: 0, width: 300, height: 100 }
+
+  it('returns the real endpoints when both sit inside the window', () => {
+    const clip = clipPrediction(made, target, 100, 170, NOW - 10 * 24 * HOUR, NOW + 10 * 24 * HOUR)
+    expect(clip).toEqual({ from: made, to: target, priceFrom: 100, priceTo: 170 })
+  })
+
+  it('clips and interpolates, and those times move left as the window moves forward', () => {
+    const clip = clipPrediction(made, target, 100, 170, NOW, NOW + 10 * 24 * HOUR)
+    expect(clip!.from).toBe(NOW)
+    expect(clip!.to).toBe(target)
+    expect(clip!.priceFrom).toBeCloseTo(110, 6)
+    const early = makeScales(NOW - 10 * 24 * HOUR, NOW + 10 * 24 * HOUR, 90, 180, box)
+    const later = makeScales(NOW - 9 * 24 * HOUR, NOW + 11 * 24 * HOUR, 90, 180, box)
+    expect(later.x(made)).toBeLessThan(early.x(made))
+    expect(later.x(target)).toBeLessThan(early.x(target))
+    expect(later.tAt(later.x(target)) - later.tAt(later.x(made))).toBeCloseTo(target - made, -1)
+  })
+
+  it('drops a call that has already left the window', () => {
+    expect(clipPrediction(made, target, 100, 170, target + HOUR, target + 2 * HOUR)).toBeNull()
   })
 })
 
@@ -158,6 +185,11 @@ describe('axes', () => {
     expect(pickInterval(24 * 730, 48).id).toBe('1M')
     expect(horizonFor(30).id).toBe('1W')
     expect(horizonFor(24).id).toBe('1D')
+    expect(nearestHorizon(24).id).toBe('1D')
+    expect(nearestHorizon(168).id).toBe('1W')
+    expect(nearestHorizon(100).id).toBe('1W')
+    expect(nearestHorizon(400).id).toBe('1M')
+    expect(nearestHorizon(8760).id).toBe('1Y')
   })
 })
 

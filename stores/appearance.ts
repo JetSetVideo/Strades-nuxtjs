@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { CURRENCY_CHOICES, type DisplayCurrency } from '~/utils/supplyDesk'
 
 /**
  * Appearance — the user-tunable half of the design system.
@@ -59,6 +60,8 @@ export interface AppearanceState {
   colorSchemeKey: ColorSchemeKey
   chartStyle: ChartStyleKey
   timezone: TimezoneKey
+  /** ISO code from the settings chips. Supply-chain capitals convert into it. */
+  displayCurrency: DisplayCurrency
   hydrated: boolean
 }
 
@@ -72,6 +75,7 @@ export const useAppearanceStore = defineStore('appearance', {
     colorSchemeKey: 'default',
     chartStyle: 'line',
     timezone: 'UTC',
+    displayCurrency: 'USD',
     hydrated: false
   }),
 
@@ -102,6 +106,8 @@ export const useAppearanceStore = defineStore('appearance', {
           this.colorSchemeKey = parsed.colorSchemeKey ?? this.colorSchemeKey
           this.chartStyle = parsed.chartStyle === 'candle' ? 'candle' : 'line'
           this.timezone = parsed.timezone ?? this.timezone
+          const code = String(parsed.displayCurrency ?? '')
+          if ((CURRENCY_CHOICES as readonly string[]).includes(code)) this.displayCurrency = code as DisplayCurrency
         }
       } catch { /* fresh start */ }
       this.hydrated = true
@@ -116,7 +122,8 @@ export const useAppearanceStore = defineStore('appearance', {
           marketDataFontKey: this.marketDataFontKey,
           colorSchemeKey: this.colorSchemeKey,
           chartStyle: this.chartStyle,
-          timezone: this.timezone
+          timezone: this.timezone,
+          displayCurrency: this.displayCurrency
         }))
       } catch { /* quota full — non-fatal */ }
     },
@@ -126,6 +133,11 @@ export const useAppearanceStore = defineStore('appearance', {
     setMarketDataFont(key: MarketDataFontKey) { this.marketDataFontKey = key; this.persist() },
     setColorScheme(key: ColorSchemeKey) { this.colorSchemeKey = key; this.persist() },
     setChartStyle(key: ChartStyleKey) { this.chartStyle = key; this.persist() },
-    setTimezone(key: TimezoneKey) { this.timezone = key; this.persist() }
+    setTimezone(key: TimezoneKey) { this.timezone = key; this.persist() },
+    setDisplayCurrency(code: string) {
+      if (!(CURRENCY_CHOICES as readonly string[]).includes(code)) return
+      this.displayCurrency = code as DisplayCurrency
+      this.persist()
+    }
   }
 })

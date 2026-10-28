@@ -52,8 +52,10 @@ export interface Prediction {
   chartStyle?: 'line' | 'candle'
   /** true when the price history behind the chart was simulated */
   simulatedHistory?: boolean
+  /** waypoints before the final target, each later than the one before it */
+  legs?: { t: number; price: number }[]
   /** previous versions when the user moved the call: oldest first */
-  revisions?: { at: string; predictedPrice: number; predictedChangePct: number; targetDate: string }[]
+  revisions?: { at: string; predictedPrice: number; predictedChangePct: number; targetDate: string; legs?: { t: number; price: number }[] }[]
   /** demo persona data, not a real person */
   demo?: boolean
 }
@@ -291,6 +293,7 @@ export const usePredictionsStore = defineStore('predictions', {
       const revisions = [...(prev.revisions ?? []), {
         at: prev.timestamp, predictedPrice: prev.predictedPrice,
         predictedChangePct: prev.predictedChangePct, targetDate: prev.targetDate,
+        legs: prev.legs,
       }].slice(-50)
       const next: Prediction = { ...prev, ...input, id: prev.id, status: 'pending', revisions }
       this.predictions[idx] = next

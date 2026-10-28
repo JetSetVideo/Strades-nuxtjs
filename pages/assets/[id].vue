@@ -3,10 +3,10 @@
  * Asset detail page — one layout, adapted to the asset type.
  *
  *  header   name · type · friends (top right) / logo + ticker · price · move
- *  chart    the prediction chart (PredictPanel): past + future, tap to call
+ *  chart    the prediction chart: calls, price limits, friends
  *  facts    the key facts for this type (company, crypto, forex, commodity, bet, index)
  *  type     the block only that type has (bet order book, supply, supply chain…)
- *  alerts   price alerts chart · paper trade · related assets
+ *  trade    paper trade · related assets
  *  data     everything else the backend / bundled data knows, nothing left out
  *
  * Every chart follows the one Line / Candles switch at the top.
@@ -21,7 +21,6 @@ import { useAgentTracker } from '~/composables/useAgentTracker'
 import { publicAssetUrl } from '~/composables/useLocalJson'
 import PredictPanel from '~/components/Asset/PredictPanel.vue'
 import AssetBotChip from '~/components/Asset/BotChip.vue'
-import PriceChart from '~/components/Asset/PriceChart.vue'
 import ChartStyleToggle from '~/components/Asset/ChartStyleToggle.vue'
 import AssetDataTree from '~/components/Asset/DataTree.vue'
 import SupplyTree from '~/components/Asset/SupplyTree.vue'
@@ -29,7 +28,10 @@ import WorldMap from '~/components/Asset/WorldMap.vue'
 import AssetCommodityPipeline from '~/components/Asset/CommodityPipeline.vue'
 import AssetQuickPaperBet from '~/components/Asset/QuickPaperBet.vue'
 import { isBetAsset, BET_COLOR, betSourceLabel } from '~/utils/betAssets'
-import { priceKindOf, fmtPrice, fmtPct, volIndexOf, fmtAxisPrice, TYPE_LABEL, TYPE_COLOR, type MapPoint } from '~/utils/assetChart'
+import { priceKindOf, fmtPrice, fmtPct, volIndexOf, fmtAxisPrice, TYPE_LABEL, TYPE_COLOR, type MapPoint, type TreeNode } from '~/utils/assetChart'
+import { useAppearanceStore } from '~/stores/appearance'
+import { countryName, flagEmoji, formatCapital, parsePartnerSlug, partnerSlug, placeCountry, usdPerUnit } from '~/utils/supplyDesk'
+import { linkedLogo, linkedSymbol, linkedTone } from '~/utils/linkedDesk'
 
 const route = useRoute()
 const routeId = computed(() => String(route.params.id ?? ''))
@@ -68,6 +70,7 @@ onMounted(async () => {
   mounted.value = true
   if (!assetsStore.assets.length) await assetsStore.initializeStore()
   loading.value = false
+  if (parsePartnerSlug(routeId.value)) void loadPartner(routeId.value)
 })
 watch(() => asset.value?.symbol, (s) => { if (s && import.meta.client) loadDetail(s) }, { immediate: true })
 
@@ -78,13 +81,32 @@ const typeColor = computed(() => TYPE_COLOR[type.value] ?? '#607d8b')
 const isBet = computed(() => isBetAsset(asset.value))
 const kind = computed(() => priceKindOf(asset.value))
 const currency = computed(() => String(asset.value?.currency || 'USD'))
+const appearance = useAppearanceStore()
+appearance.hydrate()
+const displayCurrency = computed(() => appearance.displayCurrency)
+const usdPer = computed(() => usdPerUnit(displayCurrency.value, assetsStore.assets))
 const iconFailed = ref(false)
+interface PartnerView {
+  name: string
+  role: string
+  product: string
+  flag: string
+  country: string
+  city: string
+  lat: number | null
+  lng: number | null
+  share: number | null
+  value: number | null
+  parentId: string
+}
+const partner = ref<PartnerView | null>(null)
+const partnerState = ref<'idle' | 'loading' | 'ready' | 'miss'>(parsePartnerSlug(routeId.value) ? 'loading' : 'idle')
 const change = computed(() => typeof asset.value?.change_24h_pct === 'number' ? asset.value.change_24h_pct : null)
 const descOpen = ref(false)
 
 const friends = useFriendPredictions(asset)
 
-useHead(() => ({ title: asset.value ? `${asset.value.name} (${asset.value.symbol}) · Strades` : 'Asset · Strades' }))
+useHead(() => ({ title: asset.value ? `${asset.value.name} (${asset.value.symbol}) · Strades` : partner.value ? `${partner.value.name} · Strades` : 'Asset · Strades' }))
 
 // ── Key facts per type ──────────────────────────────────────────────────────
 type Fact = { label: string; value: string; href?: string; tone?: 'up' | 'down' }
@@ -319,6 +341,50 @@ interface Profile {
   calendar?: { when: string; event: string; type: string }[]
 }
 const SUPPLY_FILES = new Set(['aapl', 'amzn', 'btc', 'cny', 'eth', 'eur', 'sol', 'tsla', 'usd'])
+
+const partnerParent = computed(() => {
+  const id = partner.value?.parentId
+  if (!id) return ''
+  const listed = assetsStore.assets.find(a => String(a.id).toLowerCase() === id || a.symbol.toLowerCase() === id)
+  return listed?.name || id.toUpperCase()
+})
+
+async function loadPartner(id: string) {
+  const parsed = parsePartnerSlug(id)
+  if (!parsed || !SUPPLY_FILES.has(parsed.parentId)) {
+    partner.value = null
+    partnerState.value = 'idle'
+    return
+  }
+  partnerState.value = 'loading'
+  const sc = await $fetch<Record<string, any>>(publicAssetUrl(`/data/supply_chain/${parsed.parentId}.json`)).catch(() => null)
+  const suppliers = (sc?.suppliers ?? []) as any[]
+  const customers = (sc?.customers ?? []) as any[]
+  const node = suppliers.find(n => String(n.id) === parsed.nodeId)
+  const client = node ? null : customers.find(n => String(n.id) === parsed.nodeId)
+  const row = node || client
+  if (!row) {
+    partner.value = null
+    partnerState.value = 'miss'
+    return
+  }
+  const code = String(row.country ?? '').trim().toUpperCase()
+  partner.value = {
+    name: String(row.name ?? parsed.nodeId),
+    role: node ? 'Supplier' : 'Client',
+    product: String(row.product ?? ''),
+    flag: String(row.country_flag || flagEmoji(code)),
+    country: code ? countryName(code) : '',
+    city: String(row.city ?? ''),
+    lat: typeof row.lat === 'number' ? row.lat : null,
+    lng: typeof row.lng === 'number' ? row.lng : null,
+    share: typeof row.share_pct === 'number' ? row.share_pct : null,
+    value: typeof row.value_usd === 'number' ? row.value_usd : null,
+    parentId: parsed.parentId,
+  }
+  partnerState.value = 'ready'
+}
+watch(routeId, (id) => { if (import.meta.client && mounted.value) void loadPartner(id) })
 const COMPANY_IDS: Record<string, string> = { AAPL: 'apple', AMZN: 'amazon', GOOGL: 'google', MSFT: 'microsoft', TSLA: 'tesla' }
 const profiles = ref<{ assets: Record<string, Profile>; bets: Record<string, Profile> } | null>(null)
 const chain = ref<Record<string, any> | null>(null)
@@ -351,21 +417,106 @@ const profile = computed<Profile>(() => {
 })
 
 const bySymbol = (s?: string) => s ? assetsStore.assets.find(a => a.symbol.toUpperCase() === s.toUpperCase()) : undefined
-const byName = (n: string) => assetsStore.assets.find(a => a.type !== 'bet' && (a.name.toLowerCase() === n.toLowerCase() || a.name.toLowerCase().startsWith(n.toLowerCase().split(' ')[0] + ' ')))
+function byName(n: string) {
+  const q = n.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase()
+  if (!q) return undefined
+  const token = q.split(/\s+/)[0] ?? ''
+  return assetsStore.assets.find(a => {
+    if (a.type === 'bet') return false
+    const name = a.name.toLowerCase()
+    if (name === q) return true
+    return token.length >= 4 && (name === token || name.startsWith(`${token} `))
+  })
+}
 
 // Suppliers / clients: shares and nominal values from the supply-chain data; names only from the profile otherwise.
+const REL_ALIAS: Record<string, string> = { AAPL: 'apple', AMZN: 'amazon', GOOGL: 'google', MSFT: 'microsoft', TSLA: 'tesla', NVDA: 'nvidia' }
+function chainNode(n: any): TreeNode {
+  const code = String(n.country ?? '').trim().toUpperCase()
+  const listed = byName(String(n.name ?? ''))
+  const parent = String(asset.value?.id ?? routeId.value).toLowerCase()
+  return {
+    name: n.name,
+    realName: listed?.name || n.name,
+    sub: n.product,
+    share_pct: n.share_pct,
+    value_usd: n.value_usd,
+    flag: n.country_flag || flagEmoji(code),
+    countryCode: code || undefined,
+    country: code ? countryName(code) : undefined,
+    city: n.city,
+    lat: n.lat,
+    lng: n.lng,
+    logo: listed?.icon_url,
+    assetId: listed?.id ? String(listed.id) : (n.id ? partnerSlug(parent, String(n.id)) : undefined),
+  }
+}
+function peerRole(symbol: string): string {
+  const me = REL_ALIAS[String(asset.value?.symbol ?? '').toUpperCase()] || String(asset.value?.symbol ?? '').toLowerCase()
+  const them = REL_ALIAS[symbol.toUpperCase()] || symbol.toLowerCase()
+  const rel = relations.value.find((r: any) =>
+    (r.source_company === me && r.target_company === them) ||
+    (r.source_company === them && r.target_company === me))
+  const kind = String(rel?.relationship_type ?? '')
+  if (kind.includes('competitor')) return 'Competitor'
+  if (kind.includes('partner')) return 'Partner'
+  return 'Peer'
+}
 const treeSuppliers = computed(() => {
   const s = chain.value?.suppliers as any[] | undefined
-  if (s?.length) return s.map(n => ({ name: n.name, sub: n.product, share_pct: n.share_pct, value_usd: n.value_usd, flag: n.country_flag, assetId: byName(n.name)?.id }))
-  return (profile.value.suppliers ?? []).map(n => ({ name: n.name, sub: n.product, assetId: byName(n.name)?.id }))
+  if (s?.length) return s.map(chainNode)
+  return (profile.value.suppliers ?? []).map(n => ({ name: n.name, sub: n.product, assetId: byName(n.name)?.id ? String(byName(n.name)!.id) : undefined }))
 })
 const treeClients = computed(() => {
   const s = chain.value?.customers as any[] | undefined
-  if (s?.length) return s.map(n => ({ name: n.name, sub: n.product, share_pct: n.share_pct, value_usd: n.value_usd, flag: n.country_flag, assetId: byName(n.name)?.id }))
-  return (profile.value.clients ?? []).map(n => ({ name: n.name, sub: n.product, assetId: byName(n.name)?.id }))
+  if (s?.length) return s.map(chainNode)
+  return (profile.value.clients ?? []).map(n => ({ name: n.name, sub: n.product, assetId: byName(n.name)?.id ? String(byName(n.name)!.id) : undefined }))
 })
-const treeSimilar = computed(() => (asset.value?.similar_assets ?? []).map(s => bySymbol(s)).filter(Boolean).slice(0, 4)
-  .map(a => ({ name: a!.symbol, sub: fmtPrice(Number(a!.current_price), priceKindOf(a!), a!.currency || 'USD'), assetId: a!.id })))
+const treeSimilar = computed(() => (asset.value?.similar_assets ?? []).map(s => bySymbol(String(s))).filter((a): a is Asset => !!a)
+  .map(a => {
+    const loc = String((a as Asset & { headquarter?: string }).headquarter || a.location || '')
+    const home = placeCountry(loc)
+    const book = profiles.value?.assets?.[a.symbol.toUpperCase()]
+    const place = book?.places?.find(p => p.kind === 'hq') ?? book?.places?.[0]
+    return {
+      name: a.symbol,
+      realName: a.name,
+      role: peerRole(a.symbol),
+      sub: home?.name,
+      value_usd: a.market_cap ?? null,
+      flag: home ? flagEmoji(home.code) : '',
+      countryCode: home?.code,
+      country: home?.name,
+      lat: place?.lat ?? null,
+      lng: place?.lng ?? null,
+      logo: a.icon_url,
+      assetId: String(a.id),
+    }
+  }))
+const centerCard = computed(() => {
+  const hq = chain.value?.headquarters
+  const code = String(hq?.country ?? '').trim().toUpperCase()
+  const home = code ? { code, name: countryName(code) } : placeCountry(String((asset.value as Asset & { headquarter?: string } | null)?.headquarter || asset.value?.location || ''))
+  return {
+    symbol: asset.value?.symbol ?? '',
+    name: asset.value?.name ?? '',
+    color: typeColor.value,
+    price: asset.value ? fmtPrice(Number(asset.value.current_price), kind.value, currency.value) : '',
+    id: asset.value ? String(asset.value.id) : '',
+    logo: asset.value?.icon_url,
+    flag: home ? flagEmoji(home.code) : '',
+    country: home?.name,
+    city: hq?.city as string | undefined,
+    lat: hq?.lat as number | null | undefined,
+    lng: hq?.lng as number | null | undefined,
+  }
+})
+const consumerCount = computed(() => {
+  const m = company.value?.key_metrics
+  if (!m || typeof m !== 'object') return ''
+  const v = m.active_customer_accounts || m.prime_members
+  return v ? String(v) : ''
+})
 const treeLabels = computed(() => ({
   suppliers: chain.value?.label_overrides?.suppliers ?? (type.value === 'cryptocurrency' ? 'Producers' : type.value === 'commodity' ? 'Producers' : 'Suppliers'),
   clients: chain.value?.label_overrides?.customers ?? (type.value === 'commodity' ? 'Demand' : 'Main clients'),
@@ -414,18 +565,75 @@ const watchers = computed(() => {
     .map(i => ({ ...i, about: String(i.latest_signal?.asset ?? '').toUpperCase().includes(sym) }))
 })
 
-// Linked companies
-const linked = computed(() => {
-  const list: { name: string; relation: string; id?: string }[] = []
-  for (const l of profile.value.linked ?? []) list.push({ name: l.name, relation: l.relation, id: bySymbol(l.symbol)?.id ?? byName(l.name)?.id })
-  const cid = COMPANY_IDS[String(asset.value?.symbol ?? '').toUpperCase()]
-  for (const r of relations.value.filter(r => r.source_company === cid)) {
-    const name = String(r.target_company).replace(/^\w/, (c: string) => c.toUpperCase())
-    list.push({ name, relation: `${String(r.relationship_type).replace(/_/g, ' ')} · ${r.dependency_level ?? ''} dependency`, id: byName(name)?.id })
-  }
-  for (const c of (company.value?.competitors ?? []) as any[]) list.push({ name: c.name, relation: `competitor · ${c.market_share_overlap ?? ''} overlap`, id: bySymbol(c.symbol)?.id })
+// Linked assets — companies, metals, currencies, crypto, and bets about this one.
+interface LinkedCard {
+  key: string
+  name: string
+  relation: string
+  id?: string
+  symbol: string
+  color: string
+  tint: string
+  label: string
+  logo: string | null
+  price: string
+  change: number | null
+}
+const logoMiss = ref<Record<string, boolean>>({})
+watch(() => asset.value?.id, () => { logoMiss.value = {} })
+function missLogo(key: string) { logoMiss.value = { ...logoMiss.value, [key]: true } }
+function onLogoLoad(e: Event, key: string) {
+  const img = e.target as HTMLImageElement
+  if (img.naturalWidth > img.naturalHeight * 1.8) missLogo(key)
+}
+const linked = computed<LinkedCard[]>(() => {
+  const me = asset.value
+  const out: LinkedCard[] = []
   const seen = new Set<string>()
-  return list.filter(l => !seen.has(l.name.toLowerCase()) && seen.add(l.name.toLowerCase()))
+  const push = (name: string, relation: string, symbol?: string | null) => {
+    const sym = linkedSymbol(name, symbol)
+    const listed = (sym && bySymbol(sym)) || byName(name)
+    if (listed && me && listed.id === me.id) return
+    const key = String(listed?.id || sym || name).toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    const tone = linkedTone(listed ?? (sym ? { symbol: sym } : null), sym || listed?.symbol || '')
+    const mark = (listed?.symbol || sym).toUpperCase()
+    out.push({
+      key, name: listed?.name || name, relation, id: listed ? String(listed.id) : undefined,
+      symbol: mark, color: tone.color, tint: tone.tint, label: tone.label,
+      logo: linkedLogo(listed?.icon_url, mark, listed ?? (mark ? { symbol: mark } : null)),
+      price: listed ? fmtPrice(Number(listed.current_price), priceKindOf(listed), listed.currency || 'USD') : '',
+      change: typeof listed?.change_24h_pct === 'number' ? listed.change_24h_pct : null,
+    })
+  }
+  for (const l of profile.value.linked ?? []) push(l.name, l.relation, l.symbol)
+  const cid = REL_ALIAS[String(me?.symbol ?? '').toUpperCase()] || String(me?.symbol ?? '').toLowerCase()
+  for (const r of relations.value) {
+    const src = String(r.source_company ?? '')
+    const tgt = String(r.target_company ?? '')
+    if (src !== cid && tgt !== cid) continue
+    const other = src === cid ? tgt : src
+    const name = other.replace(/^\w/, (c: string) => c.toUpperCase())
+    const rel = String(r.description || String(r.relationship_type ?? 'linked').replace(/_/g, ' '))
+    push(name, rel)
+  }
+  for (const c of (company.value?.competitors ?? []) as any[]) {
+    push(c.name, `Competitor${c.market_share_overlap ? ` · ${c.market_share_overlap} overlap` : ''}`, c.symbol)
+  }
+  for (const row of related.value) {
+    if (row.kind === 'same market') continue
+    push(row.asset.name, row.relation, row.asset.symbol)
+  }
+  const mine = String(me?.symbol ?? '').toUpperCase()
+  let bets = 0
+  for (const a of assetsStore.assets) {
+    if (bets >= 3 || !isBetAsset(a)) continue
+    if (String(a.subject ?? '').toUpperCase() !== mine) continue
+    push(a.name, 'Market on this asset', a.symbol)
+    bets++
+  }
+  return out
 })
 
 // Calendar: dated items (bet resolution, company events, your and friends' calls) + recurring ones
@@ -513,7 +721,6 @@ const jumps = computed(() => [
   { id: 'sec-linked', label: 'Linked', on: linked.value.length > 0 },
   { id: 'sec-calendar', label: 'Calendar', on: calendar.value.upcoming.length + calendar.value.recurring.length > 0 },
   { id: 'sec-market', label: 'Market', on: !!bet.value },
-  { id: 'sec-alerts', label: 'Alerts', on: true },
   { id: 'sec-trade', label: 'Paper trade', on: true },
   { id: 'sec-related', label: 'Related', on: related.value.length > 0 },
   { id: 'sec-data', label: 'All data', on: true },
@@ -524,6 +731,19 @@ function jump(id: string) {
   if (el instanceof HTMLDetailsElement) el.open = true
   el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
+
+// Deep links (notifications, calendar): `#sec-chart` etc. The sections render only after the asset
+// has loaded, after the router already tried to scroll, so scroll once they exist.
+watch(() => [asset.value?.symbol, route.hash] as const, ([sym, hash]) => {
+  if (!import.meta.client || !sym || !hash || !/^#[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(hash)) return
+  const id = hash === '#sec-alerts' ? 'sec-chart' : hash.slice(1)
+  let tries = 0
+  const tryJump = () => {
+    if (document.getElementById(id)) jump(id)
+    else if (++tries < 20) setTimeout(tryJump, 100)
+  }
+  setTimeout(tryJump, 50)
+}, { immediate: true })
 
 // ── Everything else ─────────────────────────────────────────────────────────
 const CURATED: Record<string, Set<string>> = {
@@ -568,10 +788,24 @@ const tags = computed(() => [...(asset.value?.tags ?? [])])
   <div class="ad">
     <div class="ad-top">
       <NuxtLink to="/prices" class="ad-back">← Prices</NuxtLink>
-      <ChartStyleToggle />
+      <span class="ad-top-end">
+        <NuxtLink :to="`/CandleChart?asset=${encodeURIComponent(routeId)}`" class="ad-back" title="Indicators, drawings, alerts, comparison">Full chart ↗</NuxtLink>
+        <ChartStyleToggle />
+      </span>
     </div>
 
-    <div v-if="!mounted || (loading && !asset)" class="ad-state">Loading…</div>
+    <div v-if="!mounted || (loading && !asset && partnerState !== 'ready') || partnerState === 'loading'" class="ad-state">Loading…</div>
+    <article v-else-if="partner" class="ad-card partner">
+      <p class="partner-kicker">{{ partner.role }} of <NuxtLink :to="`/assets/${partner.parentId}`">{{ partnerParent }}</NuxtLink></p>
+      <h1 class="partner-name"><span v-if="partner.flag" class="partner-flag">{{ partner.flag }}</span>{{ partner.name }}</h1>
+      <p v-if="partner.country || partner.city" class="partner-origin">{{ [partner.country, partner.city].filter(Boolean).join(' · ') }}</p>
+      <dl class="ad-facts">
+        <div v-if="partner.product" class="ad-fact"><dt>Product</dt><dd>{{ partner.product }}</dd></div>
+        <div v-if="partner.value" class="ad-fact"><dt>Capital</dt><dd>{{ formatCapital(partner.value, displayCurrency, usdPer) }}</dd></div>
+        <div v-if="partner.share != null" class="ad-fact"><dt>Share</dt><dd>{{ partner.share }}%</dd></div>
+      </dl>
+      <WorldMap v-if="partner.lat != null && partner.lng != null" :points="[{ name: partner.name, lat: partner.lat, lng: partner.lng, kind: partner.role === 'Supplier' ? 'supplier' : 'client', sub: partner.product }]" />
+    </article>
     <div v-else-if="!asset" class="ad-state">
       <h1>Asset not found</h1>
       <p>No asset “{{ routeId }}”.</p>
@@ -641,6 +875,7 @@ const tags = computed(() => [...(asset.value?.tags ?? [])])
           :height="250"
           :friends="friends.predictions.value"
           :reveal-friends="friends.isRevealed.value"
+          @toggle-friends="friends.toggle()"
         />
       </section>
 
@@ -660,12 +895,14 @@ const tags = computed(() => [...(asset.value?.tags ?? [])])
 
 
       <!-- ── Suppliers → asset → clients ── -->
-      <section v-if="treeSuppliers.length || treeClients.length || treeSimilar.length" id="sec-supply" class="ad-card">
+      <section v-if="treeSuppliers.length || treeClients.length || treeSimilar.length" id="sec-supply" class="ad-card supply-card">
         <h2>Supply chain</h2>
         <SupplyTree
-          :center="{ symbol: asset.symbol, name: asset.name, color: typeColor, price: fmtPrice(Number(asset.current_price), kind, currency) }"
+          :center="centerCard"
           :suppliers="treeSuppliers" :clients="treeClients" :similar="treeSimilar"
           :supplier-label="treeLabels.suppliers" :client-label="treeLabels.clients"
+          :currency="displayCurrency" :usd-per="usdPer"
+        :consumer-total="consumerCount"
         />
         <p v-if="!chain && (treeSuppliers.length || treeClients.length)" class="ad-note">Shares and nominal values not published for this asset: names only.</p>
       </section>
@@ -700,12 +937,35 @@ const tags = computed(() => [...(asset.value?.tags ?? [])])
         </template>
       </section>
 
-      <!-- ── Linked companies ── -->
+      <!-- ── Linked assets ── -->
       <section v-if="linked.length" id="sec-linked" class="ad-card">
-        <h2>Linked companies</h2>
+        <h2>Linked</h2>
         <div class="ad-linked">
-          <component :is="l.id ? 'NuxtLink' : 'div'" v-for="l in linked" :key="l.name" :to="l.id ? `/assets/${l.id}` : undefined" class="ad-link-row" :class="{ go: l.id }">
-            <b>{{ l.name }}</b><span>{{ l.relation }}</span>
+          <component
+            :is="l.id ? 'NuxtLink' : 'div'"
+            v-for="l in linked"
+            :key="l.key"
+            :to="l.id ? `/assets/${l.id}` : undefined"
+            class="ad-link"
+            :class="{ go: l.id }"
+            :style="{ '--mark': l.color, '--tint': l.tint }"
+          >
+            <span class="ad-link-logo" aria-hidden="true">
+              <img v-if="l.logo && !logoMiss[l.key + l.logo]" :src="l.logo" alt="" @error="missLogo(l.key + l.logo)" @load="onLogoLoad($event, l.key + l.logo)" />
+              <span v-else>{{ l.symbol && l.symbol.length <= 5 ? l.symbol : l.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('') }}</span>
+            </span>
+            <span class="ad-link-body">
+              <b>{{ l.name }}</b>
+              <span class="ad-link-rel">
+                <span v-if="l.label" class="ad-link-class">{{ l.label }}</span>
+                {{ l.relation }}
+              </span>
+            </span>
+            <span v-if="l.symbol || l.price" class="ad-link-side">
+              <span v-if="l.symbol" class="ad-link-sym">{{ l.symbol }}</span>
+              <span v-if="l.price" class="ad-link-px">{{ l.price }}</span>
+              <span v-if="l.change !== null" class="ad-link-chg" :class="l.change >= 0 ? 'up' : 'down'">{{ fmtPct(l.change) }}</span>
+            </span>
           </component>
         </div>
       </section>
@@ -755,12 +1015,7 @@ const tags = computed(() => [...(asset.value?.tags ?? [])])
         <AssetCommodityPipeline :compact="true" />
       </section>
 
-      <!-- ── Alerts · paper trade ── -->
-      <section id="sec-alerts" class="ad-card">
-        <h2>Price alerts</h2>
-        <PriceChart :asset-id="asset.id" :asset="asset" :current-price="Number(asset.current_price)" :volatility="volIndexOf(asset)" :height="180" />
-      </section>
-
+      <!-- ── Paper trade ── -->
       <section id="sec-trade" class="ad-card">
         <h2>Paper trade</h2>
         <AssetQuickPaperBet :asset-id="String(asset.id)" :asset-symbol="asset.symbol" :current-price="Number(asset.current_price) || 100" />
@@ -808,7 +1063,13 @@ const tags = computed(() => [...(asset.value?.tags ?? [])])
 .ad-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .ad-back { color: var(--text-gray, #9aa0a6); text-decoration: none; font-size: 0.78rem; padding: 4px 2px; }
 .ad-back:hover { color: var(--text-white, #fff); }
+.ad-top-end { display: inline-flex; align-items: center; gap: 10px; }
 .ad-state { padding: 24px 8px; text-align: center; color: var(--text-gray, #9aa0a6); }
+.partner-kicker { margin: 0 0 4px; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-gray, #9aa0a6); }
+.partner-kicker a { color: inherit; }
+.partner-name { margin: 0; font-size: 1.35rem; line-height: 1.15; display: flex; align-items: center; gap: 8px; }
+.partner-flag { font-size: 1.1rem; }
+.partner-origin { margin: 2px 0 8px; font-size: 12px; opacity: .7; }
 
 .ad-head, .ad-card {
   background: var(--card-bg, rgba(255,255,255,.03));
@@ -860,6 +1121,8 @@ const tags = computed(() => [...(asset.value?.tags ?? [])])
 .ad-desc.open { -webkit-line-clamp: unset; line-clamp: unset; }
 
 .ad-card h2 { margin: 0 0 4px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-light-gray, rgba(255,255,255,.7)); font-weight: 700; }
+.supply-card { position: relative; }
+.supply-card > h2 { text-align: center; margin: 0 2.6rem 6px; }
 .ad-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 5px 10px; margin: 0; }
 .ad-fact { min-width: 0; }
 .ad-fact dt { font-size: 0.6rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-gray, #9aa0a6); }
@@ -918,11 +1181,40 @@ const tags = computed(() => [...(asset.value?.tags ?? [])])
 .ad-insts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 3px 10px; margin-top: 6px; }
 .ad-inst { display: flex; flex-direction: column; min-width: 0; font-size: 0.72rem; }
 .ad-inst span { font-size: 0.64rem; color: var(--text-gray, #9aa0a6); }
-.ad-linked { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 3px; }
-.ad-link-row { display: flex; flex-direction: column; padding: 4px 6px; border-radius: 6px; background: rgba(255,255,255,.03); color: inherit; text-decoration: none; font-size: 0.72rem; min-width: 0; }
-.ad-link-row span { font-size: 0.64rem; color: var(--text-gray, #9aa0a6); }
-.ad-link-row.go:hover { background: rgba(255,255,255,.08); }
-.ad-link-row.go b::after { content: ' →'; color: var(--text-gray, #9aa0a6); }
+.ad-linked { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; }
+.ad-link {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 8px; min-width: 0; color: inherit; text-decoration: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 46%), rgba(6, 7, 12, 0.62);
+  border: 1px solid color-mix(in oklch, var(--mark) 38%, transparent);
+  box-shadow: 0 8px 16px -12px color-mix(in oklch, var(--mark) 75%, transparent);
+}
+.ad-link.go:hover { background: color-mix(in oklch, var(--mark) 10%, rgba(6, 7, 12, 0.8)); }
+.ad-link-logo {
+  width: 36px; height: 36px; border-radius: 8px; overflow: hidden;
+  display: grid; place-items: center;
+  background: var(--tint); color: var(--mark);
+  border: 1px solid color-mix(in oklch, var(--mark) 45%, transparent);
+  font: 800 0.62rem/1 var(--font-market-data, inherit);
+}
+.ad-link-logo img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.ad-link-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ad-link-body b { font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-link-rel {
+  font-size: 0.64rem; color: var(--text-gray, #9aa0a6); line-height: 1.3;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+.ad-link-class { color: var(--mark); font-weight: 700; margin-right: 4px; }
+.ad-link-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; }
+.ad-link-sym {
+  font: 700 0.6rem/1.4 var(--font-market-data, inherit); letter-spacing: .02em;
+  color: var(--mark); background: var(--tint); border: 1px solid color-mix(in oklch, var(--mark) 55%, transparent);
+  border-radius: 4px; padding: 0 5px; max-width: 7.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ad-link-px, .ad-link-chg { font: 600 0.66rem/1 var(--font-market-data, inherit); font-variant-numeric: tabular-nums; }
+.ad-link-px { color: var(--text-light-gray, rgba(255,255,255,.75)); }
+.ad-link-chg.up { color: var(--app-color-up, #00ff88); }
+.ad-link-chg.down { color: var(--app-color-down, #ff4d6a); }
 .ad-cal { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .ad-cal li { display: grid; grid-template-columns: minmax(84px, max-content) 1fr auto; gap: 8px; align-items: baseline; padding: 3px 4px; border-radius: 5px; font-size: 0.72rem; }
 .ad-cal li.mine { background: rgba(0,255,136,.06); }

@@ -194,6 +194,10 @@ The frontend is designed so the following can be swapped to real services withou
 | Avatar training in `agents.ts` | Python ML service (PyTorch / JAX) |
 | Opinion profiler in `tracking.ts` | NLP service (transformer-based) |
 | Paper ledger in `tracking/activity_log.json` | Postgres `paper_trades` table |
+| Price calls in `stores/predictions.ts` (localStorage) | ✅ mirrored to `/api/v1/predictions/` by `plugins/predictionsSync.client.ts`; scored server-side, per-user features in `trader_features` (`GET /api/v1/predictions/features/` → `vector`) |
+| Training events in `stores/training.ts` | ✅ also batched to `/api/auth/tracking/batch/` (hover/dwell counted, not streamed); server rollup `activity_daily` |
+
+Model training stays off the request path. The browser keeps its small per-event personality deltas. On the server, a nightly batch should retrain only the users whose `trader_features.updated_at` moved since the last run. Sizing is in `Strades-backend/docs/data-pipeline.md` §3 and §5.
 
 ---
 

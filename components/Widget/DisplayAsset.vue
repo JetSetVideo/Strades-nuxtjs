@@ -22,13 +22,15 @@ import { useLivingUI } from '~/composables/useLivingUI'
 import { usePredictionsStore } from '@/stores/predictions'
 import { useAppearanceStore } from '@/stores/appearance'
 import { usePaperStore } from '@/stores/paper'
+import { useAssetAnnotationsStore } from '~/stores/assetAnnotations'
 import { isBetAsset, BET_COLOR, betSourceLabel } from '~/utils/betAssets'
 import { useAssetSeries, chartNow } from '~/composables/useAssetSeries'
 import { useFriendPredictions, targetTsOf } from '~/composables/useFriendPredictions'
 import PredictChart from '~/components/Asset/PredictChart.vue'
 import PredictPanel from '~/components/Asset/PredictPanel.vue'
 import AssetBotChip from '~/components/Asset/BotChip.vue'
-import { HOUR, priceKindOf, fmtPrice, typeColor } from '~/utils/assetChart'
+import { HOUR, priceKindOf, fmtPrice, fmtAxisPrice, typeColor } from '~/utils/assetChart'
+import { priceApproach, sameAsset, LEVEL_COLOR, LEVEL_INK } from '~/utils/priceApproach'
 
 // ── Props ──────────────────────────────────────────────────────────────────
 const props = defineProps<{
@@ -56,6 +58,7 @@ const { dynamicStyles } = useLivingUI({
 const predStore = usePredictionsStore()
 const appearance = useAppearanceStore()
 const paper = usePaperStore()
+const annotations = useAssetAnnotationsStore()
 if (import.meta.client && !predStore.initialized) predStore.init()
 
 // ── Display values (asset object OR legacy props) ─────────────────────────
@@ -148,6 +151,27 @@ const betExpiry = computed(() => {
 // ── Predictions & friends ─────────────────────────────────────────────────
 const minePending = computed(() => predStore.predictions.filter(p =>
   p.userId === userId.value && p.assetId === symbol.value && p.status === 'pending'))
+const armedHere = computed(() => Object.values(annotations.triggersById).filter(t =>
+  t.status === 'armed' && sameAsset(t.asset_id, id.value, symbol.value)))
+const miniLevels = computed(() => armedHere.value.map((t) => {
+  const ap = priceApproach(t.current_price_at_creation, t.target_price, currentPrice.value, Date.now() - t.created_at)
+  return {
+    id: t.id, price: t.target_price, color: LEVEL_COLOR[ap.role], ink: LEVEL_INK[ap.role], hot: ap.closing,
+    label: fmtAxisPrice(t.target_price, kind.value),
+  }
+}))
+const nearing = computed(() => {
+  const out: { id: string; role: 'limit' | 'support'; label: string }[] = []
+  for (const t of armedHere.value) {
+    const ap = priceApproach(t.current_price_at_creation, t.target_price, currentPrice.value, Date.now() - t.created_at)
+    if (ap.closing) out.push({ id: t.id, role: ap.role, label: fmtAxisPrice(t.target_price, kind.value) })
+  }
+  for (const p of minePending.value) {
+    const ap = priceApproach(p.currentPrice, p.predictedPrice, currentPrice.value, Date.now() - Date.parse(p.timestamp))
+    if (ap.closing) out.push({ id: p.id, role: ap.role, label: `${p.timeframe} ${fmtAxisPrice(p.predictedPrice, kind.value)}` })
+  }
+  return out.slice(0, 2)
+})
 const { predictions: friendPreds, faces, isRevealed, toggle: toggleFriends } = useFriendPredictions(assetObj, userId.value)
 const friendsShown = computed(() => isRevealed.value ? friendPreds.value : [])
 
@@ -219,6 +243,7 @@ function onKey(e: KeyboardEvent) {
 onMounted(() => {
   appearance.hydrate()
   if (!paper.hydrated) paper.hydrate()
+  if (!annotations.hydrated) annotations.hydrateFromStorage()
   window.addEventListener('keydown', onKey)
 })
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
@@ -298,6 +323,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       <div class="da-info">
         <span class="da-price">{{ fmtPrice(currentPrice, kind, assetObj.currency) }}</span>
         <span class="da-change" :class="changePct >= 0 ? 'pos' : 'neg'">{{ changePct >= 0 ? '+' : '' }}{{ changePct.toFixed(2) }}%</span>
+        <span v-if="nearing.length" class="da-near-row">
+          <span v-for="c in nearing" :key="c.id" class="da-near" :class="c.role">nearing {{ c.role }} {{ c.label }}</span>
+        </span>
         <div v-if="isBet && (betSubject || betExpiry)" class="da-bet-meta">
           <span v-if="betSubject" class="da-bet-subject" title="The underlying this contract is about">{{ betSubject }}</span>
           <span v-if="betExpiry" title="Resolution deadline">⏳ {{ betExpiry }}</span>
@@ -323,6 +351,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
             :kind="kind"
             :chart-style="appearance.chartStyle"
             :mine="minePending"
+            :levels="miniLevels"
             :friends="friendsShown"
             :trades="trades"
             :trend-pct="changePct"
@@ -571,6 +600,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   background: color-mix(in oklch, var(--app-color-up, var(--success-green)) 12%, transparent);
   border: 1px solid color-mix(in oklch, var(--app-color-up, var(--success-green)) 30%, transparent);
 }
+.da-near-row { display: flex; flex-wrap: wrap; gap: 2px; max-width: 100%; }
+.da-near {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  padding: 0.05rem 0.28rem;
+  border-radius: 3px;
+  color: #3b2410;
+  background: #ffcc80;
+}
+.da-near.support { color: #fff7ed; background: #c2410c; }
 .da-change.neg {
   color: var(--app-color-down, var(--error-red));
   background: color-mix(in oklch, var(--app-color-down, var(--error-red)) 12%, transparent);

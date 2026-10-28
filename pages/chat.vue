@@ -6,6 +6,7 @@ import { useUsersStore } from '@/stores/users';
 import { useCommunityStore } from '@/stores/community';
 import ChatNewMessageModal from '@/components/Chat/NewMessageModal.vue';
 import UIScreenShell from '@/components/UI/ScreenShell.vue';
+import UISectionTabs from '@/components/UI/SectionTabs.vue';
 import CommunityPersonCard from '@/components/Community/PersonCard.vue';
 
 definePageMeta({
@@ -76,16 +77,42 @@ usePageAction().onPageAction('chat:new-message', () => { newMessageOpen.value = 
 
 // ── Conversations / Friends / Discover ─────────────────────────────────
 const tab = ref('conversations');
-const tabs = [
-  { id: 'conversations', label: 'Conversations' },
-  { id: 'friends', label: 'Friends' },
-  { id: 'discover', label: 'Discover' },
-];
+const onlineOnly = ref(false);
 
-const kpis = computed(() => [
-  { label: 'Conversations', value: userConversations.value.length },
-  { label: 'Friends', value: community.friends.length },
-  { label: 'Online now', value: community.online.length },
+function isOnline(id) {
+  const known = community.list.find(u => u.id === id);
+  if (known) return known.online;
+  return usersStore.getUserById(id)?.is_online === true;
+}
+
+function conversationOnline(conversation) {
+  const me = getUserId();
+  return conversation.participants.some(id => id !== me && isOnline(id));
+}
+
+const visibleConversations = computed(() => {
+  const list = userConversations.value;
+  return onlineOnly.value ? list.filter(conversationOnline) : list;
+});
+const visibleFriends = computed(() => {
+  const list = community.friends;
+  return onlineOnly.value ? list.filter(u => u.online) : list;
+});
+const visibleSuggestions = computed(() => {
+  const list = community.suggestions;
+  return onlineOnly.value ? list.filter(u => u.online) : list;
+});
+
+const onlineInTab = computed(() => {
+  if (tab.value === 'friends') return community.friends.filter(u => u.online).length;
+  if (tab.value === 'discover') return community.suggestions.filter(u => u.online).length;
+  return userConversations.value.filter(conversationOnline).length;
+});
+
+const tabs = computed(() => [
+  { id: 'conversations', label: 'Conversations', count: isLoading.value ? null : userConversations.value.length },
+  { id: 'friends', label: 'Friends', count: isLoading.value ? null : community.friends.length },
+  { id: 'discover', label: 'Discover', count: isLoading.value ? null : community.suggestions.length },
 ]);
 
 function onAddFriend(user) {
@@ -96,17 +123,21 @@ function onViewProfile(id) {
 }
 </script>
 <template>
-  <UIScreenShell
-    title="Chat"
-    subtitle="Talk trades with your circle, or find your next one"
-    :kpis="kpis"
-    :tabs="tabs"
-    :tab="tab"
-    @update:tab="tab = $event"
-  >
-    <template #actions>
-      <button class="start-btn compact" @click="newMessageOpen = true">+ New message</button>
-    </template>
+  <UIScreenShell hide-header>
+    <UISectionTabs v-model="tab" :tabs="tabs" count-first panels tone="white">
+      <template #end>
+        <button
+          type="button"
+          class="tab-filter"
+          :class="{ on: onlineOnly }"
+          :aria-pressed="onlineOnly"
+          @click="onlineOnly = !onlineOnly"
+        >
+          <span v-if="!isLoading" class="tab-count">{{ onlineInTab }}</span>
+          Online now
+        </button>
+      </template>
+    </UISectionTabs>
 
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
@@ -135,10 +166,14 @@ function onViewProfile(id) {
             <p>Start chatting with other traders to discuss strategies and market insights.</p>
             <button class="start-btn" @click="newMessageOpen = true">+ New message</button>
           </div>
+          <div v-else-if="visibleConversations.length === 0" class="empty-state">
+            <h3>No one online</h3>
+            <p>None of these conversations have someone online right now.</p>
+          </div>
 
           <div v-else class="conversations-list">
             <div
-              v-for="conversation in userConversations"
+              v-for="conversation in visibleConversations"
               :key="conversation.id"
               class="conversation-item"
               role="link"
@@ -195,8 +230,12 @@ function onViewProfile(id) {
           <h3>No friends yet</h3>
           <p>Add traders from Discover to build your circle — their trades and reads train your avatar too.</p>
         </div>
+        <div v-else-if="!visibleFriends.length" class="empty-state">
+          <h3>No one online</h3>
+          <p>None of your friends are online right now.</p>
+        </div>
         <CommunityPersonCard
-          v-for="u in community.friends"
+          v-for="u in visibleFriends"
           :key="u.id"
           :user="u"
           variant="friend"
@@ -213,8 +252,12 @@ function onViewProfile(id) {
           <h3>No suggestions right now</h3>
           <p>Check back soon — new traders join the desk all the time.</p>
         </div>
+        <div v-else-if="!visibleSuggestions.length" class="empty-state">
+          <h3>No one online</h3>
+          <p>None of these suggestions are online right now.</p>
+        </div>
         <CommunityPersonCard
-          v-for="u in community.suggestions"
+          v-for="u in visibleSuggestions"
           :key="u.id"
           :user="u"
           variant="discover"
@@ -358,8 +401,6 @@ function onViewProfile(id) {
   font-weight: 700;
   font-size: 0.85rem;
 }
-.start-btn.compact { padding: 0.4rem 0.85rem; font-size: 0.75rem; white-space: nowrap; }
-
 .conversations-list {
   display: flex;
   flex-direction: column;

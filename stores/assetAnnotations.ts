@@ -12,6 +12,9 @@ export interface Annotation {
   price_b?: number  // secondary price (trendline)
   time_a_idx?: number  // candle index (0..n-1) for trendline
   time_b_idx?: number
+  /** epoch ms of the two points (chart workspace): stays put when the interval or range changes */
+  ts_a?: number
+  ts_b?: number
   label?: string
   color?: string
 }

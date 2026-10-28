@@ -299,8 +299,8 @@ Recent news articles tagged with the asset's ticker. Fetches `social/posts.json`
 ### Asset/Heatmap.vue
 Market-wide or sector-wide heatmap of price changes.
 
-### Asset/CandleChart.vue
-Price candle chart with volume (dedicated page + inline widget).
+### Chart/Workspace.vue
+The full candle / line chart used by `/CandleChart` (panes, indicators, drawings, zoom). See §15.
 
 ### Asset/MoversStrip.vue
 Scrollable strip of top movers (up/down by category).
@@ -392,9 +392,6 @@ Generic chart container (SVG wrapper).
 ### Widget/BarChart.vue
 Horizontal or vertical bar chart.
 
-### Widget/CandleChart.vue
-Price candle series (SVG).
-
 ### Widget/NewsCard.vue
 Editorial news card with category chip, date, excerpt.
 
@@ -459,6 +456,110 @@ Shared strategy/data card for the feed.
 
 ---
 
+## 14. Notifications (`/notifications`)
+
+`pages/notifications.vue` composes four domain components over `stores/notifications.ts` and the pure model in `utils/notifications.ts`.
+- **Sources:** the server feed and what this device can prove, merged by `key`.
+- **Contract:** `types/notification.ts` (the 5W fields plus outcome and state). Full spec, vocabulary and copy rules: `Strades-comms/notifications-vision.md`.
+- **SSR:** the store fills on the client only. The server renders the shell and a skeleton, and every time-dependent text waits for mount and reads `store.now`.
+- **Opening a row:** calls `store.open(n, {surface, rank, listLen})`, which marks the row read and opened on the server and tracks `notification_open`, then `navigateTo(location)`.
+  - Locations are allowlisted in-app routes.
+  - `pages/assets/[id].vue` scrolls to the `#sec-…` anchor once the asset has loaded.
+- **Rendering cap:** 200 rows. "Load more" first shows more of what is already held, then calls `store.loadMore()`.
+- **Badge:** `layouts/default.vue` reads `store.unreadCount`; the old `social/notifications.json` seed is no longer used.
+
+### Notification/Row.vue
+One notification. Props `n: AppNotification`, `now: number`; emits `open`, `toggle-read`, `archive`. No store.
+
+| Data | Visual |
+|------|--------|
+| `state.read_at === null` | Bold title, filled dot, sr-only "New", full-opacity left bar (never colour alone) |
+| `domain` | Glyph and left-bar colour from `DOMAIN_META`; `paper` = dashed edge and 60 % saturation |
+| `severity`, `priority === 3` | UIPill (Success/Warning/Alert) with icon; "Urgent" ghost pill |
+| `when.occurred_at` / `when.due_at` | WHEN chip: relative time, plus "due in …" when the deadline is ahead; full date in `title` |
+| `what.*`, `where.label` | WHAT chip (symbol in `--font-market-data`, then action · subject) and WHERE chip |
+| `who.*` | WHO chip: avatar (http(s) or `/` URLs only) or actor-type glyph, plus label |
+| `from.*` | FROM chip: source label, plus a dashed "device" badge when `origin === 'client'` |
+| `outcome.*` | HOW WELL chip: `fmtSigned` value in `--app-color-up/down` with ▲/▼ and an sr-only tone, spliced into the label; benchmark muted |
+
+- The title is a real `<a href>` stretched over the row. Click or Enter emits `open`; ⌘/ctrl-click keeps the browser default.
+- Read-toggle and archive are 28 px icon buttons above the link, each with its own aria-label.
+- The 5W chips are a `<dl>` and wrap at 375 px.
+
+### Notification/Filters.vue
+- **Controls:**
+  - Domain chips: All plus each domain present, with unread count, `DOMAIN_META` glyph, label and colour stripe, `aria-pressed`, multi-select.
+  - "Unread only" `role="switch"`.
+  - Search input; Esc clears it.
+  - Removable "Day: Tue 27 Oct" chip, set by the calendar.
+- **Bindings:** `v-model:domains | unreadOnly | q | day`; prop `counts` from `countByDomain`. No store.
+
+### Notification/Calendar.vue
+- **Grid:** month from `monthGrid()`, Monday first, with prev / next / Today. `v-model` = the selected day, `YYYY-MM-DD | null`; clicking the selected day again clears it.
+- **Markers:** up to 3 per day, then "+N". Shape differs as well as colour:
+  - call due: blue ring
+  - hit: filled up-colour dot
+  - missed: filled down-colour diamond
+  - not scored: dashed grey ring
+  - market event: grey square
+  - other deadline (e.g. a bot's next order): bar in the domain colour
+- **States:** today = inset blue ring; selected = blue fill and underlined date.
+- **Keyboard and labels:** cells are buttons with labels like "Tue 27 Oct: 2 calls due, 1 event". One tab stop (roving tabindex); arrows, Home/End and PageUp/PageDown move between days. Cells are at least 44 px tall on phones.
+- **Legend:** under the grid.
+- **Agenda:** the selected day (else today), one line per item: time, symbol (`--font-market-data`), and a label linking to the item through `notificationLocation`, with a text tone (Due / Hit / Missed / Event).
+- **Client only:** the page wraps it in `<ClientOnly>` with a same-height fallback.
+- **Items:**
+  - `predictionCalendarItems` (calls held on this device)
+  - `notificationCalendarItems(items, localCallIds)` (deadlines, and calls made on another device)
+  - `botCalendarItems` (live bots' next order, within 7 days)
+  - `eventCalendarItems(/data/global/events.json)`
+
+### Notification/Digest.vue
+A UIMetricRow of 4 UIStat:
+- **Unread.**
+- **Calls due in 24 h:** with the next one as a relative time.
+- **Hit rate over 30 days:** accurate ÷ scored calls; "—" plus "no call scored in 30 days" when there are none.
+- **Bots P&L today:** Σ `outcome.value` of today's `bot.daily` rows, in USD, signed, with up/down tone; "—" plus "no bot traded today".
+
+It reads `usePredictionsStore` for calls and prints "—" until mounted, so SSR and client HTML match.
+
+## 15. Chart workspace (`/CandleChart`)
+
+`pages/CandleChart.vue` (default layout) wraps `components/Chart/Workspace.vue`, with all the maths in `utils/chartIndicators.ts` (tested in `tests/chartIndicators.test.ts`). It replaces the old Bitcoin-only d3 page; those files (`Chart/CandleChart.vue`, `Screener/*`, `layouts/candle.vue`, `stores/bitcoin.ts`, `public/Bitcoin.json`) were deleted.
+
+- **Data:** comes from `useAssetSeries`, the same source as every card: real Binance candles (now with volume from `/api/market/history`), otherwise the seeded simulated path, labelled "sim".
+- **Header:**
+  - Asset picker covering every asset (type colour), price and 24 h change.
+  - Global Line/Candles switch (`ChartStyleToggle`).
+  - PNG export (computed colours inlined), copy-link, and full screen.
+- **Toolbar:**
+  - Range: 1D–1Y.
+  - Interval: Auto, or any interval giving 10–500 candles.
+  - Scale: linear, log or %.
+  - Indicators: SMA 20/50, EMA 20, Bollinger 20·2, VWAP, volume, RSI 14, MACD 12·26·9. Indicators that need volume are disabled when the asset has no real volume.
+  - Overlays: your calls, friends' calls (reveal-gated), paper trades, price alerts, drawings, market events.
+  - Compare: up to 2 assets, shown in %.
+- **Tool rail:** cursor (drag to pan), trend line, level, ruler, note, alert; zoom in / out and reset.
+  - Hotkeys: V T H R N L, Esc.
+  - Chart keys: ← →, + −, 0, Delete.
+  - Wheel or pinch zooms; double click resets.
+- **Chart:**
+  - Price pane plus volume, RSI and MACD panes, with a time axis at the bottom and the price scale on the right.
+  - Crosshair with price and time labels, plus an OHLCV legend that includes the indicator values.
+  - A future zone after "now", where your calls and friends' calls are drawn from the point they were made to their target.
+  - Drawings are saved per asset in `stores/assetAnnotations.ts` (new optional `ts_a`/`ts_b`). Alerts use the same store's triggers and show up in Notifications.
+- **Side panel:**
+  - Predict (`PredictPanel`).
+  - Paper trade (`QuickPaperBet`).
+  - Alerts: list with % distance, add by price.
+  - Drawings: list, delete one or clear all.
+  - Info: range change, high and low, distance from the high, volatility per day and per year, RSI, distance from SMA 50, average volume, data source.
+- **URL:** the view is stored in the URL (`?asset=&range=&interval=&ind=&scale=&cmp=`), so it can be shared. The asset page links to it ("Full chart ↗").
+- **Phones (≤ 640 px):**
+  - The toolbar keeps only the range chips; interval, scale, indicators, overlays, compare and PNG / link / full screen sit behind one "⚙ Settings" button.
+  - The tool rail is a single 34 px row.
+  - Tapping the chart shows that candle in the legend, since touch has no hover.
+
 ## Data Flow Map (Read-Only Paths)
 
 ```
@@ -500,3 +601,19 @@ posts[] ──┬─> Social/ArticlePost (NLP display + tracking)
           ├─> News globe rotation (coords)
           └─> Asset/NewsSnippets
 ```
+
+## 16. History (`/historic`) — past · now · next (2026-10-26)
+
+One view of the user across time. Data only from `composables/useHistoryTimeline.ts`; merge, tense,
+filters, summary and river maths in `utils/historyTimeline.ts` (pure, `tests/historyTimeline.test.ts`).
+
+| Component | Purpose |
+|---|---|
+| `History/YouCard.vue` | "You, so far": how you call (exact counts + server EMAs labelled *recent*), what your money did (realised paper P&L, open positions, best backtest), your agents (running, personal agent, followed), your opinions (articles judged, reading sentiment — no political profiling), score strip of every resolved call, hour × weekday activity heatmap. |
+| `History/River.vue` | SVG lanes (Predictions, Trades, Agents, Opinions, Activity, Profile) on one time axis; NOW fixed at 70 %, future hatched. Dot = instant, bar = span, hollow dashed = paper, diamond = backtest, faded = sample. Mouse picks a row; the lists are the keyboard path (SVG is one labelled image). |
+| `History/Filters.vue` | Past range (7D…All — limits the past only), lane chips (dbl-click = solo), Real/Paper/Backtest, Sample toggle, all-words search. |
+| `History/NowPanel.vue` | In progress, grouped: calls in play (progress to target), agents at work (live P&L on demand), in the market, opinions followed, account clocks. |
+| `History/EventRow.vue` | One row: lane glyph, title, chips (kind, mode, Sample, Device, status, asset), value (P&L > score > % > amount), time; opens inline facts + link. |
+
+Rules: the page body is `<ClientOnly>` (it merges localStorage stores); Sample = pre-filled demo history or
+catalog data, always chipped; progress bars only on spans with a scheduled end; one expanded row at a time.

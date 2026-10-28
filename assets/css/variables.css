@@ -56,6 +56,9 @@
   --status-active: var(--primary-green, #00ff88);
   --status-paused: var(--warning-orange, #ffa500);
   --status-stopped: #9e9e9e;
+  /* Notification domains that have no status/brand token of their own (utils/notifications.ts DOMAIN_META). */
+  --domain-agent: #b388ff;
+  --domain-social: #ff7eb6;
 
   /* Asset Colors */
   --asset-btc: #f7931a;

@@ -49,7 +49,11 @@ const CATEGORY_FOR: Partial<Record<TrainingEventType, ActivityCategory>> = {
   share_article: 'share',
   data_challenge_posted: 'trading',
   data_bet_placed: 'trading',
+  notification_schedule: 'trading',
 }
+
+/** Event types whose authoritative record lives in a dedicated API, not in the activity log. */
+const SERVER_OWNED = new Set<TrainingEventType>(['prediction_set'])
 
 export function useAgentTracker(target?: Ref<HTMLElement | null>, auto?: TrackerAutoConfig): AgentTracker {
   const training = useTrainingStore()
@@ -57,6 +61,12 @@ export function useAgentTracker(target?: Ref<HTMLElement | null>, auto?: Tracker
 
   const track = (type: TrainingEventType, payload: Record<string, any> = {}) => {
     training.record(type, payload)
+
+    // Server copy for the trading profile (batched; hovers/dwell only counted). Calls are owned by
+    // the predictions API (plugins/predictionsSync.client.ts), so they are not sent twice.
+    if (import.meta.client && !SERVER_OWNED.has(type)) {
+      try { useTracking().trackInteraction(type, payload) } catch { /* telemetry is optional */ }
+    }
 
     try {
       const page = (payload.page as string)

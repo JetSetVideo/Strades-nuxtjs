@@ -287,6 +287,50 @@ Raw event stream. Each event has:
 
 This stream is the **training data** for the avatar ML pipeline and the opinion profiler.
 
+### Server copy (2026-10-20)
+- `composables/useTracking.ts` queues events and sends them in batches to `POST /api/auth/tracking/batch/` (every 10 s, at 25 events, and with `keepalive` when the tab is hidden). Payloads are trimmed to about 1.8 KB.
+- `composables/useAgentTracker.ts` forwards every training event through `trackInteraction()`. Continuous ones (`asset_hover`, `article_dwell`, `page_route`) are only counted and leave as one `interaction_summary` per flush. `prediction_set` is not forwarded, because the predictions API owns calls.
+- `plugins/predictionsSync.client.ts` mirrors the user's own pending calls (`stores/predictions.ts`, still the UI source) to `/api/v1/predictions/`.
+  - It is idempotent on the local id and pulls resolution results every 10 min.
+  - Deleting a pending call withdraws it on the server.
+  - Mapping and validation live in `utils/predictionSync.ts`.
+- `composables/useFriendPredictions.ts` fetches real friends' calls only when the user reveals them. The server logs that reveal as a bias feature. These calls stay in memory and are never written to the device's storage. Without a session or without real friends, the demo personas remain.
+- Server side (retention, rollups, scoring, capacity): `Strades-backend/docs/data-pipeline.md`.
+
+---
+
+## 12. Notifications (2026-10-25)
+
+Contract: `types/notification.ts`. Every row answers when, what, where, who, to whom and from where, plus how well (`outcome`).
+
+- **Identity:** `key = <domain>.<event>:<subject_id>[:<qualifier>]`. It is deterministic, so the server and the browser produce the same key for the same fact and the row is shown once (the server copy wins).
+- **Key examples:**
+  - `prediction.due_soon:<call id>:24h|1h`
+  - `prediction.due_now:<call id>`
+  - `prediction.resolved:<call id>`
+  - `bot.daily:<bot id>:<UTC day>`
+  - `bot.guardrail:<bot id>:<n>`
+  - `alert.fired:<trigger id>`
+  - `paper.closed:<trade id>`
+  - `agent.trained:<agent id>:<UTC day>`
+  - `social.friend_call:<prediction uuid>`
+- **Browser-derived rows** (`utils/notifications.ts`, last 30 days only), built from:
+  - your calls (`stores/predictions.ts`)
+  - paper trades
+  - price alerts (`stores/assetAnnotations.ts`)
+  - bots (`stores/bots.ts`; the bundled sample bots are shown only in demo mode and labelled "Demo")
+  - avatar training deltas
+- **Server rows:** `GET /api/v1/notifications/`, from `apps/notifications` generators: deadlines, scores, friends' calls on assets you have already called, and engine bots.
+- **Merge rules:**
+  - A call's result replaces its deadline rows.
+  - Only the latest deadline stage is kept (`due_now`, then `1h`, then `24h`).
+  - A server row's own `read_at` is the truth.
+- **Read state of browser rows:** `localStorage['strades:notifications:v2:<user>']` (read and archived maps, entries dropped after 180 days). It is reset when the account changes.
+- **Training signal:**
+  - Opening a row sends `notification_open` (`key`, `domain`, `event`, `priority`, `origin`, `was_unread`, `age_ms`, `surface`, `rank`, `list_len`) to the activity log.
+  - It also sends `opened: true` to `POST /api/v1/notifications/read/`, which updates the server's `EngagementFeatures` (open rate, open latency, per-domain open share): `GET /api/v1/notifications/features/` → `vector`.
+- **Calendar:** your calls on their target day (tone = result), other deadlines, bots' next orders, and market events (`global/events.json`).
+
 ---
 
 ## 10. Visual State Inheritance Summary
@@ -394,3 +438,29 @@ Numeric bounds used by the desk:
 | Opinion vector | sums to 100 | sums to 100 |
 | Personality axis | 0 | 1 |
 | Political and economic leaning | -1 | 1 |
+
+## 13. History timeline (2026-10-26)
+
+`GET /api/v1/history/?from&to` (Strades-backend `apps/history`, no tables) returns
+`{now, window, profile, lanes, events[], heatmap, sources}`. Event: `id, at, start_at, tense, lane, kind,
+mode (real|paper|backtest|null), title, subtitle, asset, amount_usd, pnl_usd, pct, score, status, href,
+ref, sample, source, data`.
+
+| Lane | Server source | Front source (merged in `utils/historyTimeline.ts`) |
+|---|---|---|
+| prediction | `predictions` (made, due span, resolved, withdrawn) | `stores/predictions` calls of `current_user` not yet on the server (chip *Device*) |
+| trade | portfolio transactions (realised P&L by average cost), holdings, wallets + funding, strategy backtests | `stores/paper` ledger; `public/data/core/wallets.json` = Real + Sample |
+| agent | wallet ledger reserve/release = agent launched/closed; open reserve = running (+ live engine numbers when the engine is up); strategies | `GET /api/v1/bots/` on demand ("Load live numbers") |
+| opinion | news reactions, comments, bookmarks, shares | `stores/opinions` followed agents; `stores/opinionProfile` (sentiment/topics only) |
+| activity | `activity_daily` + raw tail above the watermark → one digest per day; `heatmap` | — |
+| profile | joined, demo expiry; `TraderFeatures` (EMAs), `UserProfile` | — |
+
+Tense: future = at > now; present = start_at ≤ now < at, or open-ended (positions, running agents);
+past = the rest. Demo accounts get `apps/history/demo_seed.py`: calls, trades and a backtest replayed on real
+Binance daily closes, dated before the account so `sample = true` by rule.
+Review fixes (same day): the Sample rule is `origin < profile.sample_before` (`users.preferences.sample_history_before`,
+survives claiming a demo account); seeded calls use client_id prefix `demo-seed-` and are excluded from consensus and
+friends' views; the seed never writes TraderFeatures and guesses only from pre-call momentum. The You card counts the
+user's own rows only (sample totals stand in, chipped, when there are none). Catalog wallets appear for demo accounts
+only. The browser's paper ledger / unsynced calls are shown only to the account that owns the device
+(`strades:history:device-owner`); others see a "hidden" banner. Positions are marked only on a quote < 48 h old.

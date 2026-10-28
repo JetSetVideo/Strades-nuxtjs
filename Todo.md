@@ -229,5 +229,51 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **36.4** One Line / Candles switch (`Asset/ChartStyleToggle`) at the top of /prices and /assets/:id drives every chart.
 - [x] **36.5** `pages/assets/[id].vue` rewritten per type (company, crypto, forex, commodity, bet, index): key facts, bet order book, supply chain, alerts, paper trade, related, and "All data" (DataTree) for everything else, incl. `/api/assets/<sym>/detail/` and `public/data/companies/*.json`. Fake performance numbers removed.
 - [x] **36.6** Predictions store price, date (`targetTs`), % move, horizon hours, offered range + position, `sawFriendsFirst`, source, chart style, simulated-history flag, revisions; `prediction_set` training events. `Widget/PriceIntuition.vue` deleted (replaced).
-- [ ] **36.7** Predictions are local (localStorage) + training buffer + activity log only: the backend has no predictions model / endpoint yet, and friends' calls are demo personas (`public/data/predictions-friends.json`).
+- [x] **36.7** ~~Predictions are local only~~ → synced to `/api/v1/predictions/` (Phase 37). Friends' calls come from the server for real accepted friends; the demo personas remain when there are none.
 
+## Phase 37: Data pipeline, no UI changes (2026-10-20)
+- [x] **37.1** `useTracking` batches events (10 s / 25 events / tab hidden with keepalive), queue ≤ 200, payload trimmed, back-off on 429/5xx, heartbeat paused in hidden tabs.
+- [x] **37.2** `useAgentTracker` forwards training events to the server; hover/dwell/route are counted into one `interaction_summary` per flush.
+- [x] **37.3** `plugins/predictionsSync.client.ts` + `utils/predictionSync.ts` (tested in `tests/predictionSync.test.ts`): idempotent push, moves, withdrawals, pull of resolution results.
+- [x] **37.4** `useFriendPredictions` loads real friends' calls on reveal (in memory only; the server logs the reveal).
+- [ ] **37.5** Show server `score` / `trader_features` in the UI (left to the founder, because this pass did not change the UI).
+
+## Phase 38: Notifications page, calendar, id code (2026-10-25)
+- [x] **38.1** Contract `types/notification.ts`. Each row has `when`, `what`, `where`, `who`, `to`, `from`, `outcome` and `state`. The key is `<domain>.<event>:<subject>[:<qualifier>]` and is shared by the server and the browser.
+- [x] **38.2** `utils/notifications.ts` derives rows from calls, paper trades, alerts, bots (sample bots labelled "Demo") and training; merges with the server; and filters, groups and builds the calendar. Tests: `tests/notifications.test.ts` (14 tests).
+- [x] **38.3** `stores/notifications.ts`: one feed for the badge and the page.
+  - Read and archived state is kept per user.
+  - The store resets when the account changes.
+  - Polling is incremental: server copies are upserted, with a cap.
+  - Opening a row sends `opened:true` and `notification_open`.
+- [x] **38.4** `pages/notifications.vue` and `components/Notification/{Row,Filters,Calendar,Digest}.vue`: feed with 5W chips, domain filters, unread toggle, search, month calendar with agenda, and digest.
+- [x] **38.5** The badge in `layouts/default.vue` reads the store, and the static `social/notifications.json` is no longer read. `pages/assets/[id].vue` now scrolls to `#sec-*` deep links once the asset has loaded.
+- [x] **38.6** Backend `apps/notifications`:
+  - Feed API: cursor, `after`, read / unread / archive, unread count, features.
+  - Generators: call deadlines and scores, friends' calls (only once you have already called the asset), engine bots.
+  - `notify_predictions` and `prune_notifications` run in `upkeep`.
+  - `EngagementFeatures`.
+- [ ] **38.7** Anchors on `pages/bots/[id].vue` and `pages/agents/[id].vue` (`sec-trades`, `sec-training`), so bot and agent rows land on the right section. These are founder pages and were not touched.
+
+## Phase 39: Chart workspace (2026-10-25)
+- [x] **39.1** `/CandleChart` rebuilt on the app's design system and data:
+  - Any asset, range and interval, with linear, log or % scale.
+  - Indicators: SMA, EMA, Bollinger, VWAP, volume, RSI, MACD.
+  - Drawings (trend line, level, note), ruler, price alerts.
+  - Your calls and friends' calls, paper trades, market events.
+  - Comparison with up to two assets.
+  - Predict / paper trade / alerts / drawings / info side panel.
+  - PNG export, link, full screen.
+  - The view is saved in the URL.
+- [x] **39.2** `utils/chartIndicators.ts` (tested, 14 tests). `/api/market/history` now returns volume.
+- [x] **39.3** The asset page links to it ("Full chart ↗").
+- [x] **39.4** Replaced files deleted: `components/Chart/CandleChart.vue`, `components/Screener/*`, `layouts/candle.vue`, `stores/bitcoin.ts`, `public/Bitcoin.json`.
+
+
+## Phase 40: History — past · now · next (2026-10-26)
+- [x] **40.1** Backend `apps/history`: one owner-scoped read model, `GET /api/v1/history/` (15 tests).
+- [x] **40.2** Demo accounts start with a sample history replayed on real Binance daily closes (flagged Sample).
+- [x] **40.3** `/historic` rebuilt: You card, river, Now, Next agenda, Before by day; filters by lane/mode/sample/range/search.
+- [x] **40.4** `utils/historyTimeline.ts` (16 tests): merge server + paper ledger + unsynced calls + catalog wallets + followed agents.
+- [ ] **40.5** Notifications' `prediction.resolved` rows could deep-link into `/historic#…` (not done).
+- [ ] **40.6** Opinions lane has no data until news reactions are wired to the server from `/news`.
