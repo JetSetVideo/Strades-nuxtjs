@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAgentsStore } from '~/stores/agents'
+import { wealthCondition } from '~/utils/labField'
 
 interface Strategy {
   id: string
@@ -55,6 +56,13 @@ const isPositive = computed(() => returnPct.value >= 0)
 const fmtPct = (n?: number) => n === undefined ? '—' : `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 const fmtUsd = (n?: number) => n === undefined ? '—' : `$${Math.round(n).toLocaleString(APP_LOCALE)}`
 
+const flow = computed(() => wealthCondition({
+  risk_level: props.strategy.risk_level,
+  total_return_percentage: props.strategy.total_return_percentage,
+  sharpe_ratio: props.strategy.sharpe_ratio,
+  win_rate: props.strategy.win_rate,
+}))
+
 const lastRunRel = computed(() => {
   if (!props.strategy.last_run) return '—'
   const days = Math.floor((Date.now() - new Date(props.strategy.last_run).getTime()) / 86_400_000)
@@ -73,7 +81,10 @@ const lastRunRel = computed(() => {
   >
     <header class="head">
       <div class="title-block">
-        <h3>{{ strategy.name }}</h3>
+        <div class="name-line">
+          <StrategyMark :category="strategy.category" />
+          <h3>{{ strategy.name }}</h3>
+        </div>
         <p class="desc">{{ strategy.description }}</p>
       </div>
       <span :class="['status-pill', statusTone]">{{ strategy.status }}</span>
@@ -120,6 +131,8 @@ const lastRunRel = computed(() => {
         <span class="m-value">{{ strategy.total_trades ?? 0 }}</span>
       </div>
     </div>
+
+    <StrategyWealthFlow :condition="flow" />
 
     <!-- Footer: agent + followers -->
     <footer class="foot">
@@ -177,6 +190,7 @@ const lastRunRel = computed(() => {
   align-items: flex-start;
 }
 .title-block { min-width: 0; }
+.name-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .title-block h3 {
   margin: 0 0 0.15rem 0;
   font-size: 0.95rem;

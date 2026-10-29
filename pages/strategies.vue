@@ -19,6 +19,27 @@ const strategiesStore = useStrategiesStore()
 const selectedStrategies = ref<Record<string,any>[]>([])
 const showComparator    = ref(false)
 const sortBy            = ref('gain')
+const runFocus          = ref<'running' | 'paused' | 'stopped' | null>(null)
+
+function isRunning(status?: string) {
+  return status === 'active' || status === 'backtesting'
+}
+
+function runBucket(status?: string): 'running' | 'paused' | 'stopped' {
+  if (isRunning(status)) return 'running'
+  if (status === 'paused') return 'paused'
+  return 'stopped'
+}
+
+function runWord(status?: string) {
+  if (isRunning(status)) return 'Pause'
+  if (status === 'paused') return 'Resume'
+  return 'Start'
+}
+
+function toggleRun(bucket: 'running' | 'paused' | 'stopped') {
+  runFocus.value = runFocus.value === bucket ? null : bucket
+}
 
 interface FilterState {
   status: Record<string, FilterTriState>
@@ -42,6 +63,7 @@ const currentFilters = ref<FilterState>({
 const filteredStrategies = computed(() => {
   const f = currentFilters.value
   return strategies.value.filter((s: Record<string,any>) => {
+    if (runFocus.value && runBucket(s.status) !== runFocus.value) return false
     if (!allowsValue(s.status, f.status)) return false
 
     const gain = s.monthlyGain ?? 0
@@ -76,6 +98,13 @@ const SORT_OPTIONS = [
   { id: 'trades',   label: '# Most Trades'  },
 ]
 
+const bookState = computed(() => {
+  const list = strategies.value as { status?: string }[]
+  const running = list.filter(s => isRunning(s.status)).length
+  const paused = list.filter(s => s.status === 'paused').length
+  return { running, paused, stopped: list.length - running - paused }
+})
+
 const sortedStrategies = computed(() => {
   const list = [...filteredStrategies.value]
   switch (sortBy.value) {
@@ -101,12 +130,18 @@ function handleStrategySelect(strategy: Record<string,any>) {
     const full = strategiesStore.strategies.find(s => s.id === strategy.id)
     selectedStrategies.value.push(full ?? strategy)
   }
-  showComparator.value = selectedStrategies.value.length === 2
+  if (selectedStrategies.value.length < 2) showComparator.value = false
 }
 
 function clearSelection() {
   selectedStrategies.value = []
   showComparator.value = false
+}
+
+function swapSelection() {
+  const list = selectedStrategies.value
+  if (list.length < 2) return
+  selectedStrategies.value = [list[1]!, list[0]!, ...list.slice(2)]
 }
 
 // ── Strategy actions ─────────────────────────────────────────────────────
@@ -141,6 +176,7 @@ onMounted(fetchStrategies)
 
     <StrategySavedList />
     <StrategyLiveDesk :strategies="strategiesStore.strategies" />
+    <StrategyBoard :strategies="strategiesStore.strategies" :focus-ids="selectedStrategies.map(s => s.id)" />
 
     <!-- ── Page header: title + controls ── -->
     <div class="page-header">
@@ -148,6 +184,11 @@ onMounted(fetchStrategies)
         <h1 class="page-title">My Strategies</h1>
         <span class="strategy-count">
           {{ sortedStrategies.length }}<span class="count-of"> / {{ strategies.length }}</span>
+        </span>
+        <span class="run-ind" role="group" :aria-label="`${bookState.running} running, ${bookState.paused} paused, ${bookState.stopped} stopped`">
+          <button type="button" class="up" :class="{ on: runFocus === 'running' }" :aria-pressed="runFocus === 'running'" aria-label="Show running" @click="toggleRun('running')">{{ bookState.running }}</button>
+          <button type="button" class="wait" :class="{ on: runFocus === 'paused' }" :aria-pressed="runFocus === 'paused'" aria-label="Show paused" @click="toggleRun('paused')">{{ bookState.paused }}</button>
+          <button type="button" class="down" :class="{ on: runFocus === 'stopped' }" :aria-pressed="runFocus === 'stopped'" aria-label="Show stopped" @click="toggleRun('stopped')">{{ bookState.stopped }}</button>
         </span>
       </div>
       <div class="header-right">
@@ -196,7 +237,7 @@ onMounted(fetchStrategies)
               class="sel-btn toggle"
               @click="handleToggleStatus(selectedStrategies[0]!.id)"
             >
-              {{ selectedStrategies[0]!.status === 'active' ? '⏸ Pause' : '▶ Start' }}
+              {{ runWord(selectedStrategies[0]!.status) }}
             </button>
             <NuxtLink
               :to="`/strategy/${selectedStrategies[0]!.id}?tab=backtest`"
@@ -214,8 +255,10 @@ onMounted(fetchStrategies)
           <button
             v-if="selectedStrategies.length === 2"
             class="sel-btn compare"
-            @click="showComparator = true"
-          >⚖ Compare</button>
+            :class="{ on: showComparator }"
+            :aria-pressed="showComparator"
+            @click="showComparator = !showComparator"
+          >{{ showComparator ? 'Hide' : '⚖ Compare' }}</button>
           <button class="sel-btn close" @click="clearSelection">✕</button>
         </div>
       </div>
@@ -223,10 +266,11 @@ onMounted(fetchStrategies)
 
     <!-- ── Comparator ── -->
     <Comparator
-      v-if="showComparator"
+      v-if="showComparator && selectedStrategies.length >= 2"
       :strategies="selectedStrategies"
-      :on-close="clearSelection"
+      :on-close="() => { showComparator = false }"
       @clone="(id) => handleClone(id)"
+      @swap="swapSelection"
     />
 
   </div>
@@ -275,6 +319,38 @@ onMounted(fetchStrategies)
 }
 
 .count-of { color: var(--text-gray); font-weight: 400; }
+
+.run-ind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-style: normal;
+}
+.run-ind button {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0 5px;
+  cursor: pointer;
+}
+.run-ind button.on { border-color: currentColor; }
+.run-ind button::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 1px;
+}
+.run-ind .up { color: #3dd68c; }
+.run-ind .wait { color: #ffb020; }
+.run-ind .down { color: #ff7b8a; }
 
 .header-right {
   display: flex;
@@ -369,8 +445,17 @@ onMounted(fetchStrategies)
 .sel-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-white); }
 .sel-btn.delete { border-color: rgba(244,67,54,0.3); color: var(--error-red); }
 .sel-btn.delete:hover { background: rgba(244,67,54,0.1); }
-.sel-btn.compare { border-color: rgba(0,255,136,0.3); color: var(--primary-green); }
-.sel-btn.compare:hover { background: rgba(0,255,136,0.1); }
+.sel-btn.compare {
+  border-color: rgba(125, 255, 179, 0.55);
+  color: #07140c;
+  background: #7dffb3;
+  font-weight: 700;
+}
+.sel-btn.compare:hover { background: #a8ffcf; }
+.sel-btn.compare.on {
+  background: transparent;
+  color: #7dffb3;
+}
 .sel-btn.close { padding: 5px 8px; }
 
 /* ── Transitions ── */

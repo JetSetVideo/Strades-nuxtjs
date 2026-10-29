@@ -138,9 +138,22 @@ Multi-wallet selector when the user has multiple sub-wallets.
 ## 4. Strategy & Creator
 
 ### Strategy/Card.vue
-Strategy summary card — name, PnL, win rate, status, target assets.
-- **Data**: `strategy.is_paper` → Paper badge
-- **Visual**: equity-curve sparkline, asset chips
+Strategy summary card — name, category mark, PnL, win rate, status, target assets, and a wealth-transfer picture.
+- **Data**: `strategy.category` → `Strategy/Mark.vue` (crypto, stocks, commodities, forex, or a hexagon)
+- **Data**: return, Sharpe, win rate, and risk → `Strategy/WealthFlow.vue` opens on calm, shock, trend, or chop. The four words on the card switch the picture.
+- **Visual**: equity is the metric row. The wealth widget is beads of capital, not a second price chart.
+
+### Strategy/Board.vue
+Under the desk on `/strategies`. Three readings of the same books: Performance (every return path stretched across its own window, with the high, the zero, and the low marked), Spread (return, drawdown, Sharpe, win rate, trades, risk, with the axis ends numbered), and Calendar (each book as a lane across the months it was open). A lane click opens that book's own moves from open to close. Selected cards stay bright and the others dim. `utils/strategyBoard.ts`.
+
+### Comparator.vue
+Equip sheet for two selected strategies on `/strategies`. The first card is the one already in the slot. The second is the one in hand. Each return is drawn across that book's own open-to-close window, so a long book and a short book stay readable. The line ends on the recorded return and touches the recorded drawdown. The verdict still quotes the days both were open. Equip puts the book in hand into the slot when its recorded return wins. Swap flips the two either way. Green and red gaps are printed on the book in hand.
+
+### Strategy/Mark.vue
+16 px category icon drawn on both strategy cards (`Strategy/Card.vue` and `Card/Strategy.vue`).
+
+### Strategy/WealthFlow.vue
+Artistic transfer of capital under calm, shock, trend, and chop. Positions come from `wealthBeads()` in `utils/labField.ts`. Motion pauses when the system asks for reduced motion. The compact strategy row uses the `dense` prop and keeps the inferred condition.
 
 ### Strategy/EquityCurve.vue
 Deterministic random-walk SVG chart used on strategy detail and bot detail pages.
@@ -202,7 +215,24 @@ Summary card for any avatar. Plug/fork/compare actions.
 - **Data**: `agent.training_state.loss_ema` → SVG progress ring
 - **Data**: `agent.confidence` → card opacity
 - **Data**: `agent.performance.last_30d_curve` → sparkline
-- **Data**: `agent.opinion_vector` → mini stacked bar
+- **Data**: `agent.role` → a role pill on the twelve desk agents (optimisation, trader, designer, experience, security, red team, data, ai, risk, macro, execution, archive). Catalog archetypes stay unlabeled.
+
+### Lab/Bench.vue
+The bench on `/agents`, under the source tabs and above the filters. It shows the machine stamp, the field, and the operator graph for whoever the current filters leave in view.
+- **Data**: `utils/labField.ts` (axes, projection, the four operators) and `utils/labRoster.ts` (the twelve desk agents, merged in `stores/agents.ts`).
+- **Map**: X and Y are any of risk, patience, contrarian, aggression, speed, live PnL, Sharpe, compute (1 − training loss).
+- **Globe**: the same `agentSphere` / `orthographic` placement as the nav Lab icon, with a turn control.
+- **Operators**: together (money agrees, personalities close), against (money disagrees), junction (personalities meet, money has not chosen), apart (far, little shared result). Counts cover every pair in view. The drawing keeps the strongest links.
+- **Stamp**: the signed-in name, the clock timezone, the viewport, and the cores this browser reports, so a screenshot carries the machine it was taken on.
+
+### Lab/Field.vue
+The map and the globe. A dot focuses that agent for the operator graph. Labels stay on when the set is fourteen or fewer.
+
+### Lab/Operators.vue
+The relation drawing. Focusing one agent dims every link that does not touch it.
+
+### Lab/Stamp.vue
+One line of who and what machine. Client only.
 
 ### Agent/PersonalityRadar.vue (Phase 23)
 5-axis spider chart (risk/aggression/speed/patience/contrarian) for the Trader DNA.
@@ -584,11 +614,15 @@ wallets[] ──┬─> Wallet/Hero
             ├─> Wallet/Trades
             └─> Wallet/EquityCurve
 
-agents[] ──┬─> Agent/AvatarCard (frame, ring, opacity)
+agents[] ──┬─> Agent/AvatarCard (frame, ring, opacity, role)
+           ├─> Lab/Bench (map, globe, operator graph)
            ├─> Agent/PersonalityRadar
            ├─> Agent/OpinionVector
            ├─> Profile/AvatarsSection
            └─> Strategy/SwarmPlugs
+
+strategies[] ──┬─> Card/Strategy (mark + wealth flow)
+               └─> Strategy/Card (mark + wealth flow)
 
 opinionProfile ──┬─> Profile/OpinionProfileCard
                  └─> Profile/PoliticalCard (friend comparison)

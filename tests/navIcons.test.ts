@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  TAU, activePanelFor, agentSphere, blendHistory, badgeLabel, compactUsd, donutArcPath, intradayCurve, orthographic, runState,
+  TAU, activePanelFor, agentSphere, blendHistory, badgeLabel, compactUsd, donutArcPath, intradayCurve, orthographic, runState, strategySphere,
   sharesToArcs, signedPct, sparkline, subsolarLongitude, unreadFor, walletRings,
 } from '~/utils/navIcons'
 
@@ -96,6 +96,9 @@ describe('agentSphere', () => {
   it('maps status to running / waiting / error', () => {
     expect(pts.map(p => p.state)).toEqual(['running', 'waiting', 'error'])
     expect(runState('training')).toBe('running')
+    expect(runState('active')).toBe('running')
+    expect(runState('paused')).toBe('waiting')
+    expect(runState('stopped')).toBe('error')
     expect(runState('idle')).toBe('waiting')
     expect(runState(undefined)).toBe('waiting')
   })
@@ -112,6 +115,23 @@ describe('agentSphere', () => {
     expect(pts[0]!.size).toBeCloseTo(1, 10)
     expect(pts[1]!.size).toBeCloseTo(0.55 + 0.45 * 0.5, 10)
     expect(pts[2]!.size).toBeCloseTo(0.55, 10)
+  })
+})
+
+describe('strategySphere', () => {
+  const pts = strategySphere([
+    { id: 'hot', status: 'active', risk_level: 'high', returnPct: 20, trades: 120 },
+    { id: 'haven', status: 'paused', risk_level: 'low', returnPct: 4, trades: 16 },
+    { id: 'out', status: 'stopped', risk_level: 'high', returnPct: -9.6, trades: 7 },
+  ])
+
+  it('colours a book by whether it is running, paused, or stopped', () => {
+    expect(pts.map(p => p.state)).toEqual(['running', 'waiting', 'error'])
+  })
+
+  it('puts high risk north of low risk and keeps every point on the sphere', () => {
+    expect(pts[0]!.lat).toBeGreaterThan(pts[1]!.lat)
+    for (const p of pts) expect(Math.hypot(p.x, p.y, p.z)).toBeCloseTo(1, 8)
   })
 })
 

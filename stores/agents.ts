@@ -4,6 +4,7 @@ import type {
   Agent,
   PersonalityMatrix,
 } from '~/types/agent'
+import { withDeskAgents } from '~/utils/labRoster'
 
 export type {
   Agent,
@@ -45,7 +46,7 @@ export const useAgentsStore = defineStore('agents', {
       this.loading = true
       try {
         const url = publicAssetUrl('/data/agents/avatars.json')
-        const list = await $fetch<Agent[]>(url)
+        const list = withDeskAgents(await $fetch<Agent[]>(url))
         const byId: Record<string, Agent> = {}
         list.forEach(a => { byId[a.id] = a })
         this.byId = byId
@@ -55,6 +56,11 @@ export const useAgentsStore = defineStore('agents', {
         this.hydrated = true
         this.error = null
       } catch (e: any) {
+        const list = withDeskAgents([])
+        const byId: Record<string, Agent> = {}
+        list.forEach(a => { byId[a.id] = a })
+        this.byId = byId
+        this.ids = list.map(a => a.id)
         this.error = e.message ?? 'failed'
         console.error('agents.fetchAgents', e)
       } finally {

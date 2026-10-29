@@ -217,10 +217,10 @@ export interface SpherePoint {
   lon: number
 }
 
-/** live / training agents are working; paused / idle wait; error is its own state. */
+/** Agents and strategies share the globe's three states. */
 export function runState(status: string | null | undefined): AgentRunState {
-  if (status === 'live' || status === 'training') return 'running'
-  if (status === 'error') return 'error'
+  if (status === 'live' || status === 'training' || status === 'active' || status === 'backtesting') return 'running'
+  if (status === 'error' || status === 'stopped') return 'error'
   return 'waiting'
 }
 
@@ -254,6 +254,48 @@ export function agentSphere(agents: readonly AgentLike[]): SpherePoint[] {
       y: Math.sin(φ),
       z: Math.cos(φ) * Math.cos(λ),
       size: 0.55 + 0.45 * Math.sqrt(pos(a.trades) / maxTrades),
+      lat,
+      lon,
+    }
+  })
+}
+
+export interface StrategyLike {
+  id: string
+  name?: string
+  status?: string | null
+  /** 0…1 when the book already has a risk score. */
+  risk?: number | null
+  risk_level?: string | null
+  returnPct?: number | null
+  trades?: number | null
+}
+
+/**
+ * Each strategy as a point on the same Lab globe.
+ *   latitude  ← risk (high risk north)
+ *   longitude ← recorded return, nudged so equal books separate
+ *   size      ← √trades
+ *   colour    ← active / paused / stopped
+ */
+export function strategySphere(list: readonly StrategyLike[]): SpherePoint[] {
+  const maxTrades = Math.max(1, ...list.map(s => pos(s.trades)))
+  return list.map(s => {
+    const named = s.risk_level === 'high' ? 0.85 : s.risk_level === 'low' ? 0.2 : s.risk_level === 'medium' ? 0.55 : null
+    const risk = clamp01(s.risk, named ?? idUnit(s.id, 1))
+    const ret = typeof s.returnPct === 'number' && Number.isFinite(s.returnPct) ? s.returnPct : 0
+    const lat = (risk - 0.5) * 140
+    const lon = Math.max(-1, Math.min(1, ret / 30)) * 140 + (idUnit(s.id, 4) - 0.5) * 36
+    const φ = (lat * Math.PI) / 180
+    const λ = (lon * Math.PI) / 180
+    return {
+      id: s.id,
+      name: s.name ?? s.id,
+      state: runState(s.status),
+      x: Math.cos(φ) * Math.sin(λ),
+      y: Math.sin(φ),
+      z: Math.cos(φ) * Math.cos(λ),
+      size: 0.55 + 0.45 * Math.sqrt(pos(s.trades) / maxTrades),
       lat,
       lon,
     }

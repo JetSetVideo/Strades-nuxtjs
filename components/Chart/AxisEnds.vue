@@ -92,10 +92,10 @@ onBeforeUnmount(() => { if (frame) cancelAnimationFrame(frame) })
 .grip:focus-visible { outline: none; }
 .horizontal .grip { top: 0; width: 16px; height: 16px; }
 .horizontal .grip.start { left: -6px; }
-.horizontal .grip.end { right: -6px; }
+.horizontal .grip.end { right: -8px; top: 1px; }
 .horizontal .grip::after { left: 6px; top: 1px; width: 3px; height: 14px; }
 .vertical .grip { left: 0; width: 16px; height: 16px; cursor: ns-resize; }
-.vertical .grip.start { bottom: -6px; }
+.vertical .grip.start { bottom: -4px; left: 6px; }
 .vertical .grip.end { top: -6px; }
 .vertical .grip::after { left: 1px; top: 6px; width: 14px; height: 3px; }
 </style>

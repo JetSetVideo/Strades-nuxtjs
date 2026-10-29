@@ -1,238 +1,335 @@
-<script setup lang="ts">/**
- * Comparator — Side-by-side strategy comparison with full metrics,
- * equity curve preview, and clone/fork capability.
- * Replaces the old bare-bones Comparator.vue.
+<script setup lang="ts">
+/**
+ * Equip sheet. The first selected book is the one already in the slot.
+ * The second is the one in hand. The chart is the return on each transfer
+ * across the days that book was open.
  */
-import { computed } from 'vue'
-import type { Strategy } from '~/types/strategy'
-import { useStrategies } from '@/composables/useStrategies'
-import UIPill from '@/components/UI/Pill.vue'
+import { computed, ref } from 'vue'
+import {
+  comparePlot, compareSide, dayLabel, equipCall, gapIsBetter, gapLabel,
+  samplePath, statRows, type CompareInput,
+} from '~/utils/strategyCompare'
 
-const props = withDefaults(defineProps<{
-  strategies: Strategy[]
+const props = defineProps<{
+  strategies: CompareInput[]
   onClose?: () => void
-}>(), { strategies: () => [], onClose: () => {} })
+}>()
 
-const emit = defineEmits<{ clone: [id: string] }>()
+const emit = defineEmits<{ clone: [id: string]; swap: [] }>()
 
-const { generateComplementary, generateOpposite } = useStrategies()
+const equipped = computed(() => compareSide(props.strategies[0] || {}))
+const candidate = computed(() => compareSide(props.strategies[1] || {}))
+const call = computed(() => equipCall(equipped.value, candidate.value))
+const rows = computed(() => statRows(equipped.value, candidate.value))
+const plot = computed(() => comparePlot(equipped.value, candidate.value))
 
-const METRICS = [
-  { key: 'total_return_percentage', label: 'Total Return', fmt: (v: number) => `${v >= 0 ? '+' : ''}${(v ?? 0).toFixed(2)}%`, tone: true as boolean | 'reverse' },
-  { key: 'sharpe_ratio', label: 'Sharpe', fmt: (v: number) => (v ?? 0).toFixed(3), tone: false as boolean | 'reverse' },
-  { key: 'win_rate', label: 'Win Rate', fmt: (v: number) => `${(v ?? 0).toFixed(1)}%`, tone: false as boolean | 'reverse' },
-  { key: 'max_drawdown', label: 'Max DD', fmt: (v: number) => `${(v ?? 0).toFixed(1)}%`, tone: 'reverse' as boolean | 'reverse' },
-  { key: 'total_trades', label: 'Trades', fmt: (v: number) => String(v ?? 0), tone: false as boolean | 'reverse' },
-  { key: 'annual_return', label: 'Annual Return', fmt: (v: number) => `${v >= 0 ? '+' : ''}${(v ?? 0).toFixed(1)}%`, tone: true as boolean | 'reverse', nested: 'performance_metrics' },
-  { key: 'volatility', label: 'Volatility', fmt: (v: number) => `${(v ?? 0).toFixed(1)}%`, tone: 'reverse' as boolean | 'reverse', nested: 'performance_metrics' },
-  { key: 'alpha', label: 'Alpha', fmt: (v: number) => (v ?? 0).toFixed(3), tone: true as boolean | 'reverse', nested: 'performance_metrics' },
-  { key: 'beta', label: 'Beta', fmt: (v: number) => (v ?? 0).toFixed(3), tone: false as boolean | 'reverse', nested: 'performance_metrics' },
-]
+const W = 640
+const H = 168
+const LEFT = 36
+const RIGHT = 8
+const TOP = 14
+const BOTTOM = 22
 
-function getVal(s: Strategy, metric: typeof METRICS[0]): number {
-  if (metric.nested && s.performance_metrics) {
-    return (s.performance_metrics as Record<string, number>)[metric.key] ?? 0
-  }
-  return (s as Record<string, unknown>)[metric.key] as number ?? 0
+function yOf(pct: number): number {
+  const span = plot.value.y1 - plot.value.y0 || 1
+  return TOP + (1 - (pct - plot.value.y0) / span) * (H - TOP - BOTTOM)
 }
 
-function toneColor(val: number, toneDef: boolean | 'reverse'): string {
-  if (toneDef === true) return val >= 0 ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))'
-  if (toneDef === 'reverse') return val >= 0 ? 'var(--app-color-down, var(--error-red))' : 'var(--app-color-up, var(--success-green))'
-  return 'var(--text-white)'
+function lineOf(side: { start: number; end: number; path: { t: number; pct: number }[] }): string {
+  const span = side.end - side.start || 1
+  return side.path.map(point => {
+    const u = Math.min(1, Math.max(0, (point.t - side.start) / span))
+    const x = LEFT + u * (W - LEFT - RIGHT)
+    return `${x.toFixed(1)},${yOf(point.pct).toFixed(1)}`
+  }).join(' ')
 }
 
-function getDiff(a: number, b: number, metric: typeof METRICS[0]): { val: string; color: string } {
-  const diff = a - b
-  const isGood = metric.tone === true ? diff >= 0 : metric.tone === 'reverse' ? diff <= 0 : true
+const equippedLine = computed(() => lineOf(equipped.value))
+const candidateLine = computed(() => lineOf(candidate.value))
+const zeroY = computed(() => yOf(0))
+const yTicks = computed(() => {
+  const values = [0, ...equipped.value.path.map(point => point.pct), ...candidate.value.path.map(point => point.pct)]
+  const lo = Math.min(...values)
+  const hi = Math.max(...values)
+  return [hi, 0, lo]
+    .filter((value, index, all) => all.findIndex(other => Math.abs(other - value) < 0.4) === index)
+    .map(value => ({
+      value,
+      y: yOf(value),
+      label: value === 0 ? '0' : `${value > 0 ? '+' : '−'}${Math.abs(Math.round(value))}%`,
+    }))
+})
+
+const hover = ref<number | null>(null)
+
+const readout = computed(() => {
+  if (hover.value == null) return null
+  const u = hover.value
+  const equippedSpan = equipped.value.end - equipped.value.start || 1
+  const candidateSpan = candidate.value.end - candidate.value.start || 1
+  const equippedAt = equipped.value.start + u * equippedSpan
+  const candidateAt = candidate.value.start + u * candidateSpan
+  const label = u < 0.04 ? 'Open' : u > 0.96 ? 'Close' : `${Math.round(u * 100)}% through`
   return {
-    val: `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}${metric.fmt(0).includes('%') ? '%' : ''}`,
-    color: isGood ? 'var(--app-color-up, var(--success-green))' : 'var(--app-color-down, var(--error-red))',
+    label,
+    x: LEFT + u * (W - LEFT - RIGHT),
+    equipped: samplePath(equipped.value.path, equippedAt),
+    candidate: samplePath(candidate.value.path, candidateAt),
+    equippedWhen: dayLabel(equippedAt),
+    candidateWhen: dayLabel(candidateAt),
   }
+})
+
+function onMove(event: PointerEvent) {
+  const svg = event.currentTarget as SVGSVGElement
+  const rect = svg.getBoundingClientRect()
+  const x = ((event.clientX - rect.left) / rect.width) * W
+  const span = W - LEFT - RIGHT
+  hover.value = Math.min(1, Math.max(0, (x - LEFT) / span))
 }
 
-async function handleClone(id: string) {
-  emit('clone', id)
+function pctText(value: number | null): string {
+  if (value == null) return '—'
+  return `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(1)}%`
 }
 
-// Equity curve SVG preview — simplified sparkline from existing data
-function sparklineData(s: any): number[] {
-  if (s.performance_metrics?.annual_return) {
-    const pts: number[] = []
-    const annRet = (s.performance_metrics.annual_return ?? 5) / 12
-    const vol = (s.performance_metrics.volatility ?? 15) / Math.sqrt(12)
-    let eq = 100
-    for (let i = 0; i < 24; i++) {
-      eq += eq * (annRet / 100) + (Math.random() - 0.48) * vol
-      pts.push(eq)
-    }
-    return pts
-  }
-  // Fallback: straight line from initial to current capital
-  const init = s.initial_capital ?? 10000
-  const cur = s.current_capital ?? init
-  return Array.from({ length: 24 }, (_, i) => init + (cur - init) * (i / 23))
+function windowText(side: { start: number; end: number }): string {
+  return `${dayLabel(side.start)} → ${dayLabel(side.end)}`
 }
 </script>
 
 <template>
-  <div class="comparator-modern" v-if="strategies.length >= 2">
-    <div class="comp-header">
-      <span class="comp-title">Strategy Comparison</span>
-      <div class="comp-actions">
-        <button class="comp-btn ghost" @click="handleClone(strategies[0].id)" :title="`Fork ${strategies[0].name}`">Fork A</button>
-        <button class="comp-btn ghost" @click="handleClone(strategies[1].id)" :title="`Fork ${strategies[1].name}`">Fork B</button>
-        <button class="comp-btn close" @click="onClose">✕</button>
+  <section class="equip-sheet" aria-label="Compare the two selected strategies">
+    <header class="head">
+      <p class="verdict" :class="call.verb">
+        <b>{{ call.verb === 'equip' ? 'Equip' : 'Keep' }} {{ call.name }}</b>
+        <span>{{ call.detail }}</span>
+      </p>
+      <div class="actions">
+        <button v-if="call.verb === 'equip'" type="button" class="do equip" @click="emit('swap')">Equip</button>
+        <button v-else type="button" class="do kept" disabled>Kept</button>
+        <button type="button" class="swap" @click="emit('swap')">Swap</button>
+        <button type="button" class="close" @click="onClose">Close</button>
       </div>
+    </header>
+
+    <div class="chart-wrap">
+      <svg
+        class="chart"
+        :viewBox="`0 0 ${W} ${H}`"
+        role="img"
+        aria-label="Return of each asset transfer over the days that book was open"
+        @pointermove="onMove"
+        @pointerleave="hover = null"
+      >
+        <line class="zero" :x1="LEFT" :x2="W - RIGHT" :y1="zeroY" :y2="zeroY" />
+        <text v-for="tick in yTicks" :key="tick.label" class="tick" :x="LEFT - 4" :y="tick.y + 3" text-anchor="end">{{ tick.label }}</text>
+        <text class="tick" :x="LEFT" :y="H - 4">Open</text>
+        <text class="tick" :x="W - RIGHT" :y="H - 4" text-anchor="end">Close</text>
+        <polyline class="series equipped" :points="equippedLine" />
+        <polyline class="series candidate" :points="candidateLine" />
+        <line v-if="readout" class="probe" :x1="readout.x" :x2="readout.x" :y1="TOP" :y2="H - BOTTOM" />
+        <circle v-if="readout && readout.equipped != null" class="dot equipped" :cx="readout.x" :cy="yOf(readout.equipped)" r="3.2" />
+        <circle v-if="readout && readout.candidate != null" class="dot candidate" :cx="readout.x" :cy="yOf(readout.candidate)" r="3.2" />
+      </svg>
+      <p class="legend">
+        <span class="swatch equipped" /> {{ equipped.name }}
+        <span class="swatch candidate" /> {{ candidate.name }}
+        <template v-if="readout">
+          · {{ readout.label }}
+          · equipped {{ readout.equippedWhen }} {{ pctText(readout.equipped) }}
+          · in hand {{ readout.candidateWhen }} {{ pctText(readout.candidate) }}
+        </template>
+        <template v-else>
+          · each line is that book's return, from the day it opened
+        </template>
+      </p>
     </div>
 
-    <!-- Metric comparison table -->
-    <div class="comp-table">
-      <div class="comp-row header-row">
-        <span class="comp-label">Metric</span>
-        <span class="comp-val-a">{{ strategies[0].name }}</span>
-        <span class="comp-vs">vs</span>
-        <span class="comp-val-b">{{ strategies[1].name }}</span>
-        <span class="comp-diff">Δ</span>
-      </div>
+    <div class="pair">
+      <article class="card equipped">
+        <small>Equipped</small>
+        <h3>{{ equipped.name }}</h3>
+        <p class="transfer">{{ equipped.transfer }}</p>
+        <p class="when">{{ windowText(equipped) }}</p>
+        <dl>
+          <div v-for="row in rows" :key="row.id">
+            <dt>{{ row.label }}</dt>
+            <dd>{{ row.equipped }}</dd>
+          </div>
+        </dl>
+        <button v-if="equipped.id" type="button" class="fork" @click="emit('clone', equipped.id)">Fork</button>
+      </article>
 
-      <div v-for="m in METRICS" :key="m.key" class="comp-row">
-        <span class="comp-label">{{ m.label }}</span>
-        <span class="comp-val-a" :style="{ color: toneColor(getVal(strategies[0], m), m.tone) }">
-          {{ m.fmt(getVal(strategies[0], m)) }}
-        </span>
-        <span class="comp-vs" />
-        <span class="comp-val-b" :style="{ color: toneColor(getVal(strategies[1], m), m.tone) }">
-          {{ m.fmt(getVal(strategies[1], m)) }}
-        </span>
-        <span class="comp-diff" :style="{ color: getDiff(getVal(strategies[0], m), getVal(strategies[1], m), m).color }">
-          {{ getDiff(getVal(strategies[0], m), getVal(strategies[1], m), m).val }}
-        </span>
-      </div>
+      <article class="card candidate">
+        <small>In hand</small>
+        <h3>{{ candidate.name }}</h3>
+        <p class="transfer">{{ candidate.transfer }}</p>
+        <p class="when">{{ windowText(candidate) }}</p>
+        <dl>
+          <div v-for="row in rows" :key="row.id">
+            <dt>{{ row.label }}</dt>
+            <dd>
+              {{ row.candidate }}
+              <em v-if="row.scored && Math.abs(row.gap) >= 0.05" :class="gapIsBetter(row) ? 'up' : 'down'">{{ gapLabel(row) }}</em>
+            </dd>
+          </div>
+        </dl>
+        <button v-if="candidate.id" type="button" class="fork" @click="emit('clone', candidate.id)">Fork</button>
+      </article>
     </div>
-
-    <!-- Mini equity sparklines -->
-    <div class="comp-sparklines">
-      <div v-for="(s, i) in strategies" :key="s.id" class="spark-col">
-        <span class="spark-label">{{ i === 0 ? 'A' : 'B' }}: {{ s.name }}</span>
-        <svg :viewBox="`0 0 240 40`" class="spark-svg" preserveAspectRatio="none">
-          <polyline
-            :points="sparklineData(s).map((v, j) => `${(j / 23) * 240},${40 - ((v - 80) / 40) * 40}`).join(' ')"
-            fill="none"
-            :stroke="i === 0 ? 'var(--primary-green)' : 'var(--primary-blue)'"
-            stroke-width="1.5"
-          />
-        </svg>
-      </div>
-    </div>
-  </div>
+  </section>
 </template>
 
 <style scoped>
-.comparator-modern {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  padding: 1rem;
-  margin-top: 0.5rem;
+.equip-sheet {
+  position: fixed;
+  z-index: 90;
+  left: 50%;
+  bottom: 112px;
+  transform: translateX(-50%);
+  width: min(920px, calc(100vw - 20px));
+  max-height: min(560px, calc(100vh - 180px));
+  overflow: auto;
+  padding: 12px 14px 14px;
+  border: 1px solid rgba(255, 214, 120, 0.35);
+  border-radius: 12px;
+  background: #0c0c0e;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.72);
 }
-
-.comp-header {
+.head {
   display: flex;
+  gap: 12px;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
 }
-.comp-title {
+.verdict {
+  margin: 0;
+  min-width: 0;
+}
+.verdict b {
+  display: block;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+.verdict.equip b { color: #7dffb3; }
+.verdict.keep b { color: #ffd56a; }
+.verdict span {
+  display: block;
+  margin-top: 3px;
   font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-white);
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.72);
 }
-.comp-actions {
-  display: flex;
-  gap: 0.3rem;
-}
-.comp-btn {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border-secondary);
-  border-radius: var(--radius-sm);
+.actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.actions button {
   background: transparent;
-  color: var(--text-light-gray);
-  font-size: 0.6rem;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.12s ease;
-}
-.comp-btn:hover { border-color: var(--primary-green); color: var(--primary-green); }
-.comp-btn.close {
-  border: none;
-  color: var(--text-gray);
-  font-size: 0.7rem;
-  padding: 0.2rem 0.4rem;
-}
-.comp-btn.close:hover { color: var(--error-red); }
-
-/* Table */
-.comp-table { display: flex; flex-direction: column; gap: 0.2rem; }
-.comp-row {
-  display: grid;
-  grid-template-columns: 100px minmax(0, 1fr) 24px minmax(0, 1fr) 60px;
-  gap: 0.4rem;
-  align-items: center;
-  padding: 0.3rem 0.4rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.72rem;
-}
-.comp-row:hover { background: rgba(255,255,255,0.02); }
-.header-row {
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-gray);
-  border-bottom: 1px solid var(--border-primary);
-  padding-bottom: 0.4rem;
-}
-.comp-label { font-weight: 600; }
-.comp-val-a, .comp-val-b {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-.comp-vs {
-  text-align: center;
-  font-size: 0.55rem;
-  color: var(--text-gray);
-}
-.comp-diff {
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 999px;
+  font: inherit;
   font-size: 0.68rem;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
 }
-
-/* Sparklines */
-.comp-sparklines {
+.actions .equip { color: #07140c; background: #7dffb3; border-color: #7dffb3; font-weight: 700; }
+.actions .kept { color: #ffd56a; border-color: rgba(255, 213, 106, 0.45); cursor: default; }
+.actions .swap { color: rgba(255, 255, 255, 0.8); }
+.chart-wrap { margin-top: 8px; }
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #101114;
+  border-radius: 8px;
+  touch-action: none;
+}
+.zero { stroke: rgba(255, 255, 255, 0.16); stroke-width: 1; }
+.tick { fill: rgba(255, 255, 255, 0.45); font-size: 10px; }
+.series { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.series.equipped { stroke: #ffd56a; }
+.series.candidate { stroke: #7dffb3; }
+.probe { stroke: rgba(255, 255, 255, 0.35); stroke-width: 1; }
+.dot.equipped { fill: #ffd56a; }
+.dot.candidate { fill: #7dffb3; }
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  margin: 6px 0 0;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.62);
+}
+.swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.swatch.equipped { background: #ffd56a; }
+.swatch.candidate { background: #7dffb3; }
+.pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  gap: 10px;
+  margin-top: 10px;
 }
-.spark-col { display: flex; flex-direction: column; gap: 0.2rem; }
-.spark-label {
-  font-size: 0.6rem;
-  color: var(--text-gray);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.card {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
 }
-.spark-svg {
-  width: 100%;
-  height: 40px;
-  background: rgba(0,0,0,0.2);
-  border-radius: var(--radius-sm);
+.card.equipped { box-shadow: inset 2px 0 0 #ffd56a; }
+.card.candidate { box-shadow: inset 2px 0 0 #7dffb3; }
+.card small {
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+.card h3 {
+  margin: 2px 0 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.transfer, .when {
+  margin: 2px 0 0;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.62);
+}
+dl { margin: 8px 0 0; }
+dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+dt { color: rgba(255, 255, 255, 0.5); }
+dd { margin: 0; font-weight: 700; }
+em {
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 0.68rem;
+}
+em.up { color: #7dffb3; }
+em.down { color: #ff7b8a; }
+.fork {
+  margin-top: 8px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  font: inherit;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0;
+}
+@media (max-width: 700px) {
+  .pair { grid-template-columns: 1fr; }
 }
 </style>

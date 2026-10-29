@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
  * Bots the user runs on this asset. Same pill as the friends control:
- * a count, green when their recent result is up, red when it is down.
- * Opening it lists each bot without leaving the card.
+ * a count, in blue. Opening it lists each bot without leaving the card.
  */
 import { computed, onMounted, ref } from 'vue'
 import { useBotsStore, type Bot } from '@/stores/bots'
@@ -89,20 +88,21 @@ function pct(b: Bot) {
 .bot-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  min-height: 24px;
-  padding: 1px 7px 1px 5px;
+  gap: 3px;
+  min-height: 20px;
+  padding: 0 5px 0 4px;
   border-radius: 999px;
-  border: 1px solid var(--border-primary, rgba(255,255,255,.12));
-  background: rgba(255,255,255,.03);
-  color: var(--text-gray, #9aa0a6);
+  border: 1px solid color-mix(in srgb, #5b9dff 55%, transparent);
+  background: rgba(91, 157, 255, 0.06);
+  color: #5b9dff;
   cursor: pointer;
   font: 700 0.62rem/1 var(--font-market-data, inherit);
 }
-.bot-chip.up .bot-btn { color: var(--app-color-up, #00ff88); border-color: color-mix(in srgb, var(--app-color-up, #00ff88) 55%, transparent); }
-.bot-chip.down .bot-btn { color: var(--app-color-down, #ff4444); border-color: color-mix(in srgb, var(--app-color-down, #ff4444) 55%, transparent); }
-.bot-chip.on.up .bot-btn { background: color-mix(in srgb, var(--app-color-up, #00ff88) 14%, transparent); }
-.bot-chip.on.down .bot-btn { background: color-mix(in srgb, var(--app-color-down, #ff4444) 14%, transparent); }
+.bot-chip.on .bot-btn {
+  color: #9ec2ff;
+  border-color: color-mix(in srgb, #5b9dff 80%, transparent);
+  background: color-mix(in srgb, #5b9dff 18%, transparent);
+}
 .bot-n { font-variant-numeric: tabular-nums; }
 .bot-pop {
   position: absolute;

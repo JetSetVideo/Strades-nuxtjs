@@ -19,7 +19,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { navigateTo } from '#app'
 import type { Asset } from '~/types/asset'
 import { useLivingUI } from '~/composables/useLivingUI'
-import { usePredictionsStore } from '@/stores/predictions'
+import { usePredictionsStore, type Prediction } from '@/stores/predictions'
 import { useAppearanceStore } from '@/stores/appearance'
 import { usePaperStore } from '@/stores/paper'
 import { useAssetAnnotationsStore } from '~/stores/assetAnnotations'
@@ -29,7 +29,7 @@ import { useFriendPredictions, targetTsOf } from '~/composables/useFriendPredict
 import PredictChart from '~/components/Asset/PredictChart.vue'
 import PredictPanel from '~/components/Asset/PredictPanel.vue'
 import AssetBotChip from '~/components/Asset/BotChip.vue'
-import { HOUR, priceKindOf, fmtPrice, fmtAxisPrice, typeColor } from '~/utils/assetChart'
+import { HOUR, priceKindOf, fmtPrice, fmtAxisPrice, typeColor, lerp, type Candle } from '~/utils/assetChart'
 import { priceApproach, sameAsset, LEVEL_COLOR, LEVEL_INK } from '~/utils/priceApproach'
 
 // ── Props ──────────────────────────────────────────────────────────────────
@@ -70,7 +70,30 @@ const iconFailed = ref(false)
 watch(icon, () => { iconFailed.value = false })
 const id       = computed(() => String(raw.value.id ?? props.assetId ?? ''))
 const category = computed(() => String(raw.value.category ?? 'other'))
+/** Short badge copy and accent. Precious metals read as commodities. */
+const BADGE: Record<string, { label: string; color: string }> = {
+  crypto: { label: 'Crypto', color: '#b48aff' },
+  layer1: { label: 'Crypto', color: '#b48aff' },
+  meme: { label: 'Crypto', color: '#b48aff' },
+  payments: { label: 'Crypto', color: '#b48aff' },
+  forex: { label: 'Forex', color: '#4fa8ff' },
+  major: { label: 'Forex', color: '#4fa8ff' },
+  fiat_currency: { label: 'Forex', color: '#4fa8ff' },
+  precious_metals: { label: 'Commodities', color: '#ff9f45' },
+  commodity: { label: 'Commodities', color: '#ff9f45' },
+  commodities: { label: 'Commodities', color: '#ff9f45' },
+  energy: { label: 'Energy', color: '#ffb020' },
+  technology: { label: 'Tech', color: '#64b5f6' },
+  stock: { label: 'Stocks', color: '#00e58a' },
+  finance: { label: 'Finance', color: '#ce93d8' },
+  healthcare: { label: 'Health', color: '#f48fb1' },
+  consumer: { label: 'Consumer', color: '#26c6da' },
+  retail: { label: 'Retail', color: '#26c6da' },
+  automotive: { label: 'Auto', color: '#ef6c9a' },
+}
 const categoryLabel = computed(() => {
+  const known = BADGE[category.value]
+  if (known) return known.label
   const s = category.value.replace(/_/g, ' ').replace(/([a-z])(\d)/gi, '$1 $2').trim()
   return s.charAt(0).toUpperCase() + s.slice(1)
 })
@@ -128,13 +151,8 @@ const cardRadius = computed(() => ({
   cryptocurrency: '4px', fiat_currency: '14px', stock: '8px', commodity: '6px',
 } as Record<string, string>)[type.value] ?? 'var(--app-border-radius, 10px)')
 
-const CAT_COLOR: Record<string, string> = {
-  technology: '#2196f3', cryptocurrency: '#f7931a', fiat_currency: '#4caf50',
-  stock: '#2196f3', energy: '#ff9800', finance: '#9c27b0',
-  healthcare: '#e91e63', consumer: '#00bcd4', commodity: '#ffd700',
-}
 const isBet = computed(() => isBetAsset(props.asset as { type?: string } | undefined))
-const catColor = computed(() => (isBet.value ? BET_COLOR : (CAT_COLOR[category.value] ?? '#607d8b')))
+const catColor = computed(() => (isBet.value ? BET_COLOR : (BADGE[category.value]?.color ?? '#8aa0b4')))
 /** Same colour as the asset page: one colour per asset type (ticker, plate ring). */
 const tColor = computed(() => typeColor(type.value))
 /** Stable, CSS-safe view-transition names: the card and its chart morph between states. */
@@ -175,14 +193,14 @@ const nearing = computed(() => {
 const { predictions: friendPreds, faces, isRevealed, toggle: toggleFriends } = useFriendPredictions(assetObj, userId.value)
 const friendsShown = computed(() => isRevealed.value ? friendPreds.value : [])
 
-// ── Mini chart window: 24 h, stretched to include every call it must show ──
+// ── Mini chart window: 24 h of candles. A call sits in a short future strip. ──
 const farthest = computed(() => {
   let f = 0
   for (const p of [...minePending.value, ...friendsShown.value]) f = Math.max(f, targetTsOf(p) - chartNow.value)
   return f > 0 ? f * 1.08 : 0
 })
-const miniT0 = computed(() => chartNow.value - Math.max(24 * HOUR, 2 * farthest.value))
-const miniT1 = computed(() => chartNow.value + farthest.value)
+const miniT0 = computed(() => chartNow.value - 24 * HOUR)
+const miniT1 = computed(() => chartNow.value + (farthest.value > 0 ? farthest.value : 0))
 const miniWin = computed(() => ({ start: miniT0.value, maxCandles: 28 }))
 const changeRef = computed(() => changePct.value)
 const { candles: miniCandles, allSimulated } = useAssetSeries(assetObj, miniWin, changeRef)
@@ -194,23 +212,75 @@ const trades = computed(() => paper.trades
 const assetAlerts = computed(() =>
   predStore.recentAlerts(userId.value).filter(a => a.assetId === symbol.value))
 
-// ── Expand (morph) / navigate ─────────────────────────────────────────────
+// ── Expand: the chart stays mounted and lerps into the open window ────────
 const expanded = ref(false)
 /** CSS grow when opening; skipped when the user prefers reduced motion. */
 const grow = ref(false)
 const rootEl = ref<HTMLElement | null>(null)
+/** 0 = closed card, 1 = open chart. Every mark lerps with this. */
+const reveal = ref(0)
+const panelOpen = ref(false)
+const laidOut = computed(() => expanded.value || reveal.value > 0.02)
+const chartH = computed(() => Math.round(lerp(56, 200, reveal.value)))
 
-/**
- * The chart stays in its cell and grows. The card gets taller under it, which
- * pushes the cards below. View Transitions abort in this grid (display:contents
- * on the chart cell), so the motion is a short CSS grow.
- */
+type ChartPanel = {
+  candles: Candle[]
+  now: number
+  t0: number
+  t1: number
+  range: { min: number; max: number }
+  rangeLock: boolean
+  aim: { t: number; price: number; fromT?: number; fromPrice?: number } | null
+  mine: Prediction[]
+  levels: { id: string; price: number; color: string; label: string; hot?: boolean; ink?: string; fade?: boolean }[]
+  friends: Prediction[]
+  trades: { t: number; price: number; side: 'buy' | 'sell' }[]
+  realFrom: number | null
+  snapHours: number
+  minLead: number
+  extending: boolean
+  onAim: (t: number, price: number) => void
+  onCommit: (t: number, price: number) => void
+  armLimit: (price: number) => void
+  onWindow: (edge: 'start' | 'end', t: number) => void
+  onScale: (min: number, max: number) => void
+}
+const panelEl = ref<ChartPanel | null>(null)
+let revealRaf = 0
+
+function tickReveal() {
+  const goal = expanded.value ? 1 : 0
+  if (goal === 1 && !(panelEl.value && Number.isFinite(panelEl.value.t0))) {
+    revealRaf = requestAnimationFrame(tickReveal)
+    return
+  }
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  reveal.value = lerp(reveal.value, goal, reduce ? 1 : 0.16)
+  if (Math.abs(reveal.value - goal) < 0.004) {
+    reveal.value = goal
+    revealRaf = 0
+    if (!expanded.value) panelOpen.value = false
+    return
+  }
+  revealRaf = requestAnimationFrame(tickReveal)
+}
+function startReveal() {
+  if (!revealRaf) revealRaf = requestAnimationFrame(tickReveal)
+}
+
 function setExpanded(v: boolean) {
-  if (expanded.value === v) return
+  if (expanded.value === v && (v ? reveal.value >= 1 : reveal.value <= 0)) return
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   grow.value = v && !reduce
+  if (v) panelOpen.value = true
   expanded.value = v
+  startReveal()
   if (v) rootEl.value?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' })
+}
+
+function onChartClick() {
+  if (reveal.value >= 0.98) return
+  setExpanded(true)
 }
 
 function onSaved() {
@@ -233,7 +303,10 @@ function goToAssetPage(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (target.closest('.da-chart, .da-friends, .da-close, .bot-chip, .da-name, .da-ident, .pp-chart, .pp-rest')) return
   if (target.closest('.da-info')) { goDetail(); return }
-  if (expanded.value) { setExpanded(false); return }
+  if (laidOut.value) {
+    if (expanded.value) setExpanded(false)
+    return
+  }
   goDetail()
 }
 
@@ -246,14 +319,17 @@ onMounted(() => {
   if (!annotations.hydrated) annotations.hydrateFromStorage()
   window.addEventListener('keydown', onKey)
 })
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKey)
+  if (revealRaf) cancelAnimationFrame(revealRaf)
+})
 </script>
 
 <template>
   <div
     ref="rootEl"
     class="widget-asset"
-    :class="{ expanded, grow }"
+    :class="{ expanded: laidOut, grow }"
     :style="{
       ...dynamicStyles,
       borderRadius: cardRadius,
@@ -333,29 +409,47 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       </div>
 
       <div
-        v-if="!expanded"
         class="da-chart"
-        role="button"
-        tabindex="0"
-        :aria-label="`Open the prediction chart for ${name}`"
-        @click.stop="setExpanded(true)"
-        @keydown.enter.stop.prevent="setExpanded(true)"
+        :class="{ live: reveal >= 0.98 }"
+        :role="reveal >= 0.98 ? undefined : 'button'"
+        :tabindex="reveal >= 0.98 ? undefined : 0"
+        :aria-label="reveal >= 0.98 ? undefined : `Open the prediction chart for ${name}`"
+        @click.stop="onChartClick"
+        @keydown.enter.stop.prevent="onChartClick"
       >
         <ClientOnly>
           <PredictChart
-            size="mini"
-            :height="56"
+            :reveal="reveal"
+            :size="reveal >= 0.98 ? 'large' : 'mini'"
+            :height="chartH"
             :candles="miniCandles"
             :t0="miniT0" :now="chartNow" :t1="miniT1"
             :current="currentPrice"
             :kind="kind"
             :chart-style="appearance.chartStyle"
-            :mine="minePending"
-            :levels="miniLevels"
-            :friends="friendsShown"
-            :trades="trades"
+            :mine="panelEl?.mine ?? minePending"
+            :levels="panelEl?.levels ?? miniLevels"
+            :friends="panelEl?.friends ?? friendsShown"
+            :trades="panelEl?.trades ?? trades"
             :trend-pct="changePct"
+            :open-candles="panelEl?.candles ?? null"
+            :open-t0="panelEl?.t0 ?? null"
+            :open-t1="panelEl?.t1 ?? null"
+            :open-now="panelEl?.now ?? null"
+            :open-range="panelEl?.range ?? null"
+            :open-range-lock="panelEl?.rangeLock ?? false"
+            :aim="reveal >= 0.98 ? (panelEl?.aim ?? null) : null"
+            :real-from="reveal > 0.45 ? (panelEl?.realFrom ?? null) : null"
+            :snap-hours="panelEl?.snapHours ?? 1"
+            :min-lead-hours="panelEl?.minLead ?? 1"
+            :extending="panelEl?.extending ?? false"
+            :interactive="reveal >= 0.98"
             :label="`${name} price, last ${Math.round((chartNow - miniT0) / HOUR)} hours`"
+            @aim="(t: number, price: number) => panelEl?.onAim(t, price)"
+            @commit="(t: number, price: number) => panelEl?.onCommit(t, price)"
+            @limit="(price: number) => panelEl?.armLimit(price)"
+            @window="(edge: 'start' | 'end', t: number) => panelEl?.onWindow(edge, t)"
+            @scale="(min: number, max: number) => panelEl?.onScale(min, max)"
           />
           <template #fallback><div style="height: 56px" /></template>
         </ClientOnly>
@@ -363,8 +457,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     </div>
 
     <!-- ── Expanded: the large prediction chart ── -->
-    <div v-if="expanded" class="da-expanded" @click.stop>
+    <div v-if="panelOpen" v-show="expanded" class="da-expanded" @click.stop>
       <PredictPanel
+        ref="panelEl"
         :asset="assetObj"
         :change-pct="changePct"
         :user-id="userId"
@@ -372,6 +467,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         :height="200"
         :friends="friendPreds"
         :reveal-friends="isRevealed"
+        :show-chart="false"
         @saved="onSaved"
         @toggle-friends="toggleFriends()"
       />
@@ -393,6 +489,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   padding: 3px 4px 3px 5px;
 }
 .widget-asset:hover:not(.expanded) { transform: translateY(-1px); border-color: var(--da-accent, var(--primary-green)); }
+.widget-asset:not(.expanded) { padding: 1px 2px 1px 3px; }
+.widget-asset:not(.expanded) .da-head { gap: 3px; min-height: 16px; }
+.widget-asset:not(.expanded) .da-head-end { gap: 2px; }
+.widget-asset:not(.expanded) .da-row { gap: 4px; }
+.widget-asset:not(.expanded) .da-friends { min-height: 16px; padding: 0 3px 0 1px; }
+.widget-asset:not(.expanded) .da-face { width: 13px; height: 13px; margin-left: -4px; border-width: 1px; }
+.widget-asset:not(.expanded) .da-eye { width: 11px; height: 11px; margin-left: 2px; }
+.widget-asset:not(.expanded) :deep(.bot-btn) { min-height: 16px; padding: 0 4px 0 3px; gap: 2px; }
+.widget-asset:not(.expanded) :deep(.bot-btn svg) { width: 11px; height: 11px; }
 .widget-asset { view-transition-class: da-card; }
 .da-chart { view-transition-class: da-chart; }
 .widget-asset.grow .da-expanded { animation: da-grow 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); transform-origin: top right; }
@@ -421,7 +526,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .widget-asset.expanded .da-row { display: contents; }
 .widget-asset.expanded .da-ident { grid-area: ident; }
 .widget-asset.expanded .da-info { grid-area: info; }
-.widget-asset.expanded .da-chart { display: none; }
+.widget-asset.expanded .da-chart {
+  display: block;
+  grid-area: chart;
+  min-width: 0;
+  align-self: stretch;
+}
+.da-chart.live { cursor: crosshair; }
 .widget-asset.expanded .da-expanded { display: contents; padding: 0; }
 .widget-asset.expanded :deep(.pp) { display: contents; }
 .widget-asset.expanded :deep(.pp-chart) {
@@ -454,15 +565,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .da-name {
   min-width: 0;
   flex: 0 1 auto;
+  align-self: center;
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-  line-height: 1.2;
+  line-height: 1;
   font-size: 0.78rem;
   font-weight: 650;
-  color: var(--text-light-gray, rgba(255,255,255,0.82));
+  color: #fff;
   font-family: var(--font-market-data, var(--font-family-secondary));
   padding: 0;
   border: 0;
@@ -532,9 +644,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  align-self: center;
+  gap: 5px;
   flex-shrink: 0;
   width: 40px;
+  margin-left: -3px;
   padding: 0;
   border: 0;
   background: none;
@@ -578,7 +692,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   gap: 2px;
 }
 .da-price {
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   font-weight: 800;
   color: var(--text-white);
   font-family: var(--font-market-data, var(--font-family-primary));
@@ -587,6 +701,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   white-space: nowrap;
 }
 .da-change {
+  align-self: center;
   font-size: 0.68rem;
   font-weight: 700;
   padding: 0 6px;

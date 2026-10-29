@@ -95,5 +95,6 @@ describe('rosterKey / rimColor', () => {
     expect(rimColor(3, 1)).toContain('--app-color-up')
     expect(rimColor(0, 2)).toContain('--warning-orange')
     expect(rimColor(0, 0)).toMatch(/^rgba/)
+    expect(rimColor(0, 0, 2)).toContain('--app-color-down')
   })
 })

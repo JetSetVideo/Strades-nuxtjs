@@ -44,6 +44,7 @@ const stratCategory = reactive<Record<string, FilterTriState>>({})
 const stratRisk = reactive<Record<string, FilterTriState>>({})
 const stratStatus = reactive<Record<string, FilterTriState>>({})
 const stratType = reactive<Record<string, FilterTriState>>({})
+const roleStates = reactive<Record<string, FilterTriState>>({})
 
 onMounted(async () => {
   await Promise.all([
@@ -181,8 +182,9 @@ const filteredAgents = computed(() => {
     && allowsValue(agent.model_type, modelStates)
     && allowsValue(agent.trading_style, styleStates)
     && allowsValue(agent.training_state.status, statusStates)
+    && allowsValue(agent.role || 'catalog', roleStates)
     && allowsAny(agent.specialization, classStates)
-    && matches(q, [agent.name, agent.tagline, agent.trading_style, ...agent.specialization])
+    && matches(q, [agent.name, agent.tagline, agent.trading_style, agent.role, ...agent.specialization])
   )
   const ranked = [...list]
   if (sortKey.value === 'confidence') ranked.sort((a, b) => b.confidence - a.confidence)
@@ -273,6 +275,8 @@ function followStrategy(id: string) {
       </button>
     </div>
 
+    <LabBench v-if="source === 'agents' && !loading && filteredAgents.length" :agents="filteredAgents" />
+
     <div class="market-toolbar">
       <input
         v-model="search"
@@ -288,6 +292,7 @@ function followStrategy(id: string) {
         <div class="chip-rail"><UIOpChips nowrap label="Style" :options="optionsFrom(agentList.map(agent => agent.trading_style))" :states="styleStates" @cycle="id => cycleKey(styleStates, id)" /></div>
         <div class="chip-rail"><UIOpChips nowrap label="Class" :options="optionsFrom(agentList.flatMap(agent => agent.specialization))" :states="classStates" @cycle="id => cycleKey(classStates, id)" /></div>
         <div class="chip-rail"><UIOpChips nowrap label="Status" :options="optionsFrom(agentList.map(agent => agent.training_state.status))" :states="statusStates" @cycle="id => cycleKey(statusStates, id)" /></div>
+        <div class="chip-rail"><UIOpChips nowrap label="Role" :options="optionsFrom(agentList.map(agent => agent.role || 'catalog'))" :states="roleStates" @cycle="id => cycleKey(roleStates, id)" /></div>
       </template>
       <template v-else-if="source === 'people'">
         <div class="chip-rail"><UIOpChips nowrap label="Style" :options="optionsFrom(people.map(person => person.trading_style))" :states="peopleStyle" @cycle="id => cycleKey(peopleStyle, id)" /></div>

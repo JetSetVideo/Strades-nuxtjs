@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { wealthCondition } from '~/utils/labField'
 
 const props = defineProps<{
   strategy: Record<string, unknown> & {
@@ -70,11 +71,16 @@ const heartbeatMs = computed(() => FREQ_BEAT[props.strategy.frequency] ?? '3.2s'
 
 // Status visual
 const STATUS = {
-  active:  { color: '#4caf50', label: 'ACTIVE',  glow: true  },
-  paused:  { color: '#ff9800', label: 'PAUSED',  glow: false },
-  stopped: { color: '#9e9e9e', label: 'STOPPED', glow: false },
+  active:  { color: '#3dd68c', label: 'ACTIVE',  glow: true  },
+  paused:  { color: '#ffb020', label: 'PAUSED',  glow: false },
+  stopped: { color: '#ff7b8a', label: 'STOPPED', glow: false },
   draft:   { color: '#607d8b', label: 'DRAFT',   glow: false },
 }
+const runLabel = computed(() => {
+  if (props.strategy.status === 'active') return 'Pause'
+  if (props.strategy.status === 'paused') return 'Resume'
+  return 'Start'
+})
 const statusMeta = computed(() => STATUS[props.strategy.status as keyof typeof STATUS] ?? STATUS.stopped)
 
 // ── Strategy archetype badge — real trader vocabulary, not just asset class ──
@@ -142,6 +148,13 @@ const sparkPoints = computed(() => {
 
 const sparkColor = computed(() => gain.value >= 0 ? '#4caf50' : '#f44336')
 
+const flow = computed(() => wealthCondition({
+  riskScore: riskScore.value,
+  monthlyGain: gain.value,
+  sharpeRatio: Number(props.strategy.sharpeRatio ?? props.strategy.sharpe_ratio ?? 0),
+  winRate: winRate.value,
+}))
+
 // Win rate ring SVG
 const winRingDash = computed(() => `${winRate.value} ${100 - winRate.value}`)
 
@@ -176,6 +189,7 @@ const freqLabel = (f: string) => {
     <div class="feat-header">
       <div class="feat-title-col">
         <div class="feat-name-row">
+          <StrategyMark :category="String(strategy.category || '')" />
           <span class="feat-name">{{ strategy.name }}</span>
           <span class="status-dot" :style="{ background: statusMeta.color }"
             :class="{ beating: strategy.status === 'active' }" />
@@ -215,6 +229,8 @@ const freqLabel = (f: string) => {
       <span class="flow-freq" :style="{ color: catColor }">{{ freqLabel(strategy.frequency ?? '1D') }}</span>
       <span class="flow-creator">by {{ creatorLabel }}</span>
     </div>
+
+    <StrategyWealthFlow :condition="flow" />
 
     <!-- Metrics grid -->
     <div class="feat-metrics">
@@ -294,8 +310,8 @@ const freqLabel = (f: string) => {
     <div class="feat-actions" @click.stop>
       <button class="act-btn primary" @click="emit('copy')">⤴ Copy</button>
       <button class="act-btn" @click="emit('view')">→ View</button>
-      <button class="act-btn" @click="emit('toggle')">
-        {{ strategy.status === 'active' ? '⏸ Pause' : '▶ Start' }}
+      <button class="act-btn" :class="strategy.status || 'stopped'" @click="emit('toggle')">
+        {{ runLabel }}
       </button>
       <button class="act-btn icon-btn" @click="emit('share')" title="Share">⇪</button>
     </div>
@@ -320,6 +336,7 @@ const freqLabel = (f: string) => {
     <div class="compact-body">
       <!-- Name + status -->
       <div class="compact-head">
+        <StrategyMark :category="String(strategy.category || '')" />
         <span class="compact-name">{{ strategy.name }}</span>
         <span class="status-dot sm" :style="{ background: statusMeta.color }"
           :class="{ beating: strategy.status === 'active' }" />
@@ -343,6 +360,7 @@ const freqLabel = (f: string) => {
         <span class="cm-sep">·</span>
         <span class="cm">{{ winRate.toFixed(0) }}% W</span>
       </div>
+      <StrategyWealthFlow dense :condition="flow" />
     </div>
 
     <!-- Mini sparkline -->
@@ -633,6 +651,8 @@ const freqLabel = (f: string) => {
   color: var(--primary-green);
 }
 .act-btn.primary:hover { background: rgba(0,255,136,0.18); }
+.act-btn.active { color: #ffb020; border-color: rgba(255, 176, 32, 0.45); }
+.act-btn.paused, .act-btn.stopped { color: #3dd68c; border-color: rgba(61, 214, 140, 0.4); }
 .act-btn.icon-btn { flex: 0 0 36px; font-size: 0.8rem; }
 
 /* ─────────────── COMPACT ─────────────── */

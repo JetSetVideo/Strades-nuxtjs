@@ -102,6 +102,11 @@ export interface Agent {
   lineage: AgentLineage
   share_state: AgentShareState
   created_at: string
+  /**
+   * Laboratory desk role (optimisation, trader, designer, …).
+   * Catalog archetypes omit it and read as "catalog" on the bench.
+   */
+  role?: string
   /** Present only when model_type === 'classifier'. */
   classifier_state?: ClassifierState
 }

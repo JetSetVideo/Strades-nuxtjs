@@ -361,6 +361,105 @@ export interface Scales {
   p1: number
 }
 
+/**
+ * Share of the plot the future occupies on a closed price card.
+ * Far calls stay in that strip instead of stealing width from the candles.
+ */
+export const CLOSED_FUTURE_FRAC = 0.12
+
+export function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t
+}
+
+/** How much of [t0, t1] sits after `now`. 0 when the window has no future. */
+export function naturalFutureFrac(t0: number, now: number, t1: number): number {
+  if (!(t1 > now + 1)) return 0
+  return clamp((t1 - now) / Math.max(1, t1 - t0), 0, 0.92)
+}
+
+/**
+ * Time → x. `futureFrac` is the share of `width` given to [now, t1].
+ * The natural share is ordinary linear time, so raising the fraction from a
+ * smaller value stretches only the future and every mark moves with it.
+ */
+export function chartX(
+  t: number, t0: number, now: number, t1: number,
+  left: number, width: number, futureFrac: number,
+): number {
+  if (!(width > 0)) return left
+  if (!(t1 > now + 1) || !(futureFrac > 0)) {
+    const span = Math.max(1, (t1 > t0 ? t1 : now) - t0)
+    return left + clamp((t - t0) / span, 0, 1) * width
+  }
+  const frac = clamp(futureFrac, 0, 0.92)
+  const nowX = left + width * (1 - frac)
+  if (t <= now) {
+    const past = Math.max(1, now - t0)
+    return left + clamp((t - t0) / past, 0, 1) * (nowX - left)
+  }
+  const fut = Math.max(1, t1 - now)
+  return nowX + clamp((t - now) / fut, 0, 1) * (left + width - nowX)
+}
+
+/**
+ * How hard a pointer inside the future plot should extend the window.
+ * The outer `band` (default 10%) of the top, bottom, and right is sensitive,
+ * and only while the pointer moves toward that edge. The two right-hand
+ * corners extend the date and the price together.
+ * Returned fractions are 0–1 of the pointer's travel across the plot.
+ */
+export function edgeNudge(
+  x: number, y: number, dx: number, dy: number,
+  left: number, top: number, width: number, height: number,
+  band = 0.1,
+): { date: number; priceUp: number; priceDown: number } {
+  const none = { date: 0, priceUp: 0, priceDown: 0 }
+  if (!(width > 0) || !(height > 0)) return none
+  const rx = (x - left) / width
+  const ry = (y - top) / height
+  const rightDepth = rx > 1 - band && rx <= 1.02 ? clamp((rx - (1 - band)) / band, 0, 1) : 0
+  const upDepth = ry < band && ry >= -0.02 ? clamp((band - ry) / band, 0, 1) : 0
+  const downDepth = ry > 1 - band && ry <= 1.02 ? clamp((ry - (1 - band)) / band, 0, 1) : 0
+  const rightTravel = dx > 0 ? dx / width : 0
+  const upTravel = dy < 0 ? -dy / height : 0
+  const downTravel = dy > 0 ? dy / height : 0
+  if (rightDepth > 0 && upDepth > 0 && (rightTravel > 0 || upTravel > 0)) {
+    const push = Math.max(rightTravel, upTravel) * Math.max(rightDepth, upDepth)
+    return { date: push, priceUp: push, priceDown: 0 }
+  }
+  if (rightDepth > 0 && downDepth > 0 && (rightTravel > 0 || downTravel > 0)) {
+    const push = Math.max(rightTravel, downTravel) * Math.max(rightDepth, downDepth)
+    return { date: push, priceUp: 0, priceDown: push }
+  }
+  return {
+    date: rightDepth * rightTravel,
+    priceUp: upDepth * upTravel,
+    priceDown: downDepth * downTravel,
+  }
+}
+
+/** Inverse of `chartX` for the same window and future share. */
+export function chartT(
+  x: number, t0: number, now: number, t1: number,
+  left: number, width: number, futureFrac: number,
+): number {
+  if (!(width > 0)) return t0
+  if (!(t1 > now + 1) || !(futureFrac > 0)) {
+    const span = Math.max(1, (t1 > t0 ? t1 : now) - t0)
+    return t0 + clamp((x - left) / width, 0, 1) * span
+  }
+  const frac = clamp(futureFrac, 0, 0.92)
+  const nowX = left + width * (1 - frac)
+  if (x <= nowX) {
+    const past = Math.max(1, now - t0)
+    const w = Math.max(1, nowX - left)
+    return t0 + clamp((x - left) / w, 0, 1) * past
+  }
+  const fut = Math.max(1, t1 - now)
+  const w = Math.max(1, left + width - nowX)
+  return now + clamp((x - nowX) / w, 0, 1) * fut
+}
+
 /** Linear time → x and price → y over a plot box, invertible. */
 export function makeScales(t0: number, t1: number, p0: number, p1: number, box: Box): Scales {
   const dt = Math.max(1, t1 - t0)
@@ -403,43 +502,49 @@ export function niceTicks(lo: number, hi: number, count = 4): number[] {
 
 const TIME_STEPS_H = [1, 2, 3, 6, 12, 24, 48, 72, 168, 336, 720, 1440, 2160, 4380, 8760]
 
-/** Round time ticks (hours / days / months) inside [t0, t1] with labels. */
-export function timeTicks(t0: number, t1: number, count = 4, locale?: string): { t: number; label: string }[] {
+/** Round time ticks (hours / days / months) inside [t0, t1] with labels. `timeZone` is an IANA zone, the same one the header clock uses. */
+export function timeTicks(t0: number, t1: number, count = 4, locale?: string, timeZone?: string): { t: number; label: string }[] {
   const spanH = (t1 - t0) / HOUR
   const stepH = TIME_STEPS_H.find(s => spanH / s <= count) ?? TIME_STEPS_H[TIME_STEPS_H.length - 1]!
   const out: { t: number; label: string }[] = []
   if (stepH < 24) {
     const step = stepH * HOUR
-    for (let t = Math.ceil(t0 / step) * step; t <= t1; t += step) out.push({ t, label: fmtTimeLabel(t, spanH, locale) })
+    for (let t = Math.ceil(t0 / step) * step; t <= t1; t += step) out.push({ t, label: fmtTimeLabel(t, spanH, locale, timeZone) })
   } else if (stepH < 720) {
     const d = new Date(t0); d.setHours(0, 0, 0, 0)
     const days = stepH / 24
     while (d.getTime() < t0) d.setDate(d.getDate() + 1)
-    for (; d.getTime() <= t1; d.setDate(d.getDate() + days)) out.push({ t: d.getTime(), label: fmtTimeLabel(d.getTime(), spanH, locale) })
+    for (; d.getTime() <= t1; d.setDate(d.getDate() + days)) out.push({ t: d.getTime(), label: fmtTimeLabel(d.getTime(), spanH, locale, timeZone) })
   } else {
     const months = Math.max(1, Math.round(stepH / 730))
     const d = new Date(t0); d.setHours(0, 0, 0, 0); d.setDate(1)
     while (d.getTime() < t0) d.setMonth(d.getMonth() + 1)
     while (d.getMonth() % months !== 0) d.setMonth(d.getMonth() + 1)
-    for (; d.getTime() <= t1; d.setMonth(d.getMonth() + months)) out.push({ t: d.getTime(), label: fmtTimeLabel(d.getTime(), spanH, locale) })
+    for (; d.getTime() <= t1; d.setMonth(d.getMonth() + months)) out.push({ t: d.getTime(), label: fmtTimeLabel(d.getTime(), spanH, locale, timeZone) })
   }
   return out
 }
 
-function fmtTimeLabel(t: number, spanH: number, locale?: string): string {
+function zoneOf(timeZone?: string): Intl.DateTimeFormatOptions {
+  return timeZone ? { timeZone } : {}
+}
+
+function fmtTimeLabel(t: number, spanH: number, locale?: string, timeZone?: string): string {
   const d = new Date(t)
-  if (spanH <= 48) return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false })
-  if (spanH <= 24 * 120) return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
-  return d.toLocaleDateString(locale, { month: 'short', year: '2-digit' })
+  const zone = zoneOf(timeZone)
+  if (spanH <= 48) return d.toLocaleTimeString(locale, { ...zone, hour: '2-digit', minute: '2-digit', hour12: false })
+  if (spanH <= 24 * 120) return d.toLocaleDateString(locale, { ...zone, day: 'numeric', month: 'short' })
+  return d.toLocaleDateString(locale, { ...zone, month: 'short', year: '2-digit' })
 }
 
 /** Date + time for a prediction target, precise enough for its horizon. */
-export function fmtTarget(t: number, horizonHours: number, locale?: string): string {
+export function fmtTarget(t: number, horizonHours: number, locale?: string, timeZone?: string): string {
   const d = new Date(t)
+  const zone = zoneOf(timeZone)
   if (horizonHours <= 48) {
-    return d.toLocaleString(locale, { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
+    return d.toLocaleString(locale, { ...zone, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
   }
-  return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: horizonHours > 24 * 200 ? 'numeric' : undefined })
+  return d.toLocaleDateString(locale, { ...zone, day: 'numeric', month: 'short', year: horizonHours > 24 * 200 ? 'numeric' : undefined })
 }
 
 // ── Formatting ──────────────────────────────────────────────────────────────

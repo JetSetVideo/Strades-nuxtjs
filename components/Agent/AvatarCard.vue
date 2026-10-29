@@ -36,6 +36,7 @@
       <div class="head-text">
         <div class="name-line">
           <h3 class="name">{{ agent.name }}</h3>
+          <span v-if="agent.role" class="kind-pill role">{{ agent.role.replace(/_/g, ' ') }}</span>
           <span class="kind-pill" :class="{ 'model-classifier': isClassifier }">
             {{ isClassifier ? 'classifier' : agent.kind }}
           </span>

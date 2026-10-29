@@ -10,7 +10,7 @@
  *   News    news.items[].readByUser    → unread count; clock → noon meridian
  *   Wallet  wallet.wallets             → total (= switcher TOTAL BALANCE),
  *                                         wallet shares + asset-type shares
- *   Lab     agents.byId                → one 3-D dot per agent, run/wait
+ *   Lab     strategies[]               → one 3-D dot per strategy (active / paused / stopped)
  *   Chat    chat.conversations         → unread in the user's conversations
  *
  * One 30-s clock drives the time-based drawings (globe rotation, end of the
@@ -22,11 +22,12 @@ import { useAssetsStore } from '~/stores/assets'
 import { useNewsStore } from '~/stores/news'
 import { useWalletStore } from '~/stores/wallet'
 import { useAgentsStore } from '~/stores/agents'
+import { useStrategiesStore } from '~/stores/strategies'
 import { useChatStore } from '~/stores/chat'
 import { useCurrentUser } from '~/composables/useCurrentUser'
 import { assetClassTheme, resolveAssetClass } from '~/utils/assetClass'
 import {
-  agentSphere, blendHistory, compactUsd, intradayCurve, signedPct, subsolarLongitude, unreadFor, walletRings,
+  agentSphere, blendHistory, compactUsd, intradayCurve, signedPct, strategySphere, subsolarLongitude, unreadFor, walletRings,
   type IntradayCurve, type PanelId, type Share, type SpherePoint,
 } from '~/utils/navIcons'
 
@@ -70,6 +71,7 @@ export function useNavPanels() {
   const news = useNewsStore()
   const wallet = useWalletStore()
   const agents = useAgentsStore()
+  const strategies = useStrategiesStore()
   const chat = useChatStore()
   const { getUserId } = useCurrentUser()
 
@@ -93,6 +95,7 @@ export function useNavPanels() {
     if (!assets.assets.length && !assets.isRefreshing) assets.initializeStore()
     if (!wallet.hydrated && !wallet.loading) wallet.fetchWallets().catch(() => {})
     if (!agents.hydrated && !agents.loading) agents.fetchAgents().catch(() => {})
+    if (!strategies.strategies.length && !strategies.loading) strategies.fetchStrategies().catch(() => {})
     if (!chat.hydrated) chat.initializeStore().catch(() => {})
   })
   onUnmounted(() => {
@@ -167,8 +170,38 @@ export function useNavPanels() {
     }
   })
 
-  // ── Lab: every agent on the globe ─────────────────────────────────────
+  // ── Lab: every strategy on the globe (agents only when no book is loaded) ──
   const lab = computed(() => {
+    const books = strategies.strategies
+    if (books.length) {
+      const points: SpherePoint[] = strategySphere(books.map(s => ({
+        id: s.id,
+        name: s.name,
+        status: s.status,
+        risk_level: s.risk_level,
+        returnPct: s.total_return_percentage,
+        trades: s.total_trades,
+      })))
+      const running = books.filter(s => s.status === 'active' || s.status === 'backtesting').length
+      const waiting = books.filter(s => s.status === 'paused').length
+      const stopped = books.filter(s => s.status !== 'active' && s.status !== 'backtesting' && s.status !== 'paused').length
+      const states: ValuePart[] = [
+        ...(running ? [{ text: `${running}`, tone: 'up' as Tone, long: `${running} run` }] : []),
+        ...(waiting ? [{ text: `${waiting}`, tone: 'wait' as Tone, long: `${waiting} wait` }] : []),
+        ...(stopped ? [{ text: `${stopped}`, tone: 'down' as Tone, long: `${stopped} stop` }] : []),
+      ]
+      const value: ValuePart[] = states.length === 1
+        ? [{ text: states[0]!.long || states[0]!.text, tone: states[0]!.tone }]
+        : states.map(s => ({ ...s, text: `●${s.text}` }))
+      return {
+        points,
+        running,
+        waiting,
+        stopped,
+        value,
+        summary: `Lab — ${running} running, ${waiting} paused, ${stopped} stopped`,
+      }
+    }
     const list = agents.ids.map(id => agents.byId[id]).filter(Boolean)
     const points: SpherePoint[] = agentSphere(list.map(a => ({
       id: a!.id,
@@ -182,25 +215,25 @@ export function useNavPanels() {
     const running = points.filter(p => p.state === 'running').length
     const waiting = points.filter(p => p.state === 'waiting').length
     const errors = points.length - running - waiting
-    // One word fits a 75 px tab; with several states show coloured counts (the link's label spells them out).
     const states: ValuePart[] = [
-      { text: `${running}`, tone: 'up', long: `${running} run` },
+      { text: `${running}`, tone: 'up' as Tone, long: `${running} run` },
       ...(waiting ? [{ text: `${waiting}`, tone: 'wait' as Tone, long: `${waiting} wait` }] : []),
       ...(errors ? [{ text: `${errors}`, tone: 'down' as Tone, long: `${errors} error` }] : []),
     ]
     const value: ValuePart[] = !points.length
-      ? [{ text: '—', tone: 'muted' }]
+      ? [{ text: '—', tone: 'muted' as Tone }]
       : states.length === 1
-        ? [{ text: `${running} run`, tone: running ? 'up' : 'muted' }]
+        ? [{ text: `${running} run`, tone: (running ? 'up' : 'muted') as Tone }]
         : states.map(s => ({ ...s, text: `●${s.text}` }))
     return {
       points,
       running,
       waiting,
+      stopped: errors,
       value,
       summary: points.length
         ? `Lab — ${points.length} agents: ${running} running, ${waiting} waiting${errors ? `, ${errors} in error` : ''}`
-        : 'Lab — no agents loaded yet',
+        : 'Lab — no strategies loaded yet',
     }
   })
 
@@ -227,7 +260,7 @@ export function useNavPanels() {
     { id: 'wallet', to: '/wallet', label: 'Wallet', accent: '245,166,35', match: ['/wallet', '/trade', '/risk'],
       summary: walletPanel.value.summary, value: walletPanel.value.value, icon: { wallets: walletPanel.value.wallets, classes: walletPanel.value.classes } },
     { id: 'lab', to: '/strategies', label: 'Lab', accent: '0,255,136', match: ['/strategies', '/strategy', '/agents', '/bots', '/creator', '/monitor', '/arena'],
-      summary: lab.value.summary, value: lab.value.value, icon: { points: lab.value.points, running: lab.value.running, waiting: lab.value.waiting } },
+      summary: lab.value.summary, value: lab.value.value, icon: { points: lab.value.points, running: lab.value.running, waiting: lab.value.waiting, stopped: lab.value.stopped } },
     { id: 'chat', to: '/chat', label: 'Chat', accent: '120,220,180', match: ['/chat', '/conversations'],
       summary: chatPanel.value.summary, value: chatPanel.value.value, icon: { unread: chatPanel.value.unread, urgent: chatPanel.value.urgent } },
   ])

@@ -93,9 +93,10 @@ export function rosterKey(points: readonly Pick<SpherePoint, 'id'>[]): string {
   return points.map(p => p.id).join('|')
 }
 
-/** Faint atmosphere colour around the globe: green if anyone runs, else orange if anyone waits. */
-export function rimColor(running: number, waiting: number): string {
+/** Atmosphere around the globe: green if a book runs, else orange if one waits, else red if one is stopped. */
+export function rimColor(running: number, waiting: number, stopped = 0): string {
   if (running > 0) return 'var(--app-color-up, #00ff88)'
   if (waiting > 0) return 'var(--warning-orange, #ffa500)'
+  if (stopped > 0) return 'var(--app-color-down, #ff4444)'
   return 'rgba(255, 255, 255, 0.35)'
 }

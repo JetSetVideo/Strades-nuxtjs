@@ -2,10 +2,92 @@ import { describe, it, expect } from 'vitest'
 import {
   HOUR, makeScales, simPriceAt, simCandles, stitchCandles, predictionRange, priceDomain,
   niceTicks, timeTicks, pickInterval, candlesFromHourlyCloses, closesFromReturns, priceAtTime,
-  fmtAxisPrice, horizonFor, nearestHorizon, hourlySigma, snapTarget, clipPrediction, type Candle,
+  fmtAxisPrice, horizonFor, nearestHorizon, hourlySigma, snapTarget, clipPrediction,
+  chartX, naturalFutureFrac, CLOSED_FUTURE_FRAC, edgeNudge, type Candle,
 } from '~/utils/assetChart'
 
 const NOW = Date.UTC(2026, 9, 20, 12, 0, 0)
+
+describe('chartX — the closed card keeps a short future, the open chart uses linear time', () => {
+  const left = 0
+  const width = 300
+  const t0 = NOW - 24 * HOUR
+  const now = NOW
+  const t1 = NOW + 180 * 24 * HOUR
+
+  it('gives a far call only the closed future strip', () => {
+    const frac = Math.min(CLOSED_FUTURE_FRAC, naturalFutureFrac(t0, now, t1))
+    expect(frac).toBe(CLOSED_FUTURE_FRAC)
+    const nowX = chartX(now, t0, now, t1, left, width, frac)
+    expect(nowX).toBeCloseTo(width * (1 - CLOSED_FUTURE_FRAC), 4)
+    expect(chartX(t1, t0, now, t1, left, width, frac)).toBeCloseTo(width, 4)
+    expect(chartX(now + 90 * 24 * HOUR, t0, now, t1, left, width, frac)).toBeGreaterThan(nowX)
+    expect(chartX(now + 90 * 24 * HOUR, t0, now, t1, left, width, frac)).toBeLessThan(width)
+  })
+
+  it('matches makeScales when the future share is the natural one', () => {
+    const win0 = NOW - 36 * HOUR
+    const win1 = NOW + 24 * HOUR
+    const frac = naturalFutureFrac(win0, NOW, win1)
+    const box = { left: 4, top: 8, width: 280, height: 120 }
+    const s = makeScales(win0, win1, 10, 20, box)
+    for (const t of [win0, NOW - HOUR, NOW, NOW + 3 * HOUR, win1]) {
+      expect(chartX(t, win0, NOW, win1, box.left, box.width, frac)).toBeCloseTo(s.x(t), 4)
+    }
+  })
+
+  it('stretches only the future as the share lerps up to the open chart', () => {
+    const closed = Math.min(CLOSED_FUTURE_FRAC, naturalFutureFrac(t0, now, t1))
+    const openT0 = NOW - 36 * HOUR
+    const openT1 = NOW + 24 * HOUR
+    const open = naturalFutureFrac(openT0, NOW, openT1)
+    const mid = closed + (open - closed) * 0.5
+    const nowClosed = chartX(now, t0, now, t1, left, width, closed)
+    const nowMid = chartX(now, openT0, NOW, openT1, left, width, mid)
+    const nowOpen = chartX(NOW, openT0, NOW, openT1, left, width, open)
+    expect(width - nowOpen).toBeGreaterThan(width - nowClosed)
+    expect(nowMid).toBeLessThan(nowClosed)
+    expect(nowMid).toBeGreaterThan(nowOpen)
+  })
+})
+
+describe('edgeNudge — the outer 10% of the future plot extends the window', () => {
+  const box = { left: 100, top: 20, width: 200, height: 100 }
+  const at = (rx: number, ry: number, dx: number, dy: number) =>
+    edgeNudge(box.left + rx * box.width, box.top + ry * box.height, dx, dy, box.left, box.top, box.width, box.height)
+
+  it('ignores the middle of the plot', () => {
+    expect(at(0.5, 0.5, 8, -8)).toEqual({ date: 0, priceUp: 0, priceDown: 0 })
+  })
+
+  it('extends only the date on the right edge, and only while moving right', () => {
+    const go = at(0.96, 0.5, 10, 0)
+    expect(go.date).toBeGreaterThan(0)
+    expect(go.priceUp).toBe(0)
+    expect(go.priceDown).toBe(0)
+    expect(at(0.96, 0.5, -10, 0).date).toBe(0)
+  })
+
+  it('extends only the price on the top and bottom edges', () => {
+    const up = at(0.4, 0.04, 0, -8)
+    expect(up.priceUp).toBeGreaterThan(0)
+    expect(up.date).toBe(0)
+    const down = at(0.4, 0.97, 0, 8)
+    expect(down.priceDown).toBeGreaterThan(0)
+    expect(down.date).toBe(0)
+  })
+
+  it('extends the date and the price together in the right-hand corners', () => {
+    const top = at(0.97, 0.03, 6, -2)
+    expect(top.date).toBeGreaterThan(0)
+    expect(top.priceUp).toBeGreaterThan(0)
+    expect(top.priceDown).toBe(0)
+    const bottom = at(0.97, 0.96, 4, 6)
+    expect(bottom.date).toBeGreaterThan(0)
+    expect(bottom.priceDown).toBeGreaterThan(0)
+    expect(bottom.priceUp).toBe(0)
+  })
+})
 
 describe('makeScales — a prediction is drawn where it was placed', () => {
   it('round-trips time and price through x / y', () => {
@@ -164,6 +246,15 @@ describe('axes', () => {
       expect(ticks.length).toBeGreaterThan(0)
       for (const k of ticks) { expect(k.t).toBeGreaterThanOrEqual(NOW - span * HOUR); expect(k.t).toBeLessThanOrEqual(NOW); expect(k.label).not.toBe('') }
     }
+  })
+
+  it('labels clock ticks in the requested timezone, matching the header clock', () => {
+    const t = Date.UTC(2026, 0, 15, 9, 0, 0)
+    const utc = timeTicks(t - HOUR, t + 5 * HOUR, 8, 'en-GB', 'UTC').map(k => k.label)
+    const ny = timeTicks(t - HOUR, t + 5 * HOUR, 8, 'en-GB', 'America/New_York').map(k => k.label)
+    expect(utc).toContain('09:00')
+    expect(ny).toContain('04:00')
+    expect(utc).not.toEqual(ny)
   })
 
   it('price domain is padded and never negative for money', () => {

@@ -44,12 +44,17 @@ const props = withDefaults(defineProps<{
   revealFriends?: boolean
   /** view-transition-name for the chart (the card's mini chart morphs into it) */
   morphName?: string
-}>(), { userId: 'current_user', source: 'card', height: 200, friends: () => [], revealFriends: false, morphName: undefined })
+  /** The price card draws the chart itself and only needs the controls here. */
+  showChart?: boolean
+}>(), { userId: 'current_user', source: 'card', height: 200, friends: () => [], revealFriends: false, morphName: undefined, showChart: true })
 
 const emit = defineEmits<{ saved: [p: Prediction]; 'toggle-friends': [] }>()
 
 const store = usePredictionsStore()
 const appearance = useAppearanceStore()
+function zonedTarget(t: number, hours: number) {
+  return fmtTarget(t, hours, undefined, appearance.resolvedTimezone || 'UTC')
+}
 const paper = usePaperStore()
 const annotations = useAssetAnnotationsStore()
 const tracker = useAgentTracker()
@@ -65,9 +70,15 @@ const mineAll = computed(() => store.predictions
   .sort((a, b) => targetTsOf(a) - targetTsOf(b)))
 const minePending = computed(() => mineAll.value.filter(p => p.status === 'pending'))
 
-// ── Horizon ─────────────────────────────────────────────────────────────────
-const first = minePending.value[0]?.timeframe
-const horizonId = ref(first && HORIZONS.some(h => h.id === first) ? first : '1W')
+function seedHorizon() {
+  const pending = minePending.value
+  const pick = props.source === 'card'
+    ? [...pending].sort((a, b) => targetTsOf(b) - targetTsOf(a))[0]
+    : pending[0]
+  const id = pick?.timeframe
+  return id && HORIZONS.some(h => h.id === id) ? id : '1W'
+}
+const horizonId = ref(seedHorizon())
 const H = computed(() => horizonById(horizonId.value))
 const mineOn = (id: string) => minePending.value.find(p => p.timeframe === id) ?? null
 const existing = computed(() => mineOn(H.value.id))
@@ -390,12 +401,35 @@ const STATUS_ICON: Record<string, string> = { pending: '⏳', accurate: '✓', m
 function shortDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
+
+defineExpose({
+  get candles() { return candles.value },
+  get now() { return now.value },
+  get t0() { return t0.value },
+  get t1() { return t1.value },
+  get range() { return range.value },
+  get rangeLock() { return !!priceSpan.value },
+  get aim() { return aim.value },
+  get mine() { return mineShown.value },
+  get levels() { return chartLevels.value },
+  get friends() { return friendsShown.value },
+  get trades() { return trades.value },
+  get realFrom() { return realFrom.value },
+  get snapHours() { return snapHours.value },
+  get minLead() { return minLead.value },
+  get extending() { return !!existing.value },
+  onAim,
+  onCommit,
+  armLimit,
+  onWindow,
+  onScale,
+})
 </script>
 
 <template>
   <div class="pp" @click.stop>
     <!-- Chart first so the card can park it in the mini chart's cell. Controls follow, under it. -->
-    <div class="pp-chart">
+    <div v-if="showChart" class="pp-chart">
     <ClientOnly>
       <PredictChart
         size="large"
@@ -443,7 +477,7 @@ function shortDate(iso: string) {
       <div v-if="shown" class="pp-readout" :class="aimPct >= 0 ? 'up' : 'down'" aria-live="polite">
         <span class="pp-r-price">{{ fmtPrice(shown.price, kind, asset.currency || 'USD') }}</span>
         <span class="pp-r-pct">{{ fmtPct(aimPct, 2) }}</span>
-        <span class="pp-r-date">{{ fmtTarget(shown.t, H.hours) }} · {{ exactLabel }}</span>
+        <span class="pp-r-date">{{ zonedTarget(shown.t, H.hours) }} · {{ exactLabel }}</span>
       </div>
     </div>
 
@@ -473,7 +507,7 @@ function shortDate(iso: string) {
           </svg>
           <span class="pp-tf">{{ p.timeframe }}</span>
           <span :class="p.predictedChangePct >= 0 ? 'up' : 'down'" class="pp-num">{{ fmtAxisPrice(p.predictedPrice, kind) }} {{ fmtPct(p.predictedChangePct) }}</span>
-          <span class="pp-muted">by {{ fmtTarget(targetTsOf(p), horizonById(p.timeframe).hours) }}</span>
+          <span class="pp-muted">by {{ zonedTarget(targetTsOf(p), horizonById(p.timeframe).hours) }}</span>
           <span class="pp-muted pp-made">made {{ shortDate(p.timestamp) }}<template v-if="userStops(p).length > 1"> · {{ userStops(p).length }} steps</template></span>
           <span class="pp-status" :title="p.status">{{ STATUS_ICON[p.status] ?? '' }}<template v-if="p.accuracyScore !== undefined"> {{ p.accuracyScore }}%</template></span>
           <button type="button" class="pp-x" :aria-label="`Delete ${p.timeframe} prediction`" @click.stop="removeCall(p)">✕</button>
@@ -487,7 +521,7 @@ function shortDate(iso: string) {
             <path v-else d="M7 3 V11 M4 8 L7 11 L10 8" />
           </svg>
           <span class="pp-num" :class="stepDir(p, i)">{{ fmtAxisPrice(s.price, kind) }}</span>
-          <span class="pp-muted">by {{ fmtTarget(s.t, horizonById(p.timeframe).hours) }}</span>
+          <span class="pp-muted">by {{ zonedTarget(s.t, horizonById(p.timeframe).hours) }}</span>
           <button type="button" class="pp-x" :aria-label="`Delete step ${i + 1} of the ${p.timeframe} prediction`" @click.stop="removeStop(p, i)">✕</button>
         </div>
       </template>
@@ -524,7 +558,7 @@ function shortDate(iso: string) {
           <span class="pp-fname">{{ friendProfile(p.userId).name }}</span>
           <span class="pp-tf">{{ p.timeframe }}</span>
           <span :class="p.predictedChangePct >= 0 ? 'up' : 'down'" class="pp-num">{{ fmtAxisPrice(p.predictedPrice, kind) }} {{ fmtPct(p.predictedChangePct) }}</span>
-          <span class="pp-muted">by {{ fmtTarget(targetTsOf(p), horizonById(p.timeframe).hours) }}</span>
+          <span class="pp-muted">by {{ zonedTarget(targetTsOf(p), horizonById(p.timeframe).hours) }}</span>
           <span v-if="p.note" class="pp-note" :title="p.note">“{{ p.note }}”</span>
         </div>
       </template>

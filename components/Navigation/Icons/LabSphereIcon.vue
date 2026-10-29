@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * Lab tab icon — a small 3-D globe; every trading agent is a glowing dot.
- *   colour    ← run state (green running, orange waiting, red error)
- *   placement ← agentSphere(): latitude = risk, longitude = patience/contrarian
+ * Lab tab icon — a small 3-D globe; every strategy is a glowing dot.
+ *   colour    ← run state (green running, orange paused, red stopped)
+ *   placement ← strategySphere(): latitude = risk, longitude = return
  *   size      ← activity (√trades)
  * Pure CSS 3-D, zero per-frame JS: each dot is translated once, one container
  * spins (rotateY) and every dot face counter-rotates so it keeps facing the
@@ -20,7 +20,8 @@ const props = withDefaults(defineProps<{
   points?: SpherePoint[]
   running?: number
   waiting?: number
-}>(), { size: 40, active: false, ready: false, points: () => [], running: 0, waiting: 0 })
+  stopped?: number
+}>(), { size: 40, active: false, ready: false, points: () => [], running: 0, waiting: 0, stopped: 0 })
 
 /** Depends on `size` only, so the SSR placeholder is byte-identical on server and client. */
 const boxStyle = computed(() => ({
@@ -35,7 +36,7 @@ const live = computed(() => props.ready && props.points.length > 0)
 const dots = computed(() => (live.value ? sphereDots(props.points, props.size) : []))
 /** New/removed agents re-create the spinning subtree so every animation restarts in sync. */
 const spinKey = computed(() => (live.value ? rosterKey(dots.value) : 'placeholder'))
-const rim = computed(() => (live.value ? rimColor(props.running, props.waiting) : 'rgba(255, 255, 255, 0.35)'))
+const rim = computed(() => (live.value ? rimColor(props.running, props.waiting, props.stopped) : 'rgba(255, 255, 255, 0.35)'))
 </script>
 
 <template>
@@ -128,10 +129,9 @@ const rim = computed(() => (live.value ? rimColor(props.running, props.waiting) 
   border-radius: 50%;
   transform: rotateX(var(--tilt));
   background: radial-gradient(circle at 36% 30%, rgba(70, 92, 120, 0.55), rgba(14, 20, 32, 0.58) 62%, rgba(4, 6, 12, 0.62) 100%);
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14);
   box-shadow:
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
-    0 0 3px 0 color-mix(in srgb, var(--rim) 35%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--rim) 75%, transparent),
+    0 0 6px 1px color-mix(in srgb, var(--rim) 50%, transparent);
 }
 
 /* Wireframe: three meridians + the equator, spinning with the dots so the rotation reads as 3-D. */

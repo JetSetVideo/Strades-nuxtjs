@@ -277,3 +277,16 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **40.4** `utils/historyTimeline.ts` (16 tests): merge server + paper ledger + unsynced calls + catalog wallets + followed agents.
 - [ ] **40.5** Notifications' `prediction.resolved` rows could deep-link into `/historic#…` (not done).
 - [ ] **40.6** Opinions lane has no data until news reactions are wired to the server from `/news`.
+
+## Phase 41: Laboratory bench (2026-10-29)
+- [x] **41.1** Twelve desk agents on the demo owner (`user_001`), merged in `stores/agents.ts` from `utils/labRoster.ts`. Roles: optimisation, trader, designer, experience, security, red team, data, ai, risk, macro, execution, archive. Red Team looks for the trade that breaks a book. It does not attack a system.
+- [x] **41.2** `/agents` bench: map (eight axes), globe (the nav sphere's placement), operator graph (together, against, junction, apart). Filters change the set the bench draws. A machine stamp sits on the bench so a screenshot carries who, timezone, viewport, and cores.
+- [x] **41.3** Strategy cards (`Card/Strategy.vue` and `Strategy/Card.vue`) carry a category mark and a wealth-transfer widget (calm, shock, trend, chop). Maths and tests live in `utils/labField.ts` / `tests/labField.test.ts`.
+- [x] **41.4** Walk on this machine (`alice_swings`, UTC, 1049×929, 10 cores, 16 GB, MacIntel, header GMT). All 23 agents on patience × risk sit on a diagonal and pair as 145 together / 32 against / 53 junction / 23 apart. Switching Y to live PnL breaks that diagonal; the pair counts stay put because the set did not change. Globe uses the nav sphere and keeps every dot on the disc. Excluding `catalog` leaves the twelve desk agents: 25 / 13 / 17 / 11. Focusing Optimiser fades every link that does not touch it. On `/strategies`, Mean Reversion BTC (by you, +20%) opens on trend; shock scatters the beads.
+- [ ] **41.5** The bench is not on `/strategies` itself. That page still leads with the saved list, the live desk, and the carousel. The wealth widget is on those cards.
+
+## Phase 42: Equip two strategies (2026-10-29)
+- [x] **42.1** `⚖ Compare` on `/strategies` opens a sheet above the selection bar. The first selected card is equipped. The second is the book in hand. Close hides the sheet and leaves the cards selected.
+- [x] **42.2** The chart is the return on each asset transfer from the day that book opened (`utils/strategyCompare.ts`). The line ends on the recorded return and touches the recorded drawdown. A shared-window row covers the days both were open. The call follows the recorded return: equip the one in hand, or keep the one already in the slot. Green and red gaps sit on the book in hand.
+- [x] **42.3** The Lab globe and its value line follow strategy status (active / paused / stopped), the same counts as the desk and the indicator beside "My Strategies". Start, Resume, and Pause on a card move that dot. `Strategy/Board.vue` under the desk graphs every return, and can switch to a spread or a calendar of each book's window.
+- [x] **42.4** The equip chart stretches each book across its own window. Equip and Swap change which book is in the slot. The board numbers its axes, and a calendar lane opens that book's moves. The header counts filter the cards, and selected cards stay bright on the board.

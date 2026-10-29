@@ -256,7 +256,13 @@ export const useStrategiesStore = defineStore('strategies', {
         } catch {
           raw = await $fetch<unknown[]>(fallback)
         }
+        const prior = new Map(this.strategies.map(s => [s.id, s]))
         const fetched = (raw as Record<string, unknown>[]).map(normalizeStrategy)
+        // A Start or Pause in this session wins over the seed file.
+        for (const row of fetched) {
+          const old = prior.get(row.id)
+          if (old && old.status !== row.status) row.status = old.status
+        }
         // Merge, don't replace: strategies the user just built in the creator exist only in
         // this store (until they're persisted server-side) and must survive a refetch.
         const known = new Set(fetched.map(f => f.id))
