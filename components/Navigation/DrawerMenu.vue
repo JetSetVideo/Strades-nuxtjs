@@ -93,6 +93,7 @@ const GROUPS: MenuGroup[] = [
     also: [],
     items: [
       { label: 'Profile', to: '/profile', hint: 'Your record and trained avatars', icon: '◉' },
+      { label: 'Insights', to: '/insights', hint: 'How you trade, who you trade well with', icon: '◎' },
       { label: 'Settings', to: '/settings', hint: 'Appearance, chart, and timezone', icon: '⚙' },
       { label: 'Notifications', to: '/notifications', hint: 'Alerts from avatars and the desk', icon: '◔' },
       { label: 'API Connections', to: '/apis', hint: 'Broker feeds that train avatars', icon: '⇄' },

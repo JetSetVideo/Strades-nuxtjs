@@ -544,6 +544,11 @@ onMounted(async () => {
         <span><em>Level</em> {{ user.experience.level }} {{ user.experience.title }}</span>
       </section>
 
+      <!-- Insights v2 mirror (notifications deep-link to #intelligence; "Open Insights →" lives in its header) -->
+      <section id="intelligence" class="insights-entry" aria-label="How you compare">
+        <IntelligenceMirror />
+      </section>
+
       <section class="audience">
         <div class="seg" role="group" aria-label="Who is looking">
           <button type="button" :class="{ on: audience === 'desk' }" @click="audience = 'desk'">Your desk</button>
@@ -885,6 +890,7 @@ h1 a { color: inherit; }
 .hero-stats { grid-column: 1 / -1; }
 .desk { padding: 0.45rem 0.7rem; }
 .desk b { font-weight: 600; }
+.insights-entry { margin: 0.6rem 0; min-width: 0; max-width: 100%; scroll-margin-top: 4.5rem; }
 .desk b.ahead, .up { color: var(--primary-green, #00ff88); }
 .desk b.even { color: #f5d90a; }
 .desk b.behind { color: #ff9f1a; }

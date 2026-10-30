@@ -268,7 +268,7 @@ export const useChatStore = defineStore('chat', {
       if (import.meta.client) {
         try {
           const { $api } = useNuxtApp()
-          const data = await ($api as typeof $fetch)<BackendConversation[]>('/api/social/conversations/')
+          const data = await ($api as typeof $fetch)<BackendConversation[]>('/api/v1/social/conversations/')
           this.conversations = data.map(mapBackendConversation)
           this.loading = false
           return
@@ -299,7 +299,7 @@ export const useChatStore = defineStore('chat', {
           const apiBase = config.public.apiBase as string
 
           const data = await $fetch<{ messages: BackendMessage[] }>(
-            `/api/social/conversations/${conversationId}/`,
+            `/api/v1/social/conversations/${conversationId}/`,
             {
               baseURL: apiBase,
               headers: accessToken.value
@@ -339,7 +339,7 @@ export const useChatStore = defineStore('chat', {
 
       try {
         const data = await $fetch<BackendMessage>(
-          `/api/social/conversations/${conversationId}/messages/`,
+          `/api/v1/social/conversations/${conversationId}/messages/`,
           {
             baseURL: apiBase,
             method: 'POST',

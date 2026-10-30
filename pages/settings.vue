@@ -47,6 +47,7 @@ async function claim() {
     })
     claimPw.value = ''
     claimed.value = true
+    forgetDemoCode()                     // the demo id stops working once the account has a password
     await auth.fetchUser()
   } catch (e: unknown) {
     const d = (e as { data?: Record<string, unknown> }).data ?? {}
@@ -58,6 +59,17 @@ async function claim() {
 
 const prefs = useTradingPrefsStore()
 onMounted(() => prefs.hydrate())
+
+// Demo id: the bearer id that brings this demo back on any device (apps/users/demo.py).
+const demoCode = ref<string | null>(null)
+const demoCodeBusy = ref(false)
+const demoCodeError = ref('')
+onMounted(() => { demoCode.value = storedDemoCode() })
+async function issueDemoCode() {
+  demoCodeBusy.value = true
+  demoCodeError.value = ''
+  try { demoCode.value = await auth.newDemoCode() } catch { demoCodeError.value = 'Could not issue a new demo ID.' } finally { demoCodeBusy.value = false }
+}
 
 const tradingApi = useTradingApi()
 // Never for demo visitors: reset acts on EVERY user's bots in the shared session.
@@ -117,15 +129,30 @@ const saveSettings = () => { /* persist later */ }
         <div>
           <div class="acct-email">{{ auth.user.value?.email ?? 'Signed in' }}</div>
           <div class="acct-meta">
-            {{ auth.user.value?.is_demo ? 'Demo account: paper money, deleted 24 h after it was created' : 'Paper trading account' }}
+            {{ auth.user.value?.is_demo ? 'Demo account: paper money, kept while you use it, deleted after 30 days without a visit' : 'Paper trading account' }}
           </div>
         </div>
         <button class="btn danger" :disabled="signingOut" @click="signOut">{{ signingOut ? 'Signing out…' : 'Sign out' }}</button>
       </div>
+      <!-- Demo id: resume this demo on any device (POST /api/auth/demo/resume/). -->
+      <div v-if="auth.user.value?.is_demo && !claimed" class="claim" data-testid="demo-id-block">
+        <b>Your demo ID</b>
+        <span v-if="demoCode" class="demo-code">{{ demoCode }}</span>
+        <span class="acct-meta">
+          {{ demoCode ? 'Type it on another device (Sign in → I have a demo ID) to continue this demo there.'
+            : 'This device has no demo ID saved. Issue one to continue this demo on another device.' }}
+        </span>
+        <div class="claim-row">
+          <button type="button" class="btn" :disabled="demoCodeBusy" @click="issueDemoCode">
+            {{ demoCodeBusy ? 'Issuing…' : demoCode ? 'Issue a new ID (old one stops working)' : 'Show my demo ID' }}
+          </button>
+        </div>
+        <span v-if="demoCodeError" class="claim-err">{{ demoCodeError }}</span>
+      </div>
       <!-- Demo → real account: keeps wallets, bots and strategies (POST /api/auth/claim-demo/). -->
       <form v-if="auth.user.value?.is_demo && !claimed" class="claim" @submit.prevent="claim">
         <b>Keep this account</b>
-        <span class="acct-meta">Add an email and password. Everything you built here (wallets, bots, strategies) stays, and the account is no longer deleted after 24 h.</span>
+        <span class="acct-meta">Add an email and password. Everything you built here (wallets, bots, strategies, friends, insights) stays, and the account is never deleted for inactivity.</span>
         <div class="claim-row">
           <input v-model="claimEmail" type="email" placeholder="Email" autocomplete="email" required />
           <input v-model="claimPw" type="password" placeholder="Password (min 8)" autocomplete="new-password" minlength="8" required />
@@ -339,6 +366,7 @@ const saveSettings = () => { /* persist later */ }
 .claim-row { display: flex; gap: .5rem; flex-wrap: wrap; }
 .claim-row input { padding: .5rem .6rem; border-radius: 6px; border: 1px solid var(--border-primary); background: var(--surface-sunken, transparent); color: var(--text-primary); font: inherit; }
 .claim-err { color: var(--app-color-down, #ff4444); font-size: .8rem; }
+.demo-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; letter-spacing: .05em; color: var(--app-color-up, #00ff88); user-select: all; word-break: break-all; }
 .acct-meta { font-size: .8rem; color: var(--text-secondary); }
 .prefs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .9rem; align-items: start; }
 .prefs label { display: flex; flex-direction: column; gap: .3rem; font-size: .85rem; }

@@ -35,7 +35,7 @@
     </section>
     <p v-else-if="error" class="err">{{ error }}</p>
     <p v-if="demoAccount && !signedOut" class="demo-banner">
-      Demo account: paper money only, deleted 24 h after it was created. You can create a new wallet here, but importing an existing recovery phrase is disabled.
+      Demo account: paper money only, kept while you use it and deleted after 30 days without a visit. You can create a new wallet here, but importing an existing recovery phrase is disabled.
     </p>
 
     <section v-if="!signedOut && (!wallets.length || adding)" class="panel narrow">

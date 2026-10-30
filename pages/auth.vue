@@ -7,7 +7,7 @@
 definePageMeta({ layout: false })
 useHead({ title: 'Sign in · Strades' })
 
-const { login, register, startDemo, isAuthenticated } = useAuth()
+const { login, register, startDemo, resumeDemo, isAuthenticated } = useAuth()
 
 type Mode = 'login' | 'register'
 const route = useRoute()
@@ -80,14 +80,26 @@ async function enterDemoMode() {
   error.value = null
   loading.value = 'demo'
   try {
-    // Preferred: a real throwaway account, so the whole product (wallets, bots) works.
-    await startDemo()
+    // This device already has a demo: come back to it instead of minting a second one.
+    const saved = storedDemoCode()
+    if (saved) {
+      try {
+        await resumeDemo(saved)
+        demoCookie.value = null
+        await navigateTo(redirectTo.value)
+        return
+      } catch (e: unknown) {
+        if (statusOf(e) !== 404) throw e
+        forgetDemoCode()                 // deleted after 30 idle days or claimed: start a fresh one
+      }
+    }
+    // Preferred: a real demo account, so the whole product (wallets, bots, friends, insights) works.
+    const data = await startDemo()
     demoCookie.value = null
-    await navigateTo(redirectTo.value)
+    newCode.value = data.demo?.code ?? null
+    if (!newCode.value) await navigateTo(redirectTo.value)
   } catch (e: unknown) {
-    const status = (e as { response?: { status?: number } })?.response?.status
-      ?? (e as { statusCode?: number }).statusCode
-    if (status === 429) {
+    if (statusOf(e) === 429) {
       error.value = 'Too many demo sessions from this network right now. Please create a free account instead.'
       return
     }
@@ -98,6 +110,42 @@ async function enterDemoMode() {
     loading.value = null
   }
 }
+
+function statusOf(e: unknown): number {
+  return (e as { response?: { status?: number } })?.response?.status
+    ?? (e as { statusCode?: number }).statusCode ?? 0
+}
+
+// "I have a demo id": resume the same demo account on this device.
+const showResume = ref(false)
+const resumeCode = ref('')
+async function resumeWithCode() {
+  error.value = null
+  loading.value = 'demo'
+  try {
+    await resumeDemo(resumeCode.value)
+    demoCookie.value = null
+    await navigateTo(redirectTo.value)
+  } catch (e: unknown) {
+    const s = statusOf(e)
+    error.value = s === 404
+      ? 'No active demo has this id. It may have been deleted after 30 days without a visit, or claimed with an email.'
+      : s === 429 ? 'Too many attempts. Please wait a minute and try again.'
+        : "Can't reach the Strades server right now. Please try again in a moment."
+  } finally {
+    loading.value = null
+  }
+}
+
+// Shown once after a new demo is created: the id to write down, then continue.
+const newCode = ref<string | null>(null)
+const copied = ref(false)
+async function copyCode() {
+  if (!newCode.value) return
+  try { await navigator.clipboard.writeText(newCode.value); copied.value = true } catch { copied.value = false }
+}
+const hasSavedDemo = ref(false)
+onMounted(() => { hasSavedDemo.value = !!storedDemoCode() })
 
 const FEATURES = [
   { title: 'Every platform, one wallet', text: 'Binance, Coinbase, IBKR and more in a single view.' },
@@ -193,13 +241,37 @@ const FEATURES = [
 
         <div class="divider"><span>or</span></div>
 
-        <button type="button" class="btn ghost" :disabled="!!loading" @click="enterDemoMode">
-          <span v-if="loading === 'demo'" class="spinner" aria-hidden="true" />
-          Continue in demo mode
-        </button>
-        <p class="hint">
-          Temporary account, deleted after 24&nbsp;h. Paper wallets only.
-        </p>
+        <!-- New demo: show the id once, then continue. -->
+        <div v-if="newCode" class="demo-id" role="status">
+          <p class="demo-id-title">Your demo ID</p>
+          <p class="demo-id-code" data-testid="demo-code">{{ newCode }}</p>
+          <p class="hint">Write it down: it brings this demo back on any device. It is also saved on this one.</p>
+          <div class="demo-id-actions">
+            <button type="button" class="btn ghost" @click="copyCode">{{ copied ? 'Copied' : 'Copy ID' }}</button>
+            <button type="button" class="btn primary" @click="navigateTo(redirectTo)">Continue</button>
+          </div>
+        </div>
+
+        <template v-else>
+          <button type="button" class="btn ghost" :disabled="!!loading" @click="enterDemoMode">
+            <span v-if="loading === 'demo'" class="spinner" aria-hidden="true" />
+            {{ hasSavedDemo ? 'Continue my demo' : 'Continue in demo mode' }}
+          </button>
+          <button type="button" class="link" :aria-expanded="showResume" @click="showResume = !showResume">
+            I have a demo ID
+          </button>
+          <form v-if="showResume" class="resume" @submit.prevent="resumeWithCode">
+            <input
+              v-model="resumeCode" type="text" autocomplete="off" spellcheck="false" aria-label="Demo ID"
+              placeholder="STRD-XXXX-XXXX-XXXX-XXXX" required
+            />
+            <button type="submit" class="btn ghost" :disabled="!!loading || resumeCode.trim().length < 16">Resume</button>
+          </form>
+          <p class="hint">
+            No sign-up. Your demo is kept while you use it and deleted after 30&nbsp;days without a visit.
+            Paper wallets only.
+          </p>
+        </template>
       </section>
     </div>
 
@@ -428,6 +500,27 @@ input:focus { outline: none; border-color: rgba(0, 170, 255, 0.7); background: r
 .divider span { padding: 0 0.75rem; }
 
 .hint { margin: 0.7rem 0 0; text-align: center; font-size: 0.78rem; line-height: 1.45; color: rgba(255, 255, 255, 0.62); }
+
+/* Demo id: shown once after creation; resume form for an id from another device */
+.link {
+  display: block; margin: 0.6rem auto 0; padding: 0.2rem 0.4rem; border: 0; background: none; cursor: pointer;
+  color: var(--sky); font: inherit; font-size: 0.82rem; text-decoration: underline; text-underline-offset: 3px;
+}
+.resume { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.resume input {
+  flex: 1; min-width: 0; padding: 0.6rem 0.7rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04); color: #fff; font: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.resume .btn { width: auto; flex: none; }
+.demo-id { text-align: center; padding: 0.9rem; border-radius: 12px; border: 1px solid rgba(0, 255, 136, 0.35); background: rgba(0, 255, 136, 0.06); }
+.demo-id-title { margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255, 255, 255, 0.7); }
+.demo-id-code {
+  margin: 0.45rem 0 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: clamp(0.95rem, 4.2vw, 1.15rem);
+  font-weight: 700; letter-spacing: 0.06em; color: var(--up); word-break: break-all; user-select: all;
+}
+.demo-id-actions { display: flex; gap: 0.5rem; margin-top: 0.8rem; }
+.demo-id-actions .btn { flex: 1; }
 
 .foot {
   position: relative;

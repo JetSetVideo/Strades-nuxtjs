@@ -18,6 +18,35 @@ interface AuthResponse {
   refresh: string
 }
 
+interface DemoMeta {
+  expires_at: string | null
+  inactivity_days: number
+  can_import_wallet: boolean
+  /** Only on creation and on POST demo/code/: the server stores a hash, never the id. */
+  code?: string
+}
+type DemoResponse = AuthResponse & { demo?: DemoMeta }
+
+// The demo id stays on this device (not a cookie: the server never needs it back). It is a bearer
+// credential for a paper-money account, so it lives where the refresh token already lives: the browser.
+const DEMO_CODE_KEY = 'strades_demo_code'
+
+/** The demo id remembered on this device, if any (client only). */
+export function storedDemoCode(): string | null {
+  if (!import.meta.client) return null
+  try { return localStorage.getItem(DEMO_CODE_KEY) } catch { return null }
+}
+
+function rememberDemoCode(code: string) {
+  if (!import.meta.client) return
+  try { localStorage.setItem(DEMO_CODE_KEY, code) } catch { /* private mode: the id is still shown once */ }
+}
+
+export function forgetDemoCode() {
+  if (!import.meta.client) return
+  try { localStorage.removeItem(DEMO_CODE_KEY) } catch { /* ignore */ }
+}
+
 // Where the access token lives — it must be per-request on the server AND
 // never serialized into the HTML payload:
 //  * module-scope ref on the server is shared by every SSR request (one user's
@@ -240,15 +269,37 @@ export const useAuth = () => {
   }
 
   /**
-   * Demo: the backend mints a throwaway account per visitor (24h, unusable
-   * password, rate-limited) and returns the same shape as login.
+   * Demo: the backend mints a real account per visitor (unusable password, rate-limited) and returns
+   * the same shape as login plus a demo id (`demo.code`, shown once). The id is remembered on this
+   * device so "Continue my demo" works after a logout; typed on another device it resumes the same
+   * account. The account lives while it is used and is deleted after 30 days without a visit.
    */
   const startDemo = async () => {
-    const data = await $fetch<AuthResponse & { demo?: { expires_at: string; can_import_wallet: boolean } }>(
-      '/api/auth/demo/', { baseURL: apiBase, method: 'POST' })
+    const data = await $fetch<DemoResponse>('/api/auth/demo/', { baseURL: apiBase, method: 'POST' })
     _storeTokens(data)
+    if (data.demo?.code) rememberDemoCode(data.demo.code)
     nextTick(() => useTracking().startSession())
     return data
+  }
+
+  const resumeDemo = async (code: string) => {
+    const data = await $fetch<DemoResponse>('/api/auth/demo/resume/', {
+      baseURL: apiBase, method: 'POST', body: { code: code.trim() },
+    })
+    _storeTokens(data)
+    rememberDemoCode(code.trim().toUpperCase())
+    nextTick(() => useTracking().startSession())
+    return data
+  }
+
+  /** A fresh demo id for the signed-in demo account (the previous id stops working). */
+  const newDemoCode = async (): Promise<string> => {
+    if (!accessToken.value) await refreshAccessToken()
+    const data = await $fetch<{ demo: DemoMeta }>('/api/auth/demo/code/', {
+      baseURL: apiBase, method: 'POST', headers: { Authorization: `Bearer ${accessToken.value}` },
+    })
+    if (data.demo.code) rememberDemoCode(data.demo.code)
+    return data.demo.code ?? ''
   }
 
   return {
@@ -261,6 +312,8 @@ export const useAuth = () => {
     register,
     login,
     startDemo,
+    resumeDemo,
+    newDemoCode,
     loginWithGoogle,
     logout,
     fetchUser,
