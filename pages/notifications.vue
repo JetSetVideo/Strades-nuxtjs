@@ -21,6 +21,7 @@ import { indexLivePrices } from '~/utils/priceApproach'
 import { publicAssetUrl } from '~/composables/useLocalJson'
 
 import UIEmptyState from '@/components/UI/EmptyState.vue'
+import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UISectionTabs, { type TabItem } from '@/components/UI/SectionTabs.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import NotificationRow from '@/components/Notification/Row.vue'
@@ -161,7 +162,11 @@ async function onArchive(n: AppNotification) {
 
 <template>
   <div class="notif-page">
-    <h1 class="sr-only">Notifications</h1>
+    <UIPageHeader title="Notifications" subtitle="What happened to your calls, bots, agents and alerts, newest first.">
+      <template #actions>
+        <NavigationNextLink to="/settings#set-alert_move_pct" label="Set your alert levels" />
+      </template>
+    </UIPageHeader>
     <NotificationUpcoming
       :items="items"
       :calls="(predictions.predictions as unknown as PredictionLike[])"
@@ -211,7 +216,9 @@ async function onArchive(n: AppNotification) {
         icon="◔"
         title="No notifications yet"
         message="Calls you record, your bots and agents, price alerts and paper trades will report here."
-      />
+      >
+        <template #action><NavigationNextLink to="/prices" :label="`Make a first call on ${routeLabel('/prices')}`" /></template>
+      </UIEmptyState>
 
       <UIEmptyState
         v-else-if="filtered.length === 0"

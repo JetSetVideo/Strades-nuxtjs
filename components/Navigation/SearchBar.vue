@@ -6,7 +6,7 @@ import { useAssetsStore } from '~/stores/assets'
 import { useAgentsStore } from '~/stores/agents'
 import { useCommunityStore } from '~/stores/community'
 import { useAgentTracker } from '~/composables/useAgentTracker'
-import { ROUTE_AREAS, searchPages } from '~/utils/routes'
+import { ROUTE_AREAS, SEARCH_SHORTCUTS, fuzzyMatchScore, pageMatchScore, searchPages } from '~/utils/routes'
 
 const props = defineProps({
   searchHistory: { type: Array as PropType<SearchHistory[]>, default: () => [] },
@@ -57,31 +57,14 @@ const PAGES: Result[] = [...searchPages()]
   to: r.path,
   icon: r.icon,
 }))
+// Features that are a section of a page (directive, mirror, risk budget…): found by keyword,
+// listed with the pages (board-ia IA-6/IA-7).
+const SHORTCUTS: (Result & { keywords: readonly string[] })[] = SEARCH_SHORTCUTS.map(s => ({
+  type: 'page' as const, id: s.id, label: s.label, hint: s.hint, to: s.to, icon: s.icon, keywords: s.keywords,
+}))
 
-/**
- * Forgiving match score: exact substrings rank by how early they start;
- * anything else falls back to an in-order subsequence match (so "cgnprm"
- * still finds "Cognis Prime", or a typo'd ticker still finds its asset).
- * Returns -1 when there's no match at all.
- */
-function fuzzyScore(term: string, target: string): number {
-  if (!term) return 0
-  const t = target.toLowerCase()
-  const q = term.toLowerCase()
-  const idx = t.indexOf(q)
-  if (idx !== -1) return idx
-  let cursor = 0
-  let first = -1
-  for (const ch of q) {
-    const found = t.indexOf(ch, cursor)
-    if (found === -1) return -1
-    if (first === -1) first = found
-    cursor = found + 1
-  }
-  // Fuzzy subsequence matches always rank behind any substring match, and
-  // among themselves a tighter spread (fewer skipped characters) wins.
-  return 1000 + (cursor - first)
-}
+// Scoring lives in utils/routes.ts (fuzzyMatchScore / pageMatchScore) so it is unit-tested.
+const fuzzyScore = fuzzyMatchScore
 
 /** Best (lowest, non-negative) score across several candidate strings for one record. */
 function bestScore(term: string, ...candidates: (string | undefined)[]): number {
@@ -170,12 +153,12 @@ const groups = computed<ResultGroup[]>(() => {
       icon: u.is_friend ? '◉' : '◌'
     }))
 
-  const pageMatches = PAGES
-    .map(p => ({ p, score: fuzzyScore(term, p.label) }))
+  const pageMatches: Result[] = [...PAGES, ...SHORTCUTS]
+    .map(p => ({ p, score: pageMatchScore(term, p) }))
     .filter(x => x.score !== -1)
     .sort((x, y) => x.score - y.score)
-    .slice(0, 5)
-    .map(x => x.p)
+    .slice(0, 6)
+    .map(({ p }) => ({ type: p.type, id: p.id, label: p.label, hint: p.hint, to: p.to, icon: p.icon }))
 
   const suggestionMatches = (Array.isArray(props.searchSuggestions) ? props.searchSuggestions : [])
     .map((s: any) => ({ s, score: fuzzyScore(term, s.term) }))
@@ -313,7 +296,7 @@ const indexOfResult = (r: Result) => flatResults.value.findIndex(x => x.id === r
             <div v-else class="no-results">
               <span class="big">⌕</span>
               <p>No matches for "<strong>{{ q }}</strong>"</p>
-              <span class="tip">Try a ticker (BTC), an asset name, an agent, a username, or a page.</span>
+              <span class="tip">Try a ticker (BTC), an asset name, an agent, a username, a page, or a feature (directive, risk budget, ledger).</span>
             </div>
 
             <footer class="modal-foot">

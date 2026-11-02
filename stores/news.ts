@@ -28,6 +28,12 @@ import {
   type NewsViewMode,
 } from '~/types/news'
 import {
+  alignCacheWithServer,
+  isLocalNewsId,
+  serverBaseItem,
+  type ServerNewsRow,
+} from '~/utils/socialNews'
+import {
   cloneNewsFilters,
   filterNewsItems,
   parseNewsQuery,
@@ -110,6 +116,25 @@ interface NewsStoreState {
   apiContract: NewsApiContract
   persistedByUser: Record<string, PersistedNewsState>
   friendIds: string[]
+  /** Signed in: ids the server knows (GET /api/v1/news/); their comments/reactions/bookmarks/reads go to the server. */
+  serverIds: string[]
+  /** One sentence when a server write failed (the change is kept in this browser). */
+  syncNote: string | null
+  /** Whose server sync is applied (user id), null = none. */
+  serverFor: string | null
+}
+
+let serverSyncInflight: string | null = null
+
+/** The API client + whether the session is signed in, resolved synchronously (before any await). */
+function newsApi(): { call: typeof $fetch; signedIn: boolean } | null {
+  if (!import.meta.client) return null
+  try {
+    const { $api } = useNuxtApp()
+    return { call: $api as typeof $fetch, signedIn: useAuth().isAuthenticated.value }
+  } catch {
+    return null
+  }
 }
 
 const STORAGE_KEY = 'strades_news_workspace_v2'
@@ -415,6 +440,9 @@ export const useNewsStore = defineStore('newsStore', {
     apiContract: NEWS_API_CONTRACT,
     persistedByUser: {},
     friendIds: [],
+    serverIds: [],
+    syncNote: null,
+    serverFor: null,
   }),
 
   getters: {
@@ -505,7 +533,11 @@ export const useNewsStore = defineStore('newsStore', {
     },
 
     async initializeStore(force = false) {
-      if (this.hydrated && !force) return
+      if (this.hydrated && !force) {
+        // Hydrated during SSR (no session there): the server sync runs once in the browser.
+        if (import.meta.client) void this.loadServer()
+        return
+      }
       this.loading = true
       this.error = null
       try {
@@ -575,11 +607,121 @@ export const useNewsStore = defineStore('newsStore', {
           .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
         this.persist()
         this.hydrated = true
+        // Signed in: counters, comments and my reactions come from the server (seed stays the fallback).
+        void this.loadServer()
       } catch (error) {
         this.error = (error as Error).message
         console.error('news.initializeStore', error)
       } finally {
         this.loading = false
+      }
+    },
+
+    /**
+     * Signed in: GET /api/v1/news/?limit=50 and lay the server truth over the seed items with the same id
+     * (counters, comments, shares, my bookmark/read/reaction). The localStorage cache then mirrors the server,
+     * so the optimistic local arithmetic lands on the server counters. Signed out or failing: nothing changes.
+     */
+    async loadServer(force = false) {
+      const api = newsApi()
+      if (!api?.signedIn) { this.serverIds = []; this.serverFor = null; return }
+      const meId = useCurrentUser().getUserId()
+      if (!force && (this.serverFor === meId || serverSyncInflight === meId)) return
+      serverSyncInflight = meId
+      try {
+        const data = await api.call<ServerNewsRow[] | { results?: ServerNewsRow[] }>('/api/v1/news/', { query: { limit: 50 } })
+        const rows = (Array.isArray(data) ? data : data?.results ?? []).filter(r => r && typeof r.id === 'string')
+        if (!rows.length) return
+        const cache = alignCacheWithServer(this.ensureUserState(meId), rows, meId)
+        this.persistedByUser[meId] = cache
+        const byId = new Map(rows.map(r => [r.id, r]))
+        const known = new Set(this.items.map(i => i.id))
+        const merged = this.items.map(item => {
+          const row = byId.get(item.id)
+          return row ? mergePersistedItem(serverBaseItem(item, row, cache), cache) : item
+        })
+        // Server-only items (e.g. published by another user) join the feed.
+        for (const row of rows) {
+          if (!known.has(row.id) && row.title && row.author && row.source) {
+            merged.push(mergePersistedItem(serverBaseItem(undefined, row, cache), cache))
+          }
+        }
+        this.items = merged.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+        this.serverIds = rows.map(r => r.id)
+        this.serverFor = meId
+        this.persist()
+      } catch (e) {
+        console.warn('news: GET /api/v1/news/ failed — seed feed kept', e)
+      } finally {
+        serverSyncInflight = null
+      }
+    },
+
+    /** Signed in: GET the article's comments (public list) so another user's comment shows after a reload. */
+    async refreshComments(itemId: string) {
+      const api = newsApi()
+      if (!api) return
+      try {
+        const rows = await api.call<NewsComment[]>(`/api/v1/news/${encodeURIComponent(itemId)}/comments/`)
+        if (!Array.isArray(rows)) return
+        const meId = useCurrentUser().getUserId()
+        const state = this.ensureUserState(meId)
+        const item = this.items.find(i => i.id === itemId)
+        if (!item) return
+        // Base = what is shown minus my cached contribution (re-added by mergePersistedItem below).
+        const ownBefore = state.comments.filter(c => c.itemId === itemId).length
+        if (api.signedIn) {
+          // My server comments live in the cache (they count as my contribution).
+          state.comments = [
+            ...state.comments.filter(c => c.itemId !== itemId || isLocalNewsId(c.id)),
+            ...rows.filter(c => c.userId === meId),
+          ]
+        }
+        const mineIds = new Set(state.comments.filter(c => c.itemId === itemId).map(c => c.id))
+        const others = rows.filter(c => !mineIds.has(c.id))
+        const mine = state.comments.filter(c => c.itemId === itemId)
+        // Only the comment list and its counter change here (other counters already carry my contribution).
+        const next = {
+          ...item,
+          comments: [...others, ...mine],
+          counters: { ...item.counters, comments: Math.max(0, item.counters.comments - ownBefore) + mine.length },
+        }
+        // The server counter can be higher than the list (seeded counts), never lower than what is listed.
+        next.counters.comments = Math.max(next.counters.comments, next.comments.length)
+        this.items = this.items.map(i => (i.id === itemId ? next : i))
+        if (!this.serverIds.includes(itemId)) this.serverIds = [...this.serverIds, itemId]
+        this.persist()
+      } catch (e) {
+        // 404: the server does not know this seed article — the local comments stay.
+        console.warn(`news: GET comments of ${itemId} failed`, e)
+      }
+    },
+
+    /** Signed in: POST /api/v1/news/<id>/read/ {dwellMs} (article open → 0, leave → time spent). No local side effects. */
+    postRead(itemId: string, dwellMs: number) {
+      return this.pushServer(itemId, 'read', { dwellMs: Math.max(0, Math.round(dwellMs)) }, 'read', true)
+    },
+
+    /** Replace an item's counters with the server's answer (bookmark / reaction responses). */
+    applyServerCounters(itemId: string, counters: Partial<NewsItem['counters']> | undefined) {
+      if (!counters) return
+      this.items = this.items.map(i => (i.id === itemId ? { ...i, counters: { ...i.counters, ...counters } } : i))
+    },
+
+    /** Server write for an item the server knows (signed in); failures keep the local change and say so. */
+    async pushServer(itemId: string, path: string, body: Record<string, unknown>, what: string, quiet = false) {
+      const api = newsApi()
+      // `quiet` writes (read receipts) are tried even before the feed sync finished; a 404 then says nothing.
+      if (!api?.signedIn || (!quiet && !this.serverIds.includes(itemId))) return null
+      try {
+        const res = await api.call<Record<string, any>>(`/api/v1/news/${encodeURIComponent(itemId)}/${path}/`, { method: 'POST', body })
+        this.syncNote = null
+        return res
+      } catch (e) {
+        console.warn(`news: POST ${path} on ${itemId} failed`, e)
+        if (quiet) return null
+        this.syncNote = `Your ${what} was kept in this browser but not saved on the server. It will not be visible to others.`
+        return null
       }
     },
 
@@ -620,6 +762,9 @@ export const useNewsStore = defineStore('newsStore', {
       this.items = this.items.map(item => {
         const persistedCommentIds = new Set(persisted.comments.filter(comment => comment.itemId === item.id).map(comment => comment.id))
         const persistedShareIds = new Set(persisted.shares.filter(share => share.itemId === item.id).map(share => share.id))
+        // Subtract only what was merged before: a comment/share added since then must raise the counter.
+        const mergedComments = item.comments.filter(comment => persistedCommentIds.has(comment.id)).length
+        const mergedShares = item.shares.filter(share => persistedShareIds.has(share.id)).length
         return mergePersistedItem({
           ...item,
           comments: item.comments.filter(comment => !persistedCommentIds.has(comment.id)),
@@ -630,8 +775,8 @@ export const useNewsStore = defineStore('newsStore', {
             dislikes: Math.max(0, item.counters.dislikes - (item.userReaction.disliked ? 1 : 0)),
             bookmarks: Math.max(0, item.counters.bookmarks - (item.savedByUser ? 1 : 0)),
             judgments: Math.max(0, item.counters.judgments - (item.userReaction.politicalJudgment ? 1 : 0)),
-            comments: Math.max(0, item.counters.comments - persistedCommentIds.size),
-            shares: Math.max(0, item.counters.shares - persistedShareIds.size),
+            comments: Math.max(0, item.counters.comments - mergedComments),
+            shares: Math.max(0, item.counters.shares - mergedShares),
           },
         }, persisted)
       })
@@ -706,6 +851,8 @@ export const useNewsStore = defineStore('newsStore', {
       state.readItems = state.readItems.slice(0, 200)
       this.pushHistory(itemId, 'read', { dwellMs })
       this.syncItemsForCurrentUser()
+      // Signed in: the read receipt (with dwell) feeds the avatar lane (news_reads).
+      void this.pushServer(itemId, 'read', { dwellMs: Math.max(0, Math.round(dwellMs)) }, 'read', true)
 
       const item = this.getById(itemId)
       if (item) {
@@ -730,7 +877,8 @@ export const useNewsStore = defineStore('newsStore', {
 
     toggleBookmark(itemId: string) {
       const state = this.ensureUserState()
-      if (state.bookmarks.includes(itemId)) {
+      const saved = !state.bookmarks.includes(itemId)
+      if (!saved) {
         state.bookmarks = state.bookmarks.filter(entry => entry !== itemId)
       } else {
         state.bookmarks.unshift(itemId)
@@ -738,6 +886,8 @@ export const useNewsStore = defineStore('newsStore', {
       }
       this.syncItemsForCurrentUser()
       this.persist()
+      void this.pushServer(itemId, 'bookmark', { saved }, 'bookmark')
+        .then(res => this.applyServerCounters(itemId, res?.counters))
     },
 
     setReaction(itemId: string, type: 'like' | 'dislike' | 'clear') {
@@ -753,6 +903,9 @@ export const useNewsStore = defineStore('newsStore', {
       }
       this.syncItemsForCurrentUser()
       this.persist()
+      const next = state.reactions[itemId]!
+      void this.pushServer(itemId, 'reaction', { liked: next.liked, disliked: next.disliked }, 'reaction')
+        .then(res => this.applyServerCounters(itemId, res?.counters))
     },
 
     setPoliticalJudgment(itemId: string, judgment: NewsPoliticalScale | null) {
@@ -761,6 +914,8 @@ export const useNewsStore = defineStore('newsStore', {
       state.reactions[itemId] = { ...current, politicalJudgment: judgment }
       this.pushHistory(itemId, 'judge')
       this.syncItemsForCurrentUser()
+      void this.pushServer(itemId, 'reaction', { politicalJudgment: judgment }, 'judgment')
+        .then(res => this.applyServerCounters(itemId, res?.counters))
 
       const item = this.getById(itemId)
       if (item) {
@@ -777,13 +932,18 @@ export const useNewsStore = defineStore('newsStore', {
       this.persist()
     },
 
+    /**
+     * Optimistic local comment; signed in and the server knows the item → POST /api/v1/news/<id>/comments/ and the
+     * local row takes the server's id and author (the counter already moved by one, like the server's recount).
+     */
     addComment(itemId: string, content: string) {
       const trimmed = content.trim()
       if (!trimmed) return
       const user = useCurrentUser()
       const state = this.ensureUserState()
+      const localId = `comment_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
       state.comments.unshift({
-        id: `comment_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        id: localId,
         itemId,
         userId: user.getUserId(),
         authorName: user.profile.value.username,
@@ -794,13 +954,37 @@ export const useNewsStore = defineStore('newsStore', {
       this.pushHistory(itemId, 'comment')
       this.syncItemsForCurrentUser()
       this.persist()
+      void this.pushServer(itemId, 'comments', { content: trimmed }, 'comment').then(res => {
+        if (!res?.id) return
+        const saved = res as NewsComment
+        const cache = this.ensureUserState()
+        cache.comments = cache.comments.map(c => (c.id === localId ? { ...c, ...saved } : c))
+        this.items = this.items.map(i => (i.id === itemId
+          ? { ...i, comments: i.comments.map(c => (c.id === localId ? { ...c, ...saved } : c)) }
+          : i))
+        this.persist()
+      })
     },
 
+    /**
+     * Record a share. The delivery itself goes through chat (<ChatShareTo>, C4 `share`); signed in, the server
+     * counts it (POST /api/v1/news/<id>/share/ with no recipients, so C5 never delivers it a second time).
+     */
     shareItem(itemId: string, recipients: string[], note = '') {
       const userId = useCurrentUser().getUserId()
       const state = this.ensureUserState(userId)
+      const localId = `share_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+      void this.pushServer(itemId, 'share', { recipients: [], note: note.trim() }, 'share').then(res => {
+        if (!res?.id) return
+        const cache = this.ensureUserState(userId)
+        cache.shares = cache.shares.map(s => (s.id === localId ? { ...s, id: String(res.id) } : s))
+        this.items = this.items.map(i => (i.id === itemId
+          ? { ...i, shares: i.shares.map(s => (s.id === localId ? { ...s, id: String(res.id) } : s)) }
+          : i))
+        this.persist()
+      })
       state.shares.unshift({
-        id: `share_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        id: localId,
         itemId,
         userId,
         recipients,

@@ -3,6 +3,20 @@ import { publicAssetUrl } from '~/composables/useLocalJson'
 
 export type AssetClass = 'fiat' | 'crypto' | 'stocks' | 'commodities'
 
+/**
+ * 24 h % moves of the LIVE-quoted assets only, rounded to 2 dp ({id: pct}). Non-live assets have no
+ * move at all (swarm 11-02 PRICES-1: a Math.random seed made the market mood flip between two loads).
+ * Pure: feed it to updateFromPriceChanges for the mood banner.
+ */
+export function livePriceChanges(assets: { id: string; live?: unknown; change_24h_pct?: number | null }[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const a of assets) {
+    if (!a.live || typeof a.change_24h_pct !== 'number' || !Number.isFinite(a.change_24h_pct)) continue
+    out[a.id] = +a.change_24h_pct.toFixed(2)
+  }
+  return out
+}
+
 export interface GeoPoint { lat: number; lng: number; name?: string }
 export interface ActiveFlow { from: AssetClass; to: AssetClass; magnitude: number }
 

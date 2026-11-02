@@ -51,7 +51,8 @@ describe('paper owner and capital', () => {
     expect(paperCapital([{ cash_usd: '0' }])).toBeNull()
     expect(paperCapital([])).toBeNull()
     expect(paperCapital(undefined)).toBeNull()
-    expect(DEFAULT_PAPER_CAPITAL).toBe(100_000)
+    // one source with Settings › Paper starting capital's server default (never the old 100k)
+    expect(DEFAULT_PAPER_CAPITAL).toBe(10_000)
   })
 })
 

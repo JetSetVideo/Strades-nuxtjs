@@ -54,7 +54,7 @@ const typeIcon: Record<string, string> = {
     <header class="bd-head">
       <h4>Platform Breakdown</h4>
       <span class="bd-total">
-        {{ fmt(totalBalance) }} across {{ platforms.list.length }} platforms
+        {{ fmt(totalBalance) }} across {{ platforms.list.length }} platforms ({{ platforms.connectedCount }} connected) · sample
       </span>
     </header>
 

@@ -14,6 +14,7 @@
     <div class="risk-strip">
       <div class="risk-head">
         <span class="risk-title">Risk profile</span>
+        <UISourceChip source="sample" :note="`Computed on the sample book (${isAll ? 'all wallets' : walletName}), not on your paper.`" />
         <span :class="['risk-pill', `lv-${risk.riskLevel}`]">{{ risk.riskLevel }}</span>
       </div>
       <div class="risk-metrics">
@@ -23,7 +24,8 @@
         </div>
         <div class="metric">
           <span class="m-label">Win rate</span>
-          <span class="m-value">{{ fmtPctFromPercent(risk.winRate) }}</span>
+          <span v-if="risk.winRate === null" class="m-value m-pending">—<UISourceChip source="pending" :note="WIN_RATE_PENDING_NOTE" /></span>
+          <span v-else class="m-value">{{ fmtPctFromPercent(risk.winRate) }}</span>
         </div>
         <div class="metric">
           <span class="m-label">Concentration</span>
@@ -176,6 +178,7 @@ import {
   CLASS_COLORS,
   POINTS_FOR,
   WALLET_COLORS,
+  WIN_RATE_PENDING_NOTE,
   assetLayers,
   riskProfile,
   sharePaths,
@@ -293,7 +296,11 @@ const lede = computed(() =>
     : `Class breakdown of ${walletName.value}. Holdings sum to 100% of market value.`,
 )
 
-const risk = computed(() => riskProfile(props.wallet?.assets ?? [], props.wallet?.performance_history))
+const risk = computed(() => {
+  const txs = (props.wallet as { transactions?: { type?: string }[] } | null | undefined)?.transactions
+  const sells = Array.isArray(txs) ? txs.filter(t => t?.type === 'sell').length : undefined
+  return riskProfile(props.wallet?.assets ?? [], props.wallet?.performance_history, sells)
+})
 
 interface BookRow { id: string; label: string; pct: number; color: string }
 

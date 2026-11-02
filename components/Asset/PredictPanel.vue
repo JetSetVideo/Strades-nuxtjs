@@ -34,6 +34,8 @@ import { limitTone, priceApproach, sameAsset } from '~/utils/priceApproach'
 import { dropStop, extendStops, pathPattern, PATTERN_COLOR, splitStops, userStops, type PathPattern } from '~/utils/predictionPath'
 import { canWithdrawCall, clampConfidence, CONFIDENCE_LABEL, CONFIDENCE_LEVELS, DEFAULT_CONFIDENCE, lockedReason } from '~/utils/callRules'
 import { usePrimarySettings } from '~/composables/usePrimarySettings'
+import { isSampleCall } from '~/utils/historyTimeline'
+import UISourceChip from '~/components/UI/SourceChip.vue'
 import { horizonDefaultNote, resolveCallDefaults, SETTINGS_HREF } from '~/utils/primaryDefaults'
 
 const props = withDefaults(defineProps<{
@@ -67,6 +69,13 @@ if (import.meta.client && !annotations.hydrated) annotations.hydrateFromStorage(
 const symbol = computed(() => props.asset.symbol)
 const kind = computed(() => priceKindOf(props.asset))
 const current = computed(() => Number(props.asset.current_price) || 0)
+
+// Sample calls (demo seed / pre-filled sample history): chipped, never withdrawable (swarm 11-02 PRED-4).
+const { user: authUser } = useAuth()
+const sampleBefore = computed(() => (authUser.value?.preferences as Record<string, unknown> | undefined)?.sample_history_before)
+const isSample = (p: Prediction) => isSampleCall(p, sampleBefore.value)
+/** The ✕ shows only on the user's own pending calls whose target is still ahead. */
+const canRemove = (p: Prediction) => canWithdrawCall(p) && !isSample(p)
 
 const mineAll = computed(() => store.predictions
   .filter(p => p.userId === props.userId && p.assetId === symbol.value)
@@ -326,7 +335,7 @@ function place(t: number, price: number) {
 }
 
 function removeStop(p: Prediction, index: number) {
-  if (!canWithdrawCall(p)) return // resolved / past target: the call is a record
+  if (!canRemove(p)) return // resolved / past target: the call is a record
   const left = dropStop(userStops(p), index)
   if (!left.length) { removeCall(p); return }
   const saved = writeCall(p, left)
@@ -335,7 +344,7 @@ function removeStop(p: Prediction, index: number) {
 
 /** Withdraw a call: only while it is pending and its target is still ahead. */
 function removeCall(p: Prediction) {
-  if (!canWithdrawCall(p)) return
+  if (!canRemove(p)) return
   const stops = userStops(p)
   store.deletePrediction(p.id)
   preview.value = null
@@ -565,13 +574,14 @@ defineExpose({
             <path v-else d="M2 9 L5 5 L8 9 L12 4" />
           </svg>
           <span class="pp-tf">{{ p.timeframe }}</span>
+          <UISourceChip v-if="isSample(p)" source="sample" note="Pre-filled sample call (demo history replayed on real prices), not one you made. It cannot be withdrawn." />
           <span :class="p.predictedChangePct >= 0 ? 'up' : 'down'" class="pp-num">{{ fmtAxisPrice(p.predictedPrice, kind) }} {{ fmtPct(p.predictedChangePct) }}</span>
           <span class="pp-muted">by {{ zonedTarget(targetTsOf(p), horizonById(p.timeframe).hours) }}</span>
           <span class="pp-muted pp-made">made {{ shortDate(p.timestamp) }}<template v-if="userStops(p).length > 1"> · {{ userStops(p).length }} steps</template></span>
           <span class="pp-status" :title="p.status">{{ STATUS_ICON[p.status] ?? '' }}<template v-if="p.accuracyScore !== undefined"> {{ p.accuracyScore }}%</template></span>
           <span class="pp-muted pp-conf-mini" :title="`Confidence ${clampConfidence(p.confidence)} of 5`">{{ clampConfidence(p.confidence) }}/5</span>
-          <button v-if="canWithdrawCall(p)" type="button" class="pp-x" :aria-label="`Withdraw ${p.timeframe} prediction`" title="Withdraw (only while pending)" @click.stop="removeCall(p)">✕</button>
-          <span v-else class="pp-lock" :title="lockedReason(p)" :aria-label="lockedReason(p)">🔒</span>
+          <button v-if="canRemove(p)" type="button" class="pp-x" :aria-label="`Withdraw ${p.timeframe} prediction`" title="Withdraw (only while pending)" @click.stop="removeCall(p)">✕</button>
+          <span v-else-if="!isSample(p)" class="pp-lock" :title="lockedReason(p)" :aria-label="lockedReason(p)">🔒</span>
         </div>
         <div
           v-for="(s, i) in userStops(p).length > 1 ? userStops(p) : []" :key="`${p.id}:${i}`"
@@ -583,7 +593,7 @@ defineExpose({
           </svg>
           <span class="pp-num" :class="stepDir(p, i)">{{ fmtAxisPrice(s.price, kind) }}</span>
           <span class="pp-muted">by {{ zonedTarget(s.t, horizonById(p.timeframe).hours) }}</span>
-          <button v-if="canWithdrawCall(p)" type="button" class="pp-x" :aria-label="`Delete step ${i + 1} of the ${p.timeframe} prediction`" @click.stop="removeStop(p, i)">✕</button>
+          <button v-if="canRemove(p)" type="button" class="pp-x" :aria-label="`Delete step ${i + 1} of the ${p.timeframe} prediction`" @click.stop="removeStop(p, i)">✕</button>
         </div>
       </template>
 

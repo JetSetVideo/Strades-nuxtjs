@@ -9,7 +9,12 @@ import { directiveBudgetTrees, dirSourceWord, type DirSettingsState } from '~/ut
 import { usePrimarySettings } from '~/composables/usePrimarySettings'
 import UIValueTree from '~/components/UI/ValueTree.vue'
 
-const props = defineProps<{ directive: IntelDirective | null }>()
+const props = defineProps<{ directive: IntelDirective | null; compact?: boolean }>()
+
+/** Opens /trade with the launcher preselected on this mix (Trade/BotLauncher.vue reads ?mix=directive). */
+const LAUNCH_TO = '/trade?mix=directive#bot-launcher'
+/** The only writable inputs of the directive today: the risk numbers in Settings › Primary values. */
+const INPUTS_TO = '/settings#primary'
 
 const SOURCE_KEY: Record<string, string> = { 'own profile': 'own', allies: 'allies', swarm: 'swarm' }
 
@@ -42,16 +47,16 @@ const budget = computed(() => directiveBudgetTrees({
 </script>
 
 <template>
-  <section class="dir" aria-labelledby="dir-title">
+  <section class="dir" :aria-labelledby="compact ? undefined : 'dir-title'" :aria-label="compact ? 'Your agent’s directive' : undefined">
     <header class="dir-head">
-      <h2 id="dir-title" class="dir-t">Your agent's directive</h2>
+      <h2 :id="compact ? undefined : 'dir-title'" class="dir-t">Your agent's directive</h2>
       <p class="dir-sub">The strategy mix your personal agent starts from, built from your behaviour read. Paper trading only.</p>
     </header>
 
-    <p v-if="!directive" class="muted">No directive yet. It appears after your first analysis: press <b>Re-analyse me now</b> above.</p>
+    <p v-if="!directive" class="muted">No directive yet. It appears after your first analysis: press <b>Re-analyse me now</b> on <NuxtLink to="/insights">Insights</NuxtLink>.</p>
 
     <template v-else>
-      <div class="dir-grid">
+      <div class="dir-grid" :class="{ one: compact }">
         <div>
           <h3 class="sub">Strategy weights <span class="muted">· tap a row</span></h3>
           <ul class="w">
@@ -73,7 +78,7 @@ const budget = computed(() => directiveBudgetTrees({
           </ul>
         </div>
 
-        <div>
+        <div v-if="!compact">
           <h3 class="sub">Where it comes from</h3>
           <div class="src-bar" role="img" :aria-label="directive.sources.map(s => `${s.source} ${intelPct(s.share)}`).join(', ')">
             <span v-for="s in directive.sources" :key="s.source" :style="{ flexGrow: s.share, background: sourceColor(s.source) }" />
@@ -88,7 +93,12 @@ const budget = computed(() => directiveBudgetTrees({
       </div>
     </template>
 
-    <div class="bud-wrap">
+    <p class="dir-acts">
+      <NuxtLink v-if="directive" :to="LAUNCH_TO" class="dir-go" data-testid="directive-launch">Launch a paper bot with this mix →</NuxtLink>
+      <NuxtLink :to="INPUTS_TO" class="dir-go" data-testid="directive-inputs">Change the inputs →</NuxtLink>
+    </p>
+
+    <div v-if="!compact" class="bud-wrap">
       <h3 class="sub">Risk budget for new bots <span class="muted">· tap a row</span></h3>
       <p class="bud-sub">What a bot you launch now uses: your Settings value if set, else {{ directive ? 'this directive' : 'your directive' }}, else the engine default.</p>
       <ul class="budget">
@@ -107,6 +117,11 @@ const budget = computed(() => directiveBudgetTrees({
 .dir-sub { margin: 0.15rem 0 0; font-size: 0.72rem; color: var(--text-gray); }
 .dir-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--card-gap) 1.25rem; }
 @media (max-width: 760px) { .dir-grid { grid-template-columns: minmax(0, 1fr); } }
+.dir-grid.one { grid-template-columns: minmax(0, 1fr); }
+.dir-acts { margin: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; }
+.dir-go { font-size: 0.78rem; color: var(--primary-blue); text-decoration: none; min-height: 24px; display: inline-flex; align-items: center; }
+.muted a { color: var(--primary-blue); text-decoration: none; }
+.dir-go:focus-visible, .muted a:focus-visible { outline: 2px solid var(--primary-blue); outline-offset: 2px; }
 .sub { margin: 0 0 0.35rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-light-gray); }
 .sub .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .muted { color: var(--text-gray); font-size: 0.76rem; }

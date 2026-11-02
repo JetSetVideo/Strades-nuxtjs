@@ -27,6 +27,8 @@ const ARENA_TABS = [
   { id: 'settled', label: 'Settled' },
 ]
 const modalOpen = ref(false)
+/** Authors of the demo challenges stores/dataBets.ts seedDemo() posts for first-time visitors. */
+const SEED_AUTHORS = new Set(['system_famous', 'user_003'])
 
 let resolveTicker: ReturnType<typeof setInterval> | null = null
 
@@ -94,6 +96,7 @@ function handlePost(payload: PostChallengePayload) {
   >
     <template #actions>
       <button class="post-btn" @click="modalOpen = true">+ Post a challenge</button>
+      <NavigationNextLink to="/leaderboard" :label="`See the ${routeLabel('/leaderboard')}`" />
     </template>
 
     <UIOpChips
@@ -108,10 +111,12 @@ function handlePost(payload: PostChallengePayload) {
       icon="⚔"
       title="Nothing here yet"
       message="No challenges match these filters yet."
-    />
+    >
+      <template #action><button class="post-btn" @click="modalOpen = true">+ Post the first one</button></template>
+    </UIEmptyState>
 
     <div v-else class="challenge-grid">
-      <ArenaChallengeCard v-for="c in visibleChallenges" :key="c.id" :challenge="c" />
+      <ArenaChallengeCard v-for="c in visibleChallenges" :key="c.id" :challenge="c" :sample="SEED_AUTHORS.has(c.author_id)" />
     </div>
 
     <ArenaPostChallengeModal v-model:open="modalOpen" @submit="handlePost" />

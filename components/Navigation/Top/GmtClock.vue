@@ -38,7 +38,8 @@ const timeStr = computed(() => {
   <NuxtLink
     to="/calendar"
     class="gmt-clock"
-    title="Trading Calendar"
+    title="Calendar"
+    :aria-label="`Calendar (${zoneLabel} clock)`"
     @mouseenter="playHover"
     @click="playClick"
   >

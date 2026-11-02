@@ -258,7 +258,7 @@ export function useAssetDetail(symbolInput: Ref<string> | string) {
     }
     try {
       const data = await $fetch<AssetDetail>(
-        `/api/assets/${symbol}/detail/`,
+        `/api/v1/assets/${symbol}/detail/`,
         { baseURL: apiBase, headers }
       )
       return data

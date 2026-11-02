@@ -12,7 +12,7 @@ import UICard from '@/components/UI/Card.vue'
 import UIEmptyState from '@/components/UI/EmptyState.vue'
 import UISectionTabs from '@/components/UI/SectionTabs.vue'
 import {
-  HISTORY_LANES, OPEN_ENDED, historyDay, historySections, matchesHistoryFilter,
+  HISTORY_LANES, OPEN_ENDED, historyDay, historySections, laneFromQuery, matchesHistoryFilter,
   type HistoryEvent, type HistoryFilter, type Lane,
 } from '~/utils/historyTimeline'
 
@@ -28,6 +28,13 @@ const filter = ref<HistoryFilter>({
   range: '90d',
   showSample: true,
 })
+
+// Deep link `?lane=prediction` (YouCard tiles, /predict "Your calls →"): show that one lane on the river.
+const route = useRoute()
+watch(() => route.query.lane, (q) => {
+  const lane = laneFromQuery(q)
+  if (lane) filter.value = { ...filter.value, lanes: new Set([lane]) }
+}, { immediate: true })
 
 const visible = computed(() => events.value.filter(e => matchesHistoryFilter(e, filter.value, now.value)))
 const secs = computed(() => historySections(visible.value))
@@ -194,7 +201,7 @@ const isDemo = computed(() => !!payload.value?.profile?.is_demo)
         />
       </UICard>
 
-      <UICard padding="tight" class="river-card">
+      <UICard id="history-river" padding="tight" class="river-card">
         <HistoryFilters v-model="filter" :lane-counts="laneCounts" :mode-counts="modeCounts" :sample-count="sampleCount" />
         <HistoryRiver
             v-if="riverLanes.length"

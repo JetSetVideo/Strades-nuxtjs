@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { routeLabel } from '~/utils/routes'
 import { useStrategies } from '@/composables/useStrategies'
 import { useStrategiesStore } from '@/stores/strategies'
 import { useBacktest } from '@/composables/useBacktest'
@@ -213,7 +214,7 @@ const top = computed(() => strategyTopStats(strategy.value ?? {}, realBacktest.v
 
 const tabs = computed<TabItem[]>(() => [
   { id: 'performance', label: 'Performance' },
-  { id: 'trades',      label: 'Trades',  count: strategy.value?.total_trades ?? null },
+  { id: 'trades',      label: 'Trades',  count: realBacktest.value ? realBacktest.value.metrics.trades : (strategy.value?.total_trades ?? null) },
   { id: 'code',        label: 'Code' },
   { id: 'backtest',    label: 'Backtest' }
 ])
@@ -336,9 +337,11 @@ const codeJson = computed(() => {
   </div>
 
   <div v-else-if="strategy" class="strategy-detail">
+    <NavigationBackLink />
     <UIPageHeader :title="strategy.name" :subtitle="strategy.description">
       <template #actions>
         <UISourceChip v-if="isSample" source="sample" note="Sample strategy from the catalog, shown to every user: it is not one of yours." />
+        <ChatShareTo v-else :item="{ kind: 'strategy', id: String(strategy.id), title: strategy.name, url: `/strategy/${strategy.id}` }" />
         <UIPill :tone="statusTone" show-dot>{{ strategy.status }}</UIPill>
         <button class="action" @click="onToggle" :title="strategy.status === 'active' ? 'Pause' : 'Resume'">
           {{ strategy.status === 'active' ? '⏸ Pause' : '▶ Resume' }}
@@ -347,7 +350,14 @@ const codeJson = computed(() => {
           {{ rerunning ? 'Running…' : '↺ Backtest' }}
         </button>
         <button class="action ghost" @click="onFork">⎆ Fork</button>
-        <NuxtLink class="action ghost" :to="`/summarizer/${strategyId}`" title="Plain-language review of the rules, assets and risk settings">≡ Review</NuxtLink>
+        <!-- REVIEW-13: once it ran, the summarizer is a checklist of the rules (the result lives here, Backtest tab). -->
+        <NuxtLink
+          v-if="realBacktest"
+          class="action ghost"
+          :to="`/summarizer/${strategyId}?ran=1`"
+          title="Checklist of the rules, assets and risk settings (the result is in the Backtest tab)"
+        >≡ Checklist</NuxtLink>
+        <NuxtLink v-else class="action ghost" :to="`/summarizer/${strategyId}`" title="Plain-language review of the rules, assets and risk settings before a backtest">≡ Review</NuxtLink>
       </template>
     </UIPageHeader>
 
@@ -366,7 +376,13 @@ const codeJson = computed(() => {
     </div>
     <UIMetricRow :cols="4">
       <UIStat label="Return"   :value="top.returnPct" :tone="top.returnPct === null ? 'neutral' : 'auto'" :suffix="top.returnPct === null ? '' : '%'" size="lg" />
-      <UIStat label="Capital"  :value="fmtMoneyKpi(top.capital)" size="md" />
+      <!-- REVIEW-12: a backtest's figure is the ENDING equity of its start capital, not "Capital". -->
+      <UIStat
+        :label="realBacktest ? 'Ending equity' : 'Capital'"
+        :value="fmtMoneyKpi(top.capital)"
+        :hint="realBacktest && realBacktest.capital ? `of ${fmtMoneyKpi(realBacktest.capital)} start` : undefined"
+        size="md"
+      />
       <UIStat label="Win rate" :value="top.winRate" :suffix="top.winRate === null ? '' : '%'" size="md" />
       <UIStat label="Sharpe"   :value="top.sharpe" :precision="2" size="md" />
     </UIMetricRow>
@@ -387,20 +403,22 @@ const codeJson = computed(() => {
       </UICard>
 
       <div class="grid-3">
+        <!-- REVIEW-19: nothing measured at 0 trades → "—" + Not computed, never 0.0 %. -->
         <UICard title="Risk metrics">
+          <template v-if="!hasTradeHistory" #action><UISourceChip source="pending" note="No trade yet: these are computed from closed trades. Run the backtest (Backtest tab) or a bot." /></template>
           <UIMetricRow :cols="2">
-            <UIStat label="Max DD"    :value="-(strategy.max_drawdown ?? 0)" tone="negative" suffix="%" size="sm" />
-            <UIStat label="Vol (ann)" :value="strategy.performance_metrics?.volatility ?? 0" suffix="%" size="sm" />
-            <UIStat label="Beta"      :value="strategy.performance_metrics?.beta ?? 0" :precision="2" size="sm" />
-            <UIStat label="Alpha"     :value="strategy.performance_metrics?.alpha ?? 0" :precision="2" size="sm" tone="auto" />
+            <UIStat label="Max DD"    :value="hasTradeHistory ? -(strategy.max_drawdown ?? 0) : '—'" :tone="hasTradeHistory ? 'negative' : 'neutral'" :suffix="hasTradeHistory ? '%' : ''" size="sm" />
+            <UIStat label="Vol (ann)" :value="hasTradeHistory ? (strategy.performance_metrics?.volatility ?? '—') : '—'" :suffix="hasTradeHistory && strategy.performance_metrics?.volatility != null ? '%' : ''" size="sm" />
+            <UIStat label="Beta"      :value="hasTradeHistory ? (strategy.performance_metrics?.beta ?? '—') : '—'" :precision="2" size="sm" />
+            <UIStat label="Alpha"     :value="hasTradeHistory ? (strategy.performance_metrics?.alpha ?? '—') : '—'" :precision="2" size="sm" :tone="hasTradeHistory ? 'auto' : 'neutral'" />
           </UIMetricRow>
         </UICard>
 
         <UICard title="Trade stats">
           <UIMetricRow :cols="2">
             <UIStat label="Total trades" :value="strategy.total_trades ?? 0" :precision="0" size="sm" />
-            <UIStat label="Successful"   :value="strategy.successful_trades ?? 0" :precision="0" tone="positive" size="sm" />
-            <UIStat label="Avg duration" :value="strategy.average_trade_duration ?? '—'" size="sm" />
+            <UIStat label="Successful"   :value="hasTradeHistory ? (strategy.successful_trades ?? 0) : '—'" :precision="0" :tone="hasTradeHistory ? 'positive' : 'neutral'" size="sm" />
+            <UIStat label="Avg duration" :value="hasTradeHistory && strategy.average_trade_duration ? strategy.average_trade_duration : '—'" size="sm" />
             <UIStat label="Last run"     :value="lastRunRel" size="sm" />
           </UIMetricRow>
         </UICard>
@@ -410,6 +428,7 @@ const codeJson = computed(() => {
 
       <!-- Counterparty exposure for this strategy's target assets -->
       <UICard v-if="strategy.target_assets?.length" title="Counterparty & Commodity Exposure">
+        <template #action><UISourceChip source="sample" note="Bundled supply-chain sample for the target assets: not measured from this strategy or your book." /></template>
         <StrategyCounterpartyCard :target-assets="strategy.target_assets" :compact="true" />
       </UICard>
     </template>
@@ -522,8 +541,11 @@ const codeJson = computed(() => {
       </UICard>
 
       <UICard v-if="realBacktest" title="Run this strategy on a wallet" class="deploy-card">
+        <!-- REVIEW-11: bots run from a paper wallet for bots (custody); the Wallet portfolio is for hand trades. -->
         <p v-if="!walletsList.length" class="muted-note">
-          No wallet yet. <NuxtLink to="/trade">Create or import one</NuxtLink>, then come back.
+          You have no <b>paper wallet for bots</b> yet. Your portfolio on {{ routeLabel('/wallet') }} is for hand trades;
+          a bot runs from its own paper wallet (simulated dollars).
+          <NuxtLink to="/trade">Create a paper wallet for bots →</NuxtLink> then come back to this strategy.
         </p>
         <form v-else class="deploy-form" @submit.prevent="deployToWallet">
           <label>Wallet
@@ -607,7 +629,7 @@ const codeJson = computed(() => {
 
   <div v-else class="not-found">
     <h1>Strategy not found</h1>
-    <NuxtLink to="/strategies">← Back to Trading Lab</NuxtLink>
+    <NuxtLink to="/strategies">← {{ routeLabel('/strategies') }}</NuxtLink>
   </div>
 </template>
 

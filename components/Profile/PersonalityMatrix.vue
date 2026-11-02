@@ -23,6 +23,9 @@ const DEFAULT_AXES: MatrixAxisKey[] = [
 
 <template>
   <div class="axes">
+    <p class="axes-src">
+      <UISourceChip source="simulated" note="Simulated in this browser tab from your clicks on a sample avatar; it resets on reload and is not sent to the server. Your measured profile is the Mirror on Profile." />
+    </p>
     <div
       v-for="a in (axes || DEFAULT_AXES)"
       :key="a.key"
@@ -48,6 +51,9 @@ const DEFAULT_AXES: MatrixAxisKey[] = [
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+}
+.axes-src {
+  margin: 0;
 }
 .axis {
   display: flex;

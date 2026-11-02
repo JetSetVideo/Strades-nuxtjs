@@ -9,6 +9,7 @@ import UIPill from '@/components/UI/Pill.vue'
 import UIMetricRow from '@/components/UI/MetricRow.vue'
 import UISectionTabs, { type TabItem } from '@/components/UI/SectionTabs.vue'
 import UIEmptyState from '@/components/UI/EmptyState.vue'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 
 interface Quest {
@@ -42,6 +43,13 @@ const { data: categories, pending: catsPending } = await useAsyncData<QuestCateg
 
 const selected = ref('all')
 
+/** Where each quest is done (1 click from its card); unknown ids fall back to their category's page. */
+const QUEST_PAGE: Record<string, string> = {
+  q_001: '/creator', q_002: '/agents', q_003: '/insights', q_004: '/wallet', q_005: '/apis',
+}
+const CATEGORY_PAGE: Record<string, string> = { onboarding: '/creator', agents: '/agents', performance: '/wallet', social: '/chat' }
+const questPage = (q: Quest): string | null => QUEST_PAGE[q.id] ?? CATEGORY_PAGE[q.category_id] ?? null
+
 const tabs = computed<TabItem[]>(() => [
   { id: 'all', label: 'All', count: quests.value?.length ?? 0 },
   ...(categories.value ?? []).map(c => ({
@@ -70,8 +78,9 @@ const totals = computed(() => {
 
 <template>
   <div class="quest-page">
-    <UIPageHeader title="Quests" subtitle="Level up by exploring every corner of Strades.">
+    <UIPageHeader title="Quests" subtitle="Small drills that walk you through Strades: each one opens the page where you do it.">
       <template #actions>
+        <UISourceChip source="sample" note="Quests and their progress are a bundled sample, not tracked from your account yet." />
         <UIPill tone="accent">{{ totals.credits }} cr earned</UIPill>
       </template>
     </UIPageHeader>
@@ -90,7 +99,9 @@ const totals = computed(() => {
       <AppSkeletonLoader height="80px" />
     </div>
 
-    <UIEmptyState v-else-if="filtered.length === 0" icon="◯" title="No quests" message="No quests in this category yet." />
+    <UIEmptyState v-else-if="filtered.length === 0" icon="◯" title="No quests" message="No quests in this category yet.">
+      <template #action><NavigationNextLink :to="'/arena'" :label="`Try a challenge in the ${routeLabel('/arena')}`" /></template>
+    </UIEmptyState>
 
     <div v-else class="quest-grid">
       <UICard
@@ -109,6 +120,7 @@ const totals = computed(() => {
         </div>
         <template #footer>
           <span class="reward">+{{ q.reward_credits }} credits</span>
+          <NavigationNextLink v-if="!q.completed && questPage(q)" :to="questPage(q)!" :label="`Go to ${routeLabel(questPage(q)!)}`" />
           <UIPill ghost tone="neutral">{{ q.category_id }}</UIPill>
         </template>
       </UICard>

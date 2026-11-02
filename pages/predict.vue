@@ -3,7 +3,11 @@
     <header class="head">
       <div>
         <h1>Predict</h1>
-        <p class="sub">Kalshi prediction markets, live prices. Bots trade them with <b>paper money</b> from your wallet: real prices, simulated fills, no real orders.</p>
+        <p class="sub">Back a real-world outcome (Kalshi markets) with a paper bot: real prices, simulated fills, no real orders.</p>
+        <nav class="next" aria-label="Other ways to predict">
+          <NuxtLink to="/prices" class="link">Make a call on an asset →</NuxtLink>
+          <NuxtLink :to="{ path: '/historic', query: { lane: 'prediction' }, hash: '#history-river' }" class="link">Your calls →</NuxtLink>
+        </nav>
       </div>
       <NuxtLink to="/community" class="link">Community bots →</NuxtLink>
     </header>
@@ -20,10 +24,10 @@
 
     <p v-if="error" class="err">{{ error }}</p>
     <p v-else-if="loading && !markets.length" class="muted">Loading markets…</p>
-    <p v-else class="muted small">{{ visibleMarkets.length.toLocaleString(APP_LOCALE) }} of {{ total.toLocaleString(APP_LOCALE) }} markets<template v-if="hiddenRows"> (first {{ shownMarkets.length.toLocaleString(APP_LOCALE) }} shown)</template> · sorted by 24 h volume · prices in ¢ (100¢ = $1 payout if right)</p>
+    <p v-else class="muted small">{{ visibleMarkets.length.toLocaleString(APP_LOCALE) }} of {{ total.toLocaleString(APP_LOCALE) }} markets<template v-if="hiddenRows"> (top {{ markets.length.toLocaleString(APP_LOCALE) }} by volume loaded)</template> · sorted by 24 h volume · prices in ¢ (100¢ = $1 payout if right)</p>
 
     <ul class="list">
-      <li v-for="m in shownMarkets" :key="m.ticker" class="mkt" :class="{ open: selected === m.ticker }">
+      <li v-for="m in visibleMarkets" :key="m.ticker" class="mkt" :class="{ open: selected === m.ticker }">
         <div class="mkt-main" role="button" tabindex="0" :aria-expanded="selected === m.ticker"
           @click="toggle(m.ticker)" @keydown.enter="toggle(m.ticker)">
           <div class="mkt-title">
@@ -44,13 +48,13 @@
         <PredictBotForm v-if="selected === m.ticker" :market="m" @launched="onLaunched" />
       </li>
     </ul>
-    <!-- 50 rows at a time (a 200-row list was 2.7k DOM nodes: board-optimization O8). -->
+    <!-- 50 markets per request and per render (a 200-row list was 98 KB + 2.7k DOM nodes: PERF-8, O8). -->
     <div v-if="hiddenRows" class="more">
-      <button type="button" class="more-btn" @click="shown = nextShown(shown, visibleMarkets.length)">
-        Show {{ Math.min(LIST_PAGE, hiddenRows) }} more
+      <button type="button" class="more-btn" :disabled="loading" @click="showMore(nextMarketLimit(limit, total))">
+        {{ loading ? 'Loading…' : `Show ${Math.min(PREDICT_PAGE, loadable - markets.length)} more` }}
       </button>
-      <button type="button" class="more-btn ghost" @click="shown = visibleMarkets.length">
-        Show all ({{ hiddenRows.toLocaleString(APP_LOCALE) }} left)
+      <button v-if="loadable - markets.length > PREDICT_PAGE" type="button" class="more-btn ghost" :disabled="loading" @click="showMore(PREDICT_MAX)">
+        Show top {{ loadable.toLocaleString(APP_LOCALE) }}
       </button>
     </div>
     <p v-if="launchedMsg" class="ok" role="status">{{ launchedMsg }}</p>
@@ -60,7 +64,7 @@
 <script setup lang="ts">
 import type { PredictMarket } from '~/server/api/predict/markets.get'
 import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
-import { LIST_PAGE, hiddenCount, listWindow, nextShown } from '~/utils/listWindow'
+import { PREDICT_MAX, PREDICT_PAGE, nextMarketLimit, usePredictMarkets } from '~/composables/usePredictMarkets'
 
 definePageMeta({ title: 'Predict', layout: 'default' })
 
@@ -73,14 +77,15 @@ const loading = ref(false)
 const error = ref('')
 const selected = ref<string | null>(null)
 const launchedMsg = ref('')
+const { listMarkets } = usePredictMarkets()
+/** How many markets to ask the server for (50, then +50 per "Show more", server cap 200). */
+const limit = ref(PREDICT_PAGE)
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    const r = await $fetch<{ markets: PredictMarket[]; categories: string[]; total: number }>('/api/predict/markets', {
-      query: { q: q.value, limit: 200 },
-    })
+    const r = await listMarkets(q.value, limit.value)
     markets.value = r.markets
     categories.value = r.categories
     total.value = r.total
@@ -92,13 +97,17 @@ async function load() {
 }
 
 let t: ReturnType<typeof setTimeout> | undefined
-const debounced = () => { clearTimeout(t); t = setTimeout(load, 300) }
+// A new search starts at 50 again.
+const debounced = () => { clearTimeout(t); t = setTimeout(() => { limit.value = PREDICT_PAGE; load() }, 300) }
 const visibleMarkets = computed(() => markets.value.filter(m => allowsValue(m.category, catStates)))
-// Render the first 50; a new search or category starts at 50 again.
-const shown = ref(LIST_PAGE)
-const shownMarkets = computed(() => listWindow(visibleMarkets.value, shown.value))
-const hiddenRows = computed(() => hiddenCount(shown.value, visibleMarkets.value.length))
-watch([q, catStates], () => { shown.value = LIST_PAGE }, { deep: true })
+/** Markets the server can still send (its list is capped at 200). */
+const loadable = computed(() => Math.min(PREDICT_MAX, total.value))
+const hiddenRows = computed(() => Math.max(0, loadable.value - markets.value.length))
+function showMore(next: number) {
+  if (next <= limit.value) return
+  limit.value = next
+  load()
+}
 const toggle = (ticker: string) => { selected.value = selected.value === ticker ? null : ticker }
 function onLaunched(name: string) {
   launchedMsg.value = `Bot launched on "${name}". Follow it in Trade, or see everyone's public bots in Community.`
@@ -119,6 +128,7 @@ onMounted(load)
 .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
 h1 { margin: 0 0 .2rem; }
 .sub { margin: 0; color: var(--text-secondary); font-size: .9rem; }
+.next { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: .35rem; font-size: .85rem; }
 .link { color: var(--primary-blue, #3b82f6); text-decoration: none; font-weight: 600; }
 .controls { display: flex; flex-direction: column; gap: .6rem; }
 .controls input { padding: .6rem .8rem; border-radius: 8px; border: 1px solid var(--border-primary); background: var(--surface-sunken, transparent); color: var(--text-primary); font: inherit; }

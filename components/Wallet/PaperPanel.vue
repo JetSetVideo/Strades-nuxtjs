@@ -4,13 +4,17 @@ import { usePaperStore, type PaperTrade } from '~/stores/paper'
 import { useWalletStore } from '~/stores/wallet'
 import { fmtPctFromPercent, fmtRelative } from '~/utils/format'
 import { fmtMoneyKpi, signTone } from '~/utils/valueTree'
+import UISourceChip from '~/components/UI/SourceChip.vue'
 
 /**
- * Wallet/PaperPanel.vue — Paper / Live trading dashboard widget.
+ * Wallet/PaperPanel.vue — Paper trading / Holdings dashboard widget.
  *
  * The mode toggle binds KPIs + position history:
- *   - Paper → simulated ledger (blue dashed border, dotted row rails)
- *   - Live  → wallet holdings / transactions (solid green border)
+ *   - Paper    → simulated ledger (blue dashed border, dotted row rails)
+ *   - Holdings → wallet holdings / transactions (solid green border). Paper-only beta:
+ *     the tab was called "Live", which read as real money (swarm 11-02 TRADE-4).
+ * Swarm 11-02 (TRADE-5): no seeded demo trades any more; rows already seeded (`sample: true`)
+ * carry a Sample chip and stay out of Open P&L, Realized, Win rate and Positions.
  *
  * Visual language per Design.md §4:
  *   - Paper accent at 60% saturation; live at full green
@@ -24,7 +28,6 @@ const notional = (v: number) => fmtMoneyKpi(v)
 
 onMounted(() => {
   paper.hydrate()
-  if (paper.trades.length === 0) paper.seedDemo()
   if (!walletStore.hydrated) walletStore.initializeStore()
   // Mark to market every 30s so the user sees the positions breathe
   interval = window.setInterval(() => paper.markToMarket(), 30_000)
@@ -63,6 +66,8 @@ interface PanelRow {
   pnlPct: number | null
   timestamp: string
   closable: boolean
+  /** Seeded sample row (not the user's trade): chipped, not in KPIs */
+  sample?: boolean
 }
 
 const paperRows = computed<PanelRow[]>(() =>
@@ -77,6 +82,7 @@ const paperRows = computed<PanelRow[]>(() =>
     pnlPct: t.mark_price == null ? null : t.hypothetical_pnl_pct,
     timestamp: t.timestamp,
     closable: true,
+    sample: !!t.sample,
   }))
 )
 
@@ -100,7 +106,9 @@ const closedRows = computed(() => {
     return paper.closedTrades.slice(0, 5).map(t => ({
       id: t.id,
       symbol: t.asset_symbol,
-      pnl: t.realized_pnl_value ?? 0,
+      // closed without a price → P&L unknown ("—"), never a made-up 0
+      pnl: t.realized_pnl_value ?? null,
+      sample: !!t.sample,
     }))
   }
   return liveTransactions.value
@@ -110,6 +118,7 @@ const closedRows = computed(() => {
       id: t.id,
       symbol: `${t.type.toUpperCase()} ${t.asset_symbol}`,
       pnl: t.type === 'sell' ? t.total_value : -t.total_value,
+      sample: false,
     }))
 })
 
@@ -117,19 +126,21 @@ const liveOpenPnl = computed(() =>
   liveAssets.value.reduce((s, a) => s + (a.return_amount ?? 0), 0)
 )
 const liveRealized = computed(() => liveWallet.value?.total_return ?? 0)
-const liveWinRate = computed(() => {
+/** Share of holdings in profit (not a trade win rate); null (—) with no holding. */
+const liveWinRate = computed<number | null>(() => {
   const assets = liveAssets.value
-  if (!assets.length) return 0
+  if (!assets.length) return null
   return (assets.filter(a => a.return_percentage > 0).length / assets.length) * 100
 })
 
 /** Open paper P&L over the trades that have a live mark; null when none has one (→ "—"). */
-const paperMarked = computed(() => paper.openTrades.filter((t: PaperTrade) => t.mark_price != null))
+// The user's own open trades only: sample rows are shown (chipped) but never counted.
+const paperMarked = computed(() => paper.ownOpenTrades.filter((t: PaperTrade) => t.mark_price != null))
 const paperOpenPnl = computed<number | null>(() =>
   paperMarked.value.length ? paperMarked.value.reduce((s, t) => s + t.hypothetical_pnl_value, 0) : null,
 )
 const paperOpenLabel = computed(() => {
-  const all = paper.openTrades.length
+  const all = paper.ownOpenTrades.length
   const n = paperMarked.value.length
   return all && n < all ? `Open P&L (${n}/${all} priced)` : 'Open P&L'
 })
@@ -141,14 +152,14 @@ const kpis = computed(() => {
     return [
       { label: paperOpenLabel.value, value: fmtMoneyKpi(open, { signed: true }), tone: open === null ? undefined : signTone(open) },
       { label: 'Realized', value: fmtMoneyKpi(paper.realizedPnlValue, { signed: true }), tone: signTone(paper.realizedPnlValue) },
-      { label: 'Win rate', value: fmtPctFromPercent(paper.winRate) },
-      { label: 'Positions', value: paper.openTrades.length },
+      { label: 'Win rate', value: paper.winRate === null ? '—' : fmtPctFromPercent(paper.winRate), title: paper.winRate === null ? 'No closed trade yet' : undefined },
+      { label: 'Positions', value: paper.ownOpenTrades.length },
     ]
   }
   return [
     { label: 'Open P&L', value: fmtMoneyKpi(liveOpenPnl.value, { signed: true }), tone: signTone(liveOpenPnl.value) },
     { label: 'Realized', value: fmtMoneyKpi(liveRealized.value, { signed: true }), tone: signTone(liveRealized.value) },
-    { label: 'Win rate', value: fmtPctFromPercent(liveWinRate.value) },
+    { label: 'In profit', value: liveWinRate.value === null ? '—' : fmtPctFromPercent(liveWinRate.value), title: 'Share of holdings above their buy price' },
     { label: 'Positions', value: liveAssets.value.length },
   ]
 })
@@ -184,7 +195,7 @@ const curvePath = computed(() => {
 const emptyCopy = computed(() =>
   isPaper.value
     ? 'No open paper positions. Place a simulated bet from any asset page.'
-    : 'No live holdings in this wallet yet.'
+    : 'No holdings in this wallet yet.'
 )
 
 const formatPnl = (v: number | null) => (v === null ? '—' : fmtMoneyKpi(v, { signed: true }))
@@ -225,16 +236,16 @@ function setMode(mode: 'paper' | 'live') {
           :aria-selected="isLive"
           class="mode-btn live"
           :class="{ active: isLive }"
-          title="Live wallet holdings and trade history"
+          title="Wallet holdings and trade history (paper money)"
           @click="setMode('live')"
-        >Live</button>
+        >Holdings</button>
       </div>
     </header>
 
     <div :key="paper.mode" class="mode-body">
       <!-- KPI strip -->
       <div class="kpi-row">
-        <div v-for="k in kpis" :key="k.label" class="kpi">
+        <div v-for="k in kpis" :key="k.label" class="kpi" :title="'title' in k ? k.title : undefined">
           <span class="k-label">{{ k.label }}</span>
           <span class="k-value" :data-tone="k.tone">
             {{ k.value }}{{ k.suffix }}
@@ -263,7 +274,9 @@ function setMode(mode: 'paper' | 'live') {
           :data-mode="paper.mode"
         >
           <div class="pos-left">
-            <span class="pos-symbol">{{ t.symbol }}</span>
+            <span class="pos-symbol">{{ t.symbol }}
+              <UISourceChip v-if="t.sample" source="sample" note="Seeded example row from an earlier version, not a trade you placed. Not counted in the figures above." />
+            </span>
             <span class="pos-meta">{{ t.meta }}</span>
             <span v-if="t.strategy_id || t.agent_id" class="pos-source">
               via
@@ -300,7 +313,7 @@ function setMode(mode: 'paper' | 'live') {
           :key="`${paper.mode}-${t.id}`"
           class="closed-row"
         >
-          <span>{{ t.symbol }}</span>
+          <span>{{ t.symbol }} <UISourceChip v-if="t.sample" source="sample" note="Seeded example row, not your trade. Not counted in Realized or Win rate." /></span>
           <span class="closed-pnl" :data-tone="pnlTone(t.pnl)">
             {{ formatPnl(t.pnl) }}
           </span>

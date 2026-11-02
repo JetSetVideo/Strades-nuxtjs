@@ -42,7 +42,7 @@ const fmtPct = (n?: number) => n === undefined ? '—' : `${n >= 0 ? '+' : ''}${
     </UIEmptyState>
 
     <div v-if="bots.length" class="bot-list">
-      <span class="sub">{{ bots.length }} bot{{ bots.length === 1 ? '' : 's' }} live</span>
+      <span class="sub">{{ bots.length }} bot{{ bots.length === 1 ? '' : 's' }} running (simulated)</span>
       <NuxtLink
         v-for="b in bots"
         :key="b.id"

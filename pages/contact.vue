@@ -3,7 +3,6 @@ import { ref } from 'vue'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
-import UIPill from '@/components/UI/Pill.vue'
 
 definePageMeta({ title: 'Contact', description: 'Talk to the Strades team.', layout: 'default' })
 
@@ -19,9 +18,17 @@ const topics = [
   { id: 'press',    label: 'Press / partnerships' }
 ]
 
-async function submit() {
+// No contact endpoint exists in the backend yet: the form hands the message to the user's
+// email app (a real channel) instead of pretending it was sent.
+const CONTACT_EMAIL = 'hello@strades.app'
+function submit() {
   sending.value = true
-  await new Promise(r => setTimeout(r, 600))
+  const topic = topics.find(t => t.id === form.value.topic)?.label ?? form.value.topic
+  const to = form.value.topic === 'security' ? 'security@strades.app' : CONTACT_EMAIL
+  const body = `${form.value.message}\n\n— ${form.value.name} <${form.value.email}>`
+  if (typeof window !== 'undefined') {
+    window.location.href = `mailto:${to}?subject=${encodeURIComponent(`[Strades] ${topic}`)}&body=${encodeURIComponent(body)}`
+  }
   sending.value = false
   sent.value = true
 }
@@ -29,9 +36,9 @@ async function submit() {
 
 <template>
   <div class="contact-page">
-    <UIPageHeader title="Contact" subtitle="We read every message. Most replies go out the same day.">
+    <UIPageHeader title="Contact" subtitle="Write to the team: feedback, a bug, a security issue. We read every message.">
       <template #actions>
-        <UIPill tone="success" show-dot>UP</UIPill>
+        <NavigationNextLink to="/help" :label="`Check ${routeLabel('/help')} first`" />
       </template>
     </UIPageHeader>
 
@@ -63,13 +70,15 @@ async function submit() {
             />
           </label>
           <button type="submit" class="cta" :disabled="sending">
-            {{ sending ? 'Sending…' : 'Send message' }}
+            {{ sending ? 'Opening…' : 'Write in my email app' }}
           </button>
         </form>
 
         <div v-else class="thanks">
-          <h3>Message sent.</h3>
-          <p>Thanks for reaching out — someone from the team will get back to you shortly.</p>
+          <h3>Your email app should be open.</h3>
+          <p>The message is filled in there: press Send in your email app. Nothing was sent from this page.
+            If no app opened, write to <a :href="`mailto:${CONTACT_EMAIL}`">{{ CONTACT_EMAIL }}</a>.</p>
+          <button type="button" class="cta" @click="sent = false">Edit the message</button>
         </div>
       </UICard>
 
@@ -89,7 +98,7 @@ async function submit() {
           </li>
           <li>
             <span class="ch-label">Discord</span>
-            <a class="ch-value" href="#" @click.prevent>discord.gg/strades</a>
+            <span class="ch-value">discord.gg/strades (not open yet)</span>
           </li>
         </ul>
         <template #footer>

@@ -9,6 +9,7 @@ import UIPill from '@/components/UI/Pill.vue'
 import UIStat from '@/components/UI/Stat.vue'
 import UIMetricRow from '@/components/UI/MetricRow.vue'
 import UIEmptyState from '@/components/UI/EmptyState.vue'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import StrategyCard from '@/components/Strategy/Card.vue'
 
@@ -90,7 +91,7 @@ function openStrategy(id: string) {
   <div class="shop-page">
     <UIPageHeader
       title="Strategy Shop"
-      subtitle="Browse community strategies — fork the free ones, rent the premium ones, contribute your own."
+      subtitle="Strategies traders made public: open one to read and fork it, or publish your own."
     >
       <template #actions>
         <NuxtLink to="/creator" class="cta-publish">+ Publish a strategy</NuxtLink>
@@ -128,6 +129,17 @@ function openStrategy(id: string) {
     </div>
 
     <UIEmptyState
+      v-else-if="stats.total === 0"
+      icon="◫"
+      title="No public strategy yet"
+      message="Nobody has published a strategy here yet. The Lab has sample strategies you can open, backtest and fork."
+    >
+      <template #action>
+        <NavigationNextLink to="/strategies" :label="`See the sample strategies in the ${routeLabel('/strategies')}`" />
+      </template>
+    </UIEmptyState>
+
+    <UIEmptyState
       v-else-if="filtered.length === 0"
       icon="◯"
       title="No strategies match"
@@ -146,6 +158,7 @@ function openStrategy(id: string) {
         @select="openStrategy"
       >
         <template #footer-extra>
+          <UISourceChip v-if="s.sample" source="sample" />
           <UIPill v-if="s.is_premium" tone="accent">Premium</UIPill>
           <UIPill v-else ghost tone="success">Free</UIPill>
         </template>

@@ -145,7 +145,7 @@ export const useTradingApi = () => {
   // Capture Nuxt context before any await (see composables gotcha in repo notes).
   const config = useRuntimeConfig()
   const auth = useAuth()
-  const base = `${config.public.apiBase as string}/api`
+  const base = `${config.public.apiBase as string}/api/v1`   // versioned API (the /api/ alias is deprecated)
 
   const call = async <T>(path: string, opts: { method?: string; body?: unknown } = {}, retried = false): Promise<T> => {
     const token = auth.accessToken.value

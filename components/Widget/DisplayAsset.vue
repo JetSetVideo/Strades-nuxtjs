@@ -112,6 +112,9 @@ const changePct = computed((): number => {
   const n = parseFloat(String(props.percentagePrice ?? '').replace(/[^0-9.-]/g, ''))
   return isNaN(n) ? 0 : n
 })
+/** A 24 h move backed by data (prop, live quote, or legacy text); false = unknown → "—" (swarm 11-02 PRICES-1). */
+const changeKnown = computed(() => props.priceChangePct !== undefined || typeof raw.value.change_24h_pct === 'number'
+  || !Number.isNaN(parseFloat(String(props.percentagePrice ?? '').replace(/[^0-9.-]/g, ''))))
 
 /** A full Asset for the chart composables, even from legacy props. */
 const assetObj = computed<Asset>(() => ({
@@ -398,7 +401,8 @@ onBeforeUnmount(() => {
 
       <div class="da-info">
         <span class="da-price">{{ fmtPrice(currentPrice, kind, assetObj.currency) }}</span>
-        <span class="da-change" :class="changePct >= 0 ? 'pos' : 'neg'">{{ changePct >= 0 ? '+' : '' }}{{ changePct.toFixed(2) }}%</span>
+        <span v-if="changeKnown" class="da-change" :class="changePct >= 0 ? 'pos' : 'neg'">{{ changePct >= 0 ? '+' : '' }}{{ changePct.toFixed(2) }}%</span>
+        <span v-else class="da-change" title="No live quote for this asset, so it has no 24 h move. It is left out of the market mood.">—</span>
         <span v-if="nearing.length" class="da-near-row">
           <span v-for="c in nearing" :key="c.id" class="da-near" :class="c.role">nearing {{ c.role }} {{ c.label }}</span>
         </span>

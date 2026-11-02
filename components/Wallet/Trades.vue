@@ -66,6 +66,8 @@ const qty = (n: number) => n.toLocaleString(APP_LOCALE, { maximumFractionDigits:
       <div class="title-row">
         <h3>Recent Trades</h3>
         <span class="meta">{{ sorted.length }} total · {{ fmt(totals.fees) }} fees</span>
+        <!-- REVIEW-8: wallet → history in 1 click (the History page, Trades lane). -->
+        <NuxtLink to="/historic?lane=trade" class="all-link">All history →</NuxtLink>
       </div>
       <UIOpChips
         label="Trade side"
@@ -146,6 +148,8 @@ const qty = (n: number) => n.toLocaleString(APP_LOCALE, { maximumFractionDigits:
 }
 
 .filter-row { display: inline-flex; gap: 0.2rem; }
+.all-link { margin-left: auto; font-size: 0.7rem; font-weight: 600; color: var(--primary-blue, #5b9cff); text-decoration: none; white-space: nowrap; }
+.all-link:hover { text-decoration: underline; }
 .filter-row button {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.06);

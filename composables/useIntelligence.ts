@@ -11,7 +11,7 @@ import {
   type HierarchyPayload, type IntelMePayload, type IntelRefreshPayload, type IntelRelationDetail, type IntelUserPayload,
 } from '~/utils/intelligence'
 import type { IntelEntourage, IntelMePayloadV2, IntelSpacePayload } from '~/utils/intelligenceV2'
-import type { IntelSimilarPayload } from '~/utils/intelligenceV3'
+import type { IntelInputs, IntelSimilarPayload } from '~/utils/intelligenceV3'
 
 export type IntelStatus = 'idle' | 'loading' | 'ready' | 'error' | 'signed-out'
 
@@ -26,10 +26,12 @@ const detailCache = new Map<string, { at: number; data: IntelRelationDetail }>()
  * state settles used to fire each request twice. One in-flight promise per URL, reused for SHARED_TTL.
  */
 const SHARED_TTL = 30_000
+/** me/ is fresh for 60 s: visiting /profile or /insights again within a minute reuses the answer (no refetch). */
+export const INTEL_ME_TTL = 60_000
 const shared = new Map<string, { at: number; p: Promise<unknown> }>()
-function once<T>(key: string, fetcher: () => Promise<T>, force = false): Promise<T> {
+function once<T>(key: string, fetcher: () => Promise<T>, force = false, ttl = SHARED_TTL): Promise<T> {
   const hit = shared.get(key)
-  if (hit && !force && Date.now() - hit.at < SHARED_TTL) return hit.p as Promise<T>
+  if (hit && !force && Date.now() - hit.at < ttl) return hit.p as Promise<T>
   const p = fetcher()
   shared.set(key, { at: Date.now(), p })
   p.catch(() => shared.delete(key))         // never cache a failure
@@ -84,7 +86,7 @@ export function useIntelligence() {
     if (!me.value) status.value = 'loading'
     error.value = null
     try {
-      const data = await once(`me:${auth.user.value?.id ?? ''}`, () => api()<IntelMePayload>('/api/v1/intelligence/me/'), force)
+      const data = await once(`me:${auth.user.value?.id ?? ''}`, () => api()<IntelMePayload>('/api/v1/intelligence/me/'), force, INTEL_ME_TTL)
       if (mine !== seq) return
       me.value = { ...data, relations: data.relations ?? [] }
       status.value = 'ready'
@@ -255,7 +257,7 @@ export function useIntelligence() {
     entourageStatus.value = 'loading'
     entourageError.value = null
     try {
-      entourage.value = await once(`entourage:${auth.user.value?.id ?? ''}`, () => api()<IntelEntourage>('/api/v1/intelligence/entourage/'), force)
+      entourage.value = await once(`entourage:${auth.user.value?.id ?? ''}`, () => api()<IntelEntourage>('/api/v1/intelligence/entourage/'), force, INTEL_ME_TTL)
       entourageStatus.value = 'ready'
     } catch (e: any) {
       entourageError.value = errMessage(e, 'Your entourage could not be loaded')
@@ -292,12 +294,14 @@ export function useIntelligence() {
 
   const profile = computed(() => me.value?.profile ?? null)
   const directive = computed(() => me.value?.directive ?? null)
+  /** C6: server counts of what the avatar saw; null on an older server (no `inputs`). */
+  const inputs = computed(() => (me.value as (IntelMePayload & { inputs?: IntelInputs }) | null)?.inputs ?? null)
   const relations = computed(() => me.value?.relations ?? [])
   const split = computed(() => splitRelations(relations.value))
   const lastRun = computed(() => me.value?.last_run ?? null)
 
   return {
-    me, status, error, profile, directive, relations, pairs: computed(() => split.value.pairs), groups: computed(() => split.value.groups), lastRun,
+    me, status, error, profile, directive, inputs, relations, pairs: computed(() => split.value.pairs), groups: computed(() => split.value.groups), lastRun,
     refreshing, refreshError, refreshedAt,
     selectedId, detail, detailStatus, detailError, compareUserId,
     hierarchy, hierarchyStatus, hierarchyError,

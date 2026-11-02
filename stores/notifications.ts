@@ -158,13 +158,12 @@ export const useNotificationsStore = defineStore('notifications', {
     },
 
     _api<T>(path: string, opts: Record<string, any> = {}): Promise<T> | null {
-      const { isAuthenticated, accessToken } = useAuth()
+      const { isAuthenticated } = useAuth()
       if (!isAuthenticated.value) return null
-      // Plain fetch typing (not Nitro's route-typed overload), as in composables/useLocalJson.ts.
-      return ($fetch as (u: string, o: Record<string, any>) => Promise<T>)(path, {
-        baseURL: useRuntimeConfig().public.apiBase as string, ...opts,
-        headers: { Authorization: `Bearer ${accessToken.value}`, ...(opts.headers ?? {}) },
-      })
+      // Through $api (plugins/api.ts): token at send time, one refresh + one retry on a 401. The bare
+      // $fetch it replaces kept polling 401 every minute once the access token expired (PERF-5).
+      const { $api } = useNuxtApp()
+      return ($api as (u: string, o: Record<string, any>) => Promise<T>)(path, opts)
     },
 
     /** Replace held copies by key (a row updated or read elsewhere shows its new state). */

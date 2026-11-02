@@ -91,12 +91,14 @@ export const ROUTES: readonly RouteEntry[] = [
   { path: '/profile', label: 'Profile', area: 'you', icon: '◉', hint: 'Your record and trained avatars', drawer: 'main' },
   { path: '/insights', label: 'Insights', area: 'you', icon: '◍', hint: 'How you trade, who you trade well with', drawer: 'main' },
   { path: '/notifications', label: 'Notifications', area: 'you', icon: '◑', hint: 'Alerts from avatars and the desk', drawer: 'main' },
-  { path: '/settings', label: 'Settings', area: 'you', icon: '⚙', hint: 'Appearance, chart and time zone', drawer: 'main' },
+  { path: '/settings', label: 'Settings', area: 'you', icon: '⚙', hint: 'Primary values, risk budget, appearance', drawer: 'main' },
   { path: '/apis', label: 'API Connections', area: 'you', icon: '⇄', hint: 'Broker feeds that train avatars', drawer: 'main' },
   { path: '/data', label: 'Data Catalog', area: 'you', icon: '▦', hint: 'Series an avatar can pull', drawer: 'main' },
   { path: '/help', label: 'Help', area: 'you', icon: '?', hint: 'How to train an avatar', drawer: 'footer' },
   { path: '/about', label: 'About', area: 'you', icon: '★', hint: 'What Strades is', drawer: 'footer' },
   { path: '/contact', label: 'Contact', area: 'you', icon: '✉', hint: 'Reach the desk', drawer: 'footer' },
+  // Dev gallery of the components no page uses (red button in the drawer footer, not a drawer group item).
+  { path: '/test', label: 'Test', area: 'you', icon: '⚗', hint: 'Gallery of the 19 components no page uses', search: true },
 ]
 
 /** Pages outside the app shell (sign-in). Listed so the page-file test knows they are deliberate. */
@@ -148,6 +150,99 @@ export function drawerFooter(): RouteEntry[] {
 /** Pages listed by global search: every drawer page unless `search: false`, plus `search: true`. */
 export function searchPages(): RouteEntry[] {
   return ROUTES.filter(r => r.search ?? !!r.drawer)
+}
+
+// ── Search: features that live inside a page (board-ia IA-6/IA-7) ─────────
+
+/**
+ * A search-only entry: a feature that is a SECTION of a page, so its words are
+ * not a page label ("directive", "mirror", "risk budget"). Search lists these in
+ * the "Pages" group; they are not routes (the page-file test ignores them).
+ * `to` must start with a registered page path (tests/nav-routes.test.ts).
+ */
+export interface SearchShortcut {
+  id: string
+  label: string
+  /** Lower-case words people type for this feature (substring match). */
+  keywords: readonly string[]
+  to: string
+  icon: string
+  hint: string
+}
+
+export const SEARCH_SHORTCUTS: readonly SearchShortcut[] = [
+  { id: 'sc-directive', label: 'Agent directive', keywords: ['directive', 'direction', 'give direction', 'instruct'], to: '/insights', icon: '➤', hint: 'What your agent is told to do' },
+  { id: 'sc-mirror', label: 'Your avatar mirror', keywords: ['your avatar', 'avatar', 'mirror', 'twin'], to: '/profile#intelligence', icon: '◐', hint: 'What your avatar learned from you' },
+  { id: 'sc-primary', label: 'Primary values', keywords: ['primary values', 'primary', 'starting capital', 'fees', 'slippage'], to: '/settings#primary', icon: '⚙', hint: 'Capital, fees, slippage: the roots of every number' },
+  { id: 'sc-risk', label: 'Risk budget', keywords: ['risk budget', 'max position', 'stop loss', 'take profit', 'risk'], to: '/settings#set-max_position_pct', icon: '⚠', hint: 'Max position, stop loss, take profit' },
+  { id: 'sc-ledger', label: 'Ledger and history', keywords: ['ledger', 'history', 'my trades', 'past calls'], to: '/historic', icon: '⌖', hint: 'Every call, trade and opinion that printed' },
+  { id: 'sc-call', label: 'Make a call', keywords: ['make a call', 'call', 'predict', 'prediction', 'forecast'], to: '/prices', icon: '◒', hint: 'Open an asset, click its chart' },
+  { id: 'sc-message', label: 'New message', keywords: ['new message', 'message', 'dm', 'write to'], to: '/chat', icon: '✉', hint: 'Chat › + New message' },
+]
+
+/**
+ * Forgiving match score (moved from SearchBar.vue so it is testable): an exact
+ * substring ranks by how early it starts; otherwise an in-order subsequence
+ * match ranks at 1000 + spread. −1 = no match.
+ */
+export function fuzzyMatchScore(term: string, target: string): number {
+  if (!term) return 0
+  const t = target.toLowerCase()
+  const q = term.toLowerCase()
+  const idx = t.indexOf(q)
+  if (idx !== -1) return idx
+  let cursor = 0
+  let first = -1
+  for (const ch of q) {
+    const found = t.indexOf(ch, cursor)
+    if (found === -1) return -1
+    if (first === -1) first = found
+    cursor = found + 1
+  }
+  return 1000 + (cursor - first)
+}
+
+/** Hint and keyword hits rank behind any label substring hit, ahead of fuzzy label hits. */
+const HINT_OFFSET = 500
+
+/**
+ * Score of a page or shortcut for a search term: label (substring or fuzzy),
+ * then hint and keywords (substring only: a fuzzy match on a long hint matches
+ * almost anything). Lower is better; −1 = no match.
+ */
+export function pageMatchScore(term: string, entry: { label: string, hint?: string, keywords?: readonly string[] }): number {
+  const q = term.trim().toLowerCase()
+  if (!q) return 0
+  const label = fuzzyMatchScore(q, entry.label)
+  if (label !== -1 && label < 1000) return label
+  let best = -1
+  for (const text of [entry.hint, ...(entry.keywords ?? [])]) {
+    if (!text) continue
+    const i = text.toLowerCase().indexOf(q)
+    if (i !== -1 && (best === -1 || HINT_OFFSET + i < best)) best = HINT_OFFSET + i
+  }
+  if (best !== -1) return best
+  return label
+}
+
+// ── Back links and area links (contract C10) ─────────────────────────────
+
+/**
+ * The 1-click way back for a page: its area home, labelled with the home's name.
+ * null on an area home itself and outside the registry. '/profile/[id]' (a
+ * Community page) goes back to Chat, not to your own Profile.
+ */
+export function areaHomeLink(path: string): { to: string, label: string } | null {
+  const r = findRoute(path)
+  if (!r) return null
+  const home = areaById(r.area).home
+  if (pathMatches(home, path)) return null
+  return { to: home, label: routeLabel(home) }
+}
+
+/** The area's drawer pages in drawer order (for <NavigationAreaLinks>). */
+export function areaPageLinks(area: AreaId): RouteEntry[] {
+  return ROUTES.filter(r => r.area === area && r.drawer === 'main')
 }
 
 /**

@@ -3,10 +3,16 @@
  * "You, so far": four tiles that read the timeline as a person — how you call, what your money did,
  * your agents, your opinions — plus when you are active (hour x weekday heatmap from the log rollup).
  * Exact counts come from the events in view; "recent" rates are the server EMAs and say so.
+ * Swarm 11-02: the bias + horizon line is computed from the calls in view (summary.style), hidden
+ * under 3 calls; every tile title is a link to its detail (1 click) and a Strategies tile closes the
+ * "how am I doing" hub (REVIEW-20). Sample paper rows never count as the user's money (REVIEW-5).
  */
 import { computed } from 'vue'
 import type { HistoryProfile, HistorySummary } from '~/utils/historyTimeline'
-import { histPct, histRelTime, histSignedUsd } from '~/utils/historyTimeline'
+import { fmtHorizonHours, histPct, histRelTime, histSignedUsd } from '~/utils/historyTimeline'
+
+/** Below this many calls a bias / typical horizon says nothing about the caller. */
+const MIN_CALLS_FOR_STYLE = 3
 
 const props = defineProps<{
   profile: HistoryProfile | null
@@ -39,11 +45,12 @@ const calibration = computed(() => {
   return v > 0 ? `You call moves ${v.toFixed(1)} pts too high on average.` : `You call moves ${Math.abs(v).toFixed(1)} pts too low on average.`
 })
 
-const horizon = computed(() => {
-  const h = c.value?.horizon_hours
-  if (h == null) return null
-  return h < 48 ? `${Math.round(h)} h` : h < 24 * 60 ? `${Math.round(h / 24)} d` : `${Math.round(h / 720)} mo`
-})
+// Bias + horizon from the same calls the count shows (own, or the chipped samples) — not the server EMA,
+// which still carried the demo seed ("Bullish 55 % · typical horizon 1 h" after one 6-day call).
+const style = computed(() => (callsSample.value ? props.sampleSummary : props.summary).style)
+const showStyle = computed(() => style.value.n >= MIN_CALLS_FOR_STYLE)
+const horizon = computed(() => fmtHorizonHours(style.value.horizonHours))
+const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many)
 
 const lean = (v: number, neg: string, pos: string) => (Math.abs(v) < 0.1 ? 'balanced' : `${v < 0 ? neg : pos} ${Math.round(Math.abs(v) * 100)}%`)
 const topTopic = computed(() => Object.entries(props.reading?.topic_affinity ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null)
@@ -84,14 +91,15 @@ const heatLabel = computed(() => (peak.value ? `Activity by weekday and hour (UT
 
     <div class="tiles">
       <article class="tile" style="--lane: var(--primary-blue)">
-        <h3 class="tile-k">◎ How you call <span v-if="callsSample" class="chip-sample" title="Pre-filled demo calls replayed on real prices, not yours">Sample</span></h3>
+        <h3 class="tile-k"><NuxtLink class="tile-link" :to="{ path: '/historic', query: { lane: 'prediction' }, hash: '#history-river' }" title="Your calls on the timeline">◎ How you call →</NuxtLink> <span v-if="callsSample" class="chip-sample" title="Pre-filled demo calls replayed on real prices, not yours">Sample</span></h3>
         <p class="tile-big">
-          <span class="num">{{ cs.made }}</span> calls
+          <span class="num">{{ cs.made }}</span> {{ plural(cs.made, 'call') }}
           <span class="tile-sub">· {{ cs.resolved }} scored · {{ cs.open }} open</span>
         </p>
         <ul class="facts">
           <li v-if="cs.resolved">Right direction <b class="num">{{ cs.right }}/{{ cs.resolved }}</b><template v-if="cs.avgScore !== null"> · avg score <b class="num">{{ Math.round(cs.avgScore) }}/100</b></template></li>
-          <li v-if="c">Bullish <b class="num">{{ Math.round(c.bullish_share * 100) }}%</b> of the time<template v-if="horizon"> · typical horizon <b>{{ horizon }}</b></template></li>
+          <li v-if="showStyle">Bullish <b class="num">{{ style.bullish }}/{{ style.n }}</b><template v-if="horizon"> · typical horizon <b>{{ horizon }}</b></template></li>
+          <li v-else-if="style.n" class="muted">Bias and typical horizon show from {{ MIN_CALLS_FOR_STYLE }} calls.</li>
           <li v-if="calibration">{{ calibration }}</li>
           <li v-if="c && c.hit_rate !== null" class="recent">Recent hit rate (weighted to your last calls) <b class="num">{{ Math.round(c.hit_rate * 100) }}%</b></li>
           <li v-if="!summary.calls.made" class="empty">{{ callsSample ? 'Your own calls will replace these.' : 'No calls yet.' }} Tap a price card on <NuxtLink to="/prices">Prices</NuxtLink> to make one.</li>
@@ -99,7 +107,7 @@ const heatLabel = computed(() => (peak.value ? `Activity by weekday and hour (UT
       </article>
 
       <article class="tile" style="--lane: var(--primary-green)">
-        <h3 class="tile-k">◈ What your money did <span v-if="moneySample" class="chip-sample" title="Pre-filled demo trades replayed on real prices, not yours">Sample</span></h3>
+        <h3 class="tile-k"><NuxtLink class="tile-link" to="/wallet" title="Your paper book on Wallet">◈ What your money did →</NuxtLink> <span v-if="moneySample" class="chip-sample" title="Pre-filled demo trades replayed on real prices, not yours">Sample</span></h3>
         <p v-if="ms.realized.n" class="tile-big">
           <span class="num" :data-tone="ms.realized.paper >= 0 ? 'up' : 'down'">{{ histSignedUsd(ms.realized.paper) }}</span>
           <span class="tile-sub">realised on paper · {{ ms.realized.n }} closed</span>
@@ -114,7 +122,7 @@ const heatLabel = computed(() => (peak.value ? `Activity by weekday and hour (UT
       </article>
 
       <article class="tile" style="--lane: var(--domain-agent)">
-        <h3 class="tile-k">⬡ Your agents</h3>
+        <h3 class="tile-k"><NuxtLink class="tile-link" to="/agents" title="All agents">⬡ Your agents →</NuxtLink></h3>
         <p class="tile-big">
           <span class="num">{{ summary.open.agents }}</span> running
         </p>
@@ -126,7 +134,7 @@ const heatLabel = computed(() => (peak.value ? `Activity by weekday and hour (UT
       </article>
 
       <article class="tile" style="--lane: var(--domain-social)">
-        <h3 class="tile-k">❝ Your opinions</h3>
+        <h3 class="tile-k"><NuxtLink class="tile-link" :to="{ path: '/historic', query: { lane: 'opinion' }, hash: '#history-river' }" title="Your opinions on the timeline">❝ Your opinions →</NuxtLink></h3>
         <template v-if="reading">
           <p class="tile-big"><span class="num">{{ reading.sample_count }}</span> articles shaped your lens</p>
           <ul class="facts">
@@ -138,6 +146,17 @@ const heatLabel = computed(() => (peak.value ? `Activity by weekday and hour (UT
           <p class="tile-big"><span class="num">0</span> articles judged</p>
           <ul class="facts"><li class="empty">React to articles on <NuxtLink to="/news">News</NuxtLink> to build your opinion lens.</li></ul>
         </template>
+      </article>
+
+      <article class="tile" style="--lane: var(--primary-blue)">
+        <h3 class="tile-k"><NuxtLink class="tile-link" to="/strategies" title="Your strategies and backtests">◇ Your strategies →</NuxtLink></h3>
+        <p class="tile-big">
+          <span class="num">{{ summary.strategies.n }}</span> {{ plural(summary.strategies.n, 'strategy', 'strategies') }} drafted
+        </p>
+        <ul class="facts">
+          <li v-if="summary.backtests.best">Best backtest <b class="num">{{ histPct(summary.backtests.best.pct) }}</b> <span class="muted">({{ summary.backtests.n }} {{ plural(summary.backtests.n, 'run') }})</span></li>
+          <li v-else class="empty">No backtest yet. <NuxtLink to="/strategies">Build or backtest one →</NuxtLink></li>
+        </ul>
       </article>
     </div>
 
@@ -182,9 +201,12 @@ const heatLabel = computed(() => (peak.value ? `Activity by weekday and hour (UT
 .you-next-v { color: var(--text-white); overflow-wrap: anywhere; }
 .you-next-t { color: var(--primary-blue); white-space: nowrap; }
 
-.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--card-gap); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--card-gap); }
 .tile { background: var(--surface-raised); border: 1px solid var(--edge-soft); border-top: 2px solid var(--lane); border-radius: var(--radius-md, 8px); padding: var(--card-pad); min-width: 0; display: flex; flex-direction: column; gap: 0.35rem; }
 .tile-k { margin: 0; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lane); }
+.you .tile-k .tile-link { color: inherit; text-decoration: none; }
+.you .tile-k .tile-link:hover { text-decoration: underline; }
+.you .tile-k .tile-link:focus-visible { outline: 2px solid var(--primary-blue); outline-offset: 2px; border-radius: 2px; }
 .tile-big { margin: 0; font-size: 0.85rem; color: var(--text-light-gray); }
 .tile-big .num { font-size: 1.35rem; font-weight: 700; color: var(--text-white); }
 .tile-sub { font-size: 0.72rem; color: var(--text-gray); }
@@ -216,6 +238,5 @@ const heatLabel = computed(() => (peak.value ? `Activity by weekday and hour (UT
 .heat-d { font-size: 0.6rem; color: var(--text-gray); line-height: 10px; }
 .heat-c { height: 10px; border-radius: 2px; background: color-mix(in oklch, var(--primary-blue) calc(var(--v) * 85%), rgba(255,255,255,0.04)); }
 
-@media (max-width: 1100px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .tiles { grid-template-columns: minmax(0, 1fr); } }
 </style>

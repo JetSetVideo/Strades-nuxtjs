@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useUsersStore } from '@/stores/users'
 import { useCommunityStore } from '@/stores/community'
 import { useProfile } from '@/composables/useProfile'
@@ -10,6 +10,8 @@ import { compareCircle } from '~/utils/profileMask'
 import { isPaidRole, buildDeskCalendar, type HistoryRow, type TradeMark } from '~/utils/profileDesk'
 import { POINTS_FOR, sharePaths, walletLayers } from '~/utils/walletBook'
 import type { CommunityUser } from '@/stores/community'
+import { useChatStore } from '@/stores/chat'
+import { isServerUserId } from '~/utils/chatMap'
 
 import ProfileHero from '@/components/Profile/Hero.vue'
 import ProfileActivityYear from '@/components/Profile/ActivityYear.vue'
@@ -45,7 +47,80 @@ const {
 } = useProfile(userId)
 
 // Load friends for contacts rail (non-blocking, parallel with profile data)
-onMounted(() => { communityStore.fetchCommunity() })
+onMounted(() => {
+  communityStore.fetchCommunity()
+  void loadServerSide()
+})
+
+// ── Message / Follow (= add friend, C3) ──────────────────────────────────────
+const chatStore = useChatStore()
+const { isAuthenticated } = useAuth()
+/** One sentence under the hero after Message / Follow (the server's refusal, "coming soon", sample note). */
+const actionNote = ref('')
+const actionBusy = ref(false)
+/** A server person (uuid) that the sample directory does not know: GET /api/v1/social/profiles/<id>/. */
+const serverProfile = ref<Record<string, any> | null>(null)
+const serverProfileState = ref<'idle' | 'loading' | 'ok' | 'missing'>('idle')
+const serverPerson = computed(() => communityStore.serverList.find(p => p.id === userId.value) ?? null)
+const isFriend = computed(() => serverPerson.value?.is_friend === true)
+
+async function loadServerSide() {
+  if (!isServerUserId(userId.value)) return
+  if (isAuthenticated.value) void communityStore.loadServerPeople()
+  serverProfileState.value = 'loading'
+  try {
+    const { $api } = useNuxtApp()
+    serverProfile.value = await ($api as typeof $fetch)<Record<string, any>>(`/api/v1/social/profiles/${userId.value}/`)
+    serverProfileState.value = 'ok'
+  } catch {
+    serverProfileState.value = 'missing'
+  }
+}
+watch(userId, () => { serverProfile.value = null; actionNote.value = ''; void loadServerSide() })
+
+function signInFirst() {
+  navigateTo(`/auth?redirect=${encodeURIComponent(`/profile/${userId.value}`)}`)
+}
+
+async function onMessage() {
+  actionNote.value = ''
+  if (!isAuthenticated.value) return signInFirst()
+  if (!isServerUserId(userId.value)) {
+    actionNote.value = 'This is a sample profile: it cannot receive messages. Real people and bots are in Chat › Discover.'
+    return
+  }
+  actionBusy.value = true
+  try {
+    const conv = await chatStore.startDirectConversation(userId.value)
+    await navigateTo(`/conversations/${conv.id}`)
+  } catch (e) {
+    // 403: "You can message friends, bots and people you share a room with."
+    actionNote.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    actionBusy.value = false
+  }
+}
+
+async function onFollow() {
+  actionNote.value = ''
+  if (!isAuthenticated.value) return signInFirst()
+  if (!isServerUserId(userId.value)) {
+    actionNote.value = 'This is a sample profile: it cannot be followed. Add real people and bots from Chat › Discover.'
+    return
+  }
+  if (communityStore.friendsRoute === 'missing') {
+    actionNote.value = 'Following is coming soon.'
+    return
+  }
+  actionBusy.value = true
+  const res = await communityStore.setFriendRemote(userId.value, !isFriend.value)
+  actionBusy.value = false
+  if (res === 'missing') actionNote.value = 'Following is coming soon.'
+  else if (res === 'error') actionNote.value = communityStore.friendErrors[userId.value] ?? 'Not saved.'
+  else actionNote.value = isFriend.value || !serverPerson.value
+    ? 'Added as a friend: you can message each other now.'
+    : 'Removed from your friends.'
+}
 
 // Active section tab for Self-Analyse panel
 type AnalyseSection =
@@ -240,6 +315,7 @@ const pageStyle = computed(() => ({
 
 <template>
   <div class="profile-page" :style="pageStyle">
+    <NavigationBackLink />
 
     <!-- ── Skeleton loader while fetching ─────────────────────────────── -->
     <div v-if="loading && !user" class="skeleton-wrap">
@@ -248,10 +324,34 @@ const pageStyle = computed(() => ({
       <div class="skeleton-section short" />
     </div>
 
+    <!-- ── A server person (uuid) the sample directory does not know: a compact card ── -->
+    <div v-else-if="!user && serverProfile" class="card server-person">
+      <div class="sp-head">
+        <img v-if="serverProfile.avatar_url" :src="serverProfile.avatar_url" alt="" class="sp-avatar">
+        <div>
+          <h1 class="sp-name">{{ serverProfile.full_name || serverProfile.username }}</h1>
+          <p class="sp-handle">@{{ serverProfile.username }}<template v-if="serverProfile.is_bot"> · Society bot</template><template v-if="serverProfile.trading_style"> · {{ serverProfile.trading_style }}</template></p>
+        </div>
+      </div>
+      <p v-if="serverProfile.bio" class="sp-bio">{{ serverProfile.bio }}</p>
+      <div class="sp-actions">
+        <button type="button" class="sp-btn primary" :disabled="actionBusy" @click="onMessage">Message</button>
+        <button
+          type="button"
+          class="sp-btn"
+          :disabled="actionBusy || communityStore.friendsRoute === 'missing'"
+          :title="communityStore.friendsRoute === 'missing' ? 'Coming soon' : undefined"
+          @click="onFollow"
+        >{{ communityStore.friendsRoute === 'missing' ? 'Add friend · coming soon' : isFriend ? 'Friends ✓ (remove)' : '+ Add friend' }}</button>
+      </div>
+      <p v-if="actionNote" class="sp-note" role="status">{{ actionNote }}</p>
+      <NuxtLink to="/chat" class="sp-back">← Chat</NuxtLink>
+    </div>
+
     <!-- ── User not found ─────────────────────────────────────────────── -->
-    <div v-else-if="!user && !loading" class="not-found">
+    <div v-else-if="!user && !loading && serverProfileState !== 'loading'" class="not-found">
       <p>Profile not found.</p>
-      <NuxtLink to="/">← Home</NuxtLink>
+      <NuxtLink to="/chat">← Chat</NuxtLink>
     </div>
 
     <!-- ── Main content ──────────────────────────────────────────────── -->
@@ -261,10 +361,16 @@ const pageStyle = computed(() => ({
       <ProfileHero
         :user="user"
         :is-own="isOwn"
+        :follow-label="communityStore.friendsRoute === 'missing' ? 'Follow · coming soon' : isFriend ? 'Friends ✓' : 'Follow'"
+        :follow-disabled="communityStore.friendsRoute === 'missing'"
         class="fade-in"
-        @follow="() => {}"
-        @message="() => {}"
+        @follow="onFollow"
+        @message="onMessage"
       />
+      <p v-if="actionNote" class="action-note" role="status">
+        {{ actionNote }}
+        <NuxtLink v-if="!isServerUserId(userId)" to="/chat">Open Chat</NuxtLink>
+      </p>
 
       <!-- Error notices (per section, non-blocking) -->
       <div v-if="Object.keys(sectionErrors).length" class="error-banner">
@@ -788,4 +894,26 @@ const pageStyle = computed(() => ({
 @media (max-width: 640px) {
   .tab-btn { flex-basis: 5.2rem; }
 }
+.action-note { margin: 0.5rem 0; font-size: 0.8rem; color: rgba(255,255,255,0.75); }
+.server-person { max-width: 560px; margin: 1.5rem auto; padding: 1.25rem; }
+.sp-head { display: flex; gap: 0.9rem; align-items: center; }
+.sp-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
+.sp-name { margin: 0; font-size: 1.1rem; }
+.sp-handle { margin: 0.15rem 0 0; font-size: 0.75rem; opacity: 0.65; }
+.sp-bio { font-size: 0.85rem; opacity: 0.85; }
+.sp-actions { display: flex; gap: 0.5rem; margin: 0.75rem 0; }
+.sp-btn {
+  flex: 1 1 0;
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.sp-btn.primary { border-color: var(--primary-green, #00ff88); color: var(--primary-green, #00ff88); }
+.sp-btn:disabled { opacity: 0.5; cursor: default; }
+.sp-note { font-size: 0.8rem; opacity: 0.8; }
+.sp-back { font-size: 0.75rem; }
 </style>

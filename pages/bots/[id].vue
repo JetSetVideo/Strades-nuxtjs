@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { routeLabel } from '~/utils/routes'
 import { useBotsStore } from '@/stores/bots'
 import { useAgentsStore } from '@/stores/agents'
 import { useStrategiesStore } from '@/stores/strategies'
@@ -128,6 +129,7 @@ function toggleStatus() {
   </div>
 
   <div v-else-if="bot" class="bot-detail">
+    <NavigationBackLink />
     <UIPageHeader :title="bot.name" :subtitle="`Bot · started ${startedRel}`">
       <template #actions>
         <UISourceChip source="simulated" note="Sample bot from the catalog: it does not trade and is not connected to an exchange. Your real paper bots are on /trade." />
@@ -244,7 +246,7 @@ function toggleStatus() {
 
   <div v-else class="not-found">
     <h1>Bot not found</h1>
-    <NuxtLink to="/strategies">← Back to Trading Lab</NuxtLink>
+    <NuxtLink to="/strategies">← {{ routeLabel('/strategies') }}</NuxtLink>
   </div>
 </template>
 

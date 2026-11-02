@@ -9,6 +9,7 @@ import {
   mapServerMessage,
   mergeServerConversation,
   replaceConversationMessages,
+  shareMessageBody,
   toggleOwnReaction,
   upsertConversation,
   type ChatAction,
@@ -19,6 +20,7 @@ import {
   type ServerMessage,
   type ServerProfile,
   type ServerReactionResult,
+  type ShareItem,
 } from '~/utils/chatMap'
 
 // Types live in utils/chatMap.ts (pure, tested); re-exported for existing imports.
@@ -249,14 +251,35 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    /** POST a message to a server conversation; the server's copy is added to the store. Throws on failure. */
-    async sendMessageRemote(conversationId: string, content: string) {
+    /**
+     * POST a message to a server conversation; the server's copy is added to the store. Throws on failure.
+     * `replyTo` (C4 `reply_to`) and `share` (C4 `share: {kind, id}`) are optional: an older server ignores them,
+     * so the store keeps the quote locally when the answer has none.
+     */
+    async sendMessageRemote(
+      conversationId: string,
+      content: string,
+      opts: { replyTo?: Message | null; share?: { kind: string; id: string } } = {},
+    ) {
+      const body: Record<string, unknown> = { content }
+      if (opts.replyTo) body.reply_to = opts.replyTo.id
+      if (opts.share) body.share = opts.share
       const data = await api()<ServerMessage>(
         `/api/v1/social/conversations/${conversationId}/messages/`,
-        { method: 'POST', body: { content } },
+        { method: 'POST', body },
       )
       const conversation = this.conversations.find(c => c.id === conversationId)
       const newMessage = mapServerMessage(data, conversation?.participants ?? [])
+      if (opts.replyTo && !newMessage.reply_to_preview) {
+        // Server without C4 reply_to: show the quote in this tab only (it is not saved).
+        newMessage.reply_to_preview = {
+          id: String(opts.replyTo.id),
+          content: opts.replyTo.content,
+          author: opts.replyTo.sender_full_name || opts.replyTo.sender_username,
+        }
+        newMessage.reply_to_id = String(opts.replyTo.id)
+        newMessage.reply_to = String(opts.replyTo.id)
+      }
       this.messages.push(newMessage)
       if (conversation) {
         conversation.last_message_at = newMessage.created_at
@@ -286,6 +309,40 @@ export const useChatStore = defineStore('chat', {
         console.warn('chat: POST /api/v1/social/conversations/ failed', e)
         throw new Error(describeChatError('start', e))
       }
+    },
+
+    /**
+     * Share an object (C9) into server conversations: people get their direct conversation (started or reopened),
+     * rooms get the message as is. Returns one line per target; never throws.
+     */
+    async shareToTargets(
+      item: ShareItem,
+      targets: Array<{ kind: 'person' | 'room'; id: string; label: string }>,
+      note = '',
+    ): Promise<Array<{ label: string; ok: boolean; conversationId?: string; error?: string }>> {
+      const { content, share } = shareMessageBody(item, note)
+      const out: Array<{ label: string; ok: boolean; conversationId?: string; error?: string }> = []
+      for (const t of targets) {
+        try {
+          const convId = t.kind === 'room' ? t.id : (await this.startDirectConversation(t.id)).id
+          try {
+            try {
+              await this.sendMessageRemote(convId, content, { share })
+            } catch (e) {
+              // The server could not attach this object (a sample id, not yours: 400/404): send the link line only.
+              const s = statusOf(e)
+              if (s !== 400 && s !== 404) throw e
+              await this.sendMessageRemote(convId, content)
+            }
+            out.push({ label: t.label, ok: true, conversationId: convId })
+          } catch (e) {
+            out.push({ label: t.label, ok: false, conversationId: convId, error: describeChatError('send', e) })
+          }
+        } catch (e) {
+          out.push({ label: t.label, ok: false, error: e instanceof Error ? e.message : String(e) })
+        }
+      }
+      return out
     },
 
     /** The public people directory (first page), for the New message picker when signed in. */

@@ -2,11 +2,26 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useChatStore, describeChatError, type Participant } from '~/stores/chat'
 import { useUsersStore } from '~/stores/users'
-import { directCandidates, type ServerProfile } from '~/utils/chatMap'
+import { useCommunityStore } from '~/stores/community'
+import { directCandidates, isServerUserId, quoteOf, shareUrl, type ServerProfile, type ShareItem } from '~/utils/chatMap'
 import UISourceChip from '@/components/UI/SourceChip.vue'
 
-const props = defineProps<{ open: boolean }>()
-const emit = defineEmits<{ (e: 'update:open', v: boolean): void }>()
+const props = defineProps<{
+  open: boolean
+  /** Open with this person already picked (chat person cards, profile). */
+  preselect?: string | null
+  /** Share mode (C9 <ChatShareTo>): send this object to the people/rooms picked. */
+  share?: ShareItem | null
+}>()
+const emit = defineEmits<{ (e: 'update:open', v: boolean): void; (e: 'shared', n: number): void }>()
+const community = useCommunityStore()
+const sharing = computed(() => !!props.share && isAuthenticated.value)
+/** Rooms (server group conversations) a share can go to. */
+const rooms = computed(() => chatStore.conversations
+  .filter(c => c.source === 'server' && c.type === 'group')
+  .filter(c => !search.value.trim() || (c.title ?? '').toLowerCase().includes(search.value.trim().toLowerCase()))
+  .slice(0, 12))
+const shareResults = ref<Array<{ label: string; ok: boolean; conversationId?: string; error?: string }>>([])
 
 const chatStore = useChatStore()
 const usersStore = useUsersStore()
@@ -38,7 +53,7 @@ async function loadProfiles() {
   }
 }
 
-interface PickRow { id: string; username: string; name: string; avatar: string; note: string }
+interface PickRow { id: string; username: string; name: string; avatar: string; note: string; blocked?: boolean }
 
 const candidates = computed<PickRow[]>(() => {
   const me = getUserId()
@@ -46,6 +61,7 @@ const candidates = computed<PickRow[]>(() => {
   if (isAuthenticated.value) {
     return directCandidates(chatStore.conversations, profiles.value, me, q).map(c => ({
       id: c.user_id, username: c.username, name: c.full_name, avatar: c.avatar_url, note: c.note,
+      blocked: c.canMessage === false,
     }))
   }
   return usersStore.users
@@ -60,14 +76,45 @@ const candidates = computed<PickRow[]>(() => {
 const rowOf = (id: string) => candidates.value.find(c => c.id === id)
   ?? (() => { const u = usersStore.getUserById(id); return u ? { username: u.username, avatar: u.avatar_url } : null })()
 
+/** A greyed row (C2 can_message=false) that was clicked: offer "Add friend" instead of a 403. */
+const blockedPick = ref<PickRow | null>(null)
+const friendBusy = ref(false)
+
 const toggle = (id: string) => {
   errorText.value = ''
   openedId.value = null
+  blockedPick.value = null
+  const row = candidates.value.find(c => c.id === id)
   const i = selected.value.indexOf(id)
-  if (i > -1) selected.value.splice(i, 1)
-  // The server starts DIRECT conversations only: one recipient when signed in.
-  else if (isAuthenticated.value) selected.value = [id]
+  if (i > -1) { selected.value.splice(i, 1); return }
+  if (row?.blocked) {
+    blockedPick.value = row
+    errorText.value = `Add ${row.username} as a friend first: you can message friends, bots and people you share a room with.`
+    return
+  }
+  // The server starts DIRECT conversations only: one recipient when signed in (shares may go to several).
+  if (isAuthenticated.value && !sharing.value) selected.value = [id]
   else selected.value.push(id)
+}
+
+async function addFriendThenPick() {
+  const row = blockedPick.value
+  if (!row || friendBusy.value) return
+  friendBusy.value = true
+  const res = await community.setFriendRemote(row.id, true)
+  friendBusy.value = false
+  if (res === 'ok') {
+    profiles.value = profiles.value.map(p => p.user_id === row.id ? { ...p, can_message: true } : p)
+    blockedPick.value = null
+    errorText.value = ''
+    if (sharing.value) selected.value.push(row.id)
+    else selected.value = [row.id]
+  } else if (res === 'missing') {
+    errorText.value = 'Adding friends is coming soon. Meanwhile, message a bot or someone from your rooms.'
+    blockedPick.value = null
+  } else {
+    errorText.value = community.friendErrors[row.id] ?? 'Friend request not saved.'
+  }
 }
 
 const canSend = computed(() => !busy.value && selected.value.length > 0 &&
@@ -81,6 +128,29 @@ function reset() {
   search.value = ''
   errorText.value = ''
   openedId.value = null
+  blockedPick.value = null
+  shareResults.value = []
+}
+
+/** Rooms are picked with an `room:` prefix so they never collide with person ids. */
+const roomLabel = (id: string) => chatStore.getConversationById(id.slice(5))?.title || 'Room'
+
+async function sendShare() {
+  if (!props.share || !selected.value.length) return
+  busy.value = true
+  errorText.value = ''
+  try {
+    const targets = selected.value.map(id => id.startsWith('room:')
+      ? { kind: 'room' as const, id: id.slice(5), label: roomLabel(id) }
+      : { kind: 'person' as const, id, label: rowOf(id)?.username ?? 'someone' })
+    shareResults.value = await chatStore.shareToTargets(props.share, targets, firstMessage.value)
+    const sent = shareResults.value.filter(r => r.ok).length
+    if (sent) emit('shared', sent)
+    if (sent === targets.length) { selected.value = []; firstMessage.value = '' }
+    else selected.value = selected.value.filter((_, i) => !shareResults.value[i]?.ok)
+  } finally {
+    busy.value = false
+  }
 }
 
 function goTo(id: string) {
@@ -118,6 +188,7 @@ async function sendServer() {
 
 const send = async () => {
   if (!canSend.value) return
+  if (sharing.value) return sendShare()
   if (isAuthenticated.value) return sendServer()
   // ── Signed out: sample mode, the conversation lives in this tab only ──
   const me = getUserId()
@@ -195,13 +266,28 @@ onMounted(async () => {
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 async function onOpen() {
+  applyPreselect()
   if (!isAuthenticated.value) return
   // People from the user's own conversations are listed first: make sure the list is loaded.
   await Promise.allSettled([chatStore.ensureLoaded(), loadProfiles()])
+  // C2 can change (a new friend): refresh the directory each time the picker opens.
+  if (profilesState.value === 'ok') { profilesState.value = 'idle'; void loadProfiles() }
+}
+
+function applyPreselect() {
+  const id = props.preselect
+  if (!id) return
+  if (isAuthenticated.value && !isServerUserId(id)) {
+    errorText.value = 'This trader is a sample profile and cannot receive messages. Pick someone from the list.'
+    return
+  }
+  if (!selected.value.includes(id)) selected.value = sharing.value ? [...selected.value, id] : [id]
 }
 
 watch(() => props.open, (v) => {
   if (v) void onOpen()
+  // Closing always forgets the pick, so the next opening starts clean (or with its own preselect).
+  else reset()
   if (typeof document === 'undefined') return
   document.body.style.overflow = v ? 'hidden' : ''
 })
@@ -220,15 +306,19 @@ watch(isAuthenticated, () => {
   <Teleport to="body">
     <Transition name="nm-fade">
       <div v-if="open" class="nm-backdrop" @click="close">
-        <div class="nm-modal" role="dialog" aria-label="New message" @click.stop>
+        <div class="nm-modal" role="dialog" :aria-label="sharing ? 'Share to chat' : 'New message'" @click.stop>
           <header class="head">
-            <h3>New message</h3>
+            <h3>{{ sharing ? 'Share to chat' : 'New message' }}</h3>
             <button class="close" aria-label="Close" @click="close">✕</button>
           </header>
 
           <p v-if="!isAuthenticated" class="mode-note">
             <UISourceChip source="sample" note="Signed out: sample traders. The conversation stays in this tab and is not saved." />
             Sample mode — the conversation stays in this tab. <NuxtLink to="/auth?redirect=/chat" @click="close">Sign in</NuxtLink> to message real people.
+          </p>
+          <p v-else-if="sharing && share" class="mode-note share-note">
+            📎 <strong>{{ quoteOf(share.title, 70) }}</strong> <span class="share-path">{{ shareUrl(share) }}</span><br>
+            Pick people or rooms: each gets a message with a link card.
           </p>
           <p v-else class="mode-note">
             Direct message, saved to your account. You can message friends, bots and people you share a room with.
@@ -239,11 +329,11 @@ watch(isAuthenticated, () => {
               v-for="id in selected"
               :key="id"
               class="sel-chip"
-              :title="`Remove ${rowOf(id)?.username ?? id}`"
+              :title="`Remove ${id.startsWith('room:') ? roomLabel(id) : rowOf(id)?.username ?? 'this person'}`"
               @click="toggle(id)"
             >
-              <img :src="rowOf(id)?.avatar || '/avatars/Ellipse5.png'" alt="">
-              {{ rowOf(id)?.username ?? id }}
+              <img v-if="!id.startsWith('room:')" :src="rowOf(id)?.avatar || '/avatars/Ellipse5.png'" alt="">
+              {{ id.startsWith('room:') ? `# ${roomLabel(id)}` : rowOf(id)?.username ?? 'Selected person' }}
               <span class="x">✕</span>
             </button>
           </div>
@@ -257,10 +347,32 @@ watch(isAuthenticated, () => {
           >
 
           <ul class="user-list" :aria-busy="profilesState === 'loading'">
+            <template v-if="sharing && rooms.length">
+              <li class="list-head">Rooms</li>
+              <li
+                v-for="c in rooms"
+                :key="`room-${c.id}`"
+                :class="['user-row', { picked: selected.includes(`room:${c.id}`) }]"
+                role="button"
+                tabindex="0"
+                :aria-pressed="selected.includes(`room:${c.id}`)"
+                @click="toggle(`room:${c.id}`)"
+                @keydown.enter.prevent="toggle(`room:${c.id}`)"
+              >
+                <span class="avatar room-mark" aria-hidden="true">#</span>
+                <div class="who">
+                  <span class="uname">{{ c.title || 'Room' }}</span>
+                  <span class="fname">{{ c.participants.length }} members</span>
+                </div>
+                <span class="pick-mark">{{ selected.includes(`room:${c.id}`) ? '✓' : '+' }}</span>
+              </li>
+              <li class="list-head">People</li>
+            </template>
             <li
               v-for="u in candidates"
               :key="u.id"
-              :class="['user-row', { picked: selected.includes(u.id) }]"
+              :class="['user-row', { picked: selected.includes(u.id), blocked: u.blocked }]"
+              :title="u.blocked ? 'Add as friend first' : undefined"
               role="button"
               tabindex="0"
               :aria-pressed="selected.includes(u.id)"
@@ -289,23 +401,39 @@ watch(isAuthenticated, () => {
             v-model="firstMessage"
             class="msg-input"
             rows="2"
-            :placeholder="isAuthenticated ? 'First message (optional)…' : 'First message…'"
+            :placeholder="sharing ? 'Add a note (optional)…' : isAuthenticated ? 'First message (optional)…' : 'First message…'"
             aria-label="First message"
           />
 
           <p v-if="errorText" class="error" role="alert">
             {{ errorText }}
             <button v-if="openedId" type="button" class="link-btn" @click="goTo(openedId)">Open the chat</button>
+            <button
+              v-if="blockedPick && community.friendsRoute !== 'missing'"
+              type="button"
+              class="link-btn"
+              :disabled="friendBusy"
+              @click="addFriendThenPick"
+            >{{ friendBusy ? 'Adding…' : `+ Add ${blockedPick.username} as friend` }}</button>
           </p>
+          <ul v-if="shareResults.length" class="share-results" aria-live="polite">
+            <li v-for="(res, i) in shareResults" :key="i" :class="res.ok ? 'ok' : 'fail'">
+              {{ res.ok ? '✓' : '✕' }} {{ res.label }}<template v-if="!res.ok"> — {{ res.error }}</template>
+              <button v-if="res.conversationId" type="button" class="link-btn" @click="goTo(res.conversationId)">Open</button>
+            </li>
+          </ul>
 
           <footer class="foot">
             <span class="hint">
+              <template v-if="sharing">{{ selected.length === 0 ? 'Pick people or rooms' : `${selected.length} selected` }}</template>
+              <template v-else>
               {{ selected.length === 0 ? (isAuthenticated ? 'Pick one person' : 'Pick one or more recipients')
                 : selected.length === 1 ? 'Direct message'
                 : `Group of ${selected.length} (sample, this tab only)` }}
+              </template>
             </span>
             <button class="send" :disabled="!canSend" @click="send">
-              {{ busy ? 'Opening…' : isAuthenticated && !firstMessage.trim() ? 'Open chat' : 'Send' }}
+              {{ busy ? (sharing ? 'Sharing…' : 'Opening…') : sharing ? 'Share' : isAuthenticated && !firstMessage.trim() ? 'Open chat' : 'Send' }}
             </button>
           </footer>
         </div>
@@ -518,4 +646,28 @@ watch(isAuthenticated, () => {
   .nm-fade-enter-active, .nm-fade-leave-active, .user-row, .send { transition: none; }
   .send:hover:not(:disabled) { transform: none; }
 }
+/* C2: people the server would refuse (can_message=false) stay visible, greyed, with the reason. */
+.user-row.blocked { opacity: 0.45; }
+.user-row.blocked .fname { color: rgba(255,255,255,0.7); }
+.list-head {
+  list-style: none;
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  padding: 0.35rem 0.5rem 0.15rem;
+}
+.room-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.06);
+}
+.share-path { opacity: 0.55; font-size: 0.85em; }
+.share-results { list-style: none; margin: 0.4rem 0 0; padding: 0; font-size: 0.75rem; }
+.share-results li { padding: 0.15rem 0; }
+.share-results .ok { color: var(--primary-green, #00ff88); }
+.share-results .fail { color: #ff6b6b; }
 </style>

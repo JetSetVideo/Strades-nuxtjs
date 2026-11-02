@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, reactive, onMounted, onBeforeUnmount } from 'vue'
-import { ROUTE_AREAS, areaOf, drawerFooter, drawerGroups, findRoute, type AreaId, type RouteEntry } from '~/utils/routes'
+import { ROUTE_AREAS, areaOf, drawerFooter, drawerGroups, findRoute, routeLabel, type AreaId, type RouteEntry } from '~/utils/routes'
 
 const props = withDefaults(defineProps<{
   /** When true, hide the built-in trigger button (caller controls open externally). */
@@ -159,6 +159,9 @@ defineExpose({ open: isOpen, toggle, close })
           </nav>
 
           <footer class="drawer-foot">
+            <NuxtLink to="/test" class="test-btn" :aria-current="isCurrent('/test') ? 'page' : undefined" @click="close">
+              ⚗ {{ routeLabel('/test') }} · unused components
+            </NuxtLink>
             <nav class="foot-links" aria-label="Help">
               <NuxtLink
                 v-for="item in FOOTER"
@@ -471,6 +474,21 @@ defineExpose({ open: isOpen, toggle, close })
   padding-block: var(--drawer-tree-pad-y) calc(var(--drawer-tree-pad-y) + env(safe-area-inset-bottom));
   border-top: var(--drawer-tree-rule-width) solid var(--drawer-tree-edge);
 }
+.test-btn {
+  display: block;
+  margin-bottom: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--error-red, #e5484d);
+  color: #fff;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+.test-btn:hover { filter: brightness(1.1); }
+.test-btn[aria-current='page'] { outline: 2px solid #fff; outline-offset: 2px; }
+
 .signout {
   padding: 0.4rem 0.2rem;
   border: none;

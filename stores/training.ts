@@ -178,6 +178,18 @@ const sumDeltas = (deltas: Partial<PersonalityMatrix>[]): Partial<PersonalityMat
   return out
 }
 
+/**
+ * Deterministic tick reward from the batch's real inputs: the hit rate of scored calls
+ * (`prediction_triggered` with a boolean `hit`) mapped to ±0.02. Undefined when the batch
+ * holds no scored call — the in-browser training is simulated and must not invent a P&L.
+ */
+export function trainingTickReward(events: Pick<TrainingEvent, 'type' | 'payload'>[]): number | undefined {
+  const scored = events.filter(e => e.type === 'prediction_triggered' && typeof e.payload?.hit === 'boolean')
+  if (!scored.length) return undefined
+  const hits = scored.filter(e => e.payload.hit).length
+  return Math.round(((hits / scored.length) * 2 - 1) * 0.02 * 1e6) / 1e6
+}
+
 let _eventCounter = 0
 const nextEventId = () => `ev_${Date.now()}_${++_eventCounter}`
 
@@ -251,9 +263,9 @@ export const useTrainingStore = defineStore('training', {
       Object.entries(byAgent).forEach(([agentId, events]) => {
         const deltas = events.map(e => EVENT_DELTA_MAP[e.type]?.(e.payload) ?? {})
         const aggregate = sumDeltas(deltas)
-        // Reward is a synthetic signal — agent's recent reward EMA + a noise term
-        const agent = agents.getAvatarById(agentId)
-        const reward = (agent?.training_state.reward_ema_pnl ?? 0.04) + (Math.random() - 0.5) * 0.02
+        // Reward comes only from real inputs in this batch (scored calls); undefined = no
+        // reward signal → the EMA is left untouched and the timeline shows "—". No noise term.
+        const reward = trainingTickReward(events)
         agents.applyTrainingDelta(agentId, aggregate, reward)
         const td: TrainingDelta = {
           delta: aggregate,

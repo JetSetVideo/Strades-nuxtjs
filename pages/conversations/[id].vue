@@ -5,7 +5,8 @@ import { useChatStore, describeChatError } from '@/stores/chat';
 import { useUsersStore } from '@/stores/users';
 import { useSharesStore } from '@/stores/shares';
 import { useAgentsStore } from '@/stores/agents';
-import { conversationDisplay, reactionSummary, messageCountLabel, CHAT_REACTIONS } from '~/utils/chatMap';
+import { conversationDisplay, reactionSummary, messageCountLabel, CHAT_REACTIONS, shareCardOf, shareMessageBody, quoteOf } from '~/utils/chatMap';
+import { useStrategiesStore } from '@/stores/strategies';
 import { toDate, fmtTime, fmtDayTime } from '~/utils/format';
 import DatabaseButton from '@/components/Button/Database.vue';
 import ChatShareBar from '@/components/Chat/ShareBar.vue';
@@ -22,6 +23,17 @@ const chatStore = useChatStore();
 const usersStore = useUsersStore();
 const sharesStore = useSharesStore();
 const agents = useAgentsStore();
+const strategiesStore = useStrategiesStore();
+/** The message being answered (C4 reply_to); shown above the input. */
+const replyTo = ref(null);
+/** Share bar › Strategy: pick one of YOUR strategies (never a fixed sample). */
+const strategyPickerOpen = ref(false);
+const ownStrategies = computed(() => strategiesStore.ownStrategies.slice(0, 12));
+/** A shared object drawn as a link card (C4 attachment, or the link line an older server stored). */
+const cardOf = (message) => {
+  const card = shareCardOf(message);
+  return card ? { card, attachment: { type: 'share', share_kind: card.kind, title: card.title, url: card.url } } : null;
+};
 const newMessage = ref('');
 /** 'loading' | 'ok' | 'not-found' | 'error' */
 const status = ref('loading');
@@ -96,8 +108,9 @@ const sendMessage = async () => {
   if (isServer.value) {
     sending.value = true;
     try {
-      await chatStore.sendMessageRemote(conversationId.value, text);
+      await chatStore.sendMessageRemote(conversationId.value, text, { replyTo: replyTo.value });
       newMessage.value = '';
+      replyTo.value = null;
       nextTick(() => scrollToBottom());
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -118,7 +131,11 @@ const sendMessage = async () => {
     message_type: 'text',
     attachments: [],
     reactions: [],
-    reply_to: null,
+    reply_to: replyTo.value?.id ?? null,
+    reply_to_id: replyTo.value?.id ?? null,
+    reply_to_preview: replyTo.value
+      ? { id: String(replyTo.value.id), content: replyTo.value.content, author: senderName(replyTo.value) }
+      : null,
     metadata: {
       character_count: text.length,
       mentions: [],
@@ -128,14 +145,45 @@ const sendMessage = async () => {
 
   chatStore.sendMessage(messageData);
   newMessage.value = '';
+  replyTo.value = null;
 
   nextTick(() => {
     scrollToBottom();
   });
 };
 
+/** Share one of the user's own strategies into this conversation (C4 share; link line on an older server). */
+const shareStrategy = async (s) => {
+  strategyPickerOpen.value = false;
+  if (!conversation.value) return;
+  if (!isServer.value) {
+    newMessage.value = shareMessageBody({ kind: 'strategy', id: s.id, title: s.name }, newMessage.value).content;
+    await sendMessage();
+    return;
+  }
+  sending.value = true;
+  sendError.value = '';
+  try {
+    const res = await chatStore.shareToTargets(
+      { kind: 'strategy', id: s.id, title: s.name },
+      [{ kind: 'room', id: conversationId.value, label: head.value?.name ?? 'this chat' }],
+      newMessage.value,
+    );
+    if (res[0]?.ok) { newMessage.value = ''; nextTick(() => scrollToBottom()); }
+    else sendError.value = `${res[0]?.error ?? 'Share not sent.'} Your text is kept.`;
+  } finally {
+    sending.value = false;
+  }
+};
+
 const shareContent = async (kind) => {
   if (!conversation.value) return;
+  if (kind === 'strategy') {
+    // Never a fixed sample id: the user picks one of their own strategies.
+    strategyPickerOpen.value = !strategyPickerOpen.value;
+    if (strategyPickerOpen.value && !strategiesStore.strategies.length) void strategiesStore.initializeStore();
+    return;
+  }
   const uid = getUserId();
   const recipients = conversation.value.participants.filter(p => p !== uid);
   const opinion = agents.personal?.opinion_vector;
@@ -231,9 +279,15 @@ const countLabel = computed(() => {
   return messageCountLabel({ message_count: messages.value.length, source: 'sample' });
 });
 
-const startReply = (messageId) => {
-  // Set replying to messageId
-}
+const startReply = (message) => {
+  replyTo.value = message;
+  nextTick(() => document.querySelector('.message-input')?.focus());
+};
+/** Scroll to the quoted message when it is loaded. */
+const jumpTo = (id) => {
+  const el = document.getElementById(`msg-${id}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
 
 const editMessage = (message) => {
   editingMessage.value = message.id
@@ -353,12 +407,27 @@ const handleFile = (e) => {
         <div v-else class="messages-list">
           <div
             v-for="message in messages"
+            :id="`msg-${message.id}`"
             :key="message.id"
             :class="['message-item', message.sender_id === currentUserId ? 'sent' : 'received']"
           >
             <div class="message-content">
               <div v-if="head.isGroup && message.sender_id !== currentUserId" class="message-sender">{{ senderName(message) }}</div>
-              <div class="message-text">{{ message.content }}</div>
+              <button
+                v-if="message.reply_to_preview"
+                type="button"
+                class="reply-quote"
+                :title="'Go to the quoted message'"
+                @click="jumpTo(message.reply_to_preview.id)"
+              >
+                <span class="reply-author">↩ {{ message.reply_to_preview.author || 'Reply' }}</span>
+                {{ quoteOf(message.reply_to_preview.content) || '(message)' }}
+              </button>
+              <template v-if="cardOf(message)">
+                <div v-if="cardOf(message).card.note" class="message-text">{{ cardOf(message).card.note }}</div>
+                <ChatSharePayload :attachment="cardOf(message).attachment" />
+              </template>
+              <div v-else class="message-text">{{ message.content }}</div>
               <ChatSharePayload
                 v-for="(att, ai) in (message.attachments || []).filter(a => a.type === 'share')"
                 :key="`${message.id}-share-${ai}`"
@@ -387,7 +456,14 @@ const handleFile = (e) => {
             </div>
 
             <!-- React (any message; saved on the server for your conversations, this tab only for samples) -->
-            <div class="message-actions" role="group" aria-label="Add a reaction">
+            <div class="message-actions" role="group" aria-label="Reply or react">
+              <button
+                type="button"
+                class="reaction-btn reply-btn"
+                aria-label="Reply"
+                :title="isServer ? 'Reply (saved)' : 'Reply (sample: this tab only)'"
+                @click="startReply(message)"
+              >↩</button>
               <button
                 v-for="emoji in CHAT_REACTIONS"
                 :key="emoji"
@@ -412,6 +488,25 @@ const handleFile = (e) => {
           @share-opinion="shareContent('opinion')"
           @share-strategy="shareContent('strategy')"
         />
+        <div v-if="strategyPickerOpen" class="strategy-picker" role="listbox" aria-label="Your strategies">
+          <template v-if="ownStrategies.length">
+            <button
+              v-for="s in ownStrategies"
+              :key="s.id"
+              type="button"
+              class="strategy-pick"
+              role="option"
+              @click="shareStrategy(s)"
+            >📈 {{ s.name }}</button>
+          </template>
+          <p v-else class="picker-empty">
+            You have no strategy of your own yet. <NuxtLink to="/creator">Build one in the Lab</NuxtLink>, then share it here.
+          </p>
+        </div>
+        <div v-if="replyTo" class="reply-bar">
+          <span>↩ Replying to <strong>{{ senderName(replyTo) }}</strong>: {{ quoteOf(replyTo.content, 70) }}</span>
+          <button type="button" class="reply-cancel" aria-label="Cancel reply" @click="replyTo = null">✕</button>
+        </div>
         <div class="message-input-wrapper">
           <input
             v-model="newMessage"
@@ -923,4 +1018,45 @@ const handleFile = (e) => {
     box-shadow: none;
   }
 }
+.reply-quote {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: rgba(255,255,255,0.05);
+  border: 0;
+  border-left: 2px solid rgba(0,255,136,0.5);
+  color: rgba(255,255,255,0.65);
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  margin-bottom: 0.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.reply-author { display: block; font-weight: 700; font-size: 0.65rem; color: rgba(255,255,255,0.8); }
+.reply-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.7);
+  border-left: 2px solid rgba(0,255,136,0.5);
+  padding: 0.25rem 0.5rem;
+  margin: 0.35rem 0;
+}
+.reply-cancel { background: none; border: 0; color: inherit; cursor: pointer; }
+.strategy-picker { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.4rem 0; }
+.strategy-pick {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.85);
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.strategy-pick:hover { border-color: var(--primary-green, #00ff88); }
+.picker-empty { font-size: 0.75rem; color: rgba(255,255,255,0.6); margin: 0; }
 </style>

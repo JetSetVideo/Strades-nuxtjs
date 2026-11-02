@@ -308,12 +308,12 @@ const freqLabel = (f: string) => {
 
     <!-- Actions -->
     <div class="feat-actions" @click.stop>
-      <button class="act-btn primary" @click="emit('copy')">⤴ Copy</button>
+      <button class="act-btn primary" @click="emit('copy')">✎ Edit</button>
       <button class="act-btn" @click="emit('view')">→ View</button>
       <button class="act-btn" :class="strategy.status || 'stopped'" @click="emit('toggle')">
         {{ runLabel }}
       </button>
-      <button class="act-btn icon-btn" @click="emit('share')" title="Share">⇪</button>
+      <ChatShareTo v-if="strategy.id" :item="{ kind: 'strategy', id: String(strategy.id), title: String(strategy.name ?? 'Strategy'), url: `/strategy/${strategy.id}` }" />
     </div>
   </div>
 

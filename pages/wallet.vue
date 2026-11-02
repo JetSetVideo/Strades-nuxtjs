@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useWalletStore } from '@/stores/wallet'
 import { useAllocationStore } from '@/stores/allocation'
 import { usePlatformsStore } from '@/stores/platforms'
@@ -7,7 +7,7 @@ import { useBotsStore } from '@/stores/bots'
 import { useMacroStore } from '@/stores/macro'
 import { useAgentsStore } from '@/stores/agents'
 import { useAssetsStore } from '@/stores/assets'
-import { useTradingApi } from '@/composables/useTradingApi'
+import { useOwnBook } from '@/composables/useOwnBook'
 
 import UIScreenShell from '@/components/UI/ScreenShell.vue'
 import UICard from '@/components/UI/Card.vue'
@@ -33,8 +33,8 @@ import {
   aggregateWallets,
   holdingTodayPct,
 } from '@/utils/walletBook'
-import { OWN_BOOK_NOTE, bookLoadState, emptyOwnBook, loadOwnBook, type OwnBook } from '@/utils/ownBook'
-import { ownPaperTree, recordingBookApi, type OwnBookRaw } from '@/utils/walletTree'
+import { OWN_BOOK_NOTE, emptyOwnBook } from '@/utils/ownBook'
+import { ownPaperTree } from '@/utils/walletTree'
 import { usePrimarySettings } from '@/composables/usePrimarySettings'
 import UIValueTree from '@/components/UI/ValueTree.vue'
 import { fmtPctFromPercent, pctDecimals } from '~/utils/format'
@@ -58,7 +58,6 @@ const bots = useBotsStore()
 const macro = useMacroStore()
 const agents = useAgentsStore()
 const assetsStore = useAssetsStore()
-const tradingApi = useTradingApi()
 const { userId } = useCurrentUser()
 
 const selectedWalletId = ref<string>('wallet_001')
@@ -69,22 +68,14 @@ const period = ref<'1d' | '7d' | '30d' | '90d' | '1y'>('30d')
  * The platform wallets below are the bundled demo book (user_001): sample, never
  * the user's money (swarm 2026-10-30b board-finance F7).
  */
-const ownBook = ref<OwnBook>(emptyOwnBook())
-const ownBookState = ref<'loading' | 'ready' | 'signed-out' | 'error'>('loading')
+// C8: one shared read (composables/useOwnBook.ts) for this KPI, the value tree, the hand-trade form
+// and the dock; refreshed once per visit (PERF-6: /api/portfolio/ used to be read twice here).
+const own = useOwnBook()
+const ownBook = computed(() => own.book.value ?? emptyOwnBook())
+const ownBookState = computed(() => (own.state.value === 'idle' ? 'loading' : own.state.value))
 /** The raw rows the loader read: the "Your paper" value tree shows each part from them. */
-const ownRaw = shallowRef<OwnBookRaw | null>(null)
+const ownRaw = computed(() => own.raw.value)
 const primary = usePrimarySettings()
-
-async function loadOwn() {
-  try {
-    const rec = recordingBookApi(tradingApi)
-    ownBook.value = await loadOwnBook(rec.api)
-    ownRaw.value = rec.raw
-    ownBookState.value = 'ready'
-  } catch (error) {
-    ownBookState.value = bookLoadState(error)
-  }
-}
 
 /** "Your paper" -> its inputs -> the Settings primary values (first value tree, DESIGN-AUDIT §3). */
 const paperTree = computed(() => ownPaperTree({
@@ -95,7 +86,7 @@ const paperTree = computed(() => ownPaperTree({
 }))
 
 onMounted(async () => {
-  loadOwn()
+  own.refresh()
   primary.load()
   if (!assetsStore.assets.length) assetsStore.initializeStore()
   if (!walletStore.hydrated) await walletStore.initializeStore()
@@ -170,9 +161,10 @@ const sampleTodayPct = computed(() => currentWallet.value?.daily_change_percenta
 
 const kpis = computed(() => [
   { label: 'Your paper', value: ownValueLabel.value },
-  { label: 'Sample value', value: currentWallet.value ? fmtMoneyKpi(currentWallet.value.total_value) : '—' },
+  // REVIEW-2: every sample figure names its scope; the platform count matches the breakdown below.
+  { label: isAll.value ? 'Sample · all wallets' : 'Sample · this wallet', value: currentWallet.value ? fmtMoneyKpi(currentWallet.value.total_value) : '—' },
   { label: 'Sample today', value: fmtPctFromPercent(sampleTodayPct.value, { signed: true }), tone: signTone(sampleTodayPct.value, pctDecimals(sampleTodayPct.value ?? 0)) },
-  { label: 'Platforms', value: platforms.connectedCount }
+  { label: 'Platforms', value: platforms.list.length ? `${platforms.list.length} (${platforms.connectedCount} connected)` : '0' }
 ])
 
 /** Real 24h move of each held asset when it has a live quote; absent otherwise (never a hash). */
@@ -203,6 +195,7 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 
 <template>
   <WalletFlowVisualizer>
+    <NavigationAreaLinks area="portfolio" />
     <UIScreenShell :kpis="kpis">
       <template #actions>
         <UIPill :tone="marketPulse.moodTone" show-dot>{{ marketPulse.mood }}</UIPill>

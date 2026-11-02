@@ -7,6 +7,18 @@ import type { BotStatus } from '~/composables/useTradingApi'
  */
 const cache = new Map<string, PredictMarket>()
 
+/** /predict reads 50 markets per page (was 200 = 98 KB per visit, PERF-8); the server caps at 200. */
+export const PREDICT_PAGE = 50
+export const PREDICT_MAX = 200
+
+/** The next `limit` for "Show more": +50, never above what the server has or its 200 cap. */
+export function nextMarketLimit(current: number, total: number, page = PREDICT_PAGE): number {
+  const cap = Math.min(PREDICT_MAX, Math.max(0, total))
+  return Math.max(Math.min(current, cap), Math.min(current + page, cap))
+}
+
+export interface PredictMarketPage { markets: PredictMarket[]; categories: string[]; total: number }
+
 export function usePredictMarkets() {
   async function enrich(bots: BotStatus[]): Promise<BotStatus[]> {
     const missing = [...new Set(bots.filter(b => b.kind === 'prediction' && b.market_ticker && !b.market?.title && !cache.has(b.market_ticker)).map(b => b.market_ticker!))]
@@ -29,5 +41,9 @@ export function usePredictMarkets() {
       }
     })
   }
-  return { enrich }
+  /** One page of the market list, sorted by 24 h volume (server/api/predict/markets.get.ts). */
+  function listMarkets(q: string, limit = PREDICT_PAGE): Promise<PredictMarketPage> {
+    return $fetch<PredictMarketPage>('/api/predict/markets', { query: { q, limit: Math.min(PREDICT_MAX, Math.max(1, limit)) } })
+  }
+  return { enrich, listMarkets }
 }

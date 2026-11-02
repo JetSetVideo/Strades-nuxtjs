@@ -28,11 +28,9 @@
   },
   "dependencies": {
     "@types/d3": "^7.4.3",
-    "axios": "^1.13.6",
     "d3": "^7.9.0",
     "date-fns": "^4.1.0",
     "mitt": "^3.0.1",
-    "socket.io-client": "^4.8.3",
     "topojson-client": "^3.1.0",
     "vue": "^3.5.43"
   }

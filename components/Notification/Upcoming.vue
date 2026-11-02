@@ -73,9 +73,6 @@ function schedulePayload(openedPanel: boolean) {
     count: list.length,
     next_in_ms: head ? Math.max(0, head.at - nowMs.value) : null,
     domains: [...new Set(list.map(n => n.domain))].slice(0, 8),
-    schedule: list.slice(0, 12).map(n => ({
-      id: n.id, domain: n.domain, due_at: new Date(n.at).toISOString(),
-    })),
     opened_panel: openedPanel,
     page: '/notifications',
     component: 'NotificationUpcoming',

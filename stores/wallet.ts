@@ -201,7 +201,7 @@ export const useWalletStore = defineStore('wallet', {
       if (isAuthenticated.value && accessToken.value) {
         try {
           const { $api } = useNuxtApp()
-          const data = await ($api as typeof $fetch)<Portfolio>('/api/portfolio/')
+          const data = await ($api as typeof $fetch)<Portfolio>('/api/v1/portfolio/')
           this.portfolio = data
           this.portfolioLoading = false
           return data

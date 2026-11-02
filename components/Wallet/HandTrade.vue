@@ -11,19 +11,20 @@ import { fmtMoney, fmtPctFromFraction } from '~/utils/format'
 
 const api = useTradingApi()
 const assets = useAssetsStore()
-const pf = ref<SamplePortfolio | null>(null)
+// C8 / PERF-6: the portfolio row comes from the shared own-book read (composables/useOwnBook.ts),
+// so /wallet reads /api/portfolio/ once per visit; after a trade the book refreshes through it.
+const own = useOwnBook()
+const lastFill = ref<SamplePortfolio | null>(null)
+const pf = computed<SamplePortfolio | null>(() =>
+  lastFill.value ?? (own.raw.value?.portfolio as SamplePortfolio | null | undefined) ?? null)
 const assetId = ref('btc')
 const side = ref<'buy' | 'sell'>('buy')
 const qty = ref('0.01')
 const busy = ref(false)
 const msg = ref<{ ok: boolean; text: string } | null>(null)
-const state = ref<'loading' | 'ready' | 'signed-out' | 'error'>('loading')
+const state = computed(() => (own.state.value === 'idle' ? 'loading' : own.state.value))
 
-async function load() {
-  try { pf.value = await api.portfolio(); state.value = 'ready' }
-  catch (e) { state.value = e instanceof TradingApiError && e.status === 401 ? 'signed-out' : 'error' }
-}
-onMounted(() => { load(); if (!assets.assets.length) assets.initializeStore() })
+onMounted(() => { if (!assets.assets.length) assets.initializeStore() })
 
 const tradable = computed(() => [...assets.assets].sort((a, b) => a.symbol.localeCompare(b.symbol)))
 const price = computed(() => assets.getAssetById(assetId.value)?.current_price ?? 0)
@@ -35,15 +36,19 @@ async function submit() {
   busy.value = true
   msg.value = null
   try {
-    pf.value = await api.handTrade({ asset_id: assetId.value, type: side.value, quantity: Number(qty.value) }) as unknown as SamplePortfolio
+    const after = await api.handTrade({ asset_id: assetId.value, type: side.value, quantity: Number(qty.value) }) as unknown as SamplePortfolio
+    lastFill.value = after
     // Report the SERVER's fill (stored price), not the live quote shown in the picker: they can differ.
     const sym = assetId.value.toUpperCase()
-    const fill = [...(pf.value.transactions ?? [])].filter(t => t.asset_symbol === sym)
+    const fill = [...(after.transactions ?? [])].filter(t => t.asset_symbol === sym)
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]
     const fillPrice = fill ? Number(fill.price) : price.value
     const gap = price.value ? Math.abs(fillPrice - price.value) / price.value : 0
     msg.value = { ok: true, text: `${side.value === 'buy' ? 'Bought' : 'Sold'} ${qty.value} ${sym} at ${usd(fillPrice)} (server fill)`
       + (gap > 0.001 ? `: the live quote was ${usd(price.value)}; the server's stored price is ${fmtPctFromFraction(gap)} off.` : '.') }
+    // KPI "Your paper", its value tree, /risk and the dock all move together.
+    await own.refresh()
+    if (own.state.value === 'ready') lastFill.value = null
   } catch (e) {
     msg.value = { ok: false, text: e instanceof TradingApiError ? e.message : 'Trade failed.' }
   } finally {

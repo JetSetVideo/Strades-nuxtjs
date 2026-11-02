@@ -26,6 +26,63 @@ export interface AgentsState {
   loading: boolean
   error: string | null
   comparisonSlots: [string | null, string | null]
+  /** Marketplace compare tray (⇄ on each card): up to COMPARE_MAX agent ids, oldest first. */
+  compareIds: string[]
+}
+
+// ─── Compare tray (Wave 2 review, REVIEW-15) — pure helpers, tested in tests/review-agentCompare.test.ts ──
+export const COMPARE_MAX = 3
+export const AGENT_SAMPLE_NOTE = 'Catalog avatars from a bundled sample file (avatars.json): simulated figures, not live trading, not your account.'
+
+/** ⇄ toggles: add (dropping the oldest past `max`) or remove. Returns a new array. */
+export function toggleCompareIds(ids: readonly string[], id: string, max = COMPARE_MAX): string[] {
+  if (!id) return [...ids]
+  if (ids.includes(id)) return ids.filter(x => x !== id)
+  const next = [...ids, id]
+  return next.length > max ? next.slice(next.length - max) : next
+}
+
+/** "LIVE" is never shown in the paper-only MVP: a catalog avatar that runs is "Simulated". */
+export function agentStatusLabel(status: string | null | undefined): string {
+  const s = String(status ?? '').toLowerCase()
+  if (s === 'live') return 'Simulated'
+  if (!s) return '—'
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+export interface CompareColumn {
+  id: string
+  name: string
+  status: string
+  pnl: string
+  sharpe: string
+  win: string
+  dd: string
+  trades: string
+}
+
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+
+/** One column per agent: PnL / Win / DD / Sharpe when present, "—" otherwise (never a made-up 0). */
+export function agentCompareColumns(list: (Pick<Agent, 'id' | 'name'> & {
+  performance?: Partial<Agent['performance']> | null
+  training_state?: Partial<Agent['training_state']> | null
+} | null | undefined)[]): CompareColumn[] {
+  return list.filter((a): a is NonNullable<typeof a> => !!a).map(a => {
+    const p = a.performance ?? {}
+    const winRaw = p.win_rate
+    const win = finite(winRaw) ? (winRaw > 1 ? winRaw : winRaw * 100) : null
+    return {
+      id: a.id,
+      name: a.name,
+      status: agentStatusLabel(a.training_state?.status),
+      pnl: finite(p.live_pnl_pct) ? `${p.live_pnl_pct >= 0 ? '+' : ''}${p.live_pnl_pct.toFixed(1)}%` : '—',
+      sharpe: finite(p.sharpe) ? p.sharpe.toFixed(2) : '—',
+      win: win == null ? '—' : `${Math.round(win)}%`,
+      dd: finite(p.max_drawdown_pct) ? `${p.max_drawdown_pct.toFixed(1)}%` : '—',
+      trades: finite(p.trades_total) ? String(p.trades_total) : '—',
+    }
+  })
 }
 
 const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v))
@@ -38,7 +95,8 @@ export const useAgentsStore = defineStore('agents', {
     hydrated: false,
     loading: false,
     error: null,
-    comparisonSlots: [null, null]
+    comparisonSlots: [null, null],
+    compareIds: []
   }),
 
   actions: {
@@ -135,6 +193,14 @@ export const useAgentsStore = defineStore('agents', {
       this.byId[newId] = fork
       this.ids = [...this.ids, newId]
       return fork
+    },
+
+    toggleCompare(id: string) {
+      this.compareIds = toggleCompareIds(this.compareIds, id)
+    },
+
+    clearCompare() {
+      this.compareIds = []
     },
 
     setComparison(slot: 0 | 1, id: string | null) {

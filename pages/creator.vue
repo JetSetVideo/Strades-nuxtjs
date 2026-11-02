@@ -25,7 +25,7 @@ import { useOpinionsStore } from '@/stores/opinions'
 import { useCreditsStore } from '@/stores/credits'
 import { useBacktest } from '@/composables/useBacktest'
 import { TradingApiError, useTradingApi, type RealBacktest } from '@/composables/useTradingApi'
-import { toServerStrategy, toSimulatedConditions, tradedPair, type CreatorCondition } from '@/utils/strategyServer'
+import { isServerStrategyId, toServerStrategy, toSimulatedConditions, tradedPair, writeServerStrategy, type CreatorCondition, type ServerStrategyPayload } from '@/utils/strategyServer'
 import { draftFromCreatorCode, draftFromServer } from '@/utils/creatorDraft'
 import { backtestFailureText } from '@/utils/strategyRun'
 import { useStrategiesStore } from '@/stores/strategies'
@@ -80,6 +80,11 @@ onMounted(async () => {
 const route = useRoute()
 const strategiesStore = useStrategiesStore()
 const reopenNote = ref<string | null>(null)
+/**
+ * C7 · the strategy being edited: the reopened id (/creator?id=…) or the id the first Save / Backtest of
+ * this page made. Save and Backtest then update it (PATCH, server; same local row) instead of adding a copy.
+ */
+const editId = ref<string | null>(null)
 async function reopenFromQuery() {
   const id = typeof route.query.id === 'string' ? route.query.id : ''
   if (!id) return
@@ -88,14 +93,18 @@ async function reopenFromQuery() {
   const row = strategiesStore.getStrategyById(id)
   if (cached && (cached.dataSources || (cached.assets as any)?.from !== undefined)) {
     Object.assign(strategy.value, draftFromCreatorCode({ name: row?.name, description: row?.description, category: row?.category }, cached, Date.now()))
-    reopenNote.value = `Editing a copy of "${strategy.value.name}". Backtest saves it as a new strategy.`
+    editId.value = id
+    reopenNote.value = isServerStrategyId(id)
+      ? `Editing "${strategy.value.name}". Save and Backtest update it (no new copy).`
+      : `Editing "${strategy.value.name}". Save updates it; Backtest saves it to your account.`
     return
   }
   // 2) The server copy (assets, frequency, IF rules, stop / take-profit).
   try {
     const saved = await tradingApi.getStrategy(id)
     Object.assign(strategy.value, draftFromServer(saved, Date.now()))
-    reopenNote.value = `Reopened "${saved.name}" from the server: rules, assets and risk settings are back; pick the data sources again.`
+    editId.value = saved.id ?? id
+    reopenNote.value = `Reopened "${saved.name}" from the server: rules, assets and risk settings are back; pick the data sources again. Save and Backtest update it (no new copy).`
   } catch (e) {
     const status = e instanceof TradingApiError ? e.status : 0
     reopenNote.value = row
@@ -370,6 +379,7 @@ const actionError   = ref<string | null>(null)
 const pendingServerId = ref<string | null>(null)
 const serverNotes   = ref<string[]>([])
 const tradingApi    = useTradingApi()
+const nuxtApp       = useNuxtApp()
 const tradingPrefs  = useTradingPrefsStore()
 tradingPrefs.hydrate()
 // Real-history backtests, keyed by strategy id (shown on /strategy/<id>).
@@ -405,10 +415,19 @@ async function saveToServer(): Promise<string | null> {
   if (!mapped.ok) throw new Error(mapped.errors.join(' '))
   serverNotes.value = mapped.notes
   try {
-    const saved = await tradingApi.saveStrategy(mapped.payload)
-    return saved.id
+    const res = await writeServerStrategy({
+      // C7 (core-api): owner-only edit; 405 until the server has it → today's POST.
+      patch: (id, body) => (nuxtApp.$api as <T>(url: string, o?: Record<string, unknown>) => Promise<T>)<{ id: string; name?: string }>(
+        `/api/v1/strategies/${encodeURIComponent(id)}/`, { method: 'PATCH', body }),
+      post: (body: ServerStrategyPayload) => tradingApi.saveStrategy(body),
+    }, editId.value, mapped.payload)
+    editId.value = res.id
+    if (res.mode === 'updated') serverNotes.value = [...serverNotes.value, 'Updated your saved strategy (no new copy). Its last backtest was cleared: run it again.']
+    else if (res.fellBack) serverNotes.value = [...serverNotes.value, `Saved as a new strategy: the server could not update the original (HTTP ${res.fellBack}).`]
+    return res.id
   } catch (e) {
-    if (e instanceof TradingApiError && e.status === 401) return null // signed out → simulated backtest only
+    const status = e instanceof TradingApiError ? e.status : Number((e as { statusCode?: number; status?: number })?.statusCode ?? (e as { status?: number })?.status ?? 0)
+    if (status === 401) return null // signed out → simulated backtest only
     throw e
   }
 }
@@ -476,13 +495,24 @@ async function handleSaveDraft() {
   actionError.value = null
   layoutSaving.value = 'saving'
   try {
+    // C7: a strategy with a server id is updated there too (PATCH); without one, Save stays local as before.
+    let id = editId.value
+    let serverSkipped: string | null = null
+    if (isServerStrategyId(id)) {
+      try { id = (await saveToServer()) ?? id }
+      catch (e) { serverSkipped = e instanceof Error && e.message ? e.message : 'the server copy could not be updated.' }
+    }
     const s = await createStrategy({
+      // Reuse the id: the same local row is replaced, not a new copy per click.
+      ...(id ? { id } : {}),
       name: strategy.value.name,
       description: strategy.value.description,
       category: strategy.value.category,
       targetAssets: [tradedAsset()].filter(Boolean),
       code: buildCodePayload(),
     })
+    editId.value = s.id
+    if (serverSkipped) actionError.value = `Saved on this device only: ${serverSkipped}`
     layoutStatus.value = 'saved'
     layoutSaving.value = 'saved'
     saveSuccess.value = true

@@ -24,6 +24,7 @@ import type { Ref } from 'vue'
 import type { Router } from 'vue-router'
 import type { AuthUser } from '~/types/user'
 import { clearUserStorage, setStorageUser } from '~/utils/userStorage'
+import { withAuthRetry } from '~/utils/authRetry'
 
 
 interface AuthResponse {
@@ -266,16 +267,24 @@ export const useAuth = () => {
       const refreshed = await refreshAccessToken()
       if (!refreshed) return null
     }
-    try {
-      const user = await $fetch<AuthUser>('/api/auth/me/', {
+    // A 401 refreshes once and retries once (utils/authRetry.ts); the token is read per attempt.
+    let refreshedOk = false
+    const getMe = withAuthRetry(
+      () => $fetch<AuthUser>('/api/auth/me/', {
         baseURL: apiBase,
         headers: { Authorization: `Bearer ${accessToken.value}` },
-      })
+      }),
+      async () => (refreshedOk = await refreshAccessToken()),
+    )
+    try {
+      const user = await getMe()
       currentUser.value = user
       _adoptStorageUser(user, false)     // app boot (plugins/tracking.client.ts): stores not hydrated yet
       return user
-    } catch {
-      _clearTokens()
+    } catch (e: unknown) {
+      // Sign out only on a definite answer: still 401 with a freshly refreshed token. A rejected
+      // refresh has already signed out (refreshAccessToken); a network error / 5xx keeps the session.
+      if (httpStatusOf(e) === 401 && refreshedOk) _clearTokens()
       return null
     }
   }

@@ -1,15 +1,16 @@
 <script setup lang="ts">/**
  * Deal Pipeline — Cross-strategy trade desk view.
- * Shows every active strategy as a "deal" with its counterparty exposure
- * (suppliers/customers from supply chain data), commodity flows, and live P&L.
+ * Shows every strategy as a "deal" with its counterparty exposure
+ * (suppliers/customers from the SAMPLE supply-chain files), commodity flows, and the
+ * strategy's stored return. No simulated ticks: a number here is the strategy's own
+ * (paper / sample), never a random wiggle (swarm 2026-11-02 Wave 2, lane nav).
  *
  * Strategy user: "juggle between assets, their dealers and clients and commodities"
  */
-import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
 import { useStrategies } from '@/composables/useStrategies'
 import { useStrategiesStore } from '@/stores/strategies'
-import { useMacroStore } from '@/stores/macro'
 import { useWalletStore } from '@/stores/wallet'
 import { useAssetsStore } from '@/stores/assets'
 import UIPageHeader from '@/components/UI/PageHeader.vue'
@@ -17,6 +18,8 @@ import UICard from '@/components/UI/Card.vue'
 import UIStat from '@/components/UI/Stat.vue'
 import UIMetricRow from '@/components/UI/MetricRow.vue'
 import UIPill from '@/components/UI/Pill.vue'
+import UISourceChip from '@/components/UI/SourceChip.vue'
+import UIEmptyState from '@/components/UI/EmptyState.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import DealRow from '@/components/Strategy/DealRow.vue'
 import type { DealData } from '@/components/Strategy/DealRow.vue'
@@ -29,7 +32,6 @@ definePageMeta({ title: 'Deal Pipeline', layout: 'default' })
 const { fetchStrategies } = useStrategies()
 const strategiesStore = useStrategiesStore()
 const strategies = computed(() => strategiesStore.strategies)
-const macro = useMacroStore()
 const walletStore = useWalletStore()
 const assetsStore = useAssetsStore()
 
@@ -41,10 +43,6 @@ const STATUS_OPTIONS = ['active', 'paused', 'stopped'].map(id => ({
   label: id.charAt(0).toUpperCase() + id.slice(1),
 }))
 
-// Live tick for P&L simulation
-const tick = ref(0)
-let ticker: ReturnType<typeof setInterval> | null = null
-
 const supplyChainCache = ref<Record<string, any>>({})
 
 // All symbols to fetch supply chain data for
@@ -53,7 +51,6 @@ const allCommoditySymbols = ['btc', 'eth', 'sol', 'aapl', 'amzn', 'tsla', 'usd',
 onMounted(async () => {
   await Promise.all([
     fetchStrategies(),
-    macro.fetchMacroState(),
     walletStore.initializeStore(),
     assetsStore.initializeStore(),
   ])
@@ -72,21 +69,13 @@ onMounted(async () => {
   }
 
   loading.value = false
-
-  // Simulate live ticks
-  ticker = setInterval(() => {
-    tick.value = (Math.random() - 0.45) * 2
-  }, 4000)
 })
-
-onUnmounted(() => { if (ticker) clearInterval(ticker) })
 
 // ─── Build deals from strategies + supply chain ─────────────────────────────
 const deals = computed<DealData[]>(() =>
   strategies.value.map(s => {
     const targetSym = (s.target_assets?.[0] ?? '').toUpperCase()
     const sc = supplyChainCache.value[targetSym]
-    const vol = macro.volatility_by_class ?? {}
 
     // Extract counterparties from supply chain
     const counterparties: DealData['counterparties'] = []
@@ -112,20 +101,14 @@ const deals = computed<DealData[]>(() =>
       }
     }
 
-    // Live P&L tick
-    const assetVol = targetSym === 'BTC' || targetSym === 'ETH' || targetSym === 'SOL' ? vol.crypto ?? 0.5
-      : targetSym === 'AAPL' || targetSym === 'AMZN' || targetSym === 'TSLA' ? vol.stocks ?? 0.3
-      : 0.3
-    const noise = tick.value * assetVol * 0.3
-
     return {
       id: s.id,
       name: s.name,
       status: s.status,
       targetAssets: s.target_assets ?? [],
       capital: s.current_capital ?? s.initial_capital ?? 0,
-      returnPct: (s.total_return_percentage ?? 0) + noise,
-      returnAbs: (s.total_return ?? 0) + noise * (s.current_capital ?? 10000) / 100,
+      returnPct: s.total_return_percentage ?? 0,
+      returnAbs: s.total_return ?? 0,
       winRate: s.win_rate ?? 0,
       sharpe: s.sharpe_ratio ?? 0,
       maxDd: s.max_drawdown ?? 0,
@@ -135,6 +118,9 @@ const deals = computed<DealData[]>(() =>
     }
   })
 )
+
+/** How many deals are built on the catalog's sample strategies (not the user's own). */
+const sampleCount = computed(() => strategies.value.filter(s => s.sample).length)
 
 // ─── Aggregates ──────────────────────────────────────────────────────────────
 const activeDeals = computed(() => deals.value.filter(d => d.status === 'active'))
@@ -173,10 +159,11 @@ const filteredDeals = computed(() => {
 
 <template>
   <div class="deal-pipeline">
-    <UIPageHeader title="Deal Pipeline" subtitle="Cross-strategy trade desk — track every deal, its counterparty exposure, commodity flows, and live P&L.">
+    <UIPageHeader title="Deal Pipeline" subtitle="Each strategy as a deal: who it depends on (suppliers, customers), what flows it touches, and its return so far.">
       <template #actions>
-        <NuxtLink to="/strategies" class="nav-link">Strategies →</NuxtLink>
-        <NuxtLink to="/risk" class="nav-link">Risk Dashboard →</NuxtLink>
+        <UISourceChip source="sample" note="Counterparties and flows come from sample supply-chain files; returns are each strategy's stored paper/sample figures." />
+        <NuxtLink to="/strategies" class="nav-link">{{ routeLabel('/strategies') }} →</NuxtLink>
+        <NuxtLink to="/risk" class="nav-link">{{ routeLabel('/risk') }} →</NuxtLink>
       </template>
     </UIPageHeader>
 
@@ -205,10 +192,10 @@ const filteredDeals = computed(() => {
             :key="cp.name"
             class="cp-chip"
             :class="{ high: cp.totalExposure > 40, medium: cp.totalExposure > 20 }"
-            :title="`${cp.name}: ${cp.totalExposure.toFixed(0)}% exposure across ${cp.dealCount} deals`"
+            :title="`${cp.name}: ${fmtPctFromPercent(cp.totalExposure, { decimals: 0 })} exposure across ${cp.dealCount} deals`"
           >
             <span class="cp-name">{{ cp.name.length > 20 ? cp.name.slice(0, 18) + '…' : cp.name }}</span>
-            <span class="cp-expo">{{ cp.totalExposure.toFixed(0) }}%</span>
+            <span class="cp-expo">{{ fmtPctFromPercent(cp.totalExposure, { decimals: 0 }) }}</span>
             <span class="cp-count">{{ cp.dealCount }} deal{{ cp.dealCount !== 1 ? 's' : '' }}</span>
           </div>
         </div>
@@ -226,11 +213,23 @@ const filteredDeals = computed(() => {
       </div>
 
       <!-- ── Deal cards ────────────────────────────────────────────────── -->
-      <div v-if="filteredDeals.length === 0" class="empty">
+      <UIEmptyState
+        v-if="deals.length === 0"
+        icon="⟷"
+        title="No deals yet"
+        message="A deal is a strategy. Build one and it shows up here with its counterparties."
+        size="sm"
+      >
+        <template #action><NavigationNextLink to="/creator" :label="`Open the ${routeLabel('/creator')}`" /></template>
+      </UIEmptyState>
+      <div v-else-if="filteredDeals.length === 0" class="empty">
         No deals match your filters.
       </div>
+      <p v-else-if="sampleCount" class="sample-note">
+        <UISourceChip source="sample" /> {{ sampleCount }} of {{ deals.length }} deals are the catalog's sample strategies, not yours.
+      </p>
 
-      <div v-else class="deal-grid">
+      <div v-if="filteredDeals.length" class="deal-grid">
         <DealRow v-for="d in filteredDeals" :key="d.id" :deal="d" />
       </div>
     </template>
@@ -249,6 +248,15 @@ const filteredDeals = computed(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 0.5rem;
+}
+
+.sample-note {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.55);
 }
 
 .nav-link {

@@ -13,6 +13,8 @@ import { routeLabel } from '~/utils/routes'
 
 import UIScreenShell from '@/components/UI/ScreenShell.vue'
 import UIPill from '@/components/UI/Pill.vue'
+import UISourceChip from '@/components/UI/SourceChip.vue'
+import { AGENT_SAMPLE_NOTE } from '@/stores/agents'
 import AgentAvatarCard from '@/components/Agent/AvatarCard.vue'
 import CommunityPersonCard from '@/components/Community/PersonCard.vue'
 import StrategyCard from '@/components/Strategy/Card.vue'
@@ -254,7 +256,7 @@ const kpis = computed(() => {
     { label: 'Agents', value: list.length },
     { label: 'Classifiers', value: list.filter(agent => agent.model_type === 'classifier').length },
     { label: 'Plugged', value: opinions.activeCount },
-    { label: 'Top PnL', value: list.length ? top.toFixed(1) : '—', suffix: '%' },
+    { label: 'Top PnL · sample', value: list.length ? top.toFixed(1) : '—', suffix: '%' },
   ]
 })
 
@@ -290,6 +292,12 @@ function followStrategy(id: string) {
       </button>
     </div>
 
+    <p v-if="source === 'agents'" class="src-line">
+      <UISourceChip source="sample" :note="AGENT_SAMPLE_NOTE" />
+      <span>Catalog agents with simulated figures (paper only, nothing trades live). Press ⇄ on two cards to compare them.</span>
+    </p>
+
+    <IntelligencePlugMode v-if="source === 'agents'" />
     <p v-if="source === 'agents' && plugNote" class="plug-sync" :data-state="opinions.sync" :role="opinions.sync === 'error' ? 'alert' : 'status'">
       {{ plugNote }}
     </p>
@@ -343,9 +351,13 @@ function followStrategy(id: string) {
         v-for="agent in filteredAgents"
         :key="agent.id"
         :agent="agent"
+        comparable
+        :comparing="agents.compareIds.includes(agent.id)"
         @select="id => navigateTo(`/agents/${id}`)"
+        @compare="id => agents.toggleCompare(id)"
       />
     </div>
+    <AgentCompareTray v-if="source === 'agents'" />
 
     <div v-else-if="source === 'people' && filteredPeople.length" class="agent-grid">
       <div v-for="person in filteredPeople" :key="person.id" class="strategy-cell">
@@ -378,6 +390,7 @@ function followStrategy(id: string) {
 </template>
 
 <style scoped>
+.src-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem; margin: 0 0 0.4rem; font-size: 0.7rem; color: var(--text-gray, rgba(255,255,255,0.55)); }
 .sources {
   display: flex;
   width: 100%;

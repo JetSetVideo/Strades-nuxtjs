@@ -74,7 +74,7 @@ export interface Message {
   edited_at: string | null
   reply_to: string | null
   reply_to_id: string | null
-  reply_to_preview: { id: string; content: string } | null
+  reply_to_preview: { id: string; content: string; author?: string } | null
   attachment_url: string
   attachment_name: string
   attachments: Array<{
@@ -136,6 +136,8 @@ export interface ServerMessage {
   content_type?: 'text' | 'image' | 'attachment' | string
   reply_to_id?: string | null
   reply_to_preview?: { id: string; content: string } | null
+  /** C4 (social-api): `{id, preview, author}` when the message answers another one of the same conversation. */
+  reply_to?: { id: string; preview?: string | null; author?: string | null } | string | null
   attachment_url?: string | null
   attachment_name?: string | null
   edited_at?: string | null
@@ -205,6 +207,17 @@ export function mapServerConversation(sc: ServerConversation, meId: string): Con
   return conv
 }
 
+/** The quoted message, from C4 `reply_to:{id, preview, author}` or the older `reply_to_id` + `reply_to_preview`. */
+export function replyOf(sm: Pick<ServerMessage, 'reply_to' | 'reply_to_id' | 'reply_to_preview'>): Message['reply_to_preview'] {
+  const r = sm.reply_to
+  if (r && typeof r === 'object' && r.id) {
+    return { id: str(r.id), content: str(r.preview), ...(r.author ? { author: str(r.author) } : {}) }
+  }
+  const id = (typeof r === 'string' && r) || sm.reply_to_id || sm.reply_to_preview?.id
+  if (!id) return null
+  return { id: str(id), content: str(sm.reply_to_preview?.content) }
+}
+
 export function mapServerMessage(sm: ServerMessage, participants: readonly string[] = []): Message {
   const ct = sm.content_type === 'image' || sm.content_type === 'attachment' ? sm.content_type : 'text'
   const content = str(sm.content)
@@ -227,9 +240,9 @@ export function mapServerMessage(sm: ServerMessage, participants: readonly strin
     is_edited: !!sm.edited_at,
     is_deleted: sm.is_deleted === true,
     edited_at: sm.edited_at ?? null,
-    reply_to: sm.reply_to_id ?? null,
-    reply_to_id: sm.reply_to_id ?? null,
-    reply_to_preview: sm.reply_to_preview ?? null,
+    reply_to: replyOf(sm)?.id ?? null,
+    reply_to_id: replyOf(sm)?.id ?? null,
+    reply_to_preview: replyOf(sm),
     attachment_url: attachmentUrl,
     attachment_name: attachmentName,
     attachments: attachmentUrl ? [{ type: 'file', url: attachmentUrl, filename: attachmentName }] : [],
@@ -418,6 +431,10 @@ export interface ServerProfile {
   last_name?: string | null
   avatar_url?: string | null
   is_online?: boolean
+  /** C2 (social-api, optional): a society bot. */
+  is_bot?: boolean
+  /** C2 (social-api, optional): the server would accept a direct conversation (friend, bot or room-mate). */
+  can_message?: boolean
 }
 
 export interface DirectCandidate {
@@ -428,8 +445,24 @@ export interface DirectCandidate {
   is_online: boolean
   /** Already linked through a shared conversation: the server will accept it. Others may get a 403. */
   linked: boolean
-  /** "In a room with you" · "You already chat" · "" */
+  /** true/false when the server said so (C2 `can_message`, or linked); null = unknown (older server). */
+  canMessage: boolean | null
+  is_bot: boolean
+  /** "In a room with you" · "You already chat" · "Bot" · "Add as friend first" · "" */
   note: string
+}
+
+/**
+ * Picker order: people you already chat with directly, bots, named room-mates, others the server accepts,
+ * unknown (older server), nameless room-mates (other demo accounts), then the refused ones.
+ */
+function candidateRank(c: DirectCandidate): number {
+  if (c.linked && c.note === 'You already chat') return 0
+  if (c.is_bot && c.canMessage !== false) return 1
+  if (c.linked) return c.username ? 2 : 5
+  if (c.canMessage === true) return 3
+  if (c.canMessage === null) return 4
+  return 6
 }
 
 /**
@@ -453,13 +486,20 @@ export function directCandidates(
       if (prev) { if (c.type === 'group') prev.note = note; continue }
       byId.set(p.user_id, {
         user_id: p.user_id, username: p.username, full_name: p.full_name, avatar_url: p.avatar_url,
-        is_online: p.is_online, linked: true, note,
+        is_online: p.is_online, linked: true, canMessage: true, is_bot: false, note,
       })
     }
   }
   for (const p of profiles) {
     const id = str(p.user_id)
-    if (!id || id === meId || byId.has(id)) continue
+    if (!id || id === meId) continue
+    const prev = byId.get(id)
+    if (prev) {
+      if (p.is_bot === true) { prev.is_bot = true; prev.note = `Bot · ${prev.note.toLowerCase()}` }
+      continue
+    }
+    const canMessage = typeof p.can_message === 'boolean' ? p.can_message : null
+    const isBot = p.is_bot === true
     byId.set(id, {
       user_id: id,
       username: str(p.username),
@@ -467,12 +507,127 @@ export function directCandidates(
       avatar_url: str(p.avatar_url),
       is_online: p.is_online === true,
       linked: false,
-      note: '',
+      canMessage,
+      is_bot: isBot,
+      note: canMessage === false ? 'Add as friend first' : isBot ? 'Bot' : '',
     })
   }
   const q = query.trim().toLowerCase()
   const all = [...byId.values()].filter(c => !q || c.username.toLowerCase().includes(q) || c.full_name.toLowerCase().includes(q))
-  return [...all.filter(c => c.linked), ...all.filter(c => !c.linked)].slice(0, Math.max(0, limit))
+  // Stable sort: the server order is kept inside each rank.
+  return all
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => candidateRank(a.c) - candidateRank(b.c) || a.i - b.i)
+    .map(x => x.c)
+    .slice(0, Math.max(0, limit))
+}
+
+// ── People (C2 profiles + C3 friends) → the chat Friends/Discover cards ──────
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+/** A server user id (uuid). Sample ids look like `user_005` and never reach the server. */
+export function isServerUserId(id: unknown): boolean {
+  return typeof id === 'string' && UUID_RE.test(id)
+}
+
+/** GET /api/v1/social/friends/ row (C3). */
+export interface ServerFriend { id: string; public_name?: string | null; is_bot?: boolean; since?: string | null }
+
+/** The PersonCard row (CommunityUser shape) for a server profile. Numbers the server did not send stay 0. */
+export function serverPersonCard(p: ServerProfile & Record<string, unknown>, isFriend: boolean) {
+  const markets = Array.isArray(p.preferred_markets) ? (p.preferred_markets as unknown[]).map(String) : []
+  const classes = ['fiat', 'crypto', 'stocks', 'commodities']
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0)
+  const winRate = n(p.win_rate)
+  return {
+    id: str(p.user_id),
+    username: str(p.username),
+    handle: str(p.username),
+    avatar_url: str(p.avatar_url),
+    bio: str(p.bio) || (p.is_bot ? 'Society bot — trades and talks on its own.' : ''),
+    is_friend: isFriend,
+    online: p.is_online === true,
+    timezone: str(p.timezone),
+    specialization: markets.filter(m => classes.includes(m)) as Array<'fiat' | 'crypto' | 'stocks' | 'commodities'>,
+    trading_style: str(p.trading_style),
+    // The server sends 0–100; the card expects 0–1.
+    win_rate: winRate > 1 ? winRate / 100 : winRate,
+    last_30d_pnl_pct: n(p.performance_30d),
+    followers: n(p.followers_count),
+    match_score: 0,
+    last_active_at: str(p.last_seen),
+    is_bot: p.is_bot === true,
+    can_message: typeof p.can_message === 'boolean' ? p.can_message : null,
+    source: 'server' as const,
+  }
+}
+
+// ── Share into chat (C4 `share`, C9 <ChatShareTo>) ───────────────────────────
+
+export type ShareKind = 'article' | 'strategy' | 'call' | 'bot' | 'asset'
+export interface ShareItem { kind: ShareKind; id: string; title: string; url?: string }
+export interface ShareCard { kind: ShareKind; title: string; url: string; note: string }
+
+const SHARE_PATHS: Array<[ShareKind, string]> = [
+  ['article', '/articles/'], ['strategy', '/strategy/'], ['bot', '/bots/'], ['asset', '/assets/'], ['call', '/predict'],
+]
+
+/** The in-app page of a shared object (`item.url` wins when it is an in-app path). */
+export function shareUrl(item: ShareItem): string {
+  if (item.url && item.url.startsWith('/')) return item.url
+  const id = encodeURIComponent(item.id)
+  switch (item.kind) {
+    case 'article': return `/articles/${id}`
+    case 'strategy': return `/strategy/${id}`
+    case 'bot': return `/bots/${id}`
+    case 'asset': return `/assets/${id}`
+    default: return `/predict`
+  }
+}
+
+function kindOfUrl(url: string): ShareKind {
+  for (const [kind, prefix] of SHARE_PATHS) if (url.startsWith(prefix)) return kind
+  return 'article'
+}
+
+/**
+ * The POST body for sharing `item` into a conversation: `share` for a C4 server (it builds the attachment), and a
+ * readable `content` line so an older server (which ignores `share`) still stores a message with the link.
+ */
+export function shareMessageBody(item: ShareItem, note = ''): { content: string; share: { kind: ShareKind; id: string } } {
+  const line = `📎 ${item.title.trim() || item.kind} ${shareUrl(item)}`
+  const n = note.trim()
+  return { content: n ? `${n} — ${line}` : line, share: { kind: item.kind, id: item.id } }
+}
+
+const SHARE_LINE = /(?:^|\s—\s)📎\s(.+?)\s(\/(?:articles|strategy|bots|assets|predict)[^\s]*)\s*$/u
+
+/**
+ * A message that carries a shared object → the card to draw, or null. Reads C4 attachments
+ * (`content_type='attachment'` + an in-app `attachment_url`) and the fallback text line from `shareMessageBody`.
+ */
+export function shareCardOf(m: Pick<Message, 'content' | 'content_type' | 'attachment_url' | 'attachment_name'>): ShareCard | null {
+  const url = str(m.attachment_url)
+  const content = str(m.content)
+  if (url.startsWith('/')) {
+    const parsed = content.match(SHARE_LINE)
+    // The server's own text when the sender wrote none: "Shared article: <title>".
+    const serverLine = parsed ? null : content.match(/^Shared [a-z]+: (.+)$/u)
+    const name = str(m.attachment_name)
+    // attachment_name may be a `kind:id` key rather than a title: never show that as the title.
+    const nameTitle = /^(article|strategy|call|bot|asset):/.test(name) ? '' : name
+    const note = parsed ? content.slice(0, parsed.index).trim() : serverLine || content === name ? '' : content
+    return { kind: kindOfUrl(url), title: parsed?.[1] || serverLine?.[1] || nameTitle || 'Shared', url, note }
+  }
+  const match = content.match(SHARE_LINE)
+  if (!match) return null
+  return { kind: kindOfUrl(match[2]!), title: match[1]!, url: match[2]!, note: content.slice(0, match.index).trim() }
+}
+
+/** One-line quote of a message for the reply bar and the reply preview. */
+export function quoteOf(text: string, max = 90): string {
+  const t = str(text).replace(/\s+/g, ' ').trim()
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t
 }
 
 // ── Display ────────────────────────────────────────────────────────────────

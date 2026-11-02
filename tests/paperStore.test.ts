@@ -5,12 +5,12 @@ import { usePaperStore } from '~/stores/paper'
 describe('paper store — owner, capital and marks', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('stamps the given owner and capital; defaults are "guest" and a labelled $100k', () => {
+  it('stamps the given owner and capital; defaults are "guest" and a labelled $10k (never 100k)', () => {
     const paper = usePaperStore()
     const mine = paper.placeOrder({ asset_id: 'bitcoin', asset_symbol: 'BTC', side: 'buy', wallet_pct: 10, simulated_price: 80000, user_id: 'u_7', capital_usd: 25000 })
     expect(mine).toMatchObject({ user_id: 'u_7', notional_value: 2500, capital_usd: 25000, capital_source: 'paper_wallet', mark_price: null })
     const anon = paper.placeOrder({ asset_id: 'bitcoin', asset_symbol: 'BTC', side: 'buy', wallet_pct: 10, simulated_price: 80000 })
-    expect(anon).toMatchObject({ user_id: 'guest', notional_value: 10000, capital_source: 'default' })
+    expect(anon).toMatchObject({ user_id: 'guest', notional_value: 1000, capital_source: 'default' })
     expect(paper.trades.some(t => t.user_id === 'user_001')).toBe(false)
   })
 

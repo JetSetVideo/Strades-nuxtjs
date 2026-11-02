@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { toRaw } from 'vue'
 import { usePriceCache } from '~/composables/usePriceCache'
 import { publicAssetUrl } from '~/composables/useLocalJson'
 import { feedKeyForAsset } from '~/utils/assetFeeds'
@@ -22,8 +23,11 @@ interface Gate {
   last?: { key: string; fetchedAt: number; res: QuotesResponse }
 }
 // Per store instance (one per Pinia, so SSR requests never share one).
+// Keyed on the RAW store: in dev, Pinia's devtools run every action on a fresh `new Proxy(store)`
+// (pinia.mjs patchActionForGrouping), so keying on `this` gave each call its own gate (quotes ×2).
 const gates = new WeakMap<object, Gate>()
 function gateOf(store: object): Gate {
+  store = toRaw(store)
   let g = gates.get(store)
   if (!g) {
     g = { init: createSingleFlight<void>(), quotes: createSingleFlight<QuotesResponse>() }
@@ -33,6 +37,20 @@ function gateOf(store: object): Gate {
 }
 
 export type { Asset } from '~/types/asset'
+
+/**
+ * The bundled catalogue (/core/assets.json, ~15 KB) never changes while the app runs: read it once per
+ * page load and reuse it on every fetchAssets() (it was refetched on each /prices visit). A failed read
+ * is forgotten so the next call tries again.
+ */
+let bundledAssets: Promise<Asset[]> | null = null
+function loadBundledAssets(url: string): Promise<Asset[]> {
+  if (import.meta.server) return $fetch<Asset[]>(url) // never share module state between SSR requests
+  if (!bundledAssets) {
+    bundledAssets = $fetch<Asset[]>(url).catch((err) => { bundledAssets = null; throw err })
+  }
+  return bundledAssets
+}
 
 /**
  * API → store shape. The Django serializer names the 24h move `price_change_24h`;
@@ -128,7 +146,7 @@ export const useAssetsStore = defineStore('assets', {
         // DRF paginates (20/page) — follow `next` so no asset silently disappears.
         type Page = { results?: Asset[]; next?: string | null } | Asset[]
         const get = $api as (url: string) => Promise<Page>
-        let page: Page = await get('/api/assets/')
+        let page: Page = await get('/api/v1/assets/')
         assets = unwrap(page)
         for (let guard = 0; !Array.isArray(page) && page.next && guard < 50; guard++) {
           const next = new URL(page.next)
@@ -137,7 +155,7 @@ export const useAssetsStore = defineStore('assets', {
         }
         assets = assets.map(fromApi)
         // The API catalogue has no logos / relationship links yet: fill blanks from the bundled one by id.
-        const bundled = await $fetch<Asset[]>(localAssetsUrl).catch(() => [] as Asset[])
+        const bundled = await loadBundledAssets(localAssetsUrl).catch(() => [] as Asset[])
         const byId = new Map(bundled.map(b => [b.id, b]))
         assets = assets.map(a => {
           const b = byId.get(a.id)
@@ -157,7 +175,7 @@ export const useAssetsStore = defineStore('assets', {
 
       if (!assets.length) {
         try {
-          assets = await $fetch<Asset[]>(localAssetsUrl)
+          assets = (await loadBundledAssets(localAssetsUrl)).map(a => ({ ...a }))
           source = 'bundled'
         } catch (error) {
           this.error = error as Error

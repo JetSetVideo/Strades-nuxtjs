@@ -4,6 +4,7 @@
       <span class="kind-pill" :class="`kind-${challenge.kind}`">
         {{ challenge.kind === 'market' ? 'market-settled' : 'community-voted' }}
       </span>
+      <UISourceChip v-if="sample" source="sample" note="A demo challenge seeded for first-time visitors; credits are free play money." />
       <span class="countdown" :title="challenge.resolves_at">{{ countdownLabel }}</span>
     </header>
 
@@ -72,7 +73,8 @@ import { useCurrentUser } from '~/composables/useCurrentUser'
 import { useAgentTracker } from '~/composables/useAgentTracker'
 import { MAX_STAKE } from '~/types/dataBet'
 
-const props = defineProps<{ challenge: DataChallenge }>()
+/** `sample`: a demo challenge seeded for first-time visitors (stores/dataBets seedDemo), not a real user's. */
+const props = defineProps<{ challenge: DataChallenge, sample?: boolean }>()
 
 const dataBets = useDataBetsStore()
 const credits = useCreditsStore()

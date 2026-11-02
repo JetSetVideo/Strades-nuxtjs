@@ -37,7 +37,7 @@ export interface PaperTrade {
   /** Capital the % was taken of, and where it came from */
   capital_usd?: number
   capital_source?: 'paper_wallet' | 'default'
-  /** Seeded demo row (seedDemo): not a trade the user placed */
+  /** Seeded demo row (the removed seedDemo; older ledgers still hold some): not a trade the user placed, never in KPIs */
   sample?: boolean
   /** Strategy that triggered this trade (undefined = manual) */
   strategy_id?: string
@@ -92,13 +92,16 @@ export const usePaperStore = defineStore('paper', {
   getters: {
     openTrades: (s) => s.trades.filter(t => t.status === 'open'),
     closedTrades: (s) => s.trades.filter(t => t.status === 'closed'),
+    /** The user's own trades: rows seeded as samples (older ledgers still hold some) are not his. */
+    ownOpenTrades: (s) => s.trades.filter(t => t.status === 'open' && !t.sample),
+    ownClosedTrades: (s) => s.trades.filter(t => t.status === 'closed' && !t.sample),
 
-    /** Total hypothetical P&L across all open paper positions */
+    /** Total hypothetical P&L across the user's own open paper positions (samples excluded) */
     openPnlValue(): number {
-      return this.openTrades.reduce((acc, t) => acc + t.hypothetical_pnl_value, 0)
+      return this.ownOpenTrades.reduce((acc, t) => acc + t.hypothetical_pnl_value, 0)
     },
     openPnlPct(): number {
-      const open = this.openTrades
+      const open = this.ownOpenTrades
       if (!open.length) return 0
       const totalNotional = open.reduce((a, t) => a + t.notional_value, 0)
       if (!totalNotional) return 0
@@ -106,20 +109,20 @@ export const usePaperStore = defineStore('paper', {
     },
 
     realizedPnlValue(): number {
-      return this.closedTrades.reduce((acc, t) => acc + (t.realized_pnl_value ?? 0), 0)
+      return this.ownClosedTrades.reduce((acc, t) => acc + (t.realized_pnl_value ?? 0), 0)
     },
 
-    /** Win rate across closed trades */
-    winRate(): number {
-      const closed = this.closedTrades
-      if (!closed.length) return 0
+    /** Win rate (%) across the user's own closed trades; null (shown "—") until one closes */
+    winRate(): number | null {
+      const closed = this.ownClosedTrades
+      if (!closed.length) return null
       const wins = closed.filter(t => (t.realized_pnl_value ?? 0) > 0).length
       return (wins / closed.length) * 100
     },
 
     /** Equity curve built from closed trades sorted by close time */
     equityCurve(): Array<{ t: string; v: number }> {
-      const sorted = [...this.closedTrades].sort(
+      const sorted = [...this.ownClosedTrades].sort(
         (a, b) => new Date(a.closed_at ?? '').getTime() - new Date(b.closed_at ?? '').getTime()
       )
       let cum = 0
@@ -175,7 +178,7 @@ export const usePaperStore = defineStore('paper', {
       agent_id?: string
       /** Signed-in user's id (resolve with useAuth in the component's setup); default "guest" */
       user_id?: string
-      /** User's paper cash (custody paper wallets); default DEFAULT_PAPER_CAPITAL, labelled */
+      /** Capital the % is taken of (resolvePaperCapital: free paper cash → Settings → 10,000), labelled */
       capital_usd?: number | null
       sample?: boolean
     }): PaperTrade {
@@ -261,23 +264,8 @@ export const usePaperStore = defineStore('paper', {
     clearAll() {
       this.trades = []
       this.persist()
-    },
-
-    /** Seed some sample paper trades for first-time users */
-    seedDemo() {
-      if (this.trades.length > 0) return
-      const samples = [
-        { asset_id: 'bitcoin',  asset_symbol: 'BTC',  side: 'buy'  as const, wallet_pct: 5, simulated_price: 62_500, strategy_id: 'strategy_001' },
-        { asset_id: 'ethereum', asset_symbol: 'ETH',  side: 'buy'  as const, wallet_pct: 3, simulated_price: 3_400 },
-        { asset_id: 'apple',    asset_symbol: 'AAPL', side: 'buy'  as const, wallet_pct: 8, simulated_price: 198.50, agent_id: 'avatar_pro_momentum' },
-        { asset_id: 'gold',     asset_symbol: 'XAU',  side: 'sell' as const, wallet_pct: 2, simulated_price: 2_310 }
-      ]
-      for (const s of samples) this.placeOrder({ ...s, sample: true })
-      // Close the oldest one as a winner for the demo
-      if (this.trades.length > 0) {
-        const last = this.trades[this.trades.length - 1]
-        if (last) this.closeTrade(last.id, last.simulated_price * 1.04)
-      }
     }
+    // seedDemo() removed (swarm 11-02 TRADE-5): it wrote 4 invented trades (+$200, 100 % win rate)
+    // into an empty ledger. Rows it left behind keep `sample: true` and are chipped + excluded from KPIs.
   }
 })

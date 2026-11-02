@@ -60,7 +60,7 @@ async function loadDetail(sym: string) {
   company.value = null
   try {
     const { $api } = useNuxtApp()
-    detail.value = await ($api as (u: string) => Promise<Record<string, any>>)(`/api/assets/${encodeURIComponent(sym)}/detail/`)
+    detail.value = await ($api as (u: string) => Promise<Record<string, any>>)(`/api/v1/assets/${encodeURIComponent(sym)}/detail/`)
   } catch { /* backend down: the store data still renders */ }
   const file = COMPANY_FILES[sym.toUpperCase()]
   if (file) company.value = await $fetch<Record<string, any>>(publicAssetUrl(`/data/companies/${file}.json`)).catch(() => null)

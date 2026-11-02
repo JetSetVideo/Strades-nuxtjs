@@ -59,11 +59,13 @@ const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleSt
     <div v-if="newcomer" class="pc-new">
       <p class="pc-new-t">We need a little more of you before we can read your style.</p>
       <ol class="pc-steps">
-        <li>Make <b>3 calls</b> on <NuxtLink to="/prices">Prices</NuxtLink> (up or down, with a target date).</li>
-        <li>Read a couple of articles on <NuxtLink to="/news">News</NuxtLink> and say hi in a room.</li>
-        <li>Come back and press <b>Re-analyse me now</b>.</li>
+        <li>Make <b>3 calls</b> on <NuxtLink to="/prices">Prices</NuxtLink> (open an asset, then up or down with a target date).</li>
+        <li>Read a couple of articles on <NuxtLink to="/news">News</NuxtLink> and say hi in a room on <NuxtLink to="/chat">Chat</NuxtLink>.</li>
+        <li>Set your risk budget in <NuxtLink to="/settings#primary">Settings › Primary values</NuxtLink> (optional: your agent's directive uses it).</li>
+        <li>Come back and press <button type="button" class="pc-inline" :disabled="refreshing" @click="emit('refresh')">Re-analyse me now</button>.</li>
       </ol>
-      <p class="muted">Your rooms already appear below. Pairs show up once you and someone else have called the same assets.</p>
+      <p class="muted">Your rooms already appear below. Pairs show up once you and someone else have called the same assets.
+        What the avatar has seen so far: <NuxtLink to="/profile#intelligence-avatar">Profile › Your avatar</NuxtLink>.</p>
     </div>
 
     <template v-else-if="profile">
@@ -166,6 +168,9 @@ const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleSt
 .pc-new { border: 1px dashed var(--edge-lit); border-radius: var(--radius-md); padding: var(--card-pad); display: flex; flex-direction: column; gap: 0.4rem; }
 .pc-new-t { margin: 0; font-size: 0.9rem; color: var(--text-white); }
 .pc-steps { margin: 0; padding-left: 1.2rem; font-size: 0.8rem; color: var(--text-light-gray); display: flex; flex-direction: column; gap: 0.2rem; }
+.pc-inline { all: unset; cursor: pointer; color: var(--primary-blue); font-weight: 600; }
+.pc-inline:disabled { opacity: 0.6; cursor: progress; }
+.pc-inline:focus-visible { outline: 2px solid var(--primary-blue); outline-offset: 2px; }
 .pc a { color: var(--primary-blue); text-decoration: none; }
 .pc a:focus-visible { outline: 2px solid var(--primary-blue); outline-offset: 2px; }
 

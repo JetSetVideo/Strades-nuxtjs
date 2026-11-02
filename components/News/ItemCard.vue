@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import UICard from '@/components/UI/Card.vue'
 import ButtonBookmark from '@/components/Button/Bookmark.vue'
+import ChatShareTo from '@/components/Chat/ShareTo.vue'
 import type { NewsItem, NewsPoliticalScale } from '~/types/news'
 import { economicLabelFromValue, politicalScaleFromValue, sentimentLabelFromValue } from '~/types/news'
 
@@ -22,10 +23,10 @@ const emit = defineEmits<{
 
 const metadataOpen = ref(false)
 const commentsOpen = ref(false)
-const shareOpen = ref(false)
 const commentDraft = ref('')
-const shareDraft = ref('')
-const recipientsDraft = ref('')
+/** C9: the article goes to friends/bots/rooms through chat; the store then counts the share. */
+const shareItem = computed(() => ({ kind: 'article' as const, id: props.item.id, title: props.item.title, url: `/articles/${props.item.id}` }))
+const onShared = () => emit('share', { recipients: [], note: '' })
 
 const politicalLabel = computed(() => politicalScaleFromValue(props.item.politicalLeaning).replace('_', ' '))
 const economicLabel = computed(() => economicLabelFromValue(props.item.economicLeaning))
@@ -103,16 +104,6 @@ const onComment = () => {
   commentDraft.value = ''
 }
 
-const onShare = () => {
-  emit('share', {
-    recipients: recipientsDraft.value.split(',').map(value => value.trim()).filter(Boolean),
-    note: shareDraft.value.trim(),
-  })
-  recipientsDraft.value = ''
-  shareDraft.value = ''
-  shareOpen.value = false
-}
-
 const openDetail = () => {
   emit('read')
   navigateTo(`/articles/${props.item.id}`)
@@ -155,6 +146,11 @@ const onCardClick = (event: MouseEvent) => {
         <span v-if="followed" class="following">following</span>
       </button>
       <div class="provenance">
+        <UISourceChip
+          v-if="item.source.provenance === 'seeded'"
+          source="sample"
+          note="Seeded demo story, not live news. Comments, reactions and shares you add are saved when you are signed in."
+        />
         <span>{{ item.source.label }}</span>
         <span v-if="item.geographicOrigin?.name">· {{ item.geographicOrigin.name }}</span>
         <time :datetime="item.publishedAt">· {{ new Date(item.publishedAt).toLocaleString(APP_LOCALE) }}</time>
@@ -244,9 +240,7 @@ const onCardClick = (event: MouseEvent) => {
         <button class="social-btn" :class="{ active: commentsOpen }" type="button" @click.stop="commentsOpen = !commentsOpen">
           Comment <span>{{ item.counters.comments }}</span>
         </button>
-        <button class="social-btn" :class="{ active: shareOpen }" type="button" @click.stop="shareOpen = !shareOpen">
-          Share <span>{{ item.counters.shares }}</span>
-        </button>
+        <ChatShareTo :item="shareItem" :label="`Share ${item.counters.shares}`" button-class="social-btn" @shared="onShared" />
         <button class="controversy" type="button" title="Controversy score" @click.stop="metadataOpen = !metadataOpen">
           {{ Math.round(item.controversyIndex * 100) }}% hot
         </button>
@@ -269,11 +263,6 @@ const onCardClick = (event: MouseEvent) => {
       </ul>
     </div>
 
-    <div v-if="shareOpen" class="expand-panel share-panel" @click.stop>
-      <input v-model="recipientsDraft" type="text" aria-label="Share recipients" placeholder="Friends: user_002, user_004..." />
-      <input v-model="shareDraft" type="text" aria-label="Share note" placeholder="Optional note" />
-      <button type="button" @click="onShare">Share</button>
-    </div>
   </UICard>
 </template>
 
@@ -437,6 +426,7 @@ const onCardClick = (event: MouseEvent) => {
 .more-tag,
 .allocation-inline,
 .social-btn,
+.social-actions :deep(.social-btn),
 .controversy,
 .comment-compose button,
 .share-panel button {
@@ -611,6 +601,7 @@ const onCardClick = (event: MouseEvent) => {
 }
 
 .social-btn,
+.social-actions :deep(.social-btn),
 .controversy {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.025);
@@ -625,7 +616,8 @@ const onCardClick = (event: MouseEvent) => {
 }
 
 .social-btn.active,
-.social-btn:hover {
+.social-btn:hover,
+.social-actions :deep(.social-btn:hover) {
   color: var(--primary-green, #00ff88);
   border-color: rgba(0, 255, 136, 0.28);
   background: rgba(0, 255, 136, 0.07);

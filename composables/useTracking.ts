@@ -13,7 +13,12 @@
  *
  * The public API keeps startSession(), stopHeartbeat(), track(), sessionId and
  * adds trackInteraction() and flush().
+ *
+ * Consent gate (Settings › Account): with "Help train my avatar" off nothing is sent.
+ * Partial batches: the server keeps the valid events and returns `{accepted, rejected}`;
+ * the rejected count is kept in `rejectedTotal` (one bad type no longer costs the batch).
  */
+import { userGet, userSet } from '~/utils/userStorage'
 
 export type ActivityAction =
   | 'page_view' | 'login' | 'logout' | 'register' | 'search'
@@ -49,13 +54,48 @@ interface TrackingState {
   inFlight: boolean
   backoffMs: number
   listeners: boolean
+  rejectedTotal: number
+  lastRejectReasons: string[]
+}
+
+// ---- Consent: "Help train my avatar from my activity" (Settings › Account) ----
+// No server preference endpoint exists for it yet, so it is kept per user in this browser
+// (utils/userStorage.ts namespaces it by account). Default ON in the closed beta; OFF = this
+// composable sends nothing at all (no session, no heartbeat, no batch) and drops what is queued.
+export const TRACKING_CONSENT_KEY = 'strades_train_avatar_v1'
+
+type ConsentKV = Parameters<typeof userGet>[1]
+
+/** True unless the user switched training off on this device. */
+export function trackingConsentOn(s?: ConsentKV): boolean {
+  return userGet(TRACKING_CONSENT_KEY, s) !== '0'
+}
+
+export function writeTrackingConsent(on: boolean, s?: ConsentKV): void {
+  try { userSet(TRACKING_CONSENT_KEY, on ? '1' : '0', s) } catch { /* storage full or blocked */ }
+}
+
+/** The single gate every send path goes through (pure, tested in tests/avatar-tracking.test.ts). */
+export function trackingAllowed(o: { client: boolean; authed: boolean; consent: boolean }): boolean {
+  return o.client && o.authed && o.consent
+}
+
+/** Server answer of POST tracking/batch/: `{accepted, rejected:[{index, reason}]}` (older servers: no `rejected`). */
+export function batchOutcome(res: unknown): { accepted: number; rejected: number; reasons: string[] } {
+  const r = (res && typeof res === 'object' ? res : {}) as { accepted?: unknown; rejected?: unknown }
+  const rows = Array.isArray(r.rejected) ? r.rejected as { reason?: unknown }[] : []
+  return {
+    accepted: typeof r.accepted === 'number' && Number.isFinite(r.accepted) ? r.accepted : 0,
+    rejected: rows.length,
+    reasons: rows.map(x => String(x?.reason ?? '')).filter(Boolean).slice(0, 5),
+  }
 }
 
 // Module scope is safe here only because every entry point returns early on the server:
 // this state is never touched during SSR, so it is never shared between requests.
 const state: TrackingState = {
   sessionId: null, heartbeatTimer: null, flushTimer: null, queue: [], counters: {},
-  dropped: 0, inFlight: false, backoffMs: 0, listeners: false,
+  dropped: 0, inFlight: false, backoffMs: 0, listeners: false, rejectedTotal: 0, lastRejectReasons: [],
 }
 
 /** Payload as plain JSON within the size budget (bulky fields dropped, scalars kept). */
@@ -79,6 +119,9 @@ export const useTracking = () => {
   const { accessToken, isAuthenticated } = useAuth()
   const config = useRuntimeConfig()
   const apiBase = config.public.apiBase as string
+  const _allowed = () => trackingAllowed({
+    client: !!import.meta.client, authed: isAuthenticated.value, consent: import.meta.client ? trackingConsentOn() : false,
+  })
 
   const _headers = () => ({
     'Content-Type': 'application/json',
@@ -126,7 +169,7 @@ export const useTracking = () => {
 
   /** Send queued events now. `beacon` = the page is going away: keepalive fetch, no retry. */
   const flush = async (beacon = false): Promise<void> => {
-    if (!import.meta.client || !isAuthenticated.value || state.inFlight) return
+    if (!_allowed() || state.inFlight) return
     if (!state.queue.length && !Object.keys(state.counters).length && !state.dropped) return
     const batch = _takeBatch()
     if (!batch.length) return
@@ -141,7 +184,12 @@ export const useTracking = () => {
     }
     state.inFlight = true
     try {
-      await $fetch('/api/auth/tracking/batch/', { baseURL: apiBase, method: 'POST', headers: _headers(), body })
+      const res = await $fetch('/api/auth/tracking/batch/', { baseURL: apiBase, method: 'POST', headers: _headers(), body })
+      const out = batchOutcome(res)
+      if (out.rejected) {
+        state.rejectedTotal += out.rejected
+        state.lastRejectReasons = out.reasons
+      }
       state.backoffMs = 0
     } catch (e: any) {
       const code = e?.response?.status ?? e?.statusCode
@@ -151,7 +199,12 @@ export const useTracking = () => {
         _requeue(batch)
         state.backoffMs = Math.min(MAX_BACKOFF_MS, state.backoffMs ? state.backoffMs * 2 : FLUSH_MS * 2)
       }
-      // 400 = malformed events: a retry would fail forever, so they are dropped
+      // 400 = a bad envelope or every event invalid: a retry would fail forever, so they are dropped
+      if (code === 400) {
+        const out = batchOutcome(e?.data ?? e?.response?._data)
+        state.rejectedTotal += out.rejected || batch.length
+        state.lastRejectReasons = out.reasons
+      }
     } finally {
       state.inFlight = false
     }
@@ -181,7 +234,7 @@ export const useTracking = () => {
 
   // ---- Start session (called once after login / on app boot if authenticated) ----
   const startSession = async () => {
-    if (!import.meta.client || !isAuthenticated.value || state.sessionId) return
+    if (!_allowed() || state.sessionId) return
     try {
       const data = await $fetch<{ session_id: string }>('/api/auth/tracking/session/', {
         baseURL: apiBase,
@@ -204,7 +257,7 @@ export const useTracking = () => {
   const _startHeartbeat = () => {
     if (state.heartbeatTimer) return
     state.heartbeatTimer = setInterval(async () => {
-      if (!isAuthenticated.value || !state.sessionId || document.visibilityState === 'hidden') return
+      if (!_allowed() || !state.sessionId || document.visibilityState === 'hidden') return
       try {
         await $fetch('/api/auth/tracking/heartbeat/', {
           baseURL: apiBase,
@@ -231,7 +284,7 @@ export const useTracking = () => {
     action: ActivityAction,
     options: { page?: string; payload?: Record<string, unknown>; duration_ms?: number } = {}
   ) => {
-    if (!import.meta.client || !isAuthenticated.value) return
+    if (!_allowed()) return
     const d = options.duration_ms
     _enqueue({
       action,
@@ -247,7 +300,7 @@ export const useTracking = () => {
    * locally and sent once per flush; deliberate ones are queued as `interaction` with payload.type.
    */
   const trackInteraction = (type: string, payload: Record<string, unknown> = {}) => {
-    if (!import.meta.client || !isAuthenticated.value) return
+    if (!_allowed()) return
     if (COALESCED.has(type)) {
       state.counters[type] = (state.counters[type] ?? 0) + 1
       const ms = Number(payload.dwell_ms)
@@ -259,5 +312,25 @@ export const useTracking = () => {
     void track('interaction', { payload: { ...payload, type } })
   }
 
-  return { startSession, stopHeartbeat, track, trackInteraction, flush, sessionId: computed(() => state.sessionId) }
+  /** Settings › Account switch. Off: drop the queue and counters, stop the heartbeat, send nothing more. */
+  const setConsent = (on: boolean) => {
+    if (!import.meta.client) return
+    writeTrackingConsent(on)
+    if (!on) {
+      state.queue = []
+      state.counters = {}
+      state.dropped = 0
+      if (state.flushTimer) { clearTimeout(state.flushTimer); state.flushTimer = null }
+      if (state.heartbeatTimer) { clearInterval(state.heartbeatTimer); state.heartbeatTimer = null }
+      state.sessionId = null
+    } else {
+      void startSession()
+    }
+  }
+
+  return {
+    startSession, stopHeartbeat, track, trackInteraction, flush, setConsent,
+    sessionId: computed(() => state.sessionId),
+    rejectedTotal: computed(() => state.rejectedTotal),
+  }
 }

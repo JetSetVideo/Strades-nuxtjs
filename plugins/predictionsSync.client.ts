@@ -55,15 +55,15 @@ function writeMark(m: PullMark | null) {
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.hook('app:mounted', () => {
-    const { isAuthenticated, accessToken, user } = useAuth()
-    const apiBase = useRuntimeConfig().public.apiBase as string
+    const { isAuthenticated, user } = useAuth()
     const store = usePredictionsStore()
     if (!store.initialized) store.init()
     const uid = () => String(user.value?.id ?? '')
 
-    const api = <T>(path: string, opts: Record<string, any> = {}) => $fetch<T>(path, {
-      baseURL: apiBase, ...opts, headers: { Authorization: `Bearer ${accessToken.value}`, ...(opts.headers ?? {}) },
-    })
+    // Through $api (plugins/api.ts): a 401 refreshes the token once and retries, so an expired tab
+    // no longer polls 401 every minute (board-perf PERF-5).
+    const $api = nuxtApp.$api as (u: string, o?: Record<string, any>) => Promise<unknown>
+    const api = <T>(path: string, opts: Record<string, any> = {}) => $api(path, opts) as Promise<T>
 
     let busy = false
     let timer: ReturnType<typeof setTimeout> | null = null

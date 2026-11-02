@@ -529,7 +529,7 @@ onBeforeUnmount(() => { cancelSubtreeAnimations(pageRoot.value) })
         :plan="paid ? 'Paid' : 'Free'"
         :paid="paid"
         :figures-pending="!isOwnBook"
-        :note="catalogSelf ? '' : 'Demo portrait and name. The book, mind, wallets, and circle are the account already in the app. The portrait and the name open Settings.'"
+        :note="catalogSelf ? '' : 'Demo portrait and name. The Mind block is a sample persona until you have data; Your mirror below is measured from you. The portrait and the name open Settings.'"
       />
 
       <section class="desk spread" aria-label="Desk summary">
@@ -667,6 +667,7 @@ onBeforeUnmount(() => { cancelSubtreeAnimations(pageRoot.value) })
           <header class="block-head">
             <h2><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" /><path d="M8 4.5v4l2.5 1.5" /></svg>Mind</h2>
             <span>{{ user.psychology_profile.mbti }}</span>
+            <UISourceChip source="sample" note="Sample persona from the demo catalog, not measured from you. Your measured profile is in Your mirror above (tab Your avatar)." />
             <button type="button" class="mini" :disabled="!paid" @click="toggleHide('mind')">{{ hiddenBlocks.includes('mind') ? 'Hidden' : 'Hide' }}</button>
             <button type="button" class="mini" :disabled="!paid" @click="promote('mind')">{{ promoted === 'mind' ? 'Promoted' : 'Promote' }}</button>
           </header>

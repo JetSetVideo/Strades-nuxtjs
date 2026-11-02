@@ -322,7 +322,8 @@ export interface RiskProfile {
    */
   sharpe: PendingFigure
   sharpeNote: string
-  winRate: number
+  /** null = not measured: the book has no closed (sell) trade, so there is no win to count (REVIEW-7). */
+  winRate: number | null
   concentration: number
   riskLevel: 'low' | 'medium' | 'high'
   riskScore: number
@@ -331,9 +332,13 @@ export interface RiskProfile {
 
 export const SHARPE_PENDING_NOTE = 'Needs a daily equity history (daily returns): not recorded yet.'
 
+export const WIN_RATE_PENDING_NOTE = 'No closed (sell) trade in this book yet: a win rate needs closed trades.'
+
 export function riskProfile(
   positions: { symbol: string; allocation_percentage?: number; return_percentage?: number; current_value?: number }[],
   _history?: Record<string, { change_percentage?: number }>,
+  /** Closed (sell) trades in the book; 0 → winRate null. Omitted → the old positions-in-profit share. */
+  closedTrades?: number,
 ): RiskProfile {
   const exposure: Record<PieClass, number> = { fiat: 0, crypto: 0, stocks: 0, commodities: 0 }
   let weightSum = 0
@@ -351,9 +356,11 @@ export function riskProfile(
   }
 
   const sharpe = pendingFigure(SHARPE_PENDING_NOTE)
-  const winRate = positions.length
-    ? (positions.filter(position => (position.return_percentage ?? 0) > 0).length / positions.length) * 100
-    : 0
+  const winRate = closedTrades === 0
+    ? null
+    : positions.length
+      ? (positions.filter(position => (position.return_percentage ?? 0) > 0).length / positions.length) * 100
+      : 0
   const concentration = positions.reduce((acc, position) => acc + ((position.allocation_percentage ?? 0) / 100) ** 2, 0)
   const crypto = exposure.crypto
   const riskLevel: RiskProfile['riskLevel'] = crypto > 60 || concentration > 0.5
@@ -469,4 +476,74 @@ export function aggregateWallets(wallets: BookWallet[]): BookWallet | null {
       .sort((a, b) => String(b.timestamp ?? '').localeCompare(String(a.timestamp ?? ''))),
     performance_history,
   }
+}
+
+
+// ─── /risk exposure from the account's OWN holdings (Wave 2 review, REVIEW-6) ─────────────────────
+// The old card listed a fixed set of 9 assets (BTC…CNY) at their class vol and then SUMMED those vols per
+// type (3 × 82 % = 246 %). Now: one row per asset the book actually holds, weighted by its share of the
+// book; a class row is Σ weight × class vol, so it can never exceed the class vol (≤ 100 %).
+
+export interface HeldExposureRow {
+  symbol: string
+  cls: PieClass
+  /** USD value held (bot + portfolio legs merged). */
+  value: number
+  /** % of the book total. */
+  weightPct: number
+  /** Annual class volatility as a fraction (0.7 = 70 %). */
+  vol: number
+  /** Vol-weighted exposure in %: weightPct × vol, capped at 100. */
+  risk: number
+}
+
+const clampPct = (v: number) => Math.max(0, Math.min(100, Number.isFinite(v) ? v : 0))
+
+/**
+ * Rows ⊆ held assets (positions with a symbol and a positive value). `total` is the book total (cash
+ * included), so weights add up to ≤ 100 %. Empty when nothing is held or the total is not positive.
+ */
+export function heldExposureRows(
+  positions: { symbol: string; cls: PieClass; value: number }[],
+  total: number,
+  volByClass: Partial<Record<PieClass, number>> | null | undefined,
+): HeldExposureRow[] {
+  if (!(total > 0)) return []
+  const merged = new Map<string, { symbol: string; cls: PieClass; value: number }>()
+  for (const p of positions ?? []) {
+    const symbol = String(p?.symbol ?? '').toUpperCase().trim()
+    const value = Number(p?.value)
+    if (!symbol || !(value > 0)) continue
+    const row = merged.get(symbol)
+    if (row) row.value += value
+    else merged.set(symbol, { symbol, cls: p.cls, value })
+  }
+  return [...merged.values()].map(row => {
+    const weightPct = clampPct((row.value / total) * 100)
+    const vol = Math.max(0, Math.min(1, Number(volByClass?.[row.cls]) || 0))
+    return { ...row, weightPct, vol, risk: clampPct(weightPct * vol) }
+  }).sort((a, b) => b.risk - a.risk || b.value - a.value)
+}
+
+/** Σ vol-weighted exposure per class of the held rows; each ≤ 100 % by construction (clamped anyway). */
+export function heldExposureByClass(rows: HeldExposureRow[]): { cls: PieClass; weightPct: number; risk: number }[] {
+  const by = new Map<PieClass, { cls: PieClass; weightPct: number; risk: number }>()
+  for (const r of rows) {
+    const acc = by.get(r.cls) ?? { cls: r.cls, weightPct: 0, risk: 0 }
+    acc.weightPct += r.weightPct
+    acc.risk += r.risk
+    by.set(r.cls, acc)
+  }
+  return [...by.values()]
+    .map(r => ({ cls: r.cls, weightPct: clampPct(r.weightPct), risk: clampPct(r.risk) }))
+    .sort((a, b) => b.risk - a.risk)
+}
+
+/**
+ * Calendar days between `ts` and `now`, in UTC (REVIEW-17): yesterday 23:50 is 1 day ago at 00:10 today,
+ * where a 24 h window said 0 and printed a bare time under today's fills.
+ */
+export function utcCalendarDaysAgo(ts: number, now: number = Date.now()): number {
+  const day = (t: number) => Math.floor(t / 86_400_000)
+  return day(now) - day(ts)
 }

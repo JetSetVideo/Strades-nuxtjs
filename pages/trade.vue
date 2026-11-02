@@ -40,6 +40,9 @@
 
     <section v-if="!signedOut && (!wallets.length || adding)" class="panel narrow">
       <h2>{{ wallets.length ? 'Add another wallet' : 'Link your wallet' }}</h2>
+      <p v-if="$route.query.mix === 'directive' && !wallets.length" class="muted">
+        Create a paper wallet first; the bot launcher then starts from your agent's directive mix.
+      </p>
       <TradeWalletOnboarding :allow-import="!demoAccount" @ready="onWalletReady" />
       <button v-if="wallets.length" class="link" @click="adding = false">Cancel</button>
     </section>
@@ -49,7 +52,7 @@
         <div><span>Address</span><b class="mono">{{ wallet.address }}</b></div>
         <div><span>Free cash</span><b>{{ usd(+wallet.cash_usd) }}</b></div>
         <div><span>In bots</span><b>{{ usd(+wallet.allocated_usd) }}</b></div>
-        <div><span>Bot P&L (live)</span><b :class="livePnl >= 0 ? 'up' : 'down'">{{ pnl(livePnl) }}</b></div>
+        <div><span>Bot P&L (paper)</span><b :class="livePnl >= 0 ? 'up' : 'down'">{{ pnl(livePnl) }}</b></div>
         <button class="link" @click="adding = true">+ wallet</button>
       </section>
 
@@ -61,11 +64,14 @@
             <small>Markets ({{ feed }}):</small>
             <span v-for="m in markets" :key="m" class="chip">{{ m.replace('USDT', '') }}</span>
           </div>
-          <div v-if="devReplay" class="replay">
+          <div v-if="canReplay" class="replay">
             <button :disabled="stepping || clock?.exhausted" @click="step(24)">Replay +24 bars</button>
             <button :disabled="stepping || clock?.exhausted" @click="step(200)">+200</button>
             <small v-if="clock">bar {{ clock.tick }}{{ clock.exhausted ? ' · end of data' : '' }}</small>
           </div>
+          <p v-else class="first-fills">
+            First fills in about 24 h. Meanwhile <NuxtLink to="/strategies">backtest the same mix in the Lab →</NuxtLink>
+          </p>
           <p v-if="clock?.exhausted" class="clock-note">
             The replay window (≈41 days of real hourly prices) has been fully played. Bots launched now won't
             process any bars until the engine loads a new window.
@@ -103,6 +109,8 @@
 import { TradingApiError, useTradingApi, type BotStatus, type LedgerEntry, type TradingWallet } from '~/composables/useTradingApi'
 import { routeLabel } from '~/utils/routes'
 import { fmtMoneyKpi } from '~/utils/valueTree'
+import { createSingleFlight } from '~/utils/requestGate'
+import { TRADE_POLL_MS, tradePollDue } from '~/utils/paperMarks'
 
 // Title literal = routeLabel('/trade') (tests/pageTitles.test.ts; definePageMeta cannot call it).
 definePageMeta({ title: 'Trade with bots', layout: 'default' })
@@ -127,6 +135,9 @@ const stopping = ref<string | null>(null)
 const signedOut = ref(false)
 const auth = useAuth()
 const demoAccount = computed(() => !!auth.user.value?.is_demo)
+// Replay steps the shared engine clock: staff-only server-side (403 for everyone else), so only staff see it.
+// `is_staff` is not in AuthUser yet (types/user.ts, parent-owned) — read it defensively; absent = not staff.
+const canReplay = computed(() => devReplay && !!(auth.user.value as { is_staff?: boolean } | null)?.is_staff)
 const demoCookie = useCookie<string | null>('strades_demo')
 const isDemo = computed(() => demoCookie.value === '1' || String(config.public.demoMode) === 'true')
 const envDemo = String(config.public.demoMode) === 'true'
@@ -159,20 +170,27 @@ async function loadWallets() {
   if (!wallets.value.find(w => w.id === walletId.value)) walletId.value = wallets.value[0]?.id ?? ''
 }
 
-async function refresh() {
-  if (!walletId.value) return
+// Single-flight: the walletId watch, the poll and the action handlers may all ask at once (PERF-7) —
+// they share one wallet + bots + ledger round.
+const refreshGate = createSingleFlight<void>()
+function refresh(): Promise<void> {
+  if (!walletId.value) return Promise.resolve()
   const id = walletId.value
-  const [w, b, l] = await Promise.all([api.getWallet(id), api.listBots(id), api.ledger(id)])
-  wallets.value = wallets.value.map(x => (x.id === id ? w : x))
-  bots.value = await enrich(b)
-  ledger.value = l
+  return refreshGate.run(id, async () => {
+    const [w, b, l] = await Promise.all([api.getWallet(id), api.listBots(id), api.ledger(id)])
+    wallets.value = wallets.value.map(x => (x.id === id ? w : x))
+    bots.value = await enrich(b)
+    ledger.value = l
+  })
 }
 
 function onWalletReady(w: TradingWallet) {
   adding.value = false
   wallets.value = [w, ...wallets.value.filter(x => x.id !== w.id)]
+  // Setting walletId fires the watch below, which refreshes; refresh only when the id did not change.
+  const same = walletId.value === w.id
   walletId.value = w.id
-  guard(refresh)
+  if (same) guard(refresh)
 }
 
 async function stop(botId: string) {
@@ -219,7 +237,10 @@ onMounted(() => {
     if (m) { markets.value = m.symbols; feed.value = m.feed; if (m.tick !== undefined) clock.value = { tick: m.tick, exhausted: !!m.exhausted } }
     await refresh()
   })
-  timer = setInterval(() => { if (walletId.value && !signedOut.value && !document.hidden) refresh().catch(() => {}) }, 5000)
+  // Poll every 15 s, and only while a bot is running (PERF-7): an idle desk makes no requests.
+  timer = setInterval(() => {
+    if (tradePollDue({ walletId: walletId.value, signedOut: signedOut.value, hidden: document.hidden, bots: bots.value })) refresh().catch(() => {})
+  }, TRADE_POLL_MS)
   // Prediction bots decide on wall-clock time: ask the engine once a minute while the page is open.
   pollTimer = setInterval(() => { if (hasPrediction.value && !document.hidden) pollNow() }, 60000)
 })
@@ -253,6 +274,8 @@ h2 { margin: 0 0 .8rem; font-size: 1rem; }
 .muted { color: var(--text-secondary); }
 .poll-row { grid-column: 1 / -1; display: flex; gap: .7rem; align-items: center; }
 .poll { padding: .45rem .8rem; border-radius: 8px; border: 1px solid var(--border-primary); background: transparent; color: var(--text-primary); cursor: pointer; }
+.first-fills { margin: 1rem 0 0; font-size: .8rem; color: var(--text-secondary); }
+.first-fills a { color: var(--primary-blue, #3b82f6); text-decoration: none; }
 .clock-note { margin: .6rem 0 0; font-size: .78rem; color: var(--warning-orange, #f5a623); }
 .demo-banner { margin: 0; padding: .55rem .8rem; border: 1px dashed var(--warning-orange, #f5a623); border-radius: var(--radius-md, 8px);
   color: var(--warning-orange, #f5a623); font-size: .85rem; }

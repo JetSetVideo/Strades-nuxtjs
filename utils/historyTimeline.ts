@@ -139,6 +139,8 @@ export function fromPaperTrades(trades: PaperTrade[], now: number): HistoryEvent
     const sym = t.asset_symbol
     const common = {
       lane: 'trade' as Lane, mode: 'paper' as Mode, asset: sym, amount_usd: t.notional_value,
+      // rows seeded by the old seedDemo() keep `sample: true`: never counted as the user's (swarm 11-02)
+      sample: !!t.sample,
       href: `/assets/${encodeURIComponent((t.asset_id || sym).toLowerCase())}`,
       ref: { type: 'paper', id: t.id },
       data: { side: t.side, wallet_pct: t.wallet_pct, price: t.simulated_price, strategy_id: t.strategy_id, agent_id: t.agent_id },
@@ -482,6 +484,75 @@ export interface HistorySummary {
   backtests: { n: number; best: HistoryEvent | null }
   activeDays: number
   span: { first: string | null; last: string | null }
+  /** How the calls in view lean, computed from those calls (never the server EMA): see callStyle. */
+  style: CallStyle
+  /** strategies drafted in view (strategy_created rows) */
+  strategies: { n: number }
+}
+
+export interface CallStyle {
+  /** calls made (call_made events) */
+  n: number
+  /** of those, called up (predicted move ≥ 0, the ▲ in the title) */
+  bullish: number
+  /** median span made → target over the calls, in hours; null when no call has one */
+  horizonHours: number | null
+}
+
+/** Chip label → hours, when a call carries no target time ("1W" → 168). */
+const TIMEFRAME_HOURS: Record<string, number> = {
+  '1H': 1, '4H': 4, '1D': 24, '1W': 168, '2W': 336, '1M': 720, '3M': 2160, '6M': 4320, '1Y': 8760,
+}
+
+/** Bias + typical horizon from the call events themselves (PRED-3: the EMA said "1 h" for a 6-day call). */
+export function callStyle(events: HistoryEvent[]): CallStyle {
+  const made = events.filter(e => e.kind === 'call_made')
+  // span of each call: its due / awaiting / resolved row runs start_at (made) → at (target)
+  const spans = new Map<string, number>()
+  for (const e of events) {
+    if (!e.ref || !e.start_at || !['call_due', 'call_awaiting', 'call_resolved'].includes(e.kind)) continue
+    const h = (ms(e.at) - ms(e.start_at)) / 3_600_000
+    if (Number.isFinite(h) && h > 0) spans.set(`${e.ref.type}:${e.ref.id}`, h)
+  }
+  const hours: number[] = []
+  for (const e of made) {
+    const span = e.ref ? spans.get(`${e.ref.type}:${e.ref.id}`) : undefined
+    const tf = TIMEFRAME_HOURS[String(e.data?.timeframe ?? '').toUpperCase()]
+    const h = span ?? tf
+    if (typeof h === 'number' && Number.isFinite(h) && h > 0) hours.push(h)
+  }
+  hours.sort((a, b) => a - b)
+  const mid = Math.floor(hours.length / 2)
+  const median = !hours.length ? null : hours.length % 2 ? hours[mid]! : (hours[mid - 1]! + hours[mid]!) / 2
+  return {
+    n: made.length,
+    bullish: made.filter(e => typeof e.pct === 'number' && e.pct >= 0).length,
+    horizonHours: median,
+  }
+}
+
+/**
+ * A call the user did not make: a demo persona seed (`demo`), or a row that began before the
+ * account's `preferences.sample_history_before` (pre-filled sample history, apps/history/demo_seed).
+ * Same rule as the server timeline's `sample` flag (apps/history/sources.py).
+ */
+export function isSampleCall(p: { demo?: boolean; timestamp?: string | null }, sampleBefore: unknown): boolean {
+  if (p.demo) return true
+  const cut = typeof sampleBefore === 'string' ? Date.parse(sampleBefore) : NaN
+  const made = p.timestamp ? Date.parse(p.timestamp) : NaN
+  return Number.isFinite(cut) && Number.isFinite(made) && made < cut
+}
+
+/** `?lane=prediction` → 'prediction' (a deep link into one river lane); anything else → null. */
+export function laneFromQuery(v: unknown): Lane | null {
+  const s = String(Array.isArray(v) ? v[0] : v ?? '').toLowerCase()
+  return HISTORY_LANES.some(l => l.id === s) ? (s as Lane) : null
+}
+
+/** 5 → "5 h", 153 → "6 d", 2160 → "3 mo". */
+export function fmtHorizonHours(h: number | null | undefined): string | null {
+  if (h == null || !Number.isFinite(h) || h <= 0) return null
+  return h < 48 ? `${Math.round(h)} h` : h < 24 * 60 ? `${Math.round(h / 24)} d` : `${Math.round(h / 720)} mo`
 }
 
 export function summarizeHistory(events: HistoryEvent[]): HistorySummary {
@@ -518,6 +589,8 @@ export function summarizeHistory(events: HistoryEvent[]): HistorySummary {
     },
     activeDays: events.filter(e => e.kind === 'day_digest').length,
     span: { first: past[0] ?? null, last: past[past.length - 1] ?? null },
+    style: callStyle(events),
+    strategies: { n: events.filter(e => e.kind === 'strategy_created').length },
   }
 }
 

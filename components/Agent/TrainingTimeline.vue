@@ -1,7 +1,7 @@
 <template>
   <div class="training-timeline">
     <header class="header">
-      <h3>Training Stream</h3>
+      <h3>Training Stream <UISourceChip source="simulated" note="Trained in this tab only on your clicks: resets on reload, not stored on the server yet." /></h3>
       <span class="meta">{{ training.totalEventsRecorded }} events · buffer {{ training.bufferSize }}</span>
     </header>
 
@@ -42,6 +42,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 import { useTrainingStore, type TrainingEventType } from '~/stores/training'
 
 const training = useTrainingStore()

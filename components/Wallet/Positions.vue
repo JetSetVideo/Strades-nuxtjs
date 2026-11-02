@@ -25,6 +25,8 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{ (e: 'open-asset', id: string): void }>()
+/** /assets/[id] matches an asset id or symbol: the symbol works for every row (asset_id is a slug). */
+const assetRouteId = (p: { symbol: string; asset_id?: string }) => String(p.symbol || p.asset_id || '').toLowerCase()
 
 type SortKey = 'allocation' | 'pnl' | 'today' | 'value'
 const sortKey = ref<SortKey>('allocation')
@@ -109,17 +111,18 @@ const colorOf = (sym: string) => COLORS[sym] || '#666'
         v-for="p in sorted"
         :key="p.asset_id"
         class="row pos"
-        @click="emit('open-asset', p.asset_id)"
+        @click="emit('open-asset', assetRouteId(p))"
       >
         <span class="c-icon" :style="{ background: colorOf(p.symbol) }">
           {{ p.symbol.slice(0, 2) }}
         </span>
 
-        <span class="c-name">
+        <!-- REVIEW-8: a real link to the asset page (/assets/[id] resolves the symbol; asset_id is a slug like "bitcoin"). -->
+        <NuxtLink class="c-name" :to="`/assets/${assetRouteId(p)}`" @click.stop>
           <strong>{{ p.symbol }}</strong>
           <em :class="['cls', `cls-${classOf(p.symbol)}`]">{{ classOf(p.symbol) }}</em>
           <small>{{ ASSET_NAMES[p.symbol] || p.symbol }}</small>
-        </span>
+        </NuxtLink>
 
         <span class="c-amount">
           <span class="amt-line">{{ p.amount.toLocaleString('en-US', { maximumFractionDigits: 4 }) }} <em>{{ p.symbol }}</em></span>
@@ -259,12 +262,15 @@ const colorOf = (sym: string) => COLORS[sym] || '#666'
 }
 
 .c-name {
+  color: inherit;
+  text-decoration: none;
   display: flex;
   flex-direction: column;
   gap: 0.05rem;
   min-width: 0;
   position: relative;
 }
+.c-name:hover strong { text-decoration: underline; }
 .c-name strong {
   font-size: 0.85rem;
   font-weight: 700;

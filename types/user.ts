@@ -13,6 +13,8 @@ export interface AuthUser {
   role: 'user' | 'premium' | 'admin'
   /** Throwaway per-visitor demo account (POST /api/auth/demo/): create-only wallets, expires in 24h. */
   is_demo?: boolean
+  /** Django staff flag (read-only): staff-only tools such as the /trade replay. */
+  is_staff?: boolean
   auth_provider: 'email' | 'google'
   email_verified: boolean
   preferences: Record<string, unknown>

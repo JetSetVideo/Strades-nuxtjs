@@ -46,7 +46,7 @@ const openTrade = () => navigateTo('/trade')
       title="Combined book across your wallets"
       @click="emit('switch', 'all')"
     >
-      <span class="label">Total Balance</span>
+      <span class="label">Sample · all wallets</span>
       <span class="meta">
         <span class="bal">{{ fmtFull(totalBalance) }}</span>
         <span class="pct">{{ totalPctLabel }}</span>

@@ -1,7 +1,22 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useUsersStore } from '~/stores/users'
+import { useProfileFaceStore } from '~/stores/profileFace'
 import OverlaySlideover from '~/components/Overlay/Slideover.vue'
+
+/**
+ * `to` set (top bar, layouts/default.vue): a plain 1-click link to that page showing the
+ * signed-in user's own picture (Settings › Profile face) or their initial. No slideover,
+ * no sample profile data. `to` unset: the legacy slideover below (unused today).
+ */
+const props = defineProps({ to: { type: String, default: '' } })
+
+const { profile } = useCurrentUser()
+const face = useProfileFaceStore()
+const mounted = ref(false)
+// The picture lives in localStorage: read it after mount so SSR and the first client render agree.
+const ownPicture = computed(() => (mounted.value ? face.avatarDataUrl || profile.value?.avatar_url || '' : ''))
+const ownInitial = computed(() => (face.displayName || profile.value?.username || 'You').trim().charAt(0).toUpperCase() || 'Y')
 
 const usersStore = useUsersStore()
 const currentUser = computed(() => usersStore.currentUser || usersStore.users?.[0] || null)
@@ -13,6 +28,8 @@ const avatarSrc = computed(() => {
 })
 
 onMounted(async () => {
+  mounted.value = true
+  if (props.to) { face.hydrate(); return }
   // ensure placeholder "DB" is loaded, like a remote fetch would do
   if (!usersStore.users.length && !usersStore.currentUser) {
     await usersStore.initializeStore()
@@ -21,7 +38,11 @@ onMounted(async () => {
 </script>
 
 <template>
-<div>
+  <NuxtLink v-if="to" :to="to" class="avatar-link" aria-label="Your profile" title="Your profile">
+    <img v-if="ownPicture" :src="ownPicture" alt="" />
+    <span v-else class="avatar-initial" aria-hidden="true">{{ ownInitial }}</span>
+  </NuxtLink>
+<div v-else>
     <!-- Trigger (avatar icon) -->
     <div
       class="avatar-button"
@@ -102,6 +123,29 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Top-bar variant: same size and ring as the bell next to it (Button/Notification.vue). */
+.avatar-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--nav-icon-btn-size, 2rem);
+  height: var(--nav-icon-btn-size, 2rem);
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--primary-blue, #00aaff);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--primary-blue, #00aaff);
+  text-decoration: none;
+  transition: border-color var(--transition-fast, 0.2s ease), box-shadow var(--transition-fast, 0.2s ease);
+}
+.avatar-link:hover { box-shadow: 0 2px 8px rgba(0, 170, 255, 0.35); }
+.avatar-link:focus-visible { outline: 2px solid var(--primary-green, #00ff88); outline-offset: 2px; }
+.avatar-link img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-initial { font-size: 0.8rem; font-weight: 700; line-height: 1; }
+.avatar-link.router-link-exact-active { border-color: var(--primary-green, #00ff88); }
+@media (prefers-reduced-motion: reduce) { .avatar-link { transition: none; } }
+
 .avatar-button {
   display: flex;
   flex-direction: column;

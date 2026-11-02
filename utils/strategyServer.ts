@@ -245,3 +245,50 @@ export function toServerStrategy(input: CreatorStrategyInput):
     },
   }
 }
+
+
+// ─── C7 · edit, not duplicate (Wave 2 review, BACKEND-8) ─────────────────────────────────────────
+// `PATCH /api/v1/strategies/<id>/` updates the user's own strategy (owner only, revalidates the rules,
+// clears last_backtest). Until the server has it (405) — or when the id is not on the server (404) or not
+// the user's (403) — fall back to today's behaviour: POST a new strategy.
+
+export interface StrategyWriteApi {
+  patch(id: string, body: ServerStrategyPayload): Promise<{ id: string; name?: string }>
+  post(body: ServerStrategyPayload): Promise<{ id: string; name?: string }>
+}
+
+export type StrategyWriteResult = { id: string; mode: 'updated' | 'created'; fellBack: number | null }
+
+/** HTTP status of an ofetch / TradingApiError failure (0 when unknown). Private: useAuth.ts owns `httpStatusOf`. */
+function statusOfWriteError(error: unknown): number {
+  const e = error as { status?: number; statusCode?: number; response?: { status?: number } } | null
+  return Number(e?.status ?? e?.statusCode ?? e?.response?.status ?? 0) || 0
+}
+
+/** Statuses after which a PATCH falls back to POST (a new row, today's behaviour). */
+export const PATCH_FALLBACK_STATUSES = [403, 404, 405] as const
+
+/** Local ids the Creator mints (`strategy_<ms>`) and catalog samples (`strategy_001`) never exist on the server. */
+export function isServerStrategyId(id: string | null | undefined): id is string {
+  return !!id && !/^strategy_/.test(id)
+}
+
+export async function writeServerStrategy(
+  api: StrategyWriteApi,
+  existingId: string | null | undefined,
+  body: ServerStrategyPayload,
+): Promise<StrategyWriteResult> {
+  if (isServerStrategyId(existingId)) {
+    try {
+      const saved = await api.patch(existingId, body)
+      return { id: saved?.id ?? existingId, mode: 'updated', fellBack: null }
+    } catch (error) {
+      const status = statusOfWriteError(error)
+      if (!(PATCH_FALLBACK_STATUSES as readonly number[]).includes(status)) throw error
+      const created = await api.post(body)
+      return { id: created.id, mode: 'created', fellBack: status }
+    }
+  }
+  const created = await api.post(body)
+  return { id: created.id, mode: 'created', fellBack: null }
+}

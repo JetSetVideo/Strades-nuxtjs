@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAgentsStore } from '~/stores/agents'
+import { routeLabel } from '~/utils/routes'
+import { useAgentsStore, agentStatusLabel, AGENT_SAMPLE_NOTE } from '~/stores/agents'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 import { useOpinionsStore, type PlugsApi } from '~/stores/opinions'
 import { plugSyncNote } from '~/utils/plugsSync'
 import { useAgentTracker } from '~/composables/useAgentTracker'
@@ -94,14 +96,22 @@ const { userId: currentUserId } = useCurrentUser()
 
 const glyph = computed(() => agent.value ? useAgentGlyph(agent.value) : null)
 const isClassifier = computed(() => agent.value?.model_type === 'classifier')
+// AVATAR-1: the personal avatar trains in this tab only (stores/training.ts) and resets on reload.
+const PERSONAL_SIM_NOTE = 'Sample avatar, trained in this tab only: its version, epochs and figures reset on reload. Nothing trades live.'
 </script>
 
 <template>
   <div v-if="agent" class="agent-detail">
+    <NavigationBackLink />
+    <p v-if="agent.kind === 'personal'" class="personal-note">
+      <UISourceChip source="simulated" note="Sample avatar trained in this tab only; it resets on reload. Your measured avatar lives on Profile › Your avatar." />
+      <NavigationNextLink to="/profile#intelligence" label="See your measured avatar on Profile" />
+    </p>
     <UIPageHeader :title="agent.name" :subtitle="agent.tagline">
       <template #actions>
         <UIPill tone="neutral" ghost>{{ agent.kind }}</UIPill>
-        <UIPill :tone="statusTone" show-dot>{{ agent.training_state.status }}</UIPill>
+        <UIPill :tone="statusTone" show-dot>{{ agentStatusLabel(agent.training_state.status) }} · v{{ agent.training_state.version }}</UIPill>
+        <UISourceChip :source="agent.kind === 'personal' ? 'simulated' : 'sample'" :note="agent.kind === 'personal' ? PERSONAL_SIM_NOTE : AGENT_SAMPLE_NOTE" />
         <button v-if="!isPlugged" class="cta primary" @click="plug">Plug into swarm</button>
         <button v-else class="cta unplug" @click="unplug">Unplug</button>
         <button
@@ -134,7 +144,7 @@ const isClassifier = computed(() => agent.value?.model_type === 'classifier')
           </div>
         </div>
         <div class="hero-meta">
-          <UIStat label="Live PnL" :value="agent.performance.live_pnl_pct" tone="auto" suffix="%" :precision="1" size="lg" />
+          <UIStat label="Simulated PnL" :value="agent.performance.live_pnl_pct" tone="auto" suffix="%" :precision="1" size="lg" />
           <UIStat label="Confidence" :value="agent.confidence * 100" :precision="0" suffix="%" size="md" />
         </div>
       </div>
@@ -172,7 +182,7 @@ const isClassifier = computed(() => agent.value?.model_type === 'classifier')
 
       <UICard title="Performance">
         <UIMetricRow :cols="2">
-          <UIStat label="Live PnL"     :value="agent.performance.live_pnl_pct"     tone="auto" suffix="%" :precision="1" size="md" />
+          <UIStat label="Simulated PnL" :value="agent.performance.live_pnl_pct"     tone="auto" suffix="%" :precision="1" size="md" />
           <UIStat label="Backtest"     :value="agent.performance.backtest_pnl_pct" suffix="%" :precision="1" size="md" />
           <UIStat label="Sharpe"       :value="agent.performance.sharpe"           :precision="2" size="sm" />
           <UIStat label="Win rate"     :value="agent.performance.win_rate * 100"   suffix="%" :precision="0" size="sm" />
@@ -222,7 +232,7 @@ const isClassifier = computed(() => agent.value?.model_type === 'classifier')
     message="The agent you're looking for doesn't exist or was unforked."
   >
     <template #action>
-      <NuxtLink to="/strategies" class="back-link">← Back to Trading Lab</NuxtLink>
+      <NuxtLink to="/strategies" class="back-link">← {{ routeLabel('/strategies') }}</NuxtLink>
     </template>
   </UIEmptyState>
 </template>

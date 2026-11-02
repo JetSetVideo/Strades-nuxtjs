@@ -445,6 +445,12 @@ const SIDE_TABS = computed(() => [
 
 <template>
   <div ref="page" class="cw" :class="{ fs: isFs }">
+    <!-- ── Intro: way back + what this page is for (board-ia readability table) ── -->
+    <div v-if="!isFs" class="cw-intro">
+      <NavigationBackLink />
+      <h1 class="cw-h1">Candle Chart</h1>
+      <p class="cw-purpose">One asset full-width: candles, indicators, drawings and comparisons. Paper-trade or make a call from its asset page.</p>
+    </div>
     <!-- ── Header: asset (row 1) · quote (row 2 on phones) · view actions ── -->
     <header class="cw-head">
       <div class="cw-pickwrap" data-menu="asset">
@@ -692,6 +698,11 @@ const SIDE_TABS = computed(() => [
 .cw { --cw-gap: 8px; display: flex; flex-direction: column; gap: var(--cw-gap); min-width: 0; max-width: 100%; }
 .cw * { box-sizing: border-box; }
 .cw.fs { background: var(--secondary-darker, #0a0a0a); padding: 10px; height: 100vh; overflow: auto; }
+
+/* Intro */
+.cw-intro { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0; }
+.cw-h1 { margin: 0; font-family: var(--font-chrome, sans-serif); font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-light-gray, #ccc); }
+.cw-purpose { margin: 0; flex-basis: 100%; font-size: .72rem; color: var(--text-gray, #888); }
 
 /* Header */
 .cw-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-width: 0; }

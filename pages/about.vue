@@ -10,7 +10,11 @@ const pageTitle = routeLabel('/about')
 
 <template>
   <div class="about-page">
-    <UIPageHeader :title="pageTitle" subtitle="A living financial organism." badge="v0.2" />
+    <UIPageHeader :title="pageTitle" subtitle="Strades is a closed-beta paper-trading app: trade, make calls, and train an avatar on how you decide, with no real money." badge="v0.2">
+      <template #actions>
+        <NavigationNextLink to="/prices" :label="`Start on ${routeLabel('/prices')}`" />
+      </template>
+    </UIPageHeader>
 
     <UICard title="Vision">
       <p>
@@ -31,8 +35,8 @@ const pageTitle = routeLabel('/about')
 
     <UICard title="Get in touch">
       <p>
-        Reach the team via the <NuxtLink to="/contact">contact page</NuxtLink>, or report a bug at
-        <a href="https://github.com" target="_blank" rel="noopener">github</a>.
+        Reach the team via the <NuxtLink to="/contact">contact page</NuxtLink> (bug reports too), or read
+        <NuxtLink to="/help">Help</NuxtLink>.
       </p>
     </UICard>
   </div>

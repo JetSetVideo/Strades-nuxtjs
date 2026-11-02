@@ -34,6 +34,8 @@ async function loadChat(force = false) {
       chatStore.ensureLoaded(force),
       usersStore.initializeStore(),
       community.hydrated ? Promise.resolve() : community.fetchCommunity(),
+      // Signed in: the real people (bots included) and your server friends (C2/C3).
+      isAuthenticated.value ? community.loadServerPeople() : Promise.resolve(),
     ]);
   } catch (error) {
     console.error('Failed to load chat data:', error);
@@ -77,7 +79,22 @@ const navigateToConversation = (conversationId) => {
 
 // Top-bar "Message" action opens the new-message modal
 const newMessageOpen = ref(false);
-usePageAction().onPageAction('chat:new-message', () => { newMessageOpen.value = true; });
+/** Person picked from a card's MESSAGE button (the modal forgets it on close). */
+const newMessagePreselect = ref(null);
+function openNew(id = null) {
+  newMessagePreselect.value = id;
+  newMessageOpen.value = true;
+}
+function onNewOpen(v) {
+  newMessageOpen.value = v;
+  if (!v) newMessagePreselect.value = null;
+}
+usePageAction().onPageAction('chat:new-message', () => openNew());
+
+/** Signed in and the server answered: server people; otherwise the bundled sample roster (chipped Sample). */
+const serverPeople = computed(() => isAuthenticated.value && community.serverState === 'ok');
+const friendsList = computed(() => serverPeople.value ? community.serverFriends : community.friends);
+const discoverList = computed(() => serverPeople.value ? community.serverDiscover : community.suggestions);
 
 // ── Conversations / Friends / Discover ─────────────────────────────────
 const tab = ref('conversations');
@@ -102,35 +119,48 @@ const visibleConversations = computed(() => {
   return onlineOnly.value ? list.filter(conversationOnline) : list;
 });
 const visibleFriends = computed(() => {
-  const list = community.friends;
+  const list = friendsList.value;
   return onlineOnly.value ? list.filter(u => u.online) : list;
 });
 const visibleSuggestions = computed(() => {
-  const list = community.suggestions;
+  const list = discoverList.value;
   return onlineOnly.value ? list.filter(u => u.online) : list;
 });
 
 const onlineInTab = computed(() => {
-  if (tab.value === 'friends') return community.friends.filter(u => u.online).length;
-  if (tab.value === 'discover') return community.suggestions.filter(u => u.online).length;
+  if (tab.value === 'friends') return friendsList.value.filter(u => u.online).length;
+  if (tab.value === 'discover') return discoverList.value.filter(u => u.online).length;
   return userConversations.value.filter(conversationOnline).length;
 });
 
 const tabs = computed(() => [
   { id: 'conversations', label: 'Conversations', count: isLoading.value ? null : userConversations.value.length },
-  { id: 'friends', label: 'Friends', count: isLoading.value ? null : community.friends.length },
-  { id: 'discover', label: 'Discover', count: isLoading.value ? null : community.suggestions.length },
+  { id: 'friends', label: 'Friends', count: isLoading.value ? null : friendsList.value.length },
+  { id: 'discover', label: 'Discover', count: isLoading.value ? null : discoverList.value.length },
 ]);
 
 function onAddFriend(user) {
   community.toggleFriend(user.id);
 }
+/** Sample cards whose id points at a different person in the sample user list (ids collide across the two seeds). */
+const profileNote = ref('');
 function onViewProfile(id) {
+  profileNote.value = '';
+  const card = [...friendsList.value, ...discoverList.value].find(u => u.id === id);
+  if (card && card.source !== 'server') {
+    const row = usersStore.getUserById(id);
+    const same = row && [row.first_name, row.username].some(n => String(n ?? '').toLowerCase() === card.username.toLowerCase());
+    if (!same) {
+      profileNote.value = `${card.username} is a sample trader without a profile page.`;
+      return;
+    }
+  }
   navigateTo(`/profile/${id}`);
 }
 </script>
 <template>
   <UIScreenShell hide-header>
+    <NavigationAreaLinks area="community" />
     <UISectionTabs v-model="tab" :tabs="tabs" count-first panels tone="white">
       <template #end>
         <button
@@ -161,8 +191,8 @@ function onViewProfile(id) {
             <p>Get instant insights and market analysis</p>
           </div>
           <div class="chatbot-actions">
-            <button class="chatbot-btn">Ask about market trends</button>
-            <button class="chatbot-btn">Strategy recommendations</button>
+            <NuxtLink to="/agents" class="chatbot-btn">Ask about market trends</NuxtLink>
+            <NuxtLink to="/insights#dir-title" class="chatbot-btn">Strategy recommendations</NuxtLink>
           </div>
         </div>
 
@@ -185,7 +215,7 @@ function onViewProfile(id) {
             <div class="empty-icon">💭</div>
             <h3>No conversations yet</h3>
             <p>Start chatting with other traders to discuss strategies and market insights.</p>
-            <button class="start-btn" @click="newMessageOpen = true">+ New message</button>
+            <button class="start-btn" @click="openNew()">+ New message</button>
           </div>
           <div v-else-if="visibleConversations.length === 0" class="empty-state">
             <h3>No one online</h3>
@@ -260,10 +290,17 @@ function onViewProfile(id) {
 
       <!-- ── Friends tab ── -->
       <div v-else-if="tab === 'friends'" class="person-grid">
-        <div v-if="!community.friends.length" class="empty-state">
+        <p v-if="!serverPeople" class="sample-note people-note">
+          <UISourceChip source="sample" note="Sample traders from the bundled roster: they are not real accounts and cannot receive messages." />
+          Sample traders<template v-if="!isAuthenticated"> — <NuxtLink to="/auth?redirect=/chat">sign in</NuxtLink> to see your friends</template>.
+        </p>
+        <p v-else-if="community.friendsRoute === 'missing'" class="sample-note people-note">Adding friends is coming soon: your rooms and bots are in Conversations.</p>
+        <p v-if="profileNote" class="sample-note people-note" role="status">{{ profileNote }}</p>
+        <div v-if="!friendsList.length" class="empty-state">
           <div class="empty-icon">👥</div>
           <h3>No friends yet</h3>
           <p>Add traders from Discover to build your circle — their trades and reads train your avatar too.</p>
+          <button class="start-btn" @click="tab = 'discover'">Discover people</button>
         </div>
         <div v-else-if="!visibleFriends.length" class="empty-state">
           <h3>No one online</h3>
@@ -274,7 +311,7 @@ function onViewProfile(id) {
           :key="u.id"
           :user="u"
           variant="friend"
-          @message="newMessageOpen = true"
+          @message="openNew"
           @profile="onViewProfile"
           @add="onAddFriend"
         />
@@ -282,7 +319,16 @@ function onViewProfile(id) {
 
       <!-- ── Discover tab ── -->
       <div v-else class="person-grid">
-        <div v-if="!community.suggestions.length" class="empty-state">
+        <p v-if="!serverPeople" class="sample-note people-note">
+          <UISourceChip source="sample" note="Sample traders from the bundled roster: they are not real accounts and cannot receive messages." />
+          Sample traders<template v-if="!isAuthenticated"> — <NuxtLink to="/auth?redirect=/chat">sign in</NuxtLink> to meet real people and bots</template>.
+        </p>
+        <p v-else-if="community.friendsRoute === 'missing'" class="sample-note people-note">“+ Add friend” is coming soon. Bots can be messaged right away.</p>
+        <p v-if="Object.keys(community.friendErrors).length" class="sample-note people-note" role="alert">
+          {{ Object.values(community.friendErrors)[0] }}
+        </p>
+        <p v-if="profileNote" class="sample-note people-note" role="status">{{ profileNote }}</p>
+        <div v-if="!discoverList.length" class="empty-state">
           <div class="empty-icon">🔎</div>
           <h3>No suggestions right now</h3>
           <p>Check back soon — new traders join the desk all the time.</p>
@@ -296,14 +342,14 @@ function onViewProfile(id) {
           :key="u.id"
           :user="u"
           variant="discover"
-          @message="newMessageOpen = true"
+          @message="openNew"
           @profile="onViewProfile"
           @add="onAddFriend"
         />
       </div>
     </template>
 
-    <ChatNewMessageModal :open="newMessageOpen" @update:open="newMessageOpen = $event" />
+    <ChatNewMessageModal :open="newMessageOpen" :preselect="newMessagePreselect" @update:open="onNewOpen" />
   </UIScreenShell>
 </template>
 <style scoped>
@@ -537,4 +583,6 @@ function onViewProfile(id) {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   gap: 0.5rem;
 }
+.people-note { grid-column: 1 / -1; margin: 0 0 0.25rem; }
+a.chatbot-btn { text-decoration: none; display: inline-flex; align-items: center; }
 </style>

@@ -7,17 +7,18 @@
  *  • dominant_asset_class     → app border-radius shift (via CSS variable)
  *  • market_sentiment         → sentiment bar color saturation
  *  • asset.volatility_index   → per-card pulse speed (handled in DisplayAsset)
- *  • Stable price simulation: % changes are computed once and updated
- *    at a fixed interval instead of re-randomised on every render
+ *  • Honest 24 h %: only live assets carry one (their real quote). Non-live assets have no
+ *    move (no Math.random seed, no 5 s random walk written into the shared assets store —
+ *    swarm 11-02 PRICES-1 / PERF-4: the mood flipped sign between two loads, 880 DOM
+ *    mutations / 12 s at idle). The mood banner reads live assets only.
  *  • Each DisplayAsset card opens into its own prediction chart (PredictPanel)
  *  • One Line / Candles switch (ChartStyleToggle) drives every chart
  */
 import { ref, computed, watch, onMounted, onBeforeUnmount, onUnmounted, nextTick, reactive } from 'vue'
 import { useTradingPrefsStore } from '@/stores/tradingPrefs'
 import { useStreamedAssets } from '~/composables/useStreamedAssets'
-import { feedKeyForAsset, feedStreams } from '~/utils/assetFeeds'
 import { usePredictionsStore } from '@/stores/predictions'
-import { useMacroStore } from '@/stores/macro'
+import { livePriceChanges, useMacroStore } from '@/stores/macro'
 import DisplayAsset from '@/components/Widget/DisplayAsset.vue'
 import ChartStyleToggle from '@/components/Asset/ChartStyleToggle.vue'
 import Heatmap from '@/components/Asset/Heatmap.vue'
@@ -47,7 +48,7 @@ definePageMeta({
   layout: 'default',
 })
 
-const { assetsStore, feedPrefs, dataFeeds, streamed } = useStreamedAssets()
+const { assetsStore, streamed } = useStreamedAssets()
 const tradingPrefs     = useTradingPrefsStore()
 onMounted(() => tradingPrefs.hydrate())
 const predStore        = usePredictionsStore()
@@ -84,55 +85,26 @@ const hasData      = computed(() => assetsStore.assets.length > 0)
 // Uses a reactive plain object keyed by asset id
 const priceChanges = reactive<Record<string, number>>({})
 
-import type { Asset } from '~/types/asset'
-
-function assetVolatility(asset: Asset): number {
-  return asset.psychology_profile?.volatility_affinity
-    ?? asset.fluctuation_velocity
-    ?? 0.3
-}
 
 function seedChanges() {
-  assetsStore.assets.forEach(asset => {
-    // Live markets: the real 24h change, always (overwrites any earlier seed).
-    if (asset.live && asset.change_24h_pct !== undefined) {
-      priceChanges[asset.id] = +asset.change_24h_pct.toFixed(2)
-      return
-    }
-    if (priceChanges[asset.id] !== undefined) return
-    const vol = assetVolatility(asset)
-    priceChanges[asset.id] = +(((Math.random() - 0.5) * 2 * vol * 12)).toFixed(2)
-  })
+  const next = livePriceChanges(assetsStore.assets)
+  // Drop ids that are no longer live (a feed went down): an unknown move stays unknown.
+  for (const id of Object.keys(priceChanges)) if (!(id in next)) delete priceChanges[id]
+  Object.assign(priceChanges, next)
+  // Mood banner + nav icons: live assets only (stores/macro.ts).
   macroStore.updateFromPriceChanges(priceChanges)
 }
 
-// ── Real-time simulation ─────────────────────────────────────────────────
+// ── Live re-pull (every 30 s) ────────────────────────────────────────────
 let ticker: ReturnType<typeof setInterval>
 
-let tickCount = 0
 function startTicker() {
   ticker = setInterval(async () => {
-    // Every 30 s pull real quotes; live assets never get simulated nudges.
-    // (The store skips the request when another caller pulled < 20 s ago.)
-    if (++tickCount % 6 === 0) {
-      await assetsStore.mergeLiveQuotes({ maxAgeMs: 20_000 })
-      seedChanges()
-    }
-    assetsStore.assets.forEach(asset => {
-      const key = feedKeyForAsset(asset)
-      if (!feedStreams(feedPrefs.isEnabled(key), dataFeeds.stateOf(key))) return
-      if (asset.live) return
-      const vol  = assetVolatility(asset)
-      const prev = priceChanges[asset.id] ?? 0
-      const nudge = (Math.random() - 0.5) * vol * 0.8
-      priceChanges[asset.id] = +(prev + nudge).toFixed(2)
-      // Update store price slightly for reactive display
-      const p = asset.current_price * (1 + nudge / 100)
-      assetsStore.updateAssetPrice(asset.id, +p.toFixed(asset.current_price < 1 ? 6 : 2))
-    })
-    // Sync aggregates into macro store so nav icons always reflect live session data
-    macroStore.updateFromPriceChanges(priceChanges)
-  }, 5000)
+    // Pull real quotes; the store skips the request when another caller pulled < 20 s ago.
+    // Non-live assets are left alone: no random walk, no write into the shared store.
+    await assetsStore.mergeLiveQuotes({ maxAgeMs: 20_000 })
+    seedChanges()
+  }, 30_000)
 }
 
 // Re-seed when live quotes land (same length, new data)
@@ -338,14 +310,14 @@ const hiddenBets = computed(() =>
   countHiddenByHorizonStates(streamed.value, horizonStates, Date.now())
 )
 
-// ── Market overview stats (bound to the filtered list) ────────────────────
-function pctOf(asset: Asset): number {
-  return priceChanges[asset.id] ?? asset.change_24h_pct ?? 0
-}
-
+// ── Market overview stats (bound to the filtered list, LIVE assets only) ──
+// A non-live asset has no 24 h move: it is left out instead of counted as 0 %.
 const filteredMoves = computed(() =>
-  filtered.value.map(a => ({ asset: a, pct: pctOf(a) }))
+  filtered.value
+    .filter(a => typeof priceChanges[a.id] === 'number')
+    .map(a => ({ asset: a, pct: priceChanges[a.id] as number }))
 )
+const moodBasis = computed(() => filteredMoves.value.length)
 
 const gainers = computed(() =>
   filteredMoves.value.filter(({ pct }) => pct > 0).length
@@ -546,6 +518,7 @@ function navigateToAsset(assetId: string) {
             <span class="ms-icon">{{ marketSentiment >= 0.5 ? '🟢' : marketSentiment >= 0 ? '🟡' : '🔴' }}</span>
             <span class="ms-label">{{ marketSentiment >= 0.5 ? 'Bullish' : marketSentiment >= 0 ? 'Neutral' : 'Bearish' }}</span>
             <span class="ms-val">{{ marketSentiment >= 0 ? '+' : '' }}{{ marketSentiment.toFixed(2) }}%</span>
+            <span class="ms-basis" :title="`Average 24 h move of the ${moodBasis} live-quoted assets in this list. Simulated assets have no 24 h move and are left out.`">{{ moodBasis ? `from ${moodBasis} live` : 'no live quote yet' }}</span>
           </div>
 
           <div class="market-stats">
@@ -696,6 +669,7 @@ function navigateToAsset(assetId: string) {
 .ms-icon  { font-size: 0.6rem; }
 .ms-label { font-size: 0.62rem; }
 .ms-val   { font-size: 0.68rem; font-weight: 800; }
+.ms-basis { font-size: 0.6rem; opacity: 0.7; white-space: nowrap; }
 
 .market-stats {
   display: flex;

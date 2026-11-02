@@ -1,7 +1,7 @@
 <script setup lang="ts">/**
  * DealRow — Single deal/trade card in the Deal Pipeline.
  * Shows the strategy name, target assets, counterparties,
- * commodity flow, live P&L, and risk score.
+ * commodity flow, P&L at the last mark (no live tick), and risk score.
  */
 import { computed } from 'vue'
 import UIPill from '@/components/UI/Pill.vue'

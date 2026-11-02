@@ -70,18 +70,22 @@
       </div>
     </div>
 
+    <p v-if="isPersonal" class="src-line" @click.stop>
+      <UISourceChip source="sample" :note="PERSONAL_NOTE" />
+      <span>Your avatar has no measured performance yet.</span>
+    </p>
     <div class="metrics-row">
-      <div class="metric" :class="{ positive: agent.performance.live_pnl_pct >= 0, negative: agent.performance.live_pnl_pct < 0 }">
+      <div class="metric" :class="isPersonal ? '' : { positive: agent.performance.live_pnl_pct >= 0, negative: agent.performance.live_pnl_pct < 0 }">
         <span class="m-label">PnL</span>
-        <span class="m-value">{{ agent.performance.live_pnl_pct.toFixed(1) }}%</span>
+        <span class="m-value">{{ isPersonal ? '—' : `${agent.performance.live_pnl_pct.toFixed(1)}%` }}</span>
       </div>
       <div class="metric">
         <span class="m-label">Sharpe</span>
-        <span class="m-value">{{ agent.performance.sharpe.toFixed(2) }}</span>
+        <span class="m-value">{{ isPersonal ? '—' : agent.performance.sharpe.toFixed(2) }}</span>
       </div>
       <div class="metric" v-if="!isClassifier">
         <span class="m-label">Win</span>
-        <span class="m-value">{{ Math.round(agent.performance.win_rate * 100) }}%</span>
+        <span class="m-value">{{ isPersonal ? '—' : `${Math.round(agent.performance.win_rate * 100)}%` }}</span>
       </div>
       <div class="metric" v-else :title="'1 - Brier score against realized regimes'">
         <span class="m-label">Calib.</span>
@@ -89,11 +93,11 @@
       </div>
       <div class="metric">
         <span class="m-label">DD</span>
-        <span class="m-value">{{ agent.performance.max_drawdown_pct.toFixed(1) }}%</span>
+        <span class="m-value">{{ isPersonal ? '—' : `${agent.performance.max_drawdown_pct.toFixed(1)}%` }}</span>
       </div>
     </div>
 
-    <svg class="sparkline" :viewBox="`0 0 ${sparkW} ${sparkH}`" preserveAspectRatio="none">
+    <svg v-if="!isPersonal" class="sparkline" :viewBox="`0 0 ${sparkW} ${sparkH}`" preserveAspectRatio="none">
       <polyline
         :points="sparkPoints"
         fill="none"
@@ -106,7 +110,7 @@
       <div class="bar-track">
         <div class="bar-fill" :style="{ width: `${trainingFill * 100}%` }" />
       </div>
-      <span class="bar-label">{{ agent.training_state.status }} · v{{ agent.training_state.version }}</span>
+      <span class="bar-label">{{ agentStatusLabel(agent.training_state.status) }} · v{{ agent.training_state.version }}</span>
     </div>
 
     <footer class="card-footer">
@@ -126,7 +130,15 @@
       >
         Fork · {{ agent.share_state.price_credits }} cr
       </button>
-      <button class="compare-btn" @click.stop="$emit('compare', agent.id)" title="Add to comparison">⇄</button>
+      <button
+        v-if="comparable"
+        type="button"
+        class="compare-btn"
+        :class="{ active: comparing }"
+        :aria-pressed="comparing"
+        :title="comparing ? 'Remove from the comparison' : 'Add to the comparison (up to 3)'"
+        @click.stop="$emit('compare', agent.id)"
+      >⇄</button>
     </footer>
   </article>
 </template>
@@ -134,7 +146,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Agent } from '~/stores/agents'
-import { useAgentsStore } from '~/stores/agents'
+import { useAgentsStore, agentStatusLabel } from '~/stores/agents'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 import { useOpinionsStore } from '~/stores/opinions'
 import { useAgentTracker } from '~/composables/useAgentTracker'
 import { useLivingUI } from '~/composables/useLivingUI'
@@ -142,7 +155,11 @@ import ProfileMark from '@/components/Profile/Mark.vue'
 import { assetClassTheme } from '~/utils/assetClass'
 import { profileMask } from '~/utils/profileMask'
 
-const props = defineProps<{ agent: Agent }>()
+// `comparable`: show ⇄ only where a parent wires @compare (the Marketplace tray); it was a dead button elsewhere.
+const props = withDefaults(defineProps<{ agent: Agent; comparable?: boolean; comparing?: boolean }>(), {
+  comparable: false,
+  comparing: false,
+})
 defineEmits<{
   (e: 'select', id: string): void
   (e: 'compare', id: string): void
@@ -170,6 +187,9 @@ const STYLE_ALIAS: Record<string, string> = {
 }
 
 const isClassifier = computed(() => props.agent.model_type === 'classifier')
+// REVIEW-4 / AVATAR-1: the personal avatar's figures are bundled sample numbers (avatars.json), not measured.
+const isPersonal = computed(() => props.agent.kind === 'personal')
+const PERSONAL_NOTE = 'Sample avatar from a bundled file: its PnL, Sharpe, Win and DD are not measured from your trades yet.'
 const maskStyle = computed(() => STYLE_ALIAS[props.agent.trading_style] || props.agent.trading_style)
 const patienceScore = computed(() => {
   const fromBook = Math.min(1, Math.max(0, 0.5 + props.agent.performance.live_pnl_pct / 80))
@@ -251,7 +271,7 @@ const togglePlug = () => {
     opinions.unplug(props.agent.id)
   } else {
     opinions.plug(props.agent.id, 0.5)
-    tracker.track('agent_plug', { agent_id: agents.personalId, source_aggression: props.agent.personality_matrix.aggression })
+    tracker.track('agent_plug', { agent_id: agents.personalId, source_id: props.agent.id, source_aggression: props.agent.personality_matrix.aggression })
   }
 }
 
@@ -469,6 +489,8 @@ const fork = () => {
   transition: all 0.2s ease;
 }
 .compare-btn { flex: 0 0 36px; padding: 0.4rem; font-size: 0.9rem; }
+.compare-btn.active { border-color: var(--primary-blue, #5b9cff); color: var(--primary-blue, #5b9cff); }
+.src-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin: 0; font-size: 0.68rem; color: var(--text-gray, rgba(255,255,255,0.55)); }
 .plug-btn.active {
   background: rgba(0,255,136,0.12);
   border-color: var(--primary-green, #00ff88);

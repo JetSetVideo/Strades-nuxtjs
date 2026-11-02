@@ -8,9 +8,11 @@
  *
  *   Prices  assets.liveMarket.history  → today's curve (00:00 GMT → now)
  *   News    news.items[].readByUser    → unread count; clock → noon meridian
- *   Wallet  wallet.wallets             → total (= switcher TOTAL BALANCE),
- *                                         wallet shares + asset-type shares
- *   Lab     strategies[]               → one 3-D dot per strategy (active / paused / stopped)
+ *   Wallet  useOwnBook() (C8)          → the user's OWN paper total (= /wallet KPI "Your paper"),
+ *                                         rings = paper wallets vs portfolio + asset-type shares.
+ *                                         The sample wallets in stores/wallet never reach the dock.
+ *   Lab     strategies.ownStrategies   → one 3-D dot per own strategy (active / paused / stopped);
+ *                                         none yet = "—" ("no strategy yet"), never the sample agents
  *   Chat    chat.conversations         → unread in the user's conversations
  *
  * One 30-s clock drives the time-based drawings (globe rotation, end of the
@@ -25,10 +27,12 @@ import { useAgentsStore } from '~/stores/agents'
 import { useStrategiesStore } from '~/stores/strategies'
 import { useChatStore } from '~/stores/chat'
 import { useCurrentUser } from '~/composables/useCurrentUser'
-import { assetClassTheme, resolveAssetClass } from '~/utils/assetClass'
+import { useOwnBook, type OwnBookState } from '~/composables/useOwnBook'
+import type { OwnBook } from '~/utils/ownBook'
+import { assetClassTheme } from '~/utils/assetClass'
 import { dockLabel, dockMatch } from '~/utils/routes'
 import {
-  agentSphere, blendHistory, compactUsd, intradayCurve, signedPct, strategySphere, subsolarLongitude, unreadFor, walletRings,
+  blendHistory, compactUsd, intradayCurve, signedPct, strategySphere, subsolarLongitude, unreadFor,
   type IntradayCurve, type PanelId, type Share, type SpherePoint,
 } from '~/utils/navIcons'
 
@@ -67,6 +71,58 @@ const WALLET_TONES = ['#f5a623', '#ff6b9d', '#2dd4bf', '#facc15', '#a3e635']
 const walletTone = (i: number, n: number) =>
   WALLET_TONES[(i === n - 1 && n > 1 && i % WALLET_TONES.length === 0) ? 2 : i % WALLET_TONES.length]!
 
+/**
+ * Wallet dock from the user's OWN paper book (C8 `useOwnBook`): the same total as /wallet's
+ * "Your paper" KPI. Pure (tests/nav-dock.test.ts). Anything but a read book shows "—" + why.
+ */
+export function ownWalletDock(
+  state: OwnBookState,
+  book: Pick<OwnBook, 'total' | 'byClass' | 'parts' | 'empty'> | null,
+  classLabel: (key: string) => string = k => k,
+  classColor: (key: string) => string = () => CASH_COLOR,
+): { value: ValuePart[], summary: string, wallets: ColoredShare[], classes: ColoredShare[] } {
+  const none = (summary: string) => ({ value: [{ text: '—', tone: 'muted' as Tone }], summary, wallets: [], classes: [] })
+  if (state === 'signed-out') return none('Wallet — sign in to see your paper wallets')
+  if (state === 'error') return none('Wallet — your paper wallets could not be read right now')
+  if (state !== 'ready' || !book) return none('Wallet — reading your paper wallets')
+  // Read and empty: the page's KPI prints $0.00, so the dock says $0 too (same number), muted.
+  if (book.empty || !(book.total > 0)) {
+    return { ...none('Wallet — your paper $0: no paper wallet yet, open Wallet to start one'), value: [{ text: compactUsd(0), tone: 'muted' as Tone }] }
+  }
+  const share = (entries: Array<[string, string, number]>) => {
+    const pos = entries.filter(([, , v]) => Number.isFinite(v) && v > 0)
+    const sum = pos.reduce((t, [, , v]) => t + v, 0)
+    return sum > 0 ? pos.map(([key, label, value]) => ({ key, label, value, share: value / sum })) : []
+  }
+  const wallets = share([
+    ['custody', 'Paper wallets', book.parts.custody],
+    ['portfolio', 'Portfolio', book.parts.portfolio],
+  ]).map((s, i, all) => ({ ...s, color: walletTone(i, all.length) }))
+  const classes = share((Object.keys(book.byClass) as Array<keyof OwnBook['byClass']>).map(k => {
+    const key = k === 'fiat' ? 'cash' : k
+    return [key, key === 'cash' ? 'Cash' : classLabel(key), book.byClass[k]] as [string, string, number]
+  }))
+    .sort((a, b) => b.value - a.value)
+    .map(s => ({ ...s, color: s.key === 'cash' ? CASH_COLOR : classColor(s.key) }))
+  const mix = classes.slice(0, 3).map(c => `${c.label} ${Math.round(c.share * 100)}%`).join(', ')
+  return {
+    value: [{ text: compactUsd(book.total), tone: 'accent' }],
+    summary: `Wallet — your paper ${compactUsd(book.total)}${mix ? `; ${mix}` : ''}`,
+    wallets,
+    classes,
+  }
+}
+
+/** Lab dock when the user owns no strategy: no number (the sample agents are not theirs). */
+export const LAB_DOCK_EMPTY = {
+  points: [] as SpherePoint[],
+  running: 0,
+  waiting: 0,
+  stopped: 0,
+  value: [{ text: '—', tone: 'muted' as Tone, long: 'no strategy yet' }] as ValuePart[],
+  summary: 'Lab — no strategy of yours yet: open Lab to create one or browse the samples',
+}
+
 export function useNavPanels() {
   const assets = useAssetsStore()
   const news = useNewsStore()
@@ -75,6 +131,7 @@ export function useNavPanels() {
   const strategies = useStrategiesStore()
   const chat = useChatStore()
   const { getUserId } = useCurrentUser()
+  const ownBook = useOwnBook()
 
   // ── Shared clock (client only; SSR renders the icons' static placeholders) ──
   const now = ref(0)
@@ -94,6 +151,8 @@ export function useNavPanels() {
     document.addEventListener('visibilitychange', onVisible)
     // The bar is on every page: never assume the target page has hydrated its store.
     if (!assets.assets.length && !assets.isRefreshing) assets.initializeStore()
+    // wallet + agents: no longer drawn by the dock (own book / own strategies), still prefetched
+    // because other screens (wallet switcher, search "Agents") read these stores without fetching.
     if (!wallet.hydrated && !wallet.loading) wallet.fetchWallets().catch(() => {})
     if (!agents.hydrated && !agents.loading) agents.fetchAgents().catch(() => {})
     if (!strategies.strategies.length && !strategies.loading) strategies.fetchStrategies().catch(() => {})
@@ -152,26 +211,15 @@ export function useNavPanels() {
     }
   })
 
-  // ── Wallet: total + the two rings ─────────────────────────────────────
-  const walletPanel = computed(() => {
-    const classOf = (a: { asset_id?: string; symbol: string }) =>
-      resolveAssetClass((a.asset_id && assets.getAssetById(a.asset_id)) || { symbol: a.symbol })
-    const label = (k: string) => (k === 'cash' ? 'Cash' : assetClassTheme(k).label)
-    const rings = walletRings(wallet.wallets ?? [], classOf, label)
-    const walletsColored: ColoredShare[] = rings.wallets.map((s, i) => ({ ...s, color: walletTone(i, rings.wallets.length) }))
-    const classesColored: ColoredShare[] = rings.classes.map(s => ({ ...s, color: s.key === 'cash' ? CASH_COLOR : assetClassTheme(s.key).color }))
-    const mix = classesColored.slice(0, 3).map(c => `${c.label} ${Math.round(c.share * 100)}%`).join(', ')
-    return {
-      wallets: walletsColored,
-      classes: classesColored,
-      value: [{ text: rings.total > 0 ? compactUsd(rings.total) : '—', tone: (rings.total > 0 ? 'accent' : 'muted') as Tone }],
-      summary: rings.total > 0
-        ? `Wallet — ${compactUsd(rings.total)} across ${rings.wallets.length} wallets; ${mix}`
-        : 'Wallet — no wallet loaded yet',
-    }
-  })
+  // ── Wallet: the user's own paper total (C8) + the two rings ──────────
+  const walletPanel = computed(() => ownWalletDock(
+    ownBook.state.value,
+    ownBook.book.value,
+    k => assetClassTheme(k).label,
+    k => assetClassTheme(k).color,
+  ))
 
-  // ── Lab: the user's own strategies on the globe (samples are not theirs; agents only when there is none) ──
+  // ── Lab: the user's own strategies on the globe (samples and catalog agents are not theirs) ──
   const lab = computed(() => {
     const books = strategies.ownStrategies
     if (books.length) {
@@ -203,39 +251,7 @@ export function useNavPanels() {
         summary: `Lab — ${running} running, ${waiting} paused, ${stopped} stopped`,
       }
     }
-    const list = agents.ids.map(id => agents.byId[id]).filter(Boolean)
-    const points: SpherePoint[] = agentSphere(list.map(a => ({
-      id: a!.id,
-      name: a!.name,
-      status: a!.training_state?.status,
-      risk: a!.personality_matrix?.risk,
-      patience: a!.personality_matrix?.patience,
-      contrarian: a!.personality_matrix?.contrarian,
-      trades: a!.performance?.trades_total,
-    })))
-    const running = points.filter(p => p.state === 'running').length
-    const waiting = points.filter(p => p.state === 'waiting').length
-    const errors = points.length - running - waiting
-    const states: ValuePart[] = [
-      { text: `${running}`, tone: 'up' as Tone, long: `${running} run` },
-      ...(waiting ? [{ text: `${waiting}`, tone: 'wait' as Tone, long: `${waiting} wait` }] : []),
-      ...(errors ? [{ text: `${errors}`, tone: 'down' as Tone, long: `${errors} error` }] : []),
-    ]
-    const value: ValuePart[] = !points.length
-      ? [{ text: '—', tone: 'muted' as Tone }]
-      : states.length === 1
-        ? [{ text: `${running} run`, tone: (running ? 'up' : 'muted') as Tone }]
-        : states.map(s => ({ ...s, text: `●${s.text}` }))
-    return {
-      points,
-      running,
-      waiting,
-      stopped: errors,
-      value,
-      summary: points.length
-        ? `Lab — ${points.length} agents: ${running} running, ${waiting} waiting${errors ? `, ${errors} in error` : ''}`
-        : 'Lab — no strategies loaded yet',
-    }
+    return LAB_DOCK_EMPTY
   })
 
   // ── Chat: unread in the user's own conversations ──────────────────────

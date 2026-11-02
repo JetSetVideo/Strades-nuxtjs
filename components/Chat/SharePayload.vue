@@ -46,6 +46,11 @@ defineProps<{
         :to="`/strategy/${attachment.strategy_id}`"
         class="share-link"
       >View strategy →</NuxtLink>
+      <NuxtLink
+        v-else-if="attachment.url && attachment.url.startsWith('/')"
+        :to="attachment.url"
+        class="share-link"
+      >Open {{ attachment.share_kind === 'article' ? 'article' : attachment.share_kind ?? '' }} →</NuxtLink>
       <a
         v-else-if="attachment.url"
         :href="attachment.url"

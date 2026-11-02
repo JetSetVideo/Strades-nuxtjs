@@ -7,6 +7,8 @@
 import type { PredictMarket } from '~/server/api/predict/markets.get'
 import { TradingApiError, useTradingApi, type TradingWallet } from '~/composables/useTradingApi'
 import { useTradingPrefsStore } from '~/stores/tradingPrefs'
+import { botCapitalBlock } from '~/utils/paperMarks'
+import { fmtMoney } from '~/utils/format'
 
 const props = defineProps<{ market: PredictMarket }>()
 const emit = defineEmits<{ launched: [name: string] }>()
@@ -21,9 +23,31 @@ const ask = computed(() => (side.value === 'yes' ? props.market.yes_ask : props.
 const bid = computed(() => (side.value === 'yes' ? props.market.yes_bid : props.market.no_bid))
 const maxEntry = ref<number>(Math.min(99, (props.market.yes_ask ?? 50) + 1))
 watch(side, () => { maxEntry.value = Math.min(99, (ask.value ?? 50) + 1) })
-// new bots start from the primary value "Paper starting capital" when signed in (Settings → Primary values)
+// One paper-capital source (swarm 11-02 BOT-3): the default is Settings › Paper starting capital, capped
+// at the chosen wallet's FREE cash — it offered $10,000 from a $0.00 wallet, then failed "Only 0E-8 available".
 const capital = ref(String(prefs.newBotCapital))
-prefs.syncPrimary().then(() => { capital.value = String(prefs.newBotCapital) }).catch(() => {})
+const wallet = computed(() => wallets.value.find(w => w.id === walletId.value) ?? null)
+const freeCash = computed<number | null>(() => {
+  const v = Number(wallet.value?.cash_usd)
+  return wallet.value && Number.isFinite(v) ? Math.max(0, v) : null
+})
+const defaultCapital = () => {
+  const start = prefs.newBotCapital
+  const free = freeCash.value
+  const v = free === null ? start : Math.min(start, free)
+  return String(Math.floor(v * 100) / 100)
+}
+prefs.syncPrimary().then(() => { capital.value = defaultCapital() }).catch(() => {})
+watch(walletId, () => { capital.value = defaultCapital() })
+const capitalSourceNote = computed(() => {
+  const from = prefs.newBotCapitalSource === 'settings' ? 'from Settings › Paper starting capital' : "this browser's default bot capital"
+  const free = freeCash.value
+  return free !== null && prefs.newBotCapital > free
+    ? `${fmtMoney(prefs.newBotCapital, { decimals: 0 })} ${from}, capped at this wallet's ${fmtMoney(free)} free cash.`
+    : `${fmtMoney(prefs.newBotCapital, { decimals: 0 })} ${from}.`
+})
+/** Why Launch is disabled ('' = it can launch). */
+const capitalBlock = computed(() => botCapitalBlock(capital.value, freeCash.value))
 const visibility = ref<'public' | 'private'>('private')
 const busy = ref(false)
 const error = ref('')
@@ -78,7 +102,7 @@ async function launch() {
       <div class="row">
         <label>Wallet
           <select v-model="walletId">
-            <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.label }} · ${{ Number(w.cash_usd).toFixed(2) }} free</option>
+            <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.label }} · {{ fmtMoney(Number(w.cash_usd)) }} free</option>
           </select>
         </label>
         <fieldset class="side">
@@ -92,8 +116,9 @@ async function launch() {
           <small v-if="ask && maxEntry > ask + 3" class="warn">⚠ {{ maxEntry - ask }}¢ above the ask: on a thin book the bot buys up every level to that price and can lose a big share of its capital at once.</small>
         </label>
         <label>Capital (USD)
-          <input v-model="capital" type="number" min="10" step="any" inputmode="decimal" />
+          <input v-model="capital" type="number" min="10" :max="freeCash ?? undefined" step="any" inputmode="decimal" />
           <small>≈ {{ contracts }} contracts at {{ ask ?? '—' }}¢</small>
+          <small>{{ capitalSourceNote }}</small>
           <small v-if="entryCost !== null">Starts ≈ {{ entryCost.toFixed(1) }}% down: valued at the {{ bid }}¢ bid, after Kalshi's taker fee.</small>
         </label>
       </div>
@@ -103,9 +128,10 @@ async function launch() {
         <label><input v-model="visibility" type="radio" value="public" /> Everyone on Strades (Community bots shows its market, side and P&amp;L, never your wallet)</label>
       </fieldset>
       <p v-if="!tradable" class="warn">Not tradable for a bot right now: it needs a price between 5¢ and 95¢ and a spread of at most 10¢ and 20% of the price (here {{ bid ?? '—' }}¢ / {{ ask ?? '—' }}¢). Pick a busier market.</p>
+      <p v-if="capitalBlock" class="warn" role="status">{{ capitalBlock }}</p>
       <p v-if="error" class="err">{{ error }}</p>
       <div class="actions">
-        <button :disabled="busy || !tradable || !walletId || !(Number(capital) >= 10)">{{ busy ? 'Launching…' : `Launch ${side.toUpperCase()} bot` }}</button>
+        <button :disabled="busy || !tradable || !walletId || !!capitalBlock" :title="capitalBlock || undefined">{{ busy ? 'Launching…' : `Launch ${side.toUpperCase()} bot` }}</button>
         <a :href="market.url" target="_blank" rel="noopener noreferrer" class="ext">View on Kalshi ↗</a>
       </div>
       <p class="note">Paper trading: fills at Kalshi's real best ask, minus Kalshi's fee; pays 100¢ per contract if your side wins, 0¢ if not. No real order is sent.</p>

@@ -180,6 +180,7 @@ onMounted(fetchStrategies)
 
 <template>
   <div class="strategies-page">
+    <NavigationAreaLinks area="lab" />
 
     <StrategySavedList />
     <StrategyLiveDesk :strategies="strategiesStore.ownStrategies" />
@@ -234,8 +235,7 @@ onMounted(fetchStrategies)
         @toggle="s => handleToggleStatus(s.id)"
         @delete="s => handleDelete(s.id)"
         @view="s => navigateTo(`/strategy/${s.id}`)"
-        @share="() => {}"
-        @copy="() => {}"
+        @copy="s => navigateTo(`/creator?id=${s.id}`)"
       />
 
       <!-- Catalog samples: not the user's, each row labelled Sample. -->

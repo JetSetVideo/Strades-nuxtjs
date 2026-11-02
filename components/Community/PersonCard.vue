@@ -128,7 +128,10 @@ const photo = computed(() => {
           </button>
           <span v-if="variant === 'friend' || variant === 'discover'" class="tick" :class="{ on: user.verified }" :title="user.verified ? 'Verified' : 'Not verified'">✓</span>
           <span v-if="user.premium" class="plan">Paid</span>
-          <UIPill v-if="variant === 'discover'" tone="info">
+          <UIPill v-if="variant === 'discover' && user.source === 'server'" :tone="user.can_message ? 'info' : 'neutral'" ghost>
+            {{ user.is_bot ? 'Bot' : user.can_message ? 'Can message' : 'Add as friend first' }}
+          </UIPill>
+          <UIPill v-else-if="variant === 'discover'" tone="info">
             {{ Math.round(user.match_score * 100) }}% match
           </UIPill>
           <UIPill v-else-if="user.trading_style" ghost tone="neutral">{{ user.trading_style.replace(/_/g,' ') }}</UIPill>

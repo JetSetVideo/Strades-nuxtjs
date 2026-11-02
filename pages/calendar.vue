@@ -9,6 +9,7 @@ import UISectionTabs, { type TabItem } from '@/components/UI/SectionTabs.vue'
 import UIEmptyState from '@/components/UI/EmptyState.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import CalendarEventRow from '@/components/Calendar/EventRow.vue'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 
 definePageMeta({ title: 'Calendar', description: 'Upcoming economic events.', layout: 'default' })
 
@@ -126,15 +127,23 @@ const stats = computed(() => ({
   high: enriched.value.filter(e => e.impact === 'high').length,
   total: enriched.value.length
 }))
+// The events are a static sample file (public/data/global/events.json), not a live feed.
+const noneUpcoming = computed(() => !loading.value && enriched.value.length > 0 && !enriched.value.some(e => !e.isPast))
 </script>
 
 <template>
   <div class="cal-page">
-    <UIPageHeader title="Calendar" subtitle="Economic releases, central-bank decisions, earnings, network events.">
+    <UIPageHeader title="Calendar" subtitle="The market events to plan your calls around: economic releases, central-bank decisions, earnings, network events.">
       <template #actions>
+        <UISourceChip source="sample" note="Sample calendar (a static file), not a live feed: dates may be past." />
         <UIPill v-if="stats.watching" tone="info">{{ stats.watching }} watching</UIPill>
+        <NavigationNextLink to="/prices" label="Make a call on Prices" />
       </template>
     </UIPageHeader>
+
+    <p v-if="noneUpcoming" class="cal-note" role="note">
+      No upcoming events in the sample calendar: all {{ stats.total }} are past, shown under All.
+    </p>
 
     <UIMetricRow :cols="4">
       <UIStat label="This week"     :value="stats.thisWeek" :precision="0" size="md" />
@@ -155,8 +164,10 @@ const stats = computed(() => ({
       v-else-if="filtered.length === 0"
       icon="◯"
       title="Nothing scheduled"
-      message="No events match this filter."
-    />
+      message="No events match this filter in the sample calendar."
+    >
+      <template #action><NavigationNextLink to="/predict" label="See what the markets expect on Predict" /></template>
+    </UIEmptyState>
 
     <template v-else>
       <div v-for="group in grouped" :key="group.date" class="day-group">
@@ -184,6 +195,12 @@ const stats = computed(() => ({
   flex-direction: column;
   gap: var(--page-gap, 0.6rem);
   min-width: 0;
+}
+
+.cal-note {
+  margin: 0;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.55);
 }
 
 .day-group {

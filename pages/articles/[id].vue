@@ -8,6 +8,9 @@ import UICard from '@/components/UI/Card.vue'
 import UIPill from '@/components/UI/Pill.vue'
 import type { NewsPoliticalScale } from '~/types/news'
 import { useNewsStore } from '~/stores/news'
+import { useCommunityStore } from '~/stores/community'
+import { commentAuthorName } from '~/utils/socialNews'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 
 // Title literal = routeLabel('/articles/[id]') (tests/pageTitles.test.ts; definePageMeta cannot call it).
 definePageMeta({ title: 'Article', layout: 'default' })
@@ -27,9 +30,31 @@ await newsStore.initializeStore()
 const articleId = computed(() => String(route.params.id))
 const article = computed(() => newsStore.getById(articleId.value))
 
+const community = useCommunityStore()
+const { getUserId } = useCurrentUser()
+const { isAuthenticated } = useAuth()
+/** Signed in: your server friends (C3); signed out: the sample circle. */
+const circleIds = computed(() => new Set([
+  ...newsStore.friendIds,
+  ...(isAuthenticated.value ? community.serverFriends.map(u => u.id) : []),
+]))
+/** Friends' comments plus your own ("You"), so what you posted is visible here too. */
 const friendComments = computed(() =>
-  article.value?.comments.filter(comment => newsStore.friendIds.includes(comment.userId)) ?? []
+  article.value?.comments.filter(comment => circleIds.value.has(comment.userId) || comment.userId === getUserId()) ?? []
 )
+const isMine = (userId: string) => userId === getUserId()
+
+// Server: the latest comments (another user's comment shows after a reload) + a read receipt with dwell time.
+let openedAt = 0
+onMounted(() => {
+  openedAt = Date.now()
+  void newsStore.refreshComments(articleId.value)
+  void newsStore.postRead(articleId.value, 0)
+  if (isAuthenticated.value) void community.loadServerPeople()
+})
+onBeforeUnmount(() => {
+  if (openedAt) void newsStore.postRead(articleId.value, Date.now() - openedAt)
+})
 
 const relatedStories = computed(() => {
   if (!article.value) return []
@@ -49,7 +74,8 @@ const relatedFriends = computed(() => {
     const comment = friendComments.value.find(entry => entry.userId === id)
     return {
       id,
-      name: authored?.author.displayName ?? comment?.authorName ?? id,
+      // The comment's own author first: ids collide between the seed directories (SOCIAL-9).
+      name: comment ? commentAuthorName(comment, authored?.author.displayName, id) : authored?.author.displayName ?? id,
       avatarUrl: authored?.author.avatarUrl ?? comment?.authorAvatarUrl,
       opinion: comment?.content ?? `Published ${authored?.title ?? 'a related market view'}.`,
     }
@@ -95,13 +121,14 @@ const onJudge = (value: NewsPoliticalScale | null) => {
               <li v-for="comment in friendComments" :key="comment.id">
                 <img v-if="comment.authorAvatarUrl" :src="comment.authorAvatarUrl" alt="" />
                 <div>
-                  <strong>{{ comment.authorName }}</strong>
+                  <strong>{{ isMine(comment.userId) ? 'You' : comment.authorName }}</strong>
                   <p>{{ comment.content }}</p>
                   <time :datetime="comment.createdAt">{{ new Date(comment.createdAt).toLocaleString(APP_LOCALE) }}</time>
                 </div>
               </li>
             </ul>
-            <UIEmptyState v-else size="sm" icon="◌" message="No friend has commented on this story yet." />
+            <UIEmptyState v-else size="sm" icon="◌" message="No friend has commented on this story yet. Use Comment above to start." />
+            <p v-if="newsStore.syncNote" class="sync-note" role="status">{{ newsStore.syncNote }}</p>
           </UICard>
         </main>
 
@@ -290,4 +317,5 @@ const onJudge = (value: NewsPoliticalScale | null) => {
     grid-template-columns: 1fr;
   }
 }
+.sync-note { font-size: .75rem; color: var(--text-secondary); margin: .5rem 0 0; }
 </style>

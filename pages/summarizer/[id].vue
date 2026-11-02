@@ -45,6 +45,16 @@ if (!strategy.value && import.meta.client) {
 
 const summaryCode = computed(() => strategy.value ? strategyToCodeView(strategy.value) : {})
 const isSample = computed(() => !!(strategy.value as { sample?: boolean } | null)?.sample)
+// REVIEW-13: a strategy that already ran (its page links here with ?ran=1, or this tab holds its result)
+// gets a checklist with a link back to the result, not a "Run backtest" that loops to the same page.
+const realBacktests = useState<Record<string, unknown>>('backtest:real', () => ({}))
+const alreadyRan = computed(() => route.query.ran === '1' || !!(strategy.value && realBacktests.value[strategy.value.id]))
+const period = computed(() => {
+  const start = strategy.value?.backtest_period?.start
+  const end = strategy.value?.backtest_period?.end
+  if (!start || !end || fmtDate(start) === fmtDate(end)) return '—'
+  return `${fmtDate(start)} → ${fmtDate(end)}`
+})
 
 async function testStrategy() {
   if (!strategy.value) return
@@ -70,15 +80,17 @@ async function testStrategy() {
     </template>
 
     <template v-else-if="strategy">
+      <NavigationBackLink />
       <UIPageHeader
         :title="`${routeLabel('/summarizer/[id]')} · ${strategy.name}`"
-        subtitle="Final check before we run a backtest. Edit anything in the Creator."
+        :subtitle="alreadyRan ? 'Checklist of the rules, assets and risk settings. The backtest result is on the strategy page.' : 'Final check before we run a backtest. Edit anything in the Creator.'"
       >
         <template #actions>
           <UISourceChip v-if="isSample" source="sample" note="Sample strategy from the catalog: not one of yours. Back to Creator opens a copy you can edit." />
           <UIPill tone="info">{{ strategy.category || 'strategy' }}</UIPill>
           <NuxtLink :to="`/creator?id=${encodeURIComponent(strategy.id)}`" class="cta secondary">↩ Back to Creator</NuxtLink>
-          <button class="cta primary" :disabled="isTesting" @click="testStrategy">
+          <NuxtLink v-if="alreadyRan" :to="`/strategy/${strategy.id}?tab=backtest`" class="cta primary">≡ See the backtest result</NuxtLink>
+          <button v-else class="cta primary" :disabled="isTesting" @click="testStrategy">
             {{ isTesting ? 'Backtesting…' : '▶ Run backtest' }}
           </button>
         </template>
@@ -88,7 +100,7 @@ async function testStrategy() {
         <UIStat label="Indicators"   :value="strategy.indicators?.length ?? 0" :precision="0" size="md" />
         <UIStat label="Target assets" :value="strategy.target_assets?.length ?? 0" :precision="0" size="md" />
         <UIStat label="Risk level"   :value="strategy.risk_level || '—'" size="md" />
-        <UIStat label="Period"       :value="`${fmtDate(strategy.backtest_period?.start)} → ${fmtDate(strategy.backtest_period?.end)}`" size="sm" />
+        <UIStat label="Period"       :value="period" size="sm" />
       </UIMetricRow>
 
       <div class="row two-col">
@@ -119,7 +131,7 @@ async function testStrategy() {
       message="Redirecting back to your strategies…"
     >
       <template #action>
-        <NuxtLink to="/strategies" class="cta secondary">↩ Open Trading Lab</NuxtLink>
+        <NuxtLink to="/strategies" class="cta secondary">↩ Open {{ routeLabel('/strategies') }}</NuxtLink>
       </template>
     </UIEmptyState>
   </div>

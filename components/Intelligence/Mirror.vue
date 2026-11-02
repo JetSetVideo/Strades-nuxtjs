@@ -161,7 +161,12 @@ onBeforeUnmount(() => { cancelSubtreeAnimations(rootEl.value) })
           v-else-if="tab === 'factors'" :community="communityV3" :space="profileV3?.space" :influence="profileV3?.influence"
           :similar="similar" :similar-status="similarStatus" :similar-error="similarError" @retry="intel.loadSimilar(true)"
         />
-        <IntelligenceAvatar v-else :avatar="profileV2?.avatar" />
+        <template v-else>
+          <!-- "Your avatar": what it saw → learned → would do now, the plug mode, then the avatar-vs-you read. -->
+          <IntelligenceTrainingFeed :inputs="intel.inputs.value" :profile="intel.profile.value" :directive="intel.directive.value" />
+          <IntelligencePlugMode />
+          <IntelligenceAvatar :avatar="profileV2?.avatar" />
+        </template>
       </div>
       <p class="mi-foot">
         Behavioural reads ("reads as"), not a psychology test. Scores are paper call accuracy; capital is paper capital, never real money.

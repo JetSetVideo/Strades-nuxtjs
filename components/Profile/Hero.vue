@@ -18,6 +18,9 @@ const props = defineProps<{
   paid?: boolean
   /** The account has no own desk row: 30D / 7D / 24H / Win / Trades print "—" + one pending chip. */
   figuresPending?: boolean
+  /** Follow button text (e.g. "Friends ✓") and state, set by the page from the friends route. */
+  followLabel?: string
+  followDisabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -167,7 +170,7 @@ const photo = computed(() => {
 
     <!-- CTA -->
     <div v-if="!isOwn" class="cta-row">
-      <button class="btn-follow" @click="emit('follow')">Follow</button>
+      <button class="btn-follow" :disabled="followDisabled" @click="emit('follow')">{{ followLabel ?? 'Follow' }}</button>
       <button class="btn-message" @click="emit('message')">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.2 8.1 13.6 2.6 8.4 13.6 7.2 8.8z" /></svg>
         Message

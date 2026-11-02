@@ -61,6 +61,15 @@ async function claim() {
 const prefs = useTradingPrefsStore()
 onMounted(() => prefs.hydrate())
 
+// "Help train my avatar" — per-user switch read by every useTracking send path.
+const tracking = useTracking()
+const trainAvatar = ref(true)
+onMounted(() => { trainAvatar.value = trackingConsentOn() })
+function onTrainAvatar(on: boolean) {
+  trainAvatar.value = on
+  tracking.setConsent(on)
+}
+
 // Demo id: the bearer id that brings this demo back on any device (apps/users/demo.py).
 const demoCode = ref<string | null>(null)
 const demoCodeBusy = ref(false)
@@ -139,6 +148,23 @@ const saveSettings = () => { /* persist later */ }
       <label class="acct-meta forget">
         <input v-model="forgetDevice" type="checkbox" /> Forget this device when signing out (removes this browser's local data and the demo ID)
       </label>
+      <!-- Tracking consent (composables/useTracking.ts gate): off = no session, heartbeat or activity batch is sent. -->
+      <div id="train-avatar" class="consent" data-testid="train-avatar">
+        <label class="acct-meta forget">
+          <input :checked="trainAvatar" type="checkbox" @change="onTrainAvatar(($event.target as HTMLInputElement).checked)" />
+          Help train my avatar from my activity
+        </label>
+        <ul class="acct-meta consent-list">
+          <li>Pages you open (path and time on page)</li>
+          <li>Clicks the avatar learns from: plugs, shares, searches, chart notes, counted hovers and reads</li>
+          <li>Your session: device type, screen size, and the city of your IP address</li>
+        </ul>
+        <span class="acct-meta">
+          {{ trainAvatar ? 'On: sent in small batches to your account only.' : 'Off: this browser sends none of the above.' }}
+          Your calls, trades, messages and friends are account data and still shape
+          <NuxtLink to="/profile#intelligence">your mirror</NuxtLink>. Saved on this device.
+        </span>
+      </div>
       <!-- Demo id: resume this demo on any device (POST /api/auth/demo/resume/). -->
       <div v-if="auth.user.value?.is_demo && !claimed" class="claim" data-testid="demo-id-block">
         <b>Your demo ID</b>
@@ -382,6 +408,8 @@ const saveSettings = () => { /* persist later */ }
 .claim-err { color: var(--app-color-down, #ff4444); font-size: .8rem; }
 .demo-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; letter-spacing: .05em; color: var(--app-color-up, #00ff88); user-select: all; word-break: break-all; }
 .acct-meta { font-size: .8rem; color: var(--text-secondary); }
+.consent { display: flex; flex-direction: column; gap: .3rem; margin-top: .7rem; }
+.consent-list { margin: 0; padding-left: 1.4rem; }
 .prefs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .9rem; align-items: start; }
 .prefs label { display: flex; flex-direction: column; gap: .3rem; font-size: .85rem; }
 .prefs label.row { flex-direction: row; align-items: center; gap: .5rem; grid-column: 1 / -1; }

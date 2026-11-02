@@ -8,6 +8,7 @@ import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UIStat from '@/components/UI/Stat.vue'
 import UIMetricRow from '@/components/UI/MetricRow.vue'
 import UIEmptyState from '@/components/UI/EmptyState.vue'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 import UISectionTabs, { type TabItem } from '@/components/UI/SectionTabs.vue'
 
 import APIsPlatformCard from '@/components/APIs/PlatformCard.vue'
@@ -78,12 +79,17 @@ const emptyMessage = computed(() =>
   <div class="apis-page">
     <UIPageHeader
       title="API Connections"
-      :subtitle="`${platforms.connectedCount} of ${platforms.list.length} platforms connected`"
+      subtitle="Where prices and broker data come from: the feeds your avatars learn from and your bots read."
     >
       <template #actions>
+        <UISourceChip source="sample" note="The platforms below are a bundled sample (balances, fees, health). Strades is closed-beta paper trading: no real broker is connected." />
         <button class="cta-add" @click="showAddModal = true">+ Add connection</button>
       </template>
     </UIPageHeader>
+    <p class="apis-status">
+      Sample: {{ platforms.connectedCount }} of {{ platforms.list.length }} platforms shown as connected.
+      <NavigationNextLink to="/data" :label="`See what they feed in the ${routeLabel('/data')}`" />
+    </p>
 
     <UIMetricRow :cols="4" class="overview">
       <UIStat label="Connected"      :value="platforms.connectedCount" :precision="0" tone="positive" size="md" />
@@ -157,6 +163,15 @@ const emptyMessage = computed(() =>
 .cta-add:hover { transform: translateY(-1px); }
 
 .overview { margin-bottom: 0.1rem; }
+.apis-status {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.55);
+}
 
 .price-feeds {
   display: flex;

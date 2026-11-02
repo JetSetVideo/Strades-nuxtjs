@@ -7,6 +7,7 @@ import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
 import UIPill from '@/components/UI/Pill.vue'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 
 definePageMeta({ title: 'Data Catalog', layout: 'default' })
@@ -129,7 +130,12 @@ function setView(v: 'providers' | 'internal') {
 
 <template>
   <div class="data-catalog">
-    <UIPageHeader title="Data Catalog" subtitle="Access to markets, data providers, and every internal data source available to your strategies." />
+    <UIPageHeader title="Data Catalog" subtitle="The data your strategies and avatars can read: market providers and the app's own data files.">
+      <template #actions>
+        <UISourceChip source="sample" note="The provider list (latency, cost, reliability) is a bundled sample catalog, not measured." />
+        <NavigationNextLink to="/creator" :label="`Use data in the ${routeLabel('/creator')}`" />
+      </template>
+    </UIPageHeader>
 
     <div class="view-tabs" role="tablist">
       <button :class="{ active: view === 'providers' }" @click="setView('providers')">Market &amp; Data Providers</button>
@@ -157,7 +163,10 @@ function setView(v: 'providers' | 'internal') {
         />
       </div>
 
-      <div v-if="filteredProviders.length === 0" class="empty">No providers match your search.</div>
+      <div v-if="filteredProviders.length === 0" class="empty">
+        {{ providers.length ? 'No providers match your search.' : 'No provider catalog loaded.' }}
+        <NavigationNextLink to="/apis" :label="`Connect your own on ${routeLabel('/apis')}`" />
+      </div>
 
       <div v-else class="source-grid">
         <UICard v-for="p in filteredProviders" :key="p.id" :padding="'compact'">
@@ -202,7 +211,10 @@ function setView(v: 'providers' | 'internal') {
       </div>
 
       <!-- Data source cards -->
-      <div v-if="filtered.length === 0" class="empty">No data sources match your search.</div>
+      <div v-if="filtered.length === 0" class="empty">
+        {{ sources.length ? 'No data sources match your search.' : 'No internal data catalog loaded.' }}
+        <NavigationNextLink to="/creator" :label="`Build a strategy in the ${routeLabel('/creator')}`" />
+      </div>
 
       <div v-else class="source-grid">
         <UICard v-for="src in filtered" :key="src.path" :padding="'compact'">

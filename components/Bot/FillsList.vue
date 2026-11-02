@@ -12,8 +12,11 @@ interface Fill {
 defineProps<{ fills: Fill[] }>()
 
 // One format with the rest of the app (utils/format.ts): "−$9.00", "+$2.00", "$0.00", times in UTC.
+import { utcCalendarDaysAgo } from '~/utils/walletBook'
+
 function fmtRelTime(ts: number) {
-  const days = Math.floor((Date.now() - ts) / 86_400_000)
+  // Calendar day in UTC (the times are UTC), not a 24 h window: yesterday's 15:35 no longer reads "15:35" (REVIEW-17).
+  const days = utcCalendarDaysAgo(ts)
   if (days === 0) return fmtTime(ts)
   if (days < 7) return fmtDayTime(ts)
   return fmtShortDate(ts)

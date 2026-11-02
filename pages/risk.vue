@@ -1,8 +1,8 @@
-<script setup lang="ts">import { ref, shallowRef, computed, onMounted } from 'vue'
+<script setup lang="ts">import { ref, computed, onMounted } from 'vue'
 import { useMacroStore } from '@/stores/macro'
 import { useAssetsStore } from '@/stores/assets'
 import { useAllocationStore } from '@/stores/allocation'
-import { useTradingApi } from '@/composables/useTradingApi'
+import { useOwnBook } from '@/composables/useOwnBook'
 import { usePrimarySettings } from '@/composables/usePrimarySettings'
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
@@ -14,8 +14,8 @@ import UIValueTree from '@/components/UI/ValueTree.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import StrategyConsensusMeter from '@/components/Strategy/ConsensusMeter.vue'
 import AssetCommodityPipeline from '@/components/Asset/CommodityPipeline.vue'
-import { OWN_BOOK_NOTE, bookLoadState, emptyOwnBook, loadOwnBook, type OwnBook } from '@/utils/ownBook'
-import { recordingBookApi, type OwnBookRaw } from '@/utils/walletTree'
+import { OWN_BOOK_NOTE, emptyOwnBook } from '@/utils/ownBook'
+import { CLASS_LABELS, heldExposureByClass, heldExposureRows, type PieClass } from '@/utils/walletBook'
 import {
   CLASS_VOL_NOTE,
   RISK_BUDGET_NOTE,
@@ -36,7 +36,6 @@ definePageMeta({ title: 'Risk & Exposure', layout: 'default' })
 const macro = useMacroStore()
 const assetsStore = useAssetsStore()
 const allocation = useAllocationStore()
-const tradingApi = useTradingApi()
 
 const loading = ref(true)
 
@@ -44,23 +43,18 @@ const loading = ref(true)
 // Custody paper wallets (cash + live bot equity) + /api/portfolio/ (cash + holdings).
 // It used to read the demo wallets.json by user id: $0 for every real account, while
 // the pie stayed on the 25/25/25/25 store default (board-finance F3, board-data P0 #1).
-const book = ref<OwnBook>(emptyOwnBook())
-const bookState = ref<'loading' | 'ready' | 'signed-out' | 'error'>('loading')
+// C8: the same shared read as /wallet's KPI and the dock (composables/useOwnBook.ts).
+const own = useOwnBook()
+const book = computed(() => own.book.value ?? emptyOwnBook())
+const bookState = computed(() => (own.state.value === 'idle' ? 'loading' : own.state.value))
 const bookReady = computed(() => bookState.value === 'ready')
 /** The raw rows the loader read: the Portfolio Value tree shows each part from them (utils/walletTree.ts). */
-const bookRaw = shallowRef<OwnBookRaw | null>(null)
+const bookRaw = computed(() => own.raw.value)
 
 async function loadBook() {
-  try {
-    const rec = recordingBookApi(tradingApi)
-    book.value = await loadOwnBook(rec.api)
-    bookRaw.value = rec.raw
-    bookState.value = 'ready'
-    // The shared allocation now holds the account's actual mix (Creator / Composer read it).
-    allocation.setFromHoldings(book.value.pie)
-  } catch (error) {
-    bookState.value = bookLoadState(error)
-  }
+  await own.refresh()
+  // The shared allocation now holds the account's actual mix (Creator / Composer read it).
+  if (own.state.value === 'ready' && own.book.value) allocation.setFromHoldings(own.book.value.pie)
 }
 
 // ─── The user's primary values (Settings): VaR confidence / horizon, days per year, drawdown alert ──
@@ -138,22 +132,37 @@ const trees = computed(() => riskTrees({
   settingsDefaults: primary.defaults.value,
 }))
 
-// ─── Counterparty exposure from supply chain ─────────────────────────────────
+// ─── Exposure: one row per asset YOUR book holds (REVIEW-6) ───────────────────
+// risk = weight in the book × class vol (vol-weighted, ≤ 100 %). The old card listed 9 fixed assets the
+// user may not hold and summed their vols per type (246 %). Without own holdings: a Sample list, chipped.
+const heldRows = computed(() =>
+  bookReady.value ? heldExposureRows(book.value.positions, book.value.total, volatilityByClass.value as Partial<Record<PieClass, number>>) : [])
+const exposureIsOwn = computed(() => heldRows.value.length > 0)
+const SAMPLE_EXPOSURE = ['btc', 'eth', 'aapl', 'eur']
 const counterpartyExposure = computed(() => {
-  const exposure: { name: string; type: string; risk: number }[] = []
-  const supplyChainFiles = ['btc', 'eth', 'sol', 'aapl', 'amzn', 'tsla', 'usd', 'eur', 'cny']
-  for (const sym of supplyChainFiles) {
-    const asset = assetsStore.getAssetBySymbol(sym.toUpperCase())
-    if (asset) {
-      const vol = volatilityByClass.value[asset.type === 'cryptocurrency' ? 'crypto' : asset.type === 'stock' ? 'stocks' : 'fiat'] ?? 0.3
-      exposure.push({
-        name: `${asset.symbol} — ${asset.name}`,
-        type: asset.type,
-        risk: vol * 100
-      })
-    }
+  if (exposureIsOwn.value) {
+    return heldRows.value.slice(0, 10).map(r => ({
+      name: `${r.symbol} — ${assetsStore.getAssetBySymbol(r.symbol)?.name ?? CLASS_LABELS[r.cls]}`,
+      type: CLASS_LABELS[r.cls],
+      risk: r.risk,
+      weight: r.weightPct as number | null,
+      id: assetsStore.getAssetBySymbol(r.symbol)?.id ?? r.symbol.toLowerCase(),
+    }))
   }
-  return exposure.sort((a, b) => b.risk - a.risk).slice(0, 10)
+  const rows: { name: string; type: string; risk: number; weight: number | null; id: string }[] = []
+  for (const sym of SAMPLE_EXPOSURE) {
+    const asset = assetsStore.getAssetBySymbol(sym.toUpperCase())
+    if (!asset) continue
+    const cls: PieClass = asset.type === 'cryptocurrency' ? 'crypto' : asset.type === 'stock' ? 'stocks' : asset.type === 'commodity' ? 'commodities' : 'fiat'
+    // Sample: an asset at 25 % of a book, so the row reads like an own row (weight × vol) and stays ≤ 100 %.
+    rows.push({ name: `${asset.symbol} — ${asset.name}`, type: CLASS_LABELS[cls], risk: 25 * Math.min(1, volatilityByClass.value[cls] ?? 0.3), weight: null, id: asset.id })
+  }
+  return rows.sort((a, b) => b.risk - a.risk)
+})
+const exposureReason = computed(() => {
+  if (exposureIsOwn.value) return 'Assets your own book holds: weight in the book × class vol (vol-weighted).'
+  if (!bookReady.value) return `Sample rows (4 assets at 25 % each): ${bookReason.value}`
+  return 'Sample rows (4 assets at 25 % each): your book holds no asset yet, only cash. Buy one in Trade.'
 })
 
 // ─── Stress test ─────────────────────────────────────────────────────────────
@@ -172,15 +181,12 @@ function runStressTest(scenario: string) {
   stressScenario.value = scenario
 }
 
-// ─── Exposure by counterparty type ───────────────────────────────────────────
+// ─── Exposure by type: Σ vol-weighted exposure per class (≤ 100 %) ────────────
 const exposureByType = computed(() => {
+  if (exposureIsOwn.value) return heldExposureByClass(heldRows.value).map(r => ({ type: CLASS_LABELS[r.cls], risk: r.risk }))
   const map: Record<string, number> = {}
-  for (const e of counterpartyExposure.value) {
-    map[e.type] = (map[e.type] ?? 0) + e.risk
-  }
-  return Object.entries(map)
-    .map(([type, risk]) => ({ type, risk }))
-    .sort((a, b) => b.risk - a.risk)
+  for (const e of counterpartyExposure.value) map[e.type] = Math.min(100, (map[e.type] ?? 0) + e.risk)
+  return Object.entries(map).map(([type, risk]) => ({ type, risk })).sort((a, b) => b.risk - a.risk)
 })
 </script>
 
@@ -263,11 +269,16 @@ const exposureByType = computed(() => {
 
       <!-- ── Counterparty Exposure ──────────────────────────────────── -->
       <UICard title="Counterparty & Supply-Chain Exposure">
+        <p class="src-note">
+          <UISourceChip :source="exposureIsOwn ? 'paper' : 'sample'" :note="exposureReason" />
+          <span>{{ exposureReason }}</span>
+          <NuxtLink v-if="!exposureIsOwn" to="/trade" class="src-link">Trade →</NuxtLink>
+        </p>
         <div class="counterparty-list">
           <div v-for="e in counterpartyExposure" :key="e.name" class="cp-row">
-            <span class="cp-name">{{ e.name }}</span>
+            <NuxtLink :to="`/assets/${e.id}`" class="cp-name">{{ e.name }}</NuxtLink>
             <UIPill :tone="e.risk > 40 ? 'danger' : e.risk > 20 ? 'warning' : 'success'" size="sm">
-              {{ fmtPctFromPercent(e.risk) }} risk
+              {{ fmtPctFromPercent(e.risk) }} vol-weighted<template v-if="e.weight != null"> · {{ fmtPctFromPercent(e.weight) }} of book</template>
             </UIPill>
             <span class="cp-type">{{ e.type }}</span>
           </div>
@@ -276,11 +287,15 @@ const exposureByType = computed(() => {
 
       <!-- ── Exposure by Type ────────────────────────────────────────── -->
       <UICard title="Exposure by Counterparty Type">
+        <p class="src-note">
+          <UISourceChip :source="exposureIsOwn ? 'paper' : 'sample'" :note="exposureReason" />
+          <span>Σ weight × class vol per type: never above 100 %.</span>
+        </p>
         <div class="ex-type-list">
           <div v-for="e in exposureByType" :key="e.type" class="ex-row">
             <span class="ex-label">{{ e.type.replace('_', ' ') }}</span>
             <div class="ex-bar-track">
-              <div class="ex-bar-fill" :style="{ width: `${e.risk * 1.5}%` }" />
+              <div class="ex-bar-fill" :style="{ width: `${Math.min(100, e.risk)}%` }" />
             </div>
             <span class="ex-val">{{ fmtPctFromPercent(e.risk) }}</span>
           </div>
@@ -429,6 +444,9 @@ const exposureByType = computed(() => {
   border-radius: var(--radius-sm);
 }
 .cp-name { flex: 1; font-size: 0.78rem; }
+a.cp-name { color: inherit; text-decoration: none; }
+a.cp-name:hover { text-decoration: underline; }
+.src-link { color: var(--primary-blue, #5b9cff); text-decoration: none; font-weight: 600; }
 .cp-type { font-size: 0.6rem; color: var(--text-gray); text-transform: capitalize; }
 
 /* Exposure by type */

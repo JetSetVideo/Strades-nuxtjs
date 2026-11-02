@@ -189,14 +189,18 @@ function handleAddContribution(c: { competitionId: string; amount: number }) {
         title="Nothing to rank yet"
         message="No entries carry data for this metric."
       />
-      <ol v-else class="ranked-list">
+      <p v-if="rows.length" class="sample-line">
+        <UISourceChip source="sample" note="Demo traders and strategies from the bundled roster: not live accounts, numbers are not real results." />
+        Sample ranking — your own row is marked “you”.
+      </p>
+      <ol v-if="rows.length || loading" class="ranked-list">
         <li v-for="(r, i) in rows" :key="r.id">
           <NuxtLink :to="r.to" class="rank-row" :class="[MEDALS[i], { me: r.isMe }]">
             <span class="position">{{ i + 1 }}</span>
             <img v-if="r.avatar" :src="r.avatar" :alt="r.name" class="rank-avatar" loading="lazy" />
             <span v-else class="rank-avatar glyph" aria-hidden="true">{{ initials(r.name) }}</span>
             <span class="who">
-              <span class="name">{{ r.name }}<span v-if="r.isMe" class="you">you</span></span>
+              <span class="name">{{ r.name }}<span v-if="r.isMe" class="you">you</span><UISourceChip v-else source="sample" /></span>
               <span v-if="r.sub" class="sub">{{ r.sub }}</span>
             </span>
             <span class="value" :class="{ neg: r.score < 0 && (metric === 'profit' || metric === 'sharpe') }">{{ r.display }}</span>
@@ -310,4 +314,5 @@ function handleAddContribution(c: { competitionId: string; amount: number }) {
   .rank-row { grid-template-columns: 1.5rem 1.75rem minmax(0, 1fr) auto; gap: 0.45rem; padding: 0.45rem 0.55rem; }
   .rank-avatar { width: 1.75rem; height: 1.75rem; }
 }
+.sample-line { margin: 0 0 0.4rem; font-size: 0.75rem; color: var(--text-secondary, rgba(255,255,255,0.6)); }
 </style>

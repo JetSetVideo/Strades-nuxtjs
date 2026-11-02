@@ -370,3 +370,86 @@ export function intelSpectrum(s: IntelSpectral | null | undefined, members: Pick
     rows,
   }
 }
+
+// ── Avatar training feed (wave 2, contract C6) ──────────────────────────────────────────────────────────
+// GET /api/v1/intelligence/me/ → optional `inputs` (absent on older servers: every helper accepts null).
+
+/** What the avatar saw in the analysis window: server counts only (never browser-side estimates). */
+export interface IntelInputs {
+  calls: number
+  resolved_calls: number
+  sessions: number
+  page_views: number
+  messages: number
+  news_reads: number
+  interactions_by_type: Record<string, number>
+  window_days?: number
+}
+
+export interface IntelInputRow {
+  key: string
+  label: string
+  /** null = the server did not send this count (older server) → "—" */
+  count: number | null
+  /** where to go to add more of this input */
+  to: string
+  more: string
+}
+
+const INPUT_ROWS: { key: keyof IntelInputs; label: string; to: string; more: string }[] = [
+  { key: 'calls', label: 'Calls you made', to: '/prices', more: 'Make a call: open an asset on Prices' },
+  { key: 'resolved_calls', label: 'Calls already scored', to: '/historic', more: 'Calls score at their horizon: see History' },
+  { key: 'news_reads', label: 'Articles read', to: '/news', more: 'Read on News' },
+  { key: 'messages', label: 'Messages sent', to: '/chat', more: 'Say hi in Chat' },
+  { key: 'sessions', label: 'Sessions', to: '/prices', more: 'Come back tomorrow' },
+  { key: 'page_views', label: 'Pages opened', to: '/prices', more: 'Browse Prices' },
+]
+
+const finiteCount = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.round(v) : null)
+
+/** One row per input (always all of them, zero included, each with a "how to add more" link). */
+export function intelInputRows(inputs: Partial<IntelInputs> | null | undefined): IntelInputRow[] {
+  return INPUT_ROWS.map(r => ({ key: r.key, label: r.label, count: inputs ? finiteCount(inputs[r.key]) : null, to: r.to, more: r.more }))
+}
+
+const INTERACTION_WORDS: Record<string, string> = {
+  agent_plug: 'agent plugs', agent_fork: 'agent forks', agent_compare: 'agent compares', allocation_change: 'allocation moves',
+  asset_click: 'asset opens', asset_tag: 'asset tags', chart_annotation: 'chart notes', search_used: 'searches',
+  share_asset: 'asset shares', share_opinion: 'opinion shares', share_strategy: 'strategy shares', share_article: 'article shares',
+  strategy_deploy: 'strategy deploys', strategy_pause: 'strategy pauses', data_bet_placed: 'data bets',
+  data_challenge_posted: 'data challenges', notification_schedule: 'reminder checks', friend_added: 'friends added',
+  chat_message_sent: 'chat messages', article_political_view: 'article views', prediction_triggered: 'scored-call checks',
+  other: 'other clicks',
+}
+
+/** Typed clicks the avatar learns from, biggest first, capped (the rest summed in one "more" line). */
+export function intelInteractionRows(inputs: Partial<IntelInputs> | null | undefined, cap = 5): { label: string; count: number }[] {
+  const by = inputs?.interactions_by_type ?? {}
+  const rows = Object.entries(by)
+    .map(([k, n]) => ({ label: INTERACTION_WORDS[k] ?? k.replace(/_/g, ' '), count: finiteCount(n) ?? 0 }))
+    .filter(r => r.count > 0)
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+  if (rows.length <= cap) return rows
+  const rest = rows.slice(cap).reduce((s, r) => s + r.count, 0)
+  return [...rows.slice(0, cap), { label: 'more kinds', count: rest }]
+}
+
+/** Total server inputs (0 = "still reading you"). null when the server sent no `inputs`. */
+export function intelInputsTotal(inputs: Partial<IntelInputs> | null | undefined): number | null {
+  if (!inputs) return null
+  const base = ['calls', 'news_reads', 'messages', 'sessions', 'page_views'] as const
+  const typed = Object.values(inputs.interactions_by_type ?? {}).reduce((s, n) => s + (finiteCount(n) ?? 0), 0)
+  return base.reduce((s, k) => s + (finiteCount(inputs[k]) ?? 0), 0) + typed
+}
+
+/**
+ * The directive's strategy mix as BotLauncher weights: only the launcher's keys, non-negative, normalised to 1
+ * (rounded to 4 dp). null when the directive has no usable weight → the launcher keeps Random / its own mix.
+ */
+export function intelDirectiveLaunchWeights<K extends string>(weights: Record<string, number> | null | undefined, keys: readonly K[]): Record<K, number> | null {
+  if (!weights) return null
+  const raw = keys.map(k => { const v = weights[k]; return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0 })
+  const sum = raw.reduce((s, v) => s + v, 0)
+  if (!(sum > 0)) return null
+  return Object.fromEntries(keys.map((k, i) => [k, Math.round((raw[i]! / sum) * 1e4) / 1e4])) as Record<K, number>
+}

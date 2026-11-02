@@ -46,7 +46,7 @@ export const useDataFeedsStore = defineStore('dataFeeds', {
       this.error = null
       try {
         const { $api } = useNuxtApp()
-        const res = await ($api as (u: string) => Promise<ProvidersResponse>)('/api/providers/')
+        const res = await ($api as (u: string) => Promise<ProvidersResponse>)('/api/v1/providers/')
         this.groups = Array.isArray(res?.groups) ? res.groups : []
         this.loaded = true
       } catch (e: unknown) {

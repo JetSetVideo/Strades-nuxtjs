@@ -59,13 +59,14 @@ interface ServerFriendCall {
  * trading profile. Signed out, offline or no friends: nothing changes, the demo personas stay.
  */
 async function loadRemote(sym: string, assetName: string) {
-  const { isAuthenticated, accessToken } = useAuth()
+  const { isAuthenticated } = useAuth()
   if (!isAuthenticated.value) return
+  // $api adds the token and does refresh-once + retry-once on a 401 (plugins/api.ts, utils/authRetry.ts).
+  const { $api } = useNuxtApp()
   try {
-    const res = await $fetch<{ results: ServerFriendCall[] }>('/api/v1/predictions/friends/', {
-      baseURL: useRuntimeConfig().public.apiBase as string,
+    const res = await ($api as (u: string, o: Record<string, unknown>) => Promise<{ results: ServerFriendCall[] }>)(
+      '/api/v1/predictions/friends/', {
       query: { asset: sym },
-      headers: { Authorization: `Bearer ${accessToken.value}` },
     })
     remoteCalls[sym] = (res.results ?? []).map((c) => {
       const uid = `u_${c.user.id}`
