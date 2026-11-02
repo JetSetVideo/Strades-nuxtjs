@@ -43,7 +43,7 @@ The user should understand the state of their finances and the world **without c
 - The dominant asset class already drives the global border-radius and padding density via `App/DynamicThemeController.vue`.
 
 ### 1.2 First Run: Profile & Avatar Bootstrap
-On first login, the app has no behavioral history. The avatar starts as a **cold-start prior** (population-average personality matrix). As the user reads, scrolls, dwells, simulates trades and adjusts sliders, the avatar's personality matrix converges toward the user's true habits. This convergence is visualized on `pages/profile/index.vue` as a "training progress" curve.
+On first login, the app has no behavioral history. The server builds the user's behaviour profile and avatar from tracked activity, calls and trades (`apps/intelligence`, backend `docs/intelligence.md`) and `/profile` shows it through `<IntelligenceAvatar>` and `<IntelligenceMirror>`, with "—" and a reason until enough data exists. The in-browser training curve on agent cards (`stores/training.ts`) is a **simulated** animation, not this profile, and must carry a Simulated chip wherever it shows numbers.
 
 ### 1.3 Returning User: The Hub
 Returning users land on `pages/prices.vue` — the market hub. From here they can:
@@ -61,7 +61,7 @@ The five icons of the bottom bar (`components/Navigation/Bar.vue`) are live comp
 |------|-------------|-----------------|
 | **Prices** (`PricesIcon.vue`) | `assets.liveMarket.history` (blended from live assets' hourly returns when the tree has no aggregate) | Sparkline of today's market from 00:00 GMT to now on a fixed 24 h axis, so the line also tells the time of day. Green up / red down via `--app-color-up/down`, blue when flat or unknown. Value line: signed % since 00:00 GMT (hours aligned on the quote fetch time). |
 | **News (globe)** (`NewsGlobeIcon.vue`) | `news.items[].readByUser` + the shared 30 s clock | Dot-matrix Earth turned so the meridian where it is noon now faces the viewer, marked by a red vertical line (12:00 GMT → Greenwich). A blue dot sits on the rim while news is unread (pinging only when News is selected). Value line: `N new` / `all read`. |
-| **Wallet** (`WalletIcon.vue`) | `wallet.wallets` | Outer ring: each wallet's share of the total (amber, pink, teal, yellow, lime). Inner ring: asset types across all wallets (asset-class colours, cash grey). Value line: total balance, the same TOTAL BALANCE the wallet switcher prints. |
+| **Wallet** (`WalletIcon.vue`) | the user's own paper book via `useOwnBook()` (`ownWalletDock`, wave 2 of swarm 11-02, impl-nav step 4); "—" + reason when signed out / not read — the sample `wallet.wallets` never reaches the dock | Outer ring: each wallet's share of the total (amber, pink, teal, yellow, lime). Inner ring: asset types across all wallets (asset-class colours, cash grey). Value line: total balance, the same TOTAL BALANCE the wallet switcher prints. |
 | **Lab** (`LabSphereIcon.vue`) | `strategies.ownStrategies` (the user's own; catalog samples excluded — agents only if there is none) | Small CSS 3-D globe; each strategy is a dot. Colour = run state (green running, orange paused, red stopped), latitude = risk, longitude = return, size = activity (√trades). The rim and the value line use the same counts as the strategies desk. Turns only while Lab is selected. The agent globe remains the Globe mode of the bench on `/agents`. |
 | **Chat** (`ChatBadgeIcon.vue`) | `chat.conversations` (the user's own) + `chat.getEmotionalUrgency` | Speech bubble with a red dot holding the unread count (`99+` past 99), the same per-user counts /chat shows; it throbs when Chat is selected and urgency > 0.7. Value line: `unread` / `no new`. |
 
@@ -169,7 +169,7 @@ Every piece of secondary data translates to a CSS custom property bound by `useL
 - **No generic spinners.** Skeleton layouts inherit the user's geometric preferences (sharp vs. rounded, compact vs. spacious) from `userPreferences` before data arrives.
 - **Hover intent** — hovering a nav icon > 200 ms triggers the prefetch store. If prediction confidence exceeds 65%, the next page's JSON is already in Pinia before the click. Not wired in the bottom bar today: hovering a tab in `Navigation/Bar.vue` only plays a hover sound.
 - **First paint** — wallet totals, macro lighting, and living-UI padding come from the same catalog on the server and the client. Browser-only journals (paper ledger, appearance, news bookmarks) fill in after mount.
-- **Progressive disclosure** — dense pages (risk, monitor) render KPI strip first, then charts, then tables, so the user sees value within 200 ms even on slow connections.
+- **Progressive disclosure** — dense pages (risk, wallet) render KPI strip first, then charts, then tables, so the user sees value within 200 ms even on slow connections.
 
 ---
 
@@ -186,7 +186,7 @@ Every piece of secondary data translates to a CSS custom property bound by `useL
 Strades is a social desk. People build avatars together, and those avatars train on the trades and attention of the people who own them.
 
 ### Menu (`components/Navigation/DrawerMenu.vue`, data in `utils/routes.ts`)
-Every page name lives once, in `utils/routes.ts` (`ROUTES`: path, label, area, icon, hint). The drawer, the bottom bar (label and which tab lights up) and global search read it; page titles read `routeLabel(path)` (done on `/agents`; the other pages still carry a literal title, and the ones that differ are listed in the lane report), so a menu label equals the page title. `tests/routes.test.ts` fails if a registry path has no file under `pages/`, a page file is missing from the registry, or two pages share a label or an icon.
+Every page name lives once, in `utils/routes.ts` (`ROUTES`: path, label, area, icon, hint). The drawer, the bottom bar (label and which tab lights up) and global search read it; page titles read `routeLabel(path)` (10 of 38 pages on 2026-11-02; two literal titles still differ from the registry: `pages/news.vue` "News Intelligence Workspace" and `pages/insights.vue` "Insights · Strades"), so a menu label equals the page title. `tests/routes.test.ts` fails if a registry path has no file under `pages/`, a page file is missing from the registry, or two pages share a label or an icon.
 
 The drawer has six areas. Five own a bottom-bar tab; You opens from the drawer and the profile avatar. A page with an id in its path (detail) belongs to its area: it opens that drawer group and lights that tab.
 
@@ -195,7 +195,7 @@ The drawer has six areas. Five own a bottom-bar tab; You opens from the drawer a
 | Markets | Prices | Prices, Predict, Candle Chart, Calendar, Deal Pipeline | Asset |
 | News | News | News | Article |
 | Portfolio | Wallet | Wallet, Trade with bots, Risk & Exposure, History | — |
-| Lab | Lab | Lab (`/strategies`), Strategy Creator, Avatar Marketplace (`/agents`), Community bots, Strategy Shop | Strategy, Review (`/summarizer/:id`), Bot, Agent |
+| Lab | Lab | Lab (`/strategies`), Strategy Creator, Avatar Marketplace (`/agents`), Community bots, Your bots (`/bots`), Strategy Shop | Strategy, Review (`/summarizer/:id`), Bot, Agent |
 | Community | Chat | Chat, Leaderboard, Arena, Quests | Conversation, Trader profile (`/profile/:id`) |
 | You | — | Profile, Insights, Notifications, Settings, API Connections, Data Catalog | — |
 

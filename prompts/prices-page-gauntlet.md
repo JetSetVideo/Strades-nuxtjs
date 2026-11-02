@@ -1,5 +1,7 @@
 # Gauntlet: Prices page density, filters, and living asset cards
 
+> **Status: executed (2026-10, kept for history).** Not live instructions. It mentions a `/dashboard` page, a "Dashboard" drawer item and a top-bar STRATEGY action that no longer exist — the page registry is `utils/routes.ts`.
+
 Execute every item. Do not stop at a subset. Verify on `/prices` after each cluster.
 
 ## 1. Top navigation

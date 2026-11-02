@@ -1,6 +1,14 @@
 # Coding Agent & AI Implementation Schema
 
-This document details the ML pipelines, allocation enforcer, swarm aggregator, opinion profiler, and paper-trading engine that power Strades.
+This document details the algorithms that exist in the frontend today (allocation enforcer, swarm aggregator, opinion profiler, paper-trading engine, strategy code source) and, under **Roadmap (not built)**, the pipelines that are designed but not implemented. If a section here and the code disagree, the code wins — fix this file.
+
+---
+
+## 0. Avatar today (read first)
+
+- **The real avatar is server-side.** Tracked activity (`composables/useTracking.ts` → `POST /api/auth/tracking/batch/`), calls (`/api/v1/predictions/`), trades and messages are turned into a behaviour profile, an avatar with walk-forward forecasts, relation avatars and an agent directive by the backend app `apps/intelligence` (`manage.py analyse`, run by `upkeep`). Method: backend `docs/intelligence.md`.
+- **The frontend reads it** through `composables/useIntelligence.ts` (`GET /api/v1/intelligence/me/`, `users/<id>/`, `relations/<id>/`, `compare/<id>/`, `hierarchy/`, `space/`, `entourage/`, `similar/`) and shows it with `components/Intelligence/*` on `/profile` and `/insights`. The user directs it with `<IntelligenceDirective>` and `<SettingsPrimaryValues>` (`/api/v1/settings/primary/`) and plugs agents on `/agents` (`/api/v1/settings/plugs/`). Contract C6 adds `inputs` (what it learned from) to `intelligence/me/` — wave 2, landing.
+- **The in-browser "training" is simulated.** `stores/training.ts` drains a behaviour buffer every few seconds and nudges the sample agents' `training_state` with a synthetic reward (`(Math.random() - 0.5) * 0.02` on the previous EMA); nothing is fetched or persisted and the sample agents come from `agents/avatars.json`, so the deltas reset on reload. Treat it as an animation; any number it shows needs `<UISourceChip source="simulated">`.
 
 ---
 
@@ -18,77 +26,39 @@ Every successful rebalance emits a `flow` event with magnitude `|Δ|`, which dri
 
 ---
 
-## 2. Avatar Training Pipeline
-
-The avatar learns to trade *like the user would*. Training is currently simulated client-side; the schema is designed so a real backend can plug in later without changing the frontend contract.
-
-### 2.1 Feature engineering (tracking → tensors)
-Raw events from `tracking/user_interactions.json` are aggregated per user into a feature vector:
-
-| Feature | Derived from |
-|---------|--------------|
-| `risk_appetite` | Avg % of wallet allocated to crypto + commodities during volatile periods |
-| `reaction_speed_ms` | Time between a high-weight news event and the user's next allocation change |
-| `patience` | Median hold time across paper trades |
-| `aggression` | Avg trade size as % of wallet |
-| `contrarian` | Correlation between user's buys and crowd sentiment (negative = contrarian) |
-| `political_leaning` | Weighted moving average of `political_leaning` across articles read |
-| `economic_leaning` | Weighted moving average of `economic_leaning` across articles read |
-| `active_hours` | Histogram of activity by hour of day |
-| `topic_affinity` | Histogram of article categories engaged with |
-
-### 2.2 Personality matrix compression
-The feature vector is compressed (PCA in the real pipeline; simple weighted sums in the mock) into the 5-axis personality matrix exposed on `Agent.personality_matrix`:
-```
-risk, aggression, reaction_speed, patience, contrarian   ∈ [0, 1]
-```
-
-### 2.3 Opinion vector emission
-Every pipeline tick, the avatar emits an opinion vector:
-```
-opinion_vector = softmax( W · features ) × 100
-```
-where `W` is a learned weight matrix. The vector always sums to 100 — it is a valid input to the allocation enforcer.
-
-### 2.4 Reinforcement learning reward
-`reward_ema_pnl` is an exponential moving average of the P&L the avatar would have generated over the last 30 days had its opinion vector been applied to the user's wallet. This is the primary training signal.
-
----
-
-## 3. Swarm Intelligence Aggregator
-
-The swarm opinion is the whole point of Strades.
+## 2. Swarm Intelligence Aggregator
 
 ### Implementation (`stores/opinions.ts`)
 ```ts
 swarmVector = normalize( Σᵢ wᵢ × agentᵢ.opinion_vector )
 ```
-- `wᵢ` is the weight the user gives each plugged avatar (0–1).
-- `normalize()` ensures the result sums to 100%.
+- `wᵢ` is the weight the user gives each plugged avatar (0–1). Plugs are saved on the server (`GET/PUT /api/v1/settings/plugs/`, `utils/plugsSync.ts`); the personal agent is plugged by default.
+- `normalize()` ensures the result sums to 100%. A 4 s opinion tick re-aggregates the plugged agents' current opinions (`plugins/00.dataPipeline.ts:174-178`).
+- The bot engine does **not** read plugs yet (backend todo.md).
 
 ### Modes
 - **Advisory** — `swarmVector` is rendered as a ghost overlay on the wallet page; the user can accept it with one click.
 - **Auto** — `swarmVector` is applied directly to the allocation enforcer on every tick.
 
-### Diversity bonus
-The aggregator computes a **diversity score** = variance across plugged avatars' personality matrices. Higher diversity → higher confidence in the swarm vector (wisdom of crowds requires *independent* opinions). This score is surfaced in `Strategy/ConsensusMeter.vue`.
+### Diversity score
+Computed in `stores/opinions.ts:245` (variance across plugged avatars' personality matrices). It is **not** shown by `<StrategyConsensusMeter>`, which reads only the predictions store.
 
 ---
 
-## 4. Opinion Profiler (Article Analysis)
+## 3. Opinion Profiler (Article Analysis)
 
-Every article read or share event enriches the user's opinion profile.
+Every article read or share event enriches the user's opinion profile (`stores/opinionProfile.ts`, shown by `<ProfileOpinionProfileCard>` on `/profile/[id]`).
 
 ### Pipeline
-1. **Capture** — `tracking` store logs `article_read` / `article_share` with the post's NLP metadata.
+1. **Capture** — `useAgentTracker` / `useTracking` log `article_read` / `article_share` with the post's NLP metadata.
 2. **Decay-weighted average** — recent articles weigh more:
    ```
    leaning_new = α · post.leaning + (1 − α) · leaning_old     (α ≈ 0.15)
    ```
 3. **Topic affinity** — increment histogram bucket for `post.category`.
-4. **Influence web** — record `(reader_id, author_id, weight)` edges. Used to render the "influenced by" graph on the profile page.
+4. **Influence web** — record `(reader_id, author_id, weight)` edges.
 
-### Output (stored on the user record)
+### Output
 ```ts
 opinion_profile: {
   political_leaning: number      // -1..+1
@@ -97,23 +67,20 @@ opinion_profile: {
   influence_web: Array<{ from: UserId; weight: number }>
 }
 ```
-
-### Friend aggregation
-The same pipeline runs for every friend. The profile page renders a small multiples chart comparing the user's leaning to their five closest friends, so users can see how their circle skews.
+News reactions/comments are still local to the browser (`stores/news.ts`), so the server opinions lane has no data until they are wired (Todo 40.6).
 
 ---
 
-## 5. Paper Trading Engine
+## 4. Paper Trading Engine
 
-Paper trades are simulated bets expressed as **percentages of the wallet**, never absolute amounts.
+Paper trades are simulated bets. Two ledgers exist today (one should win — Todo 43.19):
 
-### Flow
-1. User toggles *Paper* mode on the wallet page.
-2. Any strategy or manual action generates a `PaperOrder { asset_id, wallet_pct, side }`.
-3. The engine marks the order to the current mid-price and writes a row to the paper ledger.
-4. The ledger is persisted to `tracking/activity_log.json` so it survives reloads.
+1. **Browser ledger** — `stores/paper.ts`: `placeOrder` marks the order to the current price and appends a row; persisted per user in localStorage `strades_paper_ledger_v1` via `utils/userStorage` (`stores/paper.ts:64`). Written by `<AssetQuickPaperBet>` on /assets/[id] and /CandleChart; read by `<WalletPaperPanel>` and /historic.
+2. **Server portfolio** — `<WalletHandTrade>` on /wallet → `POST /api/v1/portfolio/trade/` (`apps/finance`, live Binance price). The /wallet KPI reads it through `useOwnBook()`. Contract C1 (`client_id`, `fill`) is wave 2 — landing.
 
-### Ledger schema
+Bots trade on the server (`apps/trading` chainbot engine via `POST /api/v1/wallets/<id>/bots/`); their fills are listed on /trade and /bots/[id].
+
+### Browser ledger schema
 ```ts
 PaperTrade {
   id: string
@@ -122,90 +89,69 @@ PaperTrade {
   side: 'buy' | 'sell'
   wallet_pct: number              // 0–100
   simulated_price: number
-  hypothetical_pnl_pct: number    // marked-to-market
+  hypothetical_pnl_pct: number    // marked-to-market; "—" when there is no live price
   strategy_id?: string
   is_paper: true
 }
 ```
 
 ### Historical replay
-`pages/historic.vue` filters the activity log by `is_paper` and renders the paper ledger with a dotted left border. Users can toggle *Live* / *Paper* / *Both* to compare their simulated decisions against real ones.
+`pages/historic.vue` merges server history (`GET /api/v1/history/`), the browser paper ledger, unsynced calls and followed agents (`utils/historyTimeline.ts`) into one past · now · next timeline.
 
 ---
 
-## 6. Strategy code source
+## 5. Strategy code source and backtests
 
-The catalog in `public/data/core/strategies.json` is the only identity for a strategy. `utils/strategyCode.ts` (`strategyToCodeView`, `strategyToStrategyCode`) is what the summarizer, complements, and opposites read.
+The catalog in `public/data/core/strategies.json` is the identity for a sample strategy. `utils/strategyCode.ts` (`strategyToCodeView`, `strategyToStrategyCode`) is what the summarizer, complements, and opposites read. `public/data/strategies/codes/*.json` is legacy and must not be fetched.
 
-`public/data/strategies/codes/*.json` is legacy and must not be fetched. A matching id there can name a different strategy and a different owner.
-
-## 7. Predictive Pre-fetching Engine
-
-A Markov-chain model in a WebWorker predicts the next click.
-
-### Implementation (`stores/prefetch.ts`)
-- **Inputs**: mouse coordinates, hover duration on nav icons, current page, time of day, historical `behavioral_history.click_priors`.
-- **Trigger**: hover > 200 ms on any nav icon. Not wired in the bottom bar today: hovering a tab in `Navigation/Bar.vue` only plays `useNavSound().playHover`.
-- **Action**: if `P(click) > 0.65`, silently `$fetch` the target page's JSON into the relevant Pinia store.
-
-### Routes currently wired
-```ts
-{
-  '/news':   ['/news.json', '/data/social/posts.json'],
-  '/wallet': ['/data/core/wallets.json', '/data/core/wallet_history.json'],
-  '/profile/[id]': ['/data/user/users.json', '/data/social/posts.json'],
-  '/creator': ['/data/agents/avatars.json', '/data/core/strategies.json']
-}
-```
+The user's own strategies are saved on the server (`/api/v1/strategies/`) and backtested there (`POST /api/v1/strategies/<id>/backtest/`, called from `pages/creator.vue` and `pages/strategy/[id].vue` via `backtestReal`); the result carries `assumptions` (capital, fee, slippage from Settings › Primary values). Editing a saved strategy needs `PATCH` (contract C7, wave 2 — landing).
 
 ---
 
-## 8. Real-time Rendering Performance
+## 6. Rendering performance (today)
 
-- **WebSocket batching**: 100 ms chunks, applied via `requestAnimationFrame`.
 - **CSS var batching**: `DynamicThemeController` collects all macro-driven CSS var changes per frame and writes them in a single `style.setProperty` batch.
-- **WebWorkers**: D3 force simulations for `Corporate/NetworkGraph.vue` and `Builder/NodeCanvas.vue` run off the main thread. Workers return flat `[id, x, y]` arrays.
-- **Canvas swap**: any graph with > 500 nodes switches from SVG to Canvas automatically.
+- **Freshness** = REST polling + synthetic ticks (README § Architecture). Graphs render SVG.
 
 ---
 
-## 9. Mock Data Generation Rules
+## 7. Mock Data Generation Rules
 
 When authoring new mock data, respect these invariants:
 
 1. **Opinion vectors sum to 100.** Never emit `{ fiat: 30, crypto: 30, stocks: 30, commodities: 30 }`.
 2. **Political & economic leanings are in [-1, 1].** Most users should sit between -0.6 and +0.6.
-3. **Controversy index is in [0, 1].** > 0.7 should be rare (these are the posts that shake).
-4. **Avatar personality matrices are in [0, 1].** Avoid all-five-axes-at-0.5 — that is a boring avatar.
-5. **Paper trades use `wallet_pct`, never absolute amounts.** A paper trade is a *bet sizing decision*, not a transfer.
+3. **Controversy index is in [0, 1].** > 0.7 should be rare.
+4. **Avatar personality matrices are in [0, 1].** Avoid all-five-axes-at-0.5.
+5. **Paper trades use `wallet_pct`, never absolute amounts** in the browser ledger.
 6. **Every post must have a valid `geographic_origin`** so the news globe always has somewhere to point.
-7. **`published_at` is ISO-8601 UTC.** Never use locale-specific date strings.
+7. **`published_at` is ISO-8601 UTC.**
+8. **Mock data is labelled.** Anything from `public/data/` shown as a number carries `<UISourceChip source="sample">`.
 
 ---
 
-## 10. Future Backend Plug-in Points
+## 8. Backend plug-in points (status 2026-11-02)
 
-The frontend is designed so the following can be swapped to real services without UI changes:
+| Browser side | Server side | Status |
+|---|---|---|
+| Price calls in `stores/predictions.ts` | `/api/v1/predictions/` (sync, scoring, `trader_features`) | ✅ mirrored by `plugins/predictionsSync.client.ts` |
+| Behaviour events (`useTracking`, `useAgentTracker`) | `/api/auth/tracking/batch/` → `activity_daily` rollup → `apps/intelligence` | ✅ |
+| Avatar / profile | `apps/intelligence` (`/api/v1/intelligence/*`) | ✅ server; `stores/training.ts` stays a simulated animation |
+| Backtests | `POST /api/v1/strategies/<id>/backtest/` | ✅ (`useBacktest.ts` GBM path is no longer what Creator/Strategy pages call) |
+| Plugs, primary values | `/api/v1/settings/plugs/`, `/api/v1/settings/primary/` | ✅ stored; engine reads primary values for bot risk budget, not plugs |
+| Paper ledger | `/api/v1/portfolio/trade/` | ⚠ two ledgers (§4) |
+| News interactions | `/api/v1/news/…` | ✗ not called (Todo 40.6) |
+| Live feed | — | ✗ polling only (Roadmap) |
 
-| Current mock | Future service |
-|--------------|----------------|
-| `plugins/00.dataPipeline.client.ts` synthetic ticks | Real WebSocket feed |
-| `useBacktest.ts` GBM simulation | Server-side backtester with real historical data |
-| Avatar training in `agents.ts` | Python ML service (PyTorch / JAX) |
-| Opinion profiler in `tracking.ts` | NLP service (transformer-based) |
-| Paper ledger in `tracking/activity_log.json` | Postgres `paper_trades` table |
-| Price calls in `stores/predictions.ts` (localStorage) | ✅ mirrored to `/api/v1/predictions/` by `plugins/predictionsSync.client.ts`; scored server-side, per-user features in `trader_features` (`GET /api/v1/predictions/features/` → `vector`) |
-| Training events in `stores/training.ts` | ✅ also batched to `/api/auth/tracking/batch/` (hover/dwell counted, not streamed); server rollup `activity_daily` |
-
-Model training stays off the request path. The browser keeps its small per-event personality deltas. On the server, a nightly batch should retrain only the users whose `trader_features.updated_at` moved since the last run. Sizing is in `Strades-backend/docs/data-pipeline.md` §3 and §5.
+Model training stays off the request path: `upkeep` runs `analyse` each pass and `analyse --full` daily (backend `docs/intelligence.md`, `docs/data-pipeline.md`).
 
 ---
 
-## 11. Agent contract
+## 9. Agent contract
 
-Strades is a social desk: people build avatars together, and the avatars train on those people's trades, reads, and attention.
+Strades is a social desk: people build avatars together, and the avatars learn from those people's trades, reads, and attention (server-side, §0).
 
-Before changing a surface, read `Design.md`, `Data.md`, `CodingAgent.md`, `Components.md`, `Structure.md`, and `Todo.md`. They are the shared brief. Do not invent a parallel vocabulary.
+Before changing a surface, read README.md (doc map), `utils/routes.ts`, Design.md, Data.md, Structure.md, this file and Todo.md, plus `Strades-comms/PROCESSES.md` for the user job the surface belongs to. Do not invent a parallel vocabulary.
 
 Every agent action is one log row. `stores/activityLog.ts` and `middleware/logKeeper.global.ts` write all six fields:
 
@@ -218,4 +164,24 @@ Every agent action is one log row. `stores/activityLog.ts` and `middleware/logKe
 | why | Intent and context |
 | how | Method name and the inputs it used |
 
-`log()` fills `who` with the session user and `how` with the action name when a caller omits them. A folded summary keeps the first row's who and how. Numeric features stay inside the ranges in section 9. Font scale is clamped to [0.85, 1.2].
+`log()` fills `who` with the session user and `how` with the action name when a caller omits them. A folded summary keeps the first row's who and how. Numeric features stay inside the ranges in section 7. Font scale is clamped to [0.85, 1.2].
+
+---
+
+## Roadmap (not built)
+
+Kept as design notes. None of this runs today; do not describe it as implemented.
+
+### R1. In-browser avatar training pipeline (superseded by the server, §0)
+- Feature vector per user: `risk_appetite`, `reaction_speed_ms`, `patience`, `aggression`, `contrarian`, `political_leaning`, `economic_leaning`, `active_hours`, `topic_affinity`.
+- Compression into the 5-axis personality matrix (`risk, aggression, reaction_speed, patience, contrarian ∈ [0,1]`) by PCA.
+- Opinion vector `softmax(W · features) × 100` with a learned `W`; reward `reward_ema_pnl` = 30-day EMA of the P&L the opinion vector would have made.
+
+### R2. Friend small multiples
+The profile page would compare the user's leaning to their five closest friends.
+
+### R3. Predictive pre-fetching
+A Markov-chain model in a WebWorker would predict the next click from hover duration, page and time of day and `$fetch` the target page's JSON when `P(click) > 0.65`. `stores/prefetch.ts` exists but `prefetchRoute` has no caller; hovering a dock tab only plays a sound.
+
+### R4. Real-time rendering
+WebSocket batching (100 ms chunks via `requestAnimationFrame`), WebWorker d3-force physics, automatic SVG → Canvas swap above 500 nodes.

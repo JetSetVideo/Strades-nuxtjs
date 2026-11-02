@@ -11,27 +11,41 @@ Data sources live under `public/data/` and are hydrated into Pinia stores at boo
 | Path | Store(s) | Domain |
 |------|-----------|--------|
 | `global/macro_state.json` | `macro.ts` | Global market state |
-| `global/events.json` | `macro.ts` | Calendar events |
+| `global/events.json` | read directly by `pages/calendar.vue:35`, `pages/notifications.vue:70`, `pages/CandleChart.vue:12` (not a store) | Calendar events |
 | `global/user_preferences.json` | `userPreferences.ts` | Logged-in user prefs |
-| `core/wallets.json` | `wallet.ts` | Wallet + positions (JSON fallback) |
+| `core/wallets.json` | `wallet.ts` | Wallet + positions (JSON fallback; Sample) |
 | `core/wallet_history.json` | `wallet.ts` | Historical P&L |
 | `core/users.json` / `user/users.json` | `users.ts` | Canonical user profiles |
-| `core/strategies.json` (+ `strategies/index.json` fallback) | `strategies.ts` | Strategy catalog (normalized) |
-| `core/bots.json` | `bots.ts` | Bots (running agents) |
+| `core/strategies.json` (+ `strategies/index.json` fallback) | `strategies.ts` | Strategy catalog (normalized; Sample) |
+| `core/bots.json` | `bots.ts` | Sample bots (demo mode only) |
 | `core/community.json` | `community.ts` | Friends / followers |
 | `core/influencers.json` | `influencers.ts` | Signal providers |
 | `core/trading_platforms.json` | `platforms.ts` | Connected platforms |
 | `core/datasources.json` | Selector/CodeView | Datasource catalogue |
-| `agents/avatars.json` | `agents.ts` | AI avatars (swarm nodes) |
-| `agents/training_log.json` | `training.ts` | Avatar training history |
+| `agents/avatars.json` | `agents.ts` | Sample AI avatars / desk agents (swarm nodes) |
+| `agents/training_log.json` | — unused seed (no code reads it) | — |
 | `social/posts.json` | pages / useProfile | Social posts + NLP enrichment |
 | `social/discussions.json` | useProfile | Community discussions |
-| `social/notifications.json` | (via notifications) | Notifications |
+| `social/notifications.json` | — unused seed (badge + page read `stores/notifications.ts`) | — |
 | `social/bookmarks.json` | `news.ts` | Article bookmarks |
-| `chat/conversations.json`, `chat/messages.json` | `chat.ts` | Messaging (API-first) |
+| `chat/conversations.json`, `chat/messages.json` | `chat.ts` | Messaging fallback (API-first) |
 | `user/statistics.json` | profile pages | Trading statistics |
 | `shared_data.json` | `shares.ts` | Cross-user shared items |
-| Django `NUXT_PUBLIC_API_BASE` | auth, assets, chat, portfolio, tracking | Live backend |
+
+### Server endpoints the frontend calls (Django, `NUXT_PUBLIC_API_BASE`; full contract `Strades-comms/API.md`)
+| Endpoint group | Called from | Domain |
+|---|---|---|
+| `/api/auth/*` (login, demo, refresh cookie `strades_rt`, me, tracking/batch) | `composables/useAuth.ts`, `useTracking.ts` | Identity, behaviour stream |
+| `/api/v1/assets/`, `assets/<sym>/detail/`, `providers/` (via `/api/` alias) | `stores/assets.ts`, `useAssetDetail.ts`, `stores/dataFeeds.ts` | Markets |
+| `/api/v1/portfolio/`, `portfolio/trade/` (alias) | `stores/wallet.ts`, `useTradingApi.ts` (`<WalletHandTrade>`), `useOwnBook.ts` | Paper portfolio |
+| `/api/v1/wallets/…`, `bots/…`, `markets/`, `strategies/…` (alias) | `composables/useTradingApi.ts` | Wallets, bots, strategies, backtests |
+| `/api/v1/predictions/…` | `plugins/predictionsSync.client.ts`, `useFriendPredictions.ts` | Calls |
+| `/api/v1/notifications/…` | `stores/notifications.ts` | Notifications |
+| `/api/v1/history/` | `composables/useHistoryTimeline.ts` | History |
+| `/api/v1/social/…` | `stores/chat.ts`, `Chat/NewMessageModal.vue` | Chat |
+| `/api/v1/intelligence/*` | `composables/useIntelligence.ts` | Server avatar, relations, hierarchy |
+| `/api/v1/settings/primary/`, `settings/plugs/` | `usePrimarySettings.ts`, `stores/opinions.ts` | Primary values, plugs |
+| Nuxt routes `/api/market/quotes`, `/api/market/history`, `/api/predict/markets` | `stores/assets.ts`, `useAssetSeries.ts`, `usePredictMarkets.ts` | Quotes, candles, prediction markets (not Django) |
 
 Canonical TypeScript domain types live under `types/{asset,strategy,user,allocation,agent}.ts`.
 
@@ -93,8 +107,11 @@ The 100% allocation engine. Holds:
 - `flowVelocity` — drives particle animation
 - `updateAllocation(category, newPct)` — mathematically redistributes the difference across the other three classes proportionally.
 
-### Paper Trading Ledger (in-memory + `tracking/activity_log.json`)
-| Field | Description |
+### Paper Trading Ledgers (two today — one should win, Todo 43.19)
+- **Browser ledger** — `stores/paper.ts` (`placeOrder`), persisted per user in localStorage `strades_paper_ledger_v1` via `utils/userStorage` (`stores/paper.ts:64`). Written by `<AssetQuickPaperBet>` (/assets/[id], /CandleChart) and read by `<WalletPaperPanel>`, /historic. Never a JSON file.
+- **Server portfolio** — `<WalletHandTrade>` (/wallet) → `POST /api/v1/portfolio/trade/` (`apps/finance`); the /wallet KPI and value tree read it through `useOwnBook()`. Contract C1 (`client_id` idempotency + `fill`, fee/slippage from Settings) landed on the backend in wave 2 (impl-core-api); the component still has to send `client_id`.
+
+| Field (browser ledger) | Description |
 |-------|-------------|
 | `is_paper` | Distinguishes simulated from real transactions |
 | `wallet_pct` | Trade size as % of total wallet (never absolute amount in paper mode) |
@@ -127,6 +144,8 @@ The 100% allocation engine. Holds:
 ---
 
 ## 5. AI Avatars & Swarm Intelligence
+
+> **Avatar today:** the user's real learned profile/avatar is server-side (`GET /api/v1/intelligence/me/` → `apps/intelligence`, backend `docs/intelligence.md`; shown by `<IntelligenceAvatar>` / `<IntelligenceMirror>` on /profile). The `agents/avatars.json` personas below are **sample** swarm nodes, and their `training_state` moves only through the simulated in-browser loop (`stores/training.ts`, random reward, not persisted).
 
 ### `agents/avatars.json` (via `agents.ts`)
 
@@ -279,13 +298,13 @@ Key fields beyond identity:
 
 ## 9. Tracking & Behavioral Analytics
 
-### `tracking/user_interactions.json`
-Raw event stream. Each event has:
+### Raw event stream (no JSON file; there is no `tracking/user_interactions.json`)
+Each event has:
 - `event_type` — page_view / component_interaction / asset_view / trade_execution / article_read / article_share
 - `duration_ms` — dwell time (used as a proxy for interest)
 - `metadata` — free-form JSON (e.g. `{ article_id, political_leaning }` for article reads)
 
-This stream is the **training data** for the avatar ML pipeline and the opinion profiler.
+This stream goes to the **server** (below), where `apps/intelligence` turns it into the user's behaviour profile and avatar (backend `docs/intelligence.md`). In the browser, `stores/training.ts` only animates a **simulated** training curve (random reward, in memory, reset on reload) — it is not the user's model.
 
 ### Server copy (2026-10-20)
 - `composables/useTracking.ts` queues events and sends them in batches to `POST /api/auth/tracking/batch/` (every 10 s, at 25 events, and with `keepalive` when the tab is hidden). Payloads are trimmed to about 1.8 KB.
@@ -342,25 +361,18 @@ macro_state ────┬─> DynamicThemeController ─> :root CSS vars
 allocationPie ──┬─> AllocationSlider
                 └─> Wallet page layout proportions
 
-Bottom-bar icons (stores ─> composables/useNavPanels.ts ─> Navigation/Bar.vue ─> Navigation/Icons/*):
-assets.liveMarket.history ──> PricesIcon (today's curve since 00:00 GMT)
-news.items[].readByUser ────> NewsGlobeIcon (unread dot; globe turned by the shared 30 s clock)
-wallet.wallets ─────────────> WalletIcon (wallet ring + asset-type ring, total balance)
-agents.byId ────────────────> LabSphereIcon (one dot per agent, run/wait/error)
-chat.conversations ─────────> ChatBadgeIcon (unread count)
+Bottom-bar icons: owned by Design.md §2 (Lab = strategies.ownStrategies, not agents).
 
-avatars[] ──────┬─> Agent cards
-                ├─> SwarmPlugs (creator)
-                ├─> Builder/Nodes/AvatarNode
-                └─> Profile/AvatarsSection
+avatars[] (sample) ──┬─> Agent cards (/agents)
+                     └─> SwarmPlugs (creator)
+server avatar ───────> Intelligence/Avatar, Intelligence/Mirror (/profile)
 
-posts[] ────────┬─> Social/ArticlePost
+posts[] ────────┬─> News/ItemCard
                 ├─> Profile/PostsFeed
                 └─> Profile/PoliticalCard (aggregate)
 
-tracking[] ─────┬─> Avatar training pipeline
-                ├─> Opinion profiler
-                └─> Prefetch engine
+tracking[] ─────┬─> /api/auth/tracking/batch/ ─> server behaviour profile (apps/intelligence)
+                └─> Opinion profiler
 ```
 
 ---

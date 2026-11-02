@@ -34,10 +34,10 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 
 ## Phase 7: Predictive UX Optimization
 - [x] **7.1 Skeleton Forms**: Update all loading states to check the user's `dominant_asset_class` preference to determine if the skeleton loader should have sharp or rounded edges.
-- [x] **7.2 Hover Intent Pre-fetching**: Implement `stores/prefetch.ts`. Add `@mouseenter` hooks to Top Navigation icons that trigger data fetching if hovered for >200ms.
+- [x] **7.2** *(no longer true 2026-11-02: `stores/prefetch.ts` `prefetchRoute` has no caller — roadmap, CodingAgent.md)* **Hover Intent Pre-fetching**: Implement `stores/prefetch.ts`. Add `@mouseenter` hooks to Top Navigation icons that trigger data fetching if hovered for >200ms.
 
 ## Phase 8: Component Tree Cleanup
-- [x] **8.1 Delete orphaned root-level components**: 28 dead `.vue` files at `components/` root removed (Profil, Calendar, Comparator, FinancialChart, Radar, Search, Timer, Navbar, NavBarCircle, Asset, Strategies, Strategy, Filters, Carousel, GlobalCategories, …).
+- [x] **8.1** *(superseded 2026-11-02: `Comparator.vue`, `Filters.vue`, `Carousel.vue` are back at `components/` root and used by /strategies — see Phase 43)* **Delete orphaned root-level components**: 28 dead `.vue` files at `components/` root removed (Profil, Calendar, Comparator, FinancialChart, Radar, Search, Timer, Navbar, NavBarCircle, Asset, Strategies, Strategy, Filters, Carousel, GlobalCategories, …).
 - [x] **8.2 Relocate live root-level components**: `SearchBar`→`Navigation/`, `DateRangePicker`→`UI/`, `BlockEditor`→`Builder/`, `CountdownModal`→`Overlay/`, `StrategyVisualizer/CodeView/Rating`→`Strategy/`, `Widget/news.vue`→`Widget/NewsCard.vue`, `Card/Strategy.vue`→`Strategy/MarketplaceCard.vue`. All imports updated.
 - [x] **8.3 Refactor `pages/creator.vue` to the design system**: Replace raw HTML with `UIPageHeader`/`UICard`/`UIPill`/`UIStat`/`UIMetricRow`/`UIEmptyState`. Page broken into ten numbered steps (Identity → Action Bar) with completion-aware pills and a sticky action bar.
 - [x] **8.4 Extract page sub-sections into domain components**:
@@ -53,7 +53,7 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 ## Phase 9: Page-Level Refactors
 - [x] **9.1 Refactor `pages/apis.vue` (569 → 130 LOC)**: Extract `APIs/PlatformCard.vue` and `APIs/AddConnectionModal.vue`. Page becomes pure orchestration.
 - [x] **9.2 Refactor `pages/calendar.vue` (408 → 220 LOC)**: Extract `Calendar/EventRow.vue`. Page handles only day grouping and filtering.
-- [x] **9.3 Modernize `pages/Shop.vue`**: Replaced broken legacy `MarketplaceCard` (data shape mismatch with current `useStrategiesStore`) with `Strategy/Card.vue`. Added category tabs, tier filter, design-system shell, premium/free pill via new `#footer-extra` slot on `Strategy/Card`. Updated `Button/Database.vue` import. Deleted `Strategy/MarketplaceCard.vue`.
+- [x] **9.3** *(partly superseded: `Card/Strategy.vue` exists again next to `Strategy/Card.vue` — duplicate D1 in the 11-02 COMPONENT-MAP-3)* **Modernize `pages/Shop.vue`**: Replaced broken legacy `MarketplaceCard` (data shape mismatch with current `useStrategiesStore`) with `Strategy/Card.vue`. Added category tabs, tier filter, design-system shell, premium/free pill via new `#footer-extra` slot on `Strategy/Card`. Updated `Button/Database.vue` import. Deleted `Strategy/MarketplaceCard.vue`.
 - [x] **9.4 Resolve duplicate TypeScript interface auto-import collisions**: `userPreferences.PersonalityMatrix` → `UserPersonalityMatrix`; `training.TrainingState` → `TrainingStoreState` (kept agent-side names canonical).
 - [x] **9.5 Silence remaining `actions` auto-import warnings**: `mlly` treats the options-store `actions:` key as a second export, so every store collided on the name `actions`. `pinia.storesDirs` is now empty and the seven call sites that relied on store auto-import import the store directly.
 
@@ -194,7 +194,7 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 ## Phase 32: Profile, menu, and bounded tokens
 - [x] **32.1** `/profile` calls `useCurrentUser()` in setup. The page renders the demo user instead of an empty main.
 - [x] **32.2** Wallet top bar no longer sends Trade to Prices.
-- [x] **32.3** Menu sheet groups You / Together / Desk / Support, names the current page, and clamps its width.
+- [x] **32.3** *(superseded by `utils/routes.ts`: 6 areas Markets / News / Portfolio / Lab / Community / You — swarm 10-30b)* Menu sheet groups You / Together / Desk / Support, names the current page, and clamps its width.
 - [x] **32.4** Layout, spacing, radius, nav, drawer, and font scale publish min and max.
 - [x] **32.5** Activity rows carry where, who, what, when, why, and how. Agents read the markdown briefs before changing a surface.
 
@@ -290,3 +290,35 @@ This backlog outlines the step-by-step technical execution plan to realize the "
 - [x] **42.2** The chart is the return on each asset transfer from the day that book opened (`utils/strategyCompare.ts`). The line ends on the recorded return and touches the recorded drawdown. A shared-window row covers the days both were open. The call follows the recorded return: equip the one in hand, or keep the one already in the slot. Green and red gaps sit on the book in hand.
 - [x] **42.3** The Lab globe and its value line follow strategy status (active / paused / stopped), the same counts as the desk and the indicator beside "My Strategies". Start, Resume, and Pause on a card move that dot. `Strategy/Board.vue` under the desk graphs every return, and can switch to a spread or a calendar of each book's window.
 - [x] **42.4** The equip chart stretches each book across its own window. Equip and Swap change which book is in the slot. The board numbers its axes, and a calendar lane opens that book's moves. The header counts filter the cards, and selected cards stay bright on the board.
+
+## Phase 43: Swarms 2026-10-30b + 2026-11-02 (honest numbers, 6-area menu, five user jobs)
+Evidence and per-item detail: `~/Desktop/Strades-comms/swarm-2026-10-30b/SUMMARY.md` and `~/Desktop/Strades-comms/swarm-2026-11-02/` (`SUMMARY.md` once the parent writes it; until then the `impl-*.md` reports). Process map: `Strades-comms/PROCESSES.md` § Five user jobs.
+
+**Done (swarm 10-30b, browser- or test-verified there):**
+- [x] **43.1** `utils/format.ts` (fmtMoney / fmtPct / fmtDate) and `utils/routes.ts` — the page registry: 6 areas (Markets, News, Portfolio, Lab, Community, You), 5 dock tabs, drawer groups, labels; `tests/routes.test.ts` keeps every page registered. Supersedes 32.3.
+- [x] **43.2** `<UISourceChip source="sample|simulated|paper|pending">` and `<UIValueTree>` (`utils/valueTree.ts`): every number says where it comes from; Wallet "Your paper" value tree.
+- [x] **43.3** Primary values: `composables/usePrimarySettings.ts` + `<SettingsPrimaryValues>` on /settings → `GET/PATCH /api/v1/settings/primary/` (backtest capital, fee, slippage, opening cash wired).
+- [x] **43.4** Plugs saved on the server (`GET/PUT /api/v1/settings/plugs/`, `utils/plugsSync.ts`); personal agent plugged by default.
+- [x] **43.5** `/bots` ("Your bots" + Sample catalog), `/insights` + `components/Intelligence/*` (server avatar, relations, hierarchy, directive), `/chat` lists real rooms.
+- [x] **43.6** httpOnly refresh cookie `strades_rt` (S5), demo-id forget (S6), per-user local stores (S13).
+- [x] **43.7** Honest Risk / Wallet / Profile / Bots / Strategies numbers ("—" + reason instead of invented figures); bot fills near the real price; calls confidence 1–5.
+- [x] **43.8** Performance: detached-DOM leak fixed, per-symbol quotes cache, deduped boot requests, news bounded to 50/200, /predict paged.
+- [x] **43.9** vitest 34 → 62 files / 636 tests (baseline 2026-11-02).
+
+**Wave 2 of swarm 11-02 — landing (contracts C1–C10 in `swarm-2026-11-02/WAVE2.md`; tick only when its `impl-*.md` reports it verified):**
+- [ ] **43.10** C1 hand trade `client_id` + `fill` in `POST /api/v1/portfolio/trade/` — backend landed (impl-core-api, `test_trade.py`; hand trades now pay fee + slippage from Settings); `<WalletHandTrade>` must send `client_id` and show `fill` (paper lane).
+- [x] **43.11** C2–C5 backend (people `can_message`, friends, message `reply_to` / `share` / `?before=` paging, news share delivery + capped comments) — impl-social-api, full pytest 313 passed. Frontend: picker, profile Message/Follow, reply ↩ written (impl-social, code); `/news` still local (43.18).
+- [ ] **43.12** C6 `inputs` in `GET /api/v1/intelligence/me/` (what the avatar learned from).
+- [ ] **43.13** C7 `PATCH /api/v1/strategies/<id>/` — backend landed (`test_strategy_api.py`); Creator Save on an existing id must call it (review lane).
+- [x] **43.14** C8 `useOwnBook()` (`tests/review-ownBook.test.ts`), Wallet dock reads it (impl-nav step 4, `tests/nav-dock.test.ts`); C10 `<NavigationBackLink>` / `<NavigationAreaLinks>` (`tests/nav-routes.test.ts`); top-bar avatar → /profile and ☰ menu cue (impl-nav). C9 `<ChatShareTo>` written (impl-social, code; insertion on strategy/bot/call pages = parent).
+- [x] **43.15** Docs: backend Agent.md/README rebuilt from settings.py; frontend README doc map + five jobs; PROCESSES.md § Five user jobs; Components.md/Structure.md phantoms removed; API.md = contract index (docs lane).
+
+**Still open (carried from 10-30b SUMMARY "OPEN after wave 4" + this ledger):**
+- [ ] **43.16** /risk follows the VaR confidence/horizon settings; "Risk budget used"; value trees on Risk KPIs, Strategy return, Directive risk budget, Insights rows (10-30b wave 5).
+- [ ] **43.17** Settings still "coming": base_currency, risk_free_rate_pct, benchmark, alert thresholds, Creator default stop / take profit.
+- [ ] **43.18** News comments / reactions / shares are local (`stores/news.ts`, localStorage) though `apps/news` serves them — same as 40.6.
+- [ ] **43.19** One paper ledger: `<AssetQuickPaperBet>` writes the browser ledger (`stores/paper.ts`), `<WalletHandTrade>` the server portfolio — duplicate D2.
+- [ ] **43.20** 34 UNUSED components (list: `swarm-2026-11-02/COMPONENT-MAP-3.md` § UNUSED) and unused deps `socket.io-client`, `axios` — delete in one commit after agreement; move the 3 root files `Carousel/Comparator/Filters.vue` into `Strategy/` (see 8.1).
+- [ ] **43.21** `<WalletPaperPanel>` seeds demo trades for any empty ledger (PaperPanel.vue:27) — seed only for demo accounts.
+- [ ] **43.22** Before production: set `TRUSTED_PROXY_COUNT`, `NUXT_API_PROXY_TARGET`; drop the JSON `refresh` field.
+- Earlier open items still valid: 35.4, 37.5, 38.7, 40.5, 40.6, 41.5.

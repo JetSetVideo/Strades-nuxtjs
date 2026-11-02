@@ -1,4 +1,53 @@
-## News Intelligence Workspace
+# Components — notes by user job and by folder
+
+**Full table (one row per component: page, area, job step, store, endpoint, owner lane, flags):** `~/Desktop/Strades-comms/swarm-2026-11-02/COMPONENT-MAP.md` (shell, Markets, News) · `COMPONENT-MAP-2.md` (Portfolio, Lab) · `COMPONENT-MAP-3.md` (Community, You, UI kit, **UNUSED** list, duplicates D1–D10). This file keeps the notes that are true today; it does not list every component. Folder rules: Structure.md. Dock icons: Design.md §2. Menu / areas / labels: `utils/routes.ts` + Design.md §10. Step-by-step jobs: `Strades-comms/PROCESSES.md` § Five user jobs.
+
+Rebuilt 2026-11-02 (docs lane): 27 sections that described components that do not exist were removed; sections of UNUSED components carry an **UNUSED** line.
+
+## 0. The five user jobs — components in step order
+
+- **Trade:** `<WidgetDisplayAsset>` / `<AssetHeatmap>` / `<PricesMarketTree>` (find) → `/assets/[id]` `<AssetPredictChart>`, `<AssetDataTree>` (open) → `<AssetQuickPaperBet>` (browser ledger) or `<WalletHandTrade>` (server `POST /api/v1/portfolio/trade/`) → `<WalletPaperPanel>`, `<WalletHero>` + `useOwnBook()`, `<HistoryRiver>` (see it). Bots: `<TradeWalletOnboarding>`, `<TradeBotLauncher>`, `<TradeBotCard>` on /trade.
+- **Predict:** `<AssetPredictChart>` + `<AssetPredictPanel>` (state the call) → `stores/predictions.ts` + `plugins/predictionsSync.client.ts` (pending) → `<NotificationRow>` / `<NotificationUpcoming>`, `<HistoryRiver>` (scored). Markets: `/predict` + `<PredictBotForm>`.
+- **Communicate · share · comment:** `<CommunityPersonCard>`, `<ChatNewMessageModal>` (people) → `pages/conversations/[id].vue` inline composer (`<ChatComposer>` is unused, D5), `<ChatShareBar>`, `<ChatSharePayload>`, `<ChatSharedContextPanel>`, `<CardSharedData>`, `<ButtonDatabase>` (share into a room) → `<NewsItemCard>` (comment / share an article). `<ChatShareTo>` (C9, wave 2 — written by the social lane) shares a strategy / bot / call.
+- **Review:** `<WalletHero>`, `<WalletSwitcher>`, `<WalletPositions>`, `<WalletTrades>`, `<UIValueTree>` (wallets) → `<BotFillsList>`, `<BotLinkRow>` (/bots/[id]) → `<StrategySavedList>`, `<CardStrategy>`, `<StrategyBoard>` (/strategies) → `<StrategyTradeList>`, `<StrategyRunByPanel>`, `<StrategyEquityCurve>` (/strategy/[id]; the curve is seeded — D3).
+- **Direct + train:** `<ProfileHero>`, `<IntelligenceAvatar>`, `<IntelligenceMirror>` (/profile) → `<SettingsPrimaryValues>` (/settings), `<IntelligenceDirective>` (/insights) → `<AgentAvatarCard>` + `<LabBench>` (/agents, plug) → `<StrategySwarmPlugs>` (/creator).
+
+## 0b. Live families that had no entry (short notes; details in COMPONENT-MAP)
+
+### Intelligence/* (15) — the server avatar (`/profile`, `/insights`)
+Read `composables/useIntelligence.ts` (`/api/v1/intelligence/*`); only `Mirror` fetches itself, the rest take props from the page. `/profile`: `Avatar` (learned avatar + walk-forward forecasts), `Mirror` (how the desk reads you), `Truth`, `Eigen`, `Intelligences`, `SpaceMap` + `SpaceStrips` (where you sit among traders, `space/`), `Entourage` (`entourage/`). `/insights`: `Directive` (agent directive; edits go to `usePrimarySettings`), `Hierarchy` (`hierarchy/`), `RelationList` + `RelationDetail` + `Member` (`relations/<id>/`), `ProfileCard` (`users/<id>/`, `compare/<id>/`), `WeekTimeline`. Another user's profile hides accuracy, scores and the avatar (backend S3). Contract C6 adds `inputs` to `me/` (wave 2, avatar lane).
+
+### Trade/* (3) — paper bots (`/trade`)
+`WalletOnboarding` creates or imports a paper wallet (`POST /api/v1/wallets/`, `wallets/import/`); `BotLauncher` starts a bot on that wallet (`POST wallets/<id>/bots/`; fee / slippage / risk budget come from Settings > directive > engine default); `BotCard` shows one running bot (stop / pause / visibility). Bots are paper and carry the Simulated banner.
+
+### Wallet/HandTrade.vue — server paper order (`/wallet`)
+Buy / sell at the server price through `POST /api/v1/portfolio/trade/`; reads the book from `useOwnBook()` and refreshes it after a trade. C1 (wave 2, core-api) adds `client_id` (no double fill) and `fill {price, price_source, quantity, total_value, fee}`.
+
+### Asset/QuickPaperBet.vue — browser paper order (`/assets/[id]`, `/CandleChart`)
+Writes `stores/paper.ts` (localStorage `strades_paper_ledger_v1`). Handles a missing price. Second ledger next to HandTrade (D2).
+
+### Predict/BotForm.vue (`/predict`)
+Launches a paper bot on a prediction market (Kalshi) via `launchBot`; twin of `<TradeBotLauncher>` for assets (D7).
+
+### Chat/NewMessageModal, ShareBar, SharePayload, SharedContextPanel (`/chat`, `/conversations/[id]`)
+`NewMessageModal` picks a person (`GET /api/v1/social/profiles/`, rows carry `is_bot` / `can_message` since C2) and opens or creates the conversation (`POST social/conversations/`). `ShareBar` + `SharePayload` render what is shared into a room (in-app links open in place); `SharedContextPanel` lists what the room has shared.
+
+### UI/SourceChip.vue — where a number comes from
+`<UISourceChip source="sample|simulated|paper|pending" note="…">`. Every number that is not the user's own live data carries one; with no number, show "—" + a one-line reason.
+
+### UI/ValueTree.vue — how a number is built
+`<UIValueTree>` over `utils/valueTree.ts`: a KPI unfolds into its inputs and the settings that drive it (Wallet "Your paper", Risk, Strategy return, Insights). Pure props.
+
+### Settings/PrimaryValues.vue — the roots of every derived number (`/settings#primary`)
+18 options in 6 groups via `composables/usePrimarySettings.ts` (`GET/PATCH /api/v1/settings/primary/`); every option shown even when unset, each with an anchor `#set-<key>` and the sentence of what it drives. Wired: backtest capital, fee, slippage, opening cash, bot risk budget.
+
+### Navigation/BackLink.vue, AreaLinks.vue (C10, landed by the nav lane)
+`<NavigationBackLink />` renders "← <area home>" from `utils/routes.ts`; `<NavigationAreaLinks area="lab" />` lists an area's drawer pages as chips. The parent inserts them into detail pages.
+
+### Agent/CompareTray.vue (review lane, wave 2)
+New in wave 2; see `impl-review.md` for its role.
+
+## News Intelligence Workspace (`/news`, `/articles/[id]`)
 
 ### Primary components
 - `components/News/FilterToolbar.vue`
@@ -11,29 +60,17 @@
 - `components/News/ComposerModal.vue`
   - user-authored signal/article creation with category, sentiment, optional assets, optional geography, optional allocation
 
-### Adapted legacy components
-- `components/Social/ArticlePost.vue`
-  - now acts as a thin adapter around the canonical news card
-- `components/Widget/NewsCard.vue`
-  - now acts as a thin adapter around the canonical news card for editorial items
+### Rail
 - `components/News/InfluencerRail.vue`
   - read-mostly signal rail with follow action
+- (`Social/ArticlePost.vue` and `Widget/NewsCard.vue` are UNUSED copies — `<NewsItemCard>` is the only news card; D9.)
 
 ### Interaction contract
 - Save, comment, share, like/dislike, and political judgment all dispatch through the news store.
 - History events are created for read/save/share/comment/judge/publish/import actions.
 - Story cards must not mutate props directly.
-## Menu sheet
 
-`components/Navigation/DrawerMenu.vue` is the right-hand sheet opened from the brand button. It does not fetch. It renders four groups (You, Together, Desk, Support) from a static list. Width reads `--drawer-width` (`clamp(16rem, 32vw, 22rem)`). The current route is marked with `is-current` when the path equals the link or starts with it plus a slash. Hints hide under 640px.
-
-The Wallet top-bar action list in `components/Navigation/Top/ContextActions.vue` does not include a Trade link. Prices stays on the bottom bar.
-
-# Components Data Usage Analysis & Visual Mapping
-
-This document maps **every data key from `Data.md` to the Vue component that consumes it**, and specifically how each key drives form, size, color, or animation of the living UI.
-
-> **Folder rules** (from `Structure.md`): every component lives in a PascalCase domain folder. Pages compose domain components; domain components compose UI primitives. No loose `.vue` files at `components/` root.
+---
 
 ---
 
@@ -62,11 +99,11 @@ The bottom bar (`Navigation/Bar.vue`, mounted once in `layouts/default.vue`, so 
 |-------|------------------------------|----------------|---------------------------|---------------|------------|
 | Prices | `/prices` (`/assets`, `/predict`, `/deals`) | `Navigation/Icons/PricesIcon.vue` | `assets.liveMarket.history` (hourly returns). When the live tree has no aggregate, `blendHistory` of the live assets' `return_history`, cap-weighted by `market_cap` | Sparkline of today's cumulative move from 00:00 GMT to the time of the last quote fetch (hours aligned on `assets[].live.at`, not the clock) on a fixed 24 h axis, with 06/12/18 h ticks, a dotted zero line and an end dot. Green / red (`--app-color-up/down`) beyond ±0.01 %, blue otherwise | Signed % since 00:00 GMT (falls back to `liveMarket.ret` over 24 h); `—` with no live quote |
 | News | `/news` (`/articles`, `/summarizer`) | `Navigation/Icons/NewsGlobeIcon.vue` | `news.items[].readByUser`; the shared clock `now` | Dot-matrix Earth (Natural Earth 110m on a 4° grid, `utils/navGlobeLand.ts`) tilted 18° and turned so the meridian where it is noon right now faces the viewer; a red vertical line marks that meridian. A blue dot sits on the rim while something is unread (it pings only when News is selected) | `N new` or `all read` |
-| Wallet | `/wallet` (`/trade`, `/risk`) | `Navigation/Icons/WalletIcon.vue` | `wallet.wallets` (`total_value`, `available_balance`, `assets[].current_value`) | Two rings: outer = each wallet's share of the total (amber, pink, teal, yellow, lime; the last wallet never repeats the first's colour), inner = asset types across every wallet (`assetClassTheme` colours, cash grey). Centre pip in the largest type's colour | Total (`compactUsd`, same as the switcher's TOTAL BALANCE); `—` when no wallet is loaded |
-| Lab | `/strategies` (`/strategy`, `/agents`, `/bots`, `/creator`, `/monitor`, `/arena`) | `Navigation/Icons/LabSphereIcon.vue` | `agents.byId` (`training_state.status`, `personality_matrix.risk/patience/contrarian`, `performance.trades_total`) | CSS 3-D globe, one dot per agent (at most 24: errors first, then waiting, then the busiest). Latitude = risk, longitude = patience nudged by contrarian, size = √trades. Agents without personality data are spread by an id hash. Green running (live/training), orange waiting, red error. Turns once per 18 s only while Lab is selected; otherwise the spin is paused at its angle | `N run`; with several states `●8 ●2 ●1` on phones and `8 run 2 wait 1 error` from 768 px; `—` with no agents |
+| Wallet | Portfolio area pages (`/wallet`, `/trade`, `/risk`, `/historic`) | `Navigation/Icons/WalletIcon.vue` | the user's own paper book via `useOwnBook()` (`ownWalletDock`, wave 2 nav lane); before wave 2 it was `wallet.wallets` (the sample catalog) | Two rings: outer = paper wallets vs portfolio, inner = asset types (cash grey) | Own total (`compactUsd`); `—` + reason when signed out, not read or empty |
+| Lab | Lab area pages (`/strategies`, `/strategy/[id]`, `/agents`, `/bots`, `/creator`, …) | `Navigation/Icons/LabSphereIcon.vue` | `strategies.ownStrategies` (the user's own; samples excluded) — `useNavPanels.ts:174-176`; with no own strategy the dock shows "—" (`LAB_DOCK_EMPTY`, wave 2) | CSS 3-D globe, one dot per own strategy. Colour = run state (green active/backtesting, orange paused, red stopped), latitude = risk, longitude = return, size = √trades. Turns only while Lab is selected | `N run` / state counts; `—` with none |
 | Chat | `/chat` (`/conversations`) | `Navigation/Icons/ChatBadgeIcon.vue` | `chat.conversations` (only the user's own, summing `unread_count_<userId>`: exactly the badges `pages/chat.vue` draws) and `chat.getEmotionalUrgency(userId)` | Speech bubble with a red dot holding the unread count (`99+` past 99). When Chat is selected and urgency > 0.7 the dot throbs | `unread` or `no new` (the number is in the dot) |
 
-The selected tab is the longest matching route prefix (`activePanelFor`), so detail pages keep their tab selected. `StrategyOrbitIcon.vue` no longer exists; `LabSphereIcon.vue` replaced it.
+The selected tab is the page's area in `utils/routes.ts` (`dockFor(path)`), so detail pages keep their area's tab selected. `StrategyOrbitIcon.vue` no longer exists; `LabSphereIcon.vue` replaced it.
 
 **Data flow.** Pinia stores → `composables/useNavPanels.ts` (one view model per panel: route, accent, value line, screen-reader summary, icon props) → `Navigation/Bar.vue` (layout + selected state) → `Navigation/Icons/*.vue` (presentational: props in, SVG/CSS out, no store, no timer). Every number comes from pure functions in `utils/navIcons.ts` (`intradayCurve`, `blendHistory`, `sparkline`, `walletRings`, `sharesToArcs`, `donutArcPath`, `agentSphere`, `subsolarLongitude`, `orthographic`, `unreadFor`, `badgeLabel`, `activePanelFor`, `compactUsd`, `signedPct`), plus `utils/navGlobe.ts` (News land dots) and `utils/navSphere.ts` (Lab dot placement). Tests: `tests/navIcons.test.ts`, `tests/navGlobe.test.ts`, `tests/navSphere.test.ts`. On mount, `useNavPanels` also loads any of the assets, wallet, agents or chat stores that are still empty, because the bar can't assume the current page loaded them.
 
@@ -86,7 +123,7 @@ The selected tab is the longest matching route prefix (`activePanelFor`), so det
 Composes the brand/menu button, the search bar (`Navigation/SearchBar.vue`), the context actions and the GMT clock. It holds no living icons; those are in the bottom bar above. SearchBar logs `search_used` training events.
 
 ### Navigation/DrawerMenu.vue
-Side drawer with links to all pages. Highlights the current route.
+Right-hand sheet opened from the brand button (and the ☰ cue). It does not fetch. It renders the six areas of `utils/routes.ts` (`drawerGroups()`: Markets, News, Portfolio, Lab, Community, You — all open by default) plus the footer links Help / About / Contact. Width reads `--drawer-width` (`clamp(16rem, 32vw, 22rem)`). The current route is marked `is-current`. Hints hide under 640px.
 
 ---
 
@@ -121,12 +158,6 @@ SVG sparkline from `wallet.performance_history` or synthetic historical points.
 ### Wallet/Trades.vue
 Transaction rows from `wallet.transactions[]`. Color-coded buy/sell.
 
-### Wallet/RiskPanel.vue
-Inline risk metrics: concentration risk, VaR contribution, class volatility.
-
-### Wallet/PlatformList.vue
-Connected platform cards from `platforms.list`. Shows balance, daily PnL, status.
-
 ### Wallet/BotContribution.vue
 How much of today's PnL came from automated strategies vs. manual trades.
 
@@ -158,9 +189,6 @@ Artistic transfer of capital under calm, shock, trend, and chop. Positions come 
 ### Strategy/EquityCurve.vue
 Deterministic random-walk SVG chart used on strategy detail and bot detail pages.
 
-### Strategy/Visualizer.vue
-Read-only SVG view of a strategy's node tree.
-
 ### Strategy/CodeView.vue
 Read-only strategy code viewer. The Creator passes its live form. The summarizer passes `strategyToCodeView()` from the catalog in `core/strategies.json` (entry/exit assets, indicators, period, owner, agent). It does not read `strategies/codes/*.json`. An unknown allocation renders as an em dash, not 50%.
 
@@ -183,18 +211,11 @@ Shows which agents/bots are running the strategy.
 ### Strategy/DealRow.vue
 Cross-strategy deal pipeline row (Phase 17).
 
-### Strategy/BotCard.vue
-Agent-driven strategy card showing the bot's PnL, Sharpe, status.
-
----
-
 ## 5. Builder (Creator Page Canvas)
 
 ### Builder/NodeCanvas.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 SVG infinite grid for the node-based strategy creator. d3-force layout in a WebWorker.
-
-### Builder/BlockEditor.vue
-Property panel for editing a selected node's conditions and actions.
 
 ### Builder/Condition.vue
 Conditional logic node (price cross_above/below, MA, RSI, etc).
@@ -203,6 +224,7 @@ Conditional logic node (price cross_above/below, MA, RSI, etc).
 Action node (rebalance, alert, deploy, pause).
 
 ### Builder/Nodes/AvatarNode.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Avatar plug-in node with confidence opacity, execution heartbeat, personality-shaped frame.
 
 ---
@@ -212,7 +234,7 @@ Avatar plug-in node with confidence opacity, execution heartbeat, personality-sh
 ### Agent/AvatarCard.vue
 Summary card for any avatar. Plug/fork/compare actions.
 - **Data**: `agent.personality_matrix` → frame shape (hexagon/circle/rounded)
-- **Data**: `agent.training_state.loss_ema` → SVG progress ring
+- **Data**: `agent.training_state.loss_ema` → SVG progress ring (**simulated**: moved by the in-browser loop in `stores/training.ts` with a random reward; not the user's server avatar — CodingAgent.md §0)
 - **Data**: `agent.confidence` → card opacity
 - **Data**: `agent.performance.last_30d_curve` → sparkline
 - **Data**: `agent.role` → a role pill on the twelve desk agents (optimisation, trader, designer, experience, security, red team, data, ai, risk, macro, execution, archive). Catalog archetypes stay unlabeled.
@@ -243,10 +265,11 @@ One line of who and what machine. Client only.
 Stacked bar showing fiat/crypto/stocks/commodities percentages.
 
 ### Agent/Compare.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Side-by-side comparison of two agents' matrices and opinion vectors.
 
 ### Agent/TrainingTimeline.vue
-History of training events: epochs, loss curve, reward EMA.
+History of training events: epochs, loss curve, reward EMA — **simulated** in the browser (`stores/training.ts`, random reward, not persisted); the real profile is server-side (`<IntelligenceAvatar>`).
 
 ---
 
@@ -275,6 +298,7 @@ Five horizontal bars for the avatar personality matrix. Used on agent detail pag
 XP/level progress toward next rank.
 
 ### Profile/AvatarsSection.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 List of avatars owned by the user — personal + forked.
 
 ### Profile/StrategiesSection.vue
@@ -284,47 +308,30 @@ User's strategies with status, PnL, win rate.
 User's social posts with political-leaning background tint, embedded allocation bar, controversy shake animation (Phase 19 fixed — uses canonical `interactions.*` shape).
 
 ### Profile/CommunitySection.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Communities the user belongs to.
 
 ### Profile/ContactsRail.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Friend list with avatar, trading style, online status.
 
 ### Profile/AchievementsSection.vue
 Unlocked achievements by rarity tier.
 
 ### Profile/TradingCalendar.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Day-by-day PnL heatmap grid.
 
 ### Profile/TradingRecords.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Trade history summary table for the profile page.
 
 ---
 
-## 8. Corporate & Supply Chain
-
-### Corporate/NetworkGraph.vue
-D3 force-directed graph showing HQ + facilities + suppliers + customers.
-| Data | Visual |
-|------|--------|
-| `supply_chain_health` | SVG link stroke width |
-| `fluctuation_velocity` | Node pulse speed |
-| `factories[].status` | Color (green/yellow/red) |
-| `share_pct` | Edge label weight |
+## 8. Asset & Supply Chain
 
 ### Asset/CommodityPipeline.vue (Phase 14)
 Per-commodity exposure grid from supply chain data.
-
-### Asset/LiveSignalsStrip.vue
-Live buy/sell signals for a given asset.
-
-### Asset/AnalysisPanel.vue
-Long-form analysis text + metrics.
-
-### Asset/FacilityList.vue
-Factory/warehouse locations for an asset's company.
-
-### Asset/NewsSnippets.vue
-Recent news articles tagged with the asset's ticker. Fetches `social/posts.json`.
 
 ### Asset/Heatmap.vue
 Market-wide or sector-wide heatmap of price changes.
@@ -332,14 +339,10 @@ Market-wide or sector-wide heatmap of price changes.
 ### Chart/Workspace.vue
 The full candle / line chart used by `/CandleChart` (panes, indicators, drawings, zoom). See §15.
 
-### Asset/MoversStrip.vue
-Scrollable strip of top movers (up/down by category).
-
----
-
 ## 9. Social & News
 
 ### Social/ArticlePost.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Social feed post card with full NLP metadata visualization (Phase 23, 24).
 | Data | Visual |
 |------|--------|
@@ -351,16 +354,15 @@ Social feed post card with full NLP metadata visualization (Phase 23, 24).
 
 **Tracking**: auto-logs `article_read` after 3s dwell, `article_political_view` + `article_dwell` training events, `share_article` on share click (2× opinion weight).
 
-### News/CalendarStrip.vue
-Upcoming earnings / economic events.
-
 ### News/InfluencerRail.vue
 Top signal providers with their latest calls.
 
 ### Widget/NewsCard.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Editorial news card (from `news.json`) with category, title, excerpt.
 
 ### Widget/Sentiment.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Bullish/bearish/neutral gauge.
 
 ---
@@ -379,8 +381,12 @@ No store access — inputs are props only.
 | UI/SectionTabs.vue | Tab bar for section switching |
 | UI/ScreenShell.vue | Page chrome: header, tabs, KPIs, content slot |
 | UI/EmptyState.vue | Empty-slate placeholder with icon + message + action |
-| UI/DateRangePicker.vue | Date range selector |
-| UI/KpiStrip.vue | Horizontal KPI strip used on monitor and risk pages |
+| UI/KpiStrip.vue | Horizontal KPI strip (/wallet, /agents, /chat, /news, /arena) |
+| UI/OpChips.vue | Operator / filter chips |
+| UI/SourceChip.vue | Where a number comes from: `sample` / `simulated` / `paper` / `pending` (+ `note`) — see §0b |
+| UI/ValueTree.vue | How a number is built (inputs + driving settings), over `utils/valueTree.ts` — see §0b |
+
+(`UI/DateRangePicker.vue` no longer exists. `UI/Card.vue` reads `useLivingUI` — the one primitive that is not props-only.)
 
 ---
 
@@ -399,9 +405,6 @@ Record a call: horizon chips (1D…1Y, past shown = 1.5 × horizon), tap / drag 
 ### Asset/ChartStyleToggle.vue
 Line / Candles for every chart at once (prices page and asset page tops).
 
-### Asset/PriceChart.vue
-Price alerts on the asset page: drag up / down to arm an alert; draws with PredictChart.
-
 ### Asset/SupplyTree.vue
 Suppliers → asset → clients tree for the asset page, with similar assets stacked under the asset (dashed). Link width follows each partner's share; nodes show share % and nominal value, column headers show the totals. Nodes that are listed assets open their page. Data: `public/data/supply_chain/<id>.json` (shares, values), else names from `public/data/asset_profiles.json`.
 
@@ -413,37 +416,9 @@ Dot-matrix world map (land grid shared with the nav globe, `utils/navGlobe.landP
 ### Asset/DataTree.vue
 Renders any asset JSON (backend `/api/assets/<sym>/detail/`, bundled company files) as label/value grids, chips and tables, so the asset page shows all available data.
 
-### Widget/Asset.vue
-Generic asset display (icon + symbol + price).
-
-### Widget/Chart.vue
-Generic chart container (SVG wrapper).
-
-### Widget/BarChart.vue
-Horizontal or vertical bar chart.
-
-### Widget/NewsCard.vue
-Editorial news card with category chip, date, excerpt.
-
-### Widget/NewsListItem.vue
-Compact news list row.
-
-### Widget/Treemap.vue
-Market-cap-weighted treemap.
-
-### Widget/Heatmap.vue
-Sector performance grid.
-
-### Widget/Sentiment.vue
-Sentiment gauge.
-
 ### Widget/Quest.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Quest/progress widget.
-
-### Widget/Transactions.vue
-Recent transaction row.
-
----
 
 ## 12. Selectors & Buttons
 
@@ -451,16 +426,11 @@ Recent transaction row.
 Searchable single-asset picker.
 
 ### Selector/Assets.vue
+> **UNUSED** — no page renders it (COMPONENT-MAP-3 § UNUSED). Delete or adopt; do not build on it.
 Multi-asset picker with chips.
 
 ### Selector/Datasources.vue
 Data-source selector for strategy nodes.
-
-### Selector/Condition.vue
-Condition-type picker.
-
-### Selector/Entry.vue
-Order-type picker (market/limit/stop).
 
 ### Button/*.vue
 Icon-only buttons: Avatar, Bookmark, Notification, Settings, Database. Reusable across the app.
@@ -469,17 +439,8 @@ Icon-only buttons: Avatar, Bookmark, Notification, Settings, Database. Reusable 
 
 ## 13. Domain-Specific Cards
 
-### Card/Asset.vue
-Asset mini-card for grids and lists.
-
 ### Card/Avatar.vue
 Avatar mini-card with personality indicators.
-
-### Card/Datasource.vue
-Data-source card for the catalog.
-
-### Card/Friend.vue (removed Phase 14)
-Superseded by Community/ContactsRail.
 
 ### Card/SharedData.vue
 Shared strategy/data card for the feed.
@@ -590,51 +551,9 @@ It reads `usePredictionsStore` for calls and prints "—" until mounted, so SSR 
   - The tool rail is a single 34 px row.
   - Tapping the chart shows that candle in the legend, since touch has no hover.
 
-## Data Flow Map (Read-Only Paths)
+## Data Flow Map
 
-```
-macro_state ──┬─> DynamicThemeController ─> :root CSS
-              ├─> FlowVisualizer (particles)
-              ├─> AllocationSlider (dominant highlight)
-              └─> Widget/DisplayAsset (sentiment tone)
-
-allocationPie ──┬─> AllocationSlider
-                ├─> Wallet/Hero (swarm ghost)
-                └─> Wallet/Positions (row heights)
-
-Bottom bar: stores ─> useNavPanels ─> Navigation/Bar ─> Navigation/Icons/*
-assets.liveMarket.history ─> PricesIcon (today's curve since 00:00 GMT)
-news.items[].readByUser ───> NewsGlobeIcon (unread dot; noon meridian from the 30 s clock)
-wallet.wallets ────────────> WalletIcon (wallet ring + asset-type ring)
-agents.byId ───────────────> LabSphereIcon (one dot per agent)
-chat.conversations ────────> ChatBadgeIcon (unread badge)
-
-wallets[] ──┬─> Wallet/Hero
-            ├─> Wallet/Positions
-            ├─> Wallet/Trades
-            └─> Wallet/EquityCurve
-
-agents[] ──┬─> Agent/AvatarCard (frame, ring, opacity, role)
-           ├─> Lab/Bench (map, globe, operator graph)
-           ├─> Agent/PersonalityRadar
-           ├─> Agent/OpinionVector
-           ├─> Profile/AvatarsSection
-           └─> Strategy/SwarmPlugs
-
-strategies[] ──┬─> Card/Strategy (mark + wealth flow)
-               └─> Strategy/Card (mark + wealth flow)
-
-opinionProfile ──┬─> Profile/OpinionProfileCard
-                 └─> Profile/PoliticalCard (friend comparison)
-
-tracking ──┬─> training store (avatar learns)
-           └─> activityLog (trading profile records)
-
-posts[] ──┬─> Social/ArticlePost (NLP display + tracking)
-          ├─> Profile/PostsFeed
-          ├─> News globe rotation (coords)
-          └─> Asset/NewsSnippets
-```
+One copy only: Data.md §10 (visual state inheritance). Per-component reads and endpoints: COMPONENT-MAP.
 
 ## 16. History (`/historic`) — past · now · next (2026-10-26)
 
