@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useBotsStore } from '~/stores/bots'
+import { fmtMoneyKpi } from '~/utils/valueTree'
 
 const props = defineProps<{
   totalToday: number
@@ -22,10 +23,8 @@ const topContributor = computed(() => {
 
 const liveBots = computed(() => bots.list.filter(b => b.status === 'live'))
 
-const fmt = (n: number) => {
-  const sign = n >= 0 ? '+' : '−'
-  return `${sign}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`
-}
+// Signed P&L: fmtMoneyKpi (utils/valueTree.ts): "+$2.00" · "−$9.00" · "$0.00".
+const fmt = (n: number) => fmtMoneyKpi(n, { signed: true })
 </script>
 
 <template>

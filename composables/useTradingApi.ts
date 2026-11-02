@@ -106,6 +106,8 @@ export interface RealBacktest {
   metrics: { return_pct: number; max_dd_pct: number; trades: number; win_rate: number | null; fees: number; bars: number }
   benchmark: { buy_hold_pct: number; buy_hold_pnl: number }
   window: { symbol: string; interval: string; bars: number; from_ts: number; to_ts: number }
+  /** What the engine assumed (backend primary settings); absent on older servers. */
+  assumptions?: { capital_usd?: number | null; fee_bps?: number | null; slippage_bps?: number | null; source?: string | null }
 }
 
 export interface SavedStrategy {
@@ -202,7 +204,8 @@ export const useTradingApi = () => {
     getStrategy: (id: string) => call<SavedStrategy>(`/strategies/${id}/`),
     deleteStrategy: (id: string) => call<void>(`/strategies/${id}/`, { method: 'DELETE' }),
     saveStrategy: (body: ServerStrategyPayload) => call<{ id: string; name: string }>('/strategies/', { method: 'POST', body }),
-    backtestReal: (id: string, body: { capital_usd: number; bars?: number }) =>
+    // capital_usd omitted → the server uses the user's primary settings (see RealBacktest.assumptions).
+    backtestReal: (id: string, body: { capital_usd?: number; bars?: number } = {}) =>
       call<RealBacktest>(`/strategies/${id}/backtest/`, { method: 'POST', body }),
     // dev tools (backend: DEBUG or staff only)
     rollWindow: () => call<{ appended: number; tick: number; exhausted: boolean; note?: string }>('/bots/roll/', { method: 'POST', body: {} }),

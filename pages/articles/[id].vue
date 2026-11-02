@@ -9,7 +9,8 @@ import UIPill from '@/components/UI/Pill.vue'
 import type { NewsPoliticalScale } from '~/types/news'
 import { useNewsStore } from '~/stores/news'
 
-definePageMeta({ title: 'News detail', layout: 'default' })
+// Title literal = routeLabel('/articles/[id]') (tests/pageTitles.test.ts; definePageMeta cannot call it).
+definePageMeta({ title: 'Article', layout: 'default' })
 
 const route = useRoute()
 

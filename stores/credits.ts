@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { userGet, userSet } from '~/utils/userStorage'
 
 /**
  * Free play-currency bankroll for the Arena (community data bets). Never
@@ -42,7 +43,7 @@ export const useCreditsStore = defineStore('credits', {
     hydrate() {
       if (this.hydrated || typeof window === 'undefined') return
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY)
+        const raw = userGet(STORAGE_KEY)
         if (raw) {
           const parsed = JSON.parse(raw)
           this.balance = typeof parsed.balance === 'number' ? parsed.balance : STARTING_BALANCE
@@ -56,7 +57,7 @@ export const useCreditsStore = defineStore('credits', {
     persist() {
       if (typeof window === 'undefined') return
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        userSet(STORAGE_KEY, JSON.stringify({
           balance: this.balance,
           ledger: this.ledger,
           nextId: this.nextId

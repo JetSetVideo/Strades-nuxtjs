@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { usePlatformsStore } from '@/stores/platforms'
+import { fmtPctFromFraction, fmtPctFromPercent, fmtTime } from '~/utils/format'
+import { fmtMoneyKpi } from '~/utils/valueTree'
 
 /**
  * Wallet/PlatformBreakdown.vue — shows the total portfolio distributed across
@@ -32,7 +34,8 @@ const byType = computed(() => {
 })
 
 const pct = (v: number) => totalBalance.value > 0 ? (v / totalBalance.value) * 100 : 0
-const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
+// Money: fmtMoneyKpi (2 dp below $1M, compact above). Percent and time: utils/format.ts.
+const fmt = (n: number) => fmtMoneyKpi(n)
 
 const platformTone = (pct: number) =>
   pct > 0.3 ? 'positive' : pct > 0 ? 'warning' : 'neutral'
@@ -51,7 +54,7 @@ const typeIcon: Record<string, string> = {
     <header class="bd-head">
       <h4>Platform Breakdown</h4>
       <span class="bd-total">
-        ${{ fmt(totalBalance) }} across {{ platforms.list.length }} platforms
+        {{ fmt(totalBalance) }} across {{ platforms.list.length }} platforms
       </span>
     </header>
 
@@ -62,13 +65,13 @@ const typeIcon: Record<string, string> = {
         :key="g.label"
         class="type-seg"
         :style="{ width: `${pct(g.total)}%`, background: g.color }"
-        :title="`${g.label}: $${fmt(g.total)} (${pct(g.total).toFixed(1)}%)`"
+        :title="`${g.label}: ${fmt(g.total)} (${fmtPctFromPercent(pct(g.total))})`"
       />
     </div>
     <div class="type-labels">
       <span v-for="g in byType" :key="g.label" class="type-label" :style="{ color: g.color }">
         ● {{ g.label }}
-        <b>{{ pct(g.total).toFixed(1) }}%</b>
+        <b>{{ fmtPctFromPercent(pct(g.total)) }}</b>
       </span>
     </div>
 
@@ -89,28 +92,28 @@ const typeIcon: Record<string, string> = {
           <span
             v-if="p.status === 'connected'"
             class="pc-health"
-            :title="`API health ${(p.api_health * 100).toFixed(0)}%`"
+            :title="`API health ${fmtPctFromFraction(p.api_health)}`"
           >●</span>
           <span v-else class="pc-health warn">◌</span>
         </div>
         <div class="pc-balance">
           <span class="pc-bal-label">Balance</span>
-          <span class="pc-bal-value">${{ fmt(p.balance_usd) }}</span>
-          <span class="pc-bal-pct">({{ pct(p.balance_usd).toFixed(1) }}% of portfolio)</span>
+          <span class="pc-bal-value">{{ fmt(p.balance_usd) }}</span>
+          <span class="pc-bal-pct">({{ fmtPctFromPercent(pct(p.balance_usd)) }} of portfolio)</span>
         </div>
         <div class="pc-meta">
           <span>{{ p.asset_count }} assets</span>
           <span class="pc-pnl" :data-tone="p.daily_pnl_usd >= 0 ? 'pos' : 'neg'">
-            {{ p.daily_pnl_usd >= 0 ? '+' : '' }}${{ Math.round(p.daily_pnl_usd).toLocaleString(APP_LOCALE) }}
+            {{ fmtMoneyKpi(p.daily_pnl_usd, { signed: true }) }}
           </span>
         </div>
         <div class="pc-detail">
           <span class="pc-detail-label">Available</span>
-          <span class="pc-detail-val">${{ fmt(p.available_usd) }}</span>
+          <span class="pc-detail-val">{{ fmt(p.available_usd) }}</span>
           <span class="pc-detail-label">30d fees</span>
-          <span class="pc-detail-val">${{ fmt(p.fees_30d_usd) }}</span>
+          <span class="pc-detail-val">{{ fmt(p.fees_30d_usd) }}</span>
           <span class="pc-detail-label">Last sync</span>
-          <span class="pc-detail-val">{{ new Date(p.last_sync_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) }}</span>
+          <span class="pc-detail-val">{{ fmtTime(p.last_sync_at) }}</span>
         </div>
       </div>
     </div>

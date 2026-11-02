@@ -18,14 +18,12 @@ export function usePaperFormat() {
     if (!strategies.strategies.length) strategies.fetchStrategies()
   })
 
-  const usd = (v: number, digits = 0) =>
-    Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
-
-  /** "+$351.70" / "-$44.85" */
-  const signedUsd = (v: number, digits = 2) => `${v < 0 ? '-' : '+'}$${usd(v, digits)}`
+  // The app-wide formatter (utils/format.ts): U+2212 minus before the currency, "$0.00" for zero.
+  /** "+$351.70" / "−$44.85" / "$0.00" */
+  const signedUsd = (v: number, digits = 2) => fmtSignedMoney(v, { decimals: digits })
 
   /** "$10,060" */
-  const notional = (v: number) => `$${usd(v, 0)}`
+  const notional = (v: number) => fmtMoney(v, { decimals: 0 })
 
   const strategyName = (id: string) => strategies.getStrategyById(id)?.name ?? id
   const agentName = (id: string) => agents.byId[id]?.name ?? id

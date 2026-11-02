@@ -2,8 +2,9 @@
   <form class="launch" @submit.prevent="launch">
     <div class="row">
       <label>Capital (USD)
-        <input v-model="capital" type="number" min="10" :max="maxCapital" step="any" inputmode="decimal" />
-        <small>Available: {{ fmt(maxCapital) }}</small>
+        <input v-model="capital" type="number" min="10" :max="maxCapital" step="any" inputmode="decimal" @input="capitalTouched = true" />
+        <small>Available: {{ fmt(maxCapital) }} · default
+          <NuxtLink to="/settings#set-starting_capital">{{ prefs.newBotCapitalSource === 'settings' ? 'from Settings' : 'from this browser (sign in to use Settings)' }}</NuxtLink></small>
       </label>
       <label>Re-weight period
         <select v-model.number="period">
@@ -51,7 +52,13 @@ const LABELS: Record<WeightKey, string> = {
 
 const prefs = useTradingPrefsStore()
 prefs.hydrate()
-const capital = ref(String(prefs.defaultCapital))
+// Top-down: a new bot starts from the primary value "Paper starting capital" (Settings) when signed in,
+// capped at the wallet's free cash; typing your own amount always wins.
+const capitalTouched = ref(false)
+const capital = ref(String(Math.min(prefs.newBotCapital, props.maxCapital)))
+prefs.syncPrimary().then(() => {
+  if (!capitalTouched.value) capital.value = String(Math.min(prefs.newBotCapital, props.maxCapital))
+}).catch(() => { /* keep the local default */ })
 const period = ref(prefs.defaultPeriodS)
 const mode = ref<'random' | 'custom'>('random')
 const weights = reactive<Record<WeightKey, number>>({

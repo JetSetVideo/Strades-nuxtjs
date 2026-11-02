@@ -62,12 +62,12 @@ The five icons of the bottom bar (`components/Navigation/Bar.vue`) are live comp
 | **Prices** (`PricesIcon.vue`) | `assets.liveMarket.history` (blended from live assets' hourly returns when the tree has no aggregate) | Sparkline of today's market from 00:00 GMT to now on a fixed 24 h axis, so the line also tells the time of day. Green up / red down via `--app-color-up/down`, blue when flat or unknown. Value line: signed % since 00:00 GMT (hours aligned on the quote fetch time). |
 | **News (globe)** (`NewsGlobeIcon.vue`) | `news.items[].readByUser` + the shared 30 s clock | Dot-matrix Earth turned so the meridian where it is noon now faces the viewer, marked by a red vertical line (12:00 GMT → Greenwich). A blue dot sits on the rim while news is unread (pinging only when News is selected). Value line: `N new` / `all read`. |
 | **Wallet** (`WalletIcon.vue`) | `wallet.wallets` | Outer ring: each wallet's share of the total (amber, pink, teal, yellow, lime). Inner ring: asset types across all wallets (asset-class colours, cash grey). Value line: total balance, the same TOTAL BALANCE the wallet switcher prints. |
-| **Lab** (`LabSphereIcon.vue`) | `strategies[]` (agents only if no book is loaded) | Small CSS 3-D globe; each strategy is a dot. Colour = run state (green running, orange paused, red stopped), latitude = risk, longitude = return, size = activity (√trades). The rim and the value line use the same counts as the strategies desk. Turns only while Lab is selected. The agent globe remains the Globe mode of the bench on `/agents`. |
+| **Lab** (`LabSphereIcon.vue`) | `strategies.ownStrategies` (the user's own; catalog samples excluded — agents only if there is none) | Small CSS 3-D globe; each strategy is a dot. Colour = run state (green running, orange paused, red stopped), latitude = risk, longitude = return, size = activity (√trades). The rim and the value line use the same counts as the strategies desk. Turns only while Lab is selected. The agent globe remains the Globe mode of the bench on `/agents`. |
 | **Chat** (`ChatBadgeIcon.vue`) | `chat.conversations` (the user's own) + `chat.getEmotionalUrgency` | Speech bubble with a red dot holding the unread count (`99+` past 99), the same per-user counts /chat shows; it throbs when Chat is selected and urgency > 0.7. Value line: `unread` / `no new`. |
 
 The bar has no profile/avatar icon; the `loss_ema` training ring is drawn on `Agent/AvatarCard.vue`.
 
-**Selected tab.** One style for all five: the icon grows (scale 1.2) without leaving the bar, a 2 px accent bar lights at the top of the tab, the label turns white and bold, a halo in the panel's accent fades in, and the icon switches to its own zoomed `active` drawing (taller Prices plot with a "now" ping, closer globe, thicker Wallet rings, faster Lab spin with breathing dots, Chat typing dots when unread). A tab stays selected on its detail routes (longest matching prefix).
+**Selected tab.** One style for all five: the icon grows (scale 1.2) without leaving the bar, a 2 px accent bar lights at the top of the tab, the label turns white and bold, a halo in the panel's accent fades in, and the icon switches to its own zoomed `active` drawing (taller Prices plot with a "now" ping, closer globe, thicker Wallet rings, faster Lab spin with breathing dots, Chat typing dots when unread). A tab stays selected on every page of its area, detail routes included: the lit tab is the page's area in `utils/routes.ts` (`dockFor(path)`), not a longest-matching URL prefix (so `/profile/[id]` lights Chat while `/profile` lights none).
 
 **Sizes.** 32 px under 380 px wide, 36 px on phones (and on the server render), 38 px from 768 px, 40 px from 1600 px.
 
@@ -185,21 +185,29 @@ Every piece of secondary data translates to a CSS custom property bound by `useL
 
 Strades is a social desk. People build avatars together, and those avatars train on the trades and attention of the people who own them.
 
-### Menu (`components/Navigation/DrawerMenu.vue`)
-The old sheet was one long list. Discover held eleven equal rows, Profile and Monitor shared an icon, Calendar and Data shared another, hints were written and never shown, and Support sat below a 754px laptop viewport.
+### Menu (`components/Navigation/DrawerMenu.vue`, data in `utils/routes.ts`)
+Every page name lives once, in `utils/routes.ts` (`ROUTES`: path, label, area, icon, hint). The drawer, the bottom bar (label and which tab lights up) and global search read it; page titles read `routeLabel(path)` (done on `/agents`; the other pages still carry a literal title, and the ones that differ are listed in the lane report), so a menu label equals the page title. `tests/routes.test.ts` fails if a registry path has no file under `pages/`, a page file is missing from the registry, or two pages share a label or an icon.
 
-The sheet is now four groups, each with a one-line job:
+The drawer has six areas. Five own a bottom-bar tab; You opens from the drawer and the profile avatar. A page with an id in its path (detail) belongs to its area: it opens that drawer group and lights that tab.
 
-| Group | Job | Destinations |
-| --- | --- | --- |
-| You | Identity and the feeds that train you | Profile, Settings, Notifications, Connections |
-| Together | Avatars built with other people | Avatars, Arena, Quests |
-| Desk | The book | Leaderboard, Data, Calendar, Deals, History, Monitor, Risk, Shop |
-| Support | How the desk works | Help, About, Contact |
+| Area | Bottom-bar tab | Drawer pages | Detail pages |
+| --- | --- | --- | --- |
+| Markets | Prices | Prices, Predict, Candle Chart, Calendar, Deal Pipeline | Asset |
+| News | News | News | Article |
+| Portfolio | Wallet | Wallet, Trade with bots, Risk & Exposure, History | — |
+| Lab | Lab | Lab (`/strategies`), Strategy Creator, Avatar Marketplace (`/agents`), Community bots, Strategy Shop | Strategy, Review (`/summarizer/:id`), Bot, Agent |
+| Community | Chat | Chat, Leaderboard, Arena, Quests | Conversation, Trader profile (`/profile/:id`) |
+| You | — | Profile, Insights, Notifications, Settings, API Connections, Data Catalog | — |
 
-The header names the current page. Each row keeps a hint. On a phone (under 640px) the hint and the group blurb hide so a thumb can reach Support. Width is `clamp(16rem, 32vw, 22rem)` and never covers the last 2.75rem, so the dimmed backdrop stays a close target. The header sticks while the list scrolls.
+Help, About and Contact are a row in the drawer footer, above Sign out; they are not an area.
 
-Routes were not deleted. Connections is the same `/apis` page. History is `/historic`. The public profile at `/profile/:id` stays separate from the signed-in desk at `/profile`.
+One name per page: `/strategies` is **Lab** everywhere (it was Lab, Trading Lab and My Strategies); `/agents` is **Avatar Marketplace** (it was also Follow). `/summarizer/:id` lights Lab (it lit News), `/arena` lights Chat with the rest of Community, and the bar no longer lists `/monitor`, which has no page. Each page has its own icon.
+
+The header names the current page as `Area / Page`. Each row keeps a hint. On a phone (under 640px) the hint and the group blurb hide. Width is `clamp(16rem, 32vw, 22rem)` and never covers the last 2.75rem, so the dimmed backdrop stays a close target. The header sticks while the list scrolls.
+
+Routes were not moved or deleted; this is labels and grouping only. Vue Router matches paths case-insensitively, so `/shop` opens `pages/Shop.vue`. The public profile at `/profile/:id` stays separate from the signed-in desk at `/profile`.
+
+Page state a user expects Back to restore is kept in the URL: the Prices asset-type chips are `?tab=` (`/prices?tab=crypto`, excluded types prefixed with `-`, e.g. `?tab=crypto,-bet`).
 
 ### Profile
 `/profile` must call `useCurrentUser()` during setup. Calling it inside a computed throws, Vue drops the page, and `<main>` stays an empty comment. The desk strip under the name is derived, not raw:

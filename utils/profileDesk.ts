@@ -1,13 +1,78 @@
 /**
- * Profile desk math. The signed-in demo id is not a row in the user book,
- * so the face is the demo account and the numbers come from the catalog book.
- * Days are only colored when a wallet snapshot, a trade, or the monthly
- * calendar actually records them.
+ * Profile desk math. Days are only colored when a wallet snapshot, a trade, or the
+ * monthly calendar actually records them.
+ *
+ * Honest data (swarm 2026-10-30b, board-data P1 #8): an account that has no row in
+ * the bundled user book used to get user_001's book (value, win rate, trades,
+ * calendar) under its own name. Numbers now come only from the signed-in account's
+ * own row (`ownBookUserId`); without one, `deskFigures` returns '—' (null) + a reason.
  */
 
+/**
+ * Sample catalog row (bundled users.json). It may only lay out the demo portrait for
+ * an account with no catalog row. Never read its numbers as the account's: go through
+ * `ownBookUserId` / `deskFigures`.
+ */
 export const BOOK_USER_ID = 'user_001'
 export const FREE_WALLET_CAP = 2
 export const FREE_BOT_CAP = 2
+
+export const DESK_PENDING_NOTE = 'Your account has no recorded desk yet: value, win rate and avatars appear once your own trades are recorded.'
+
+/** The signed-in account's own catalog id, or null. Never another user's id. */
+export function ownBookUserId(
+  authId: string | null | undefined,
+  inCatalog: (id: string) => boolean,
+): string | null {
+  return authId && inCatalog(authId) ? authId : null
+}
+
+export type DeskEdge = 'ahead' | 'even' | 'behind'
+
+export interface DeskFigures {
+  own: boolean
+  value: number | null
+  win: number | null
+  live: number | null
+  bots: number | null
+  /** live / bots, 0–1. */
+  coverage: number | null
+  edge: DeskEdge | null
+  /** Why the figures are '—' ('' when they are the account's own). */
+  note: string
+}
+
+/**
+ * Desk header numbers. `own` false (the account has no own book row) gives nulls
+ * (render '—' + a pending chip) instead of the sample row's numbers.
+ * Edge: win rate ≥ 55 % ahead, ≥ 45 % even, else behind.
+ */
+export function deskFigures(input: {
+  own: boolean
+  walletValues: number[]
+  catalogValue?: number | null
+  winRate?: number | null
+  bots: { status?: string }[]
+}): DeskFigures {
+  if (!input.own) {
+    return { own: false, value: null, win: null, live: null, bots: null, coverage: null, edge: null, note: DESK_PENDING_NOTE }
+  }
+  const sum = input.walletValues.reduce((s, v) => s + (Number(v) || 0), 0)
+  const value = Math.min(1_000_000_000, Math.max(0, sum || Number(input.catalogValue) || 0))
+  const win = input.winRate == null || !Number.isFinite(input.winRate) ? null : Math.min(100, Math.max(0, input.winRate))
+  const total = input.bots.length
+  const live = input.bots.filter(b => b.status === 'live').length
+  return {
+    own: true,
+    value,
+    win,
+    live,
+    bots: total,
+    coverage: total ? live / total : 0,
+    edge: win == null ? null : win >= 55 ? 'ahead' : win >= 45 ? 'even' : 'behind',
+    note: '',
+  }
+}
 
 export type DayTone = 'green' | 'orange' | 'red' | 'idle' | 'ahead'
 export type Audience = 'public' | 'friends_only' | 'private'
@@ -101,7 +166,7 @@ export function snapsFromHistory(history: Record<string, HistoryRow> | undefined
 
 /** Linear value between snapshots. Outside the first and last snapshot there is no day. */
 export function valueAt(snaps: Snap[], day: string): number | null {
-  if (!snaps.length || day < snaps[0].date || day > snaps[snaps.length - 1].date) return null
+  if (!snaps.length || day < snaps[0]!.date || day > snaps[snaps.length - 1]!.date) return null
   for (let i = 0; i < snaps.length; i++) {
     const snap = snaps[i]!
     if (snap.date === day) return snap.value

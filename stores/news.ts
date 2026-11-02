@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 // Stores are not auto-imported in this project (see nuxt.config pinia note).
 import { useOpinionProfileStore } from '~/stores/opinionProfile'
+import { userGet, userSet } from '~/utils/userStorage'
 import { publicAssetUrl } from '~/composables/useLocalJson'
 import { normalizeAllocationPie, type AllocationPie } from '~/types/allocation'
 import type { Prediction } from '~/stores/predictions'
@@ -585,7 +586,7 @@ export const useNewsStore = defineStore('newsStore', {
     hydratePersisted() {
       if (!import.meta.client) return
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY)
+        const raw = userGet(STORAGE_KEY)
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<NewsStoreState>
           this.persistedByUser = parsed.persistedByUser ?? {}
@@ -606,7 +607,7 @@ export const useNewsStore = defineStore('newsStore', {
     persist() {
       if (!import.meta.client) return
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        userSet(STORAGE_KEY, JSON.stringify({
           persistedByUser: this.persistedByUser,
         }))
       } catch {

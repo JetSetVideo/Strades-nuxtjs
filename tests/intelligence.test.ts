@@ -150,8 +150,9 @@ describe('relations', () => {
     expect(describeComplementarity({ n: 1, acc_a: 0, acc_b: 1, acc_pair: 0, gain: -1 }, 'A', 'B')).toMatch(/did not improve/)
     expect(describeComplementarity({ n: 5, acc_a: 0.6, acc_b: 0.5, acc_pair: 0.8, gain: 0.2 }, 'A', 'B')).toMatch(/\+20 pts/)
     expect(describeComplementarity(null, 'A', 'B')).toMatch(/not both answered/)
-    expect(describeSpace({ km: 9575, tz_gap_h: 8, same_country: false, a: { city: 'Zürich', country: 'CH', tz: null }, b: { city: 'Tokyo', country: 'JP', tz: null } }))
-      .toBe('Zürich, CH ↔ Tokyo, JP · 9,575 km · 8 h apart')
+    // cities are not served for other people any more; km arrives rounded to 500
+    expect(describeSpace({ km: 9500, tz_gap_h: 8, same_country: false } as never)).toBe('about 9,500 km apart · 8 h apart')
+    expect(describeSpace({ km: 0, tz_gap_h: 0, same_country: true } as never)).toBe('under 250 km apart · same time zone · same country')
   })
 })
 

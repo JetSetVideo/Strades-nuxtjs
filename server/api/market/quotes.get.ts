@@ -5,49 +5,36 @@
  * Non-crypto symbols are served only where Binance lists a faithful proxy
  * (EUR → EURUSDT, XAU → PAXGUSDT, gold-backed token) and are flagged `proxy`.
  * Everything else is simply absent; the client keeps its bundled price and
- * says so. Cached 30 s per symbol set, server-side.
+ * says so.
+ *
+ * Cache (utils/quoteCache.ts): per symbol, fresh 30 s, then served stale for up
+ * to 5 min while one background call refreshes it; at most one upstream call in
+ * flight per symbol. `at` is the fetch time of the OLDEST quote served, and each
+ * quote carries its own `at`.
  */
-/** Shared with ./history.get.ts. */
-export const PAIRS: Record<string, { pair: string; proxy?: string }> = {
-  BTC: { pair: 'BTCUSDT' }, ETH: { pair: 'ETHUSDT' }, SOL: { pair: 'SOLUSDT' },
-  BNB: { pair: 'BNBUSDT' }, XRP: { pair: 'XRPUSDT' }, ADA: { pair: 'ADAUSDT' },
-  DOGE: { pair: 'DOGEUSDT' }, AVAX: { pair: 'AVAXUSDT' }, LINK: { pair: 'LINKUSDT' },
-  EUR: { pair: 'EURUSDT', proxy: 'EUR/USDT' },
-  XAU: { pair: 'PAXGUSDT', proxy: 'PAXG (gold-backed token)' },
-}
+import { LIVE_PAIRS, createQuoteCache, type LiveQuote } from '../../../utils/quoteCache'
 
-export interface LiveQuote {
-  symbol: string
-  pair: string
-  price: number
-  change_24h_pct: number
-  /** hourly simple returns, oldest first */
-  history: number[]
-  proxy?: string
-}
+/** Shared with ./history.get.ts. */
+export const PAIRS = LIVE_PAIRS
+export type { LiveQuote }
 
 type Ticker = { symbol: string; lastPrice: string; priceChangePercent: string }
 type Kline = [number, string, string, string, string, ...unknown[]]
 
-export default defineCachedEventHandler(async (event) => {
-  const q = getQuery(event)
-  const wanted = String(q.symbols ?? '')
-    .split(',').map(s => s.trim().toUpperCase()).filter((s): s is keyof typeof PAIRS => s in PAIRS).slice(0, 25)
-  if (!wanted.length) return { quotes: {}, source: 'binance', at: new Date().toISOString() }
+const API = 'https://api.binance.com/api/v3'
 
-  const api = 'https://api.binance.com/api/v3'
-  const pairs = wanted.map(s => PAIRS[s]!.pair)
-  const tickers = await $fetch<Ticker[]>(`${api}/ticker/24hr`, {
-    query: { symbols: JSON.stringify(pairs) }, timeout: 8000,
-  })
-  const histories = await Promise.all(pairs.map(pair =>
-    $fetch<Kline[]>(`${api}/klines`, { query: { symbol: pair, interval: '1h', limit: 49 }, timeout: 8000 })
-      .then(rows => rows.map(r => Number(r[4])))
-      .catch(() => [] as number[]),
-  ))
-
+async function fetchBinance(symbols: string[]): Promise<Record<string, LiveQuote>> {
+  const pairs = symbols.map(s => PAIRS[s]!.pair)
+  const [tickers, histories] = await Promise.all([
+    $fetch<Ticker[]>(`${API}/ticker/24hr`, { query: { symbols: JSON.stringify(pairs) }, timeout: 8000 }),
+    Promise.all(pairs.map(pair =>
+      $fetch<Kline[]>(`${API}/klines`, { query: { symbol: pair, interval: '1h', limit: 49 }, timeout: 8000 })
+        .then(rows => rows.map(r => Number(r[4])))
+        .catch(() => [] as number[]),
+    )),
+  ])
   const quotes: Record<string, LiveQuote> = {}
-  wanted.forEach((sym, i) => {
+  symbols.forEach((sym, i) => {
     const meta = PAIRS[sym]!
     const t = tickers.find(x => x.symbol === meta.pair)
     if (!t) return
@@ -61,8 +48,13 @@ export default defineCachedEventHandler(async (event) => {
       ...(meta.proxy ? { proxy: meta.proxy } : {}),
     }
   })
-  return { quotes, source: 'binance', at: new Date().toISOString() }
-}, {
-  maxAge: 30,
-  getKey: event => `quotes:${String(getQuery(event).symbols ?? '').toUpperCase()}`,
+  return quotes
+}
+
+const cache = createQuoteCache({ fetchQuotes: fetchBinance })
+
+export default defineEventHandler(async (event) => {
+  const requested = String(getQuery(event).symbols ?? '').split(',')
+  const { quotes, at, refreshing } = await cache.get(requested)
+  return { quotes, source: 'binance', at: at ?? new Date().toISOString(), refreshing: refreshing.length }
 })

@@ -14,20 +14,27 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const { isAuthenticated, refreshAccessToken } = useAuth()
   const config = useRuntimeConfig()
   const demoCookie = useCookie<string | null>('strades_demo')
+  // Read before any await (Nuxt context). No token in either: `strades_session` is a hint set by
+  // useAuth; `strades_refresh` is a pre-S5 cookie still waiting to be migrated by the browser.
+  const serverSeesSession = import.meta.server
+    && (String(useCookie('strades_session').value ?? '') === '1' || !!useCookie('strades_refresh').value)
 
   const PUBLIC_ROUTES = ['/auth', '/about', '/contact']
   const isPublic = PUBLIC_ROUTES.some(p => to.path === p || to.path.startsWith(p + '/'))
 
-  const isDemoMode =
-    String(config.public.demoMode) === 'true' ||
-    demoCookie.value === '1'
+  // useCookie decodes with destr: the stored "1" comes back as the NUMBER 1, so compare as text
+  // (a strict === '1' made the sample-data mode vanish on every reload).
+  const sampleCookie = String(demoCookie.value ?? '') === '1'
+  const envDemo = String(config.public.demoMode) === 'true'
 
-  if (isDemoMode) {
-    if (to.path.startsWith('/auth')) {
-      return navigateTo('/prices')
-    }
+  if (envDemo) {
+    if (to.path.startsWith('/auth')) return navigateTo('/prices')
     return
   }
+  // Sample-data browsing (the server did not answer when the demo was started): pages stay open, and
+  // /auth stays reachable so the visitor can get a real demo account (it used to bounce to /prices,
+  // trapping people in sample data for the cookie's 30 days).
+  if (sampleCookie && !isAuthenticated.value) return
 
   // ── Production / local-backend auth ───────────────────────────────────
   if (isPublic) {
@@ -40,9 +47,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!isAuthenticated.value) {
     const refreshed = await refreshAccessToken()
     if (!refreshed) {
-      // The server never refreshes (see useAuth.refreshAccessToken). With a refresh cookie
-      // present, let the browser's run of this middleware decide; it holds the newest token.
-      if (import.meta.server && useCookie('strades_refresh').value) return
+      // The server never refreshes (see useAuth.refreshAccessToken), and it cannot see the httpOnly
+      // refresh cookie (Path=/api/auth/). With the session hint (or a pre-S5 refresh cookie still to
+      // migrate) present, let the browser's run of this middleware decide.
+      if (import.meta.server && serverSeesSession) return
       return navigateTo('/auth')
     }
   }

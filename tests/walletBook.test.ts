@@ -23,7 +23,7 @@ describe('walletBook', () => {
       10,
       'seed',
     )
-    for (const row of paths) expect(row[0] + row[1]).toBeCloseTo(1)
+    for (const row of paths) expect(row[0]! + row[1]!).toBeCloseTo(1)
     expect(paths.at(-1)?.[0]).toBeCloseTo(0.2)
     expect(paths.at(-1)?.[1]).toBeCloseTo(0.8)
   })
@@ -35,10 +35,10 @@ describe('walletBook', () => {
       [{ id: 'stocks' }, { id: 'crypto', hidden: true }],
       100,
     )
-    expect(bands[0].points[0].bottom).toBeCloseTo(100)
-    expect(bands[0].points[0].top).toBeCloseTo(80)
-    expect(bands[1].hidden).toBe(true)
-    expect(bands[1].points[0].top).toBeCloseTo(20)
+    expect(bands[0]!.points[0]!.bottom).toBeCloseTo(100)
+    expect(bands[0]!.points[0]!.top).toBeCloseTo(80)
+    expect(bands[1]!.hidden).toBe(true)
+    expect(bands[1]!.points[0]!.top).toBeCloseTo(20)
   })
 
   it('colors holdings by class and stacks the largest sleeve on top', () => {
@@ -75,8 +75,8 @@ describe('walletBook', () => {
     expect(book?.id).toBe('all')
     expect(book?.total_value).toBe(100)
     expect(book?.daily_change).toBe(0)
-    expect(book?.performance_history?.['30d'].change).toBe(10)
-    expect(book?.performance_history?.['30d'].change_percentage).toBeCloseTo((10 / 90) * 100)
+    expect(book?.performance_history?.['30d']?.change).toBe(10)
+    expect(book?.performance_history?.['30d']?.change_percentage).toBeCloseTo((10 / 90) * 100)
     const btc = book?.assets?.find(asset => asset.symbol === 'BTC')
     expect(btc?.current_value).toBe(60)
     expect(btc?.allocation_percentage).toBeCloseTo(60)

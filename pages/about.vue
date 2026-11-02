@@ -2,13 +2,15 @@
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
 import UIPill from '@/components/UI/Pill.vue'
+import { routeLabel } from '~/utils/routes'
 
 definePageMeta({ title: 'About', layout: 'default' })
+const pageTitle = routeLabel('/about')
 </script>
 
 <template>
   <div class="about-page">
-    <UIPageHeader title="About Strades" subtitle="A living financial organism." badge="v0.2" />
+    <UIPageHeader :title="pageTitle" subtitle="A living financial organism." badge="v0.2" />
 
     <UICard title="Vision">
       <p>

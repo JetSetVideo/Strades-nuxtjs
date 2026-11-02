@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { userGet, userSet } from '~/utils/userStorage'
 
-const KEY = 'strades_profile_face_v1'
+const KEY = 'strades_profile_face_v1'   // per user via utils/userStorage (S13)
 const MAX_BYTES = 1_500_000
 
 /**
@@ -19,7 +20,7 @@ export const useProfileFaceStore = defineStore('profileFace', () => {
   function persist() {
     if (!import.meta.client) return
     try {
-      localStorage.setItem(KEY, JSON.stringify({
+      userSet(KEY, JSON.stringify({
         displayName: displayName.value,
         handle: handle.value,
         hideRealName: hideRealName.value,
@@ -35,7 +36,7 @@ export const useProfileFaceStore = defineStore('profileFace', () => {
     if (hydrated.value || !import.meta.client) return
     hydrated.value = true
     try {
-      const raw = localStorage.getItem(KEY)
+      const raw = userGet(KEY)
       if (!raw) return
       const parsed = JSON.parse(raw) as Partial<{
         displayName: string

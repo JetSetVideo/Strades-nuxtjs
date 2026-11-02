@@ -2,12 +2,14 @@
 import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { allowsAny, allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
 import { useAgentsStore } from '@/stores/agents'
-import { useOpinionsStore } from '@/stores/opinions'
+import { useOpinionsStore, type PlugsApi } from '@/stores/opinions'
+import { plugSyncNote } from '~/utils/plugsSync'
 import { useCommunityStore, type CommunityUser } from '@/stores/community'
 import { useUsersStore } from '@/stores/users'
 import { useStrategiesStore } from '@/stores/strategies'
 import { assetClassTheme } from '~/utils/assetClass'
 import { isPaidRole } from '~/utils/profileDesk'
+import { routeLabel } from '~/utils/routes'
 
 import UIScreenShell from '@/components/UI/ScreenShell.vue'
 import UIPill from '@/components/UI/Pill.vue'
@@ -15,7 +17,10 @@ import AgentAvatarCard from '@/components/Agent/AvatarCard.vue'
 import CommunityPersonCard from '@/components/Community/PersonCard.vue'
 import StrategyCard from '@/components/Strategy/Card.vue'
 
+// Title = utils/routes.ts label (drawer, search and h1 say the same). definePageMeta is
+// hoisted out of setup and cannot call routeLabel; tests/routes.test.ts checks this literal.
 definePageMeta({ title: 'Avatar Marketplace', layout: 'default' })
+const pageTitle = routeLabel('/agents')
 
 type Source = 'people' | 'agents' | 'strategies'
 
@@ -46,7 +51,17 @@ const stratStatus = reactive<Record<string, FilterTriState>>({})
 const stratType = reactive<Record<string, FilterTriState>>({})
 const roleStates = reactive<Record<string, FilterTriState>>({})
 
+// Plugged agents are saved to the account (GET/PUT /api/v1/settings/plugs/); signed out = this tab only.
+const { isAuthenticated, user } = useAuth()
+const nuxtApp = useNuxtApp()
+function connectPlugs() {
+  void opinions.connect({ signedIn: isAuthenticated.value, userId: user.value?.id, api: nuxtApp.$api as PlugsApi })
+}
+watch(isAuthenticated, connectPlugs)
+const plugNote = computed(() => plugSyncNote(opinions.sync, opinions.syncError))
+
 onMounted(async () => {
+  connectPlugs()
   await Promise.all([
     agents.hydrated ? Promise.resolve() : agents.fetchAgents(),
     community.hydrated ? Promise.resolve() : community.fetchCommunity(),
@@ -255,7 +270,7 @@ function followStrategy(id: string) {
 
 <template>
   <UIScreenShell
-    title="Follow"
+    :title="pageTitle"
     :kpis="kpis"
     subtitle="People, agents, and strategies already in the book"
   >
@@ -274,6 +289,10 @@ function followStrategy(id: string) {
         Strategies <em>{{ strategyList.length }}</em>
       </button>
     </div>
+
+    <p v-if="source === 'agents' && plugNote" class="plug-sync" :data-state="opinions.sync" :role="opinions.sync === 'error' ? 'alert' : 'status'">
+      {{ plugNote }}
+    </p>
 
     <LabBench v-if="source === 'agents' && !loading && filteredAgents.length" :agents="filteredAgents" />
 
@@ -438,6 +457,13 @@ function followStrategy(id: string) {
   cursor: pointer;
 }
 .sort-row button.on { border-color: var(--primary-green, #00ff88); color: var(--primary-green, #00ff88); }
+
+.plug-sync {
+  margin: 0;
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.6);
+}
+.plug-sync[data-state="error"] { color: var(--error-red, #ff6b6b); }
 
 .empty {
   margin: 0;

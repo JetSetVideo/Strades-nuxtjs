@@ -16,7 +16,7 @@
  * whether friends' calls were visible, chart style, simulated history…) and is
  * sent to the training buffer that shapes the user's trading profile.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Asset } from '~/types/asset'
 import { usePredictionsStore, type Prediction } from '~/stores/predictions'
 import { useAppearanceStore } from '~/stores/appearance'
@@ -32,6 +32,9 @@ import {
 } from '~/utils/assetChart'
 import { limitTone, priceApproach, sameAsset } from '~/utils/priceApproach'
 import { dropStop, extendStops, pathPattern, PATTERN_COLOR, splitStops, userStops, type PathPattern } from '~/utils/predictionPath'
+import { canWithdrawCall, clampConfidence, CONFIDENCE_LABEL, CONFIDENCE_LEVELS, DEFAULT_CONFIDENCE, lockedReason } from '~/utils/callRules'
+import { usePrimarySettings } from '~/composables/usePrimarySettings'
+import { horizonDefaultNote, resolveCallDefaults, SETTINGS_HREF } from '~/utils/primaryDefaults'
 
 const props = withDefaults(defineProps<{
   asset: Asset
@@ -70,18 +73,55 @@ const mineAll = computed(() => store.predictions
   .sort((a, b) => targetTsOf(a) - targetTsOf(b)))
 const minePending = computed(() => mineAll.value.filter(p => p.status === 'pending'))
 
+// ── Defaults from Settings › Primary values (default_confidence, default_horizon_days) ──
+// Top-down: a pending call's own horizon > what the user picks here > Settings > built-in (1W, 3).
+const primary = usePrimarySettings()
+if (import.meta.client) void primary.load()
+const callDefaults = computed(() => resolveCallDefaults(primary.status.value === 'ready', primary.values.value, primary.defaults.value))
+const horizonChosen = ref(false)
+const confidenceChosen = ref(false)
+
 function seedHorizon() {
   const pending = minePending.value
   const pick = props.source === 'card'
     ? [...pending].sort((a, b) => targetTsOf(b) - targetTsOf(a))[0]
     : pending[0]
   const id = pick?.timeframe
-  return id && HORIZONS.some(h => h.id === id) ? id : '1W'
+  return id && HORIZONS.some(h => h.id === id) ? id : callDefaults.value.horizonId
 }
 const horizonId = ref(seedHorizon())
 const H = computed(() => horizonById(horizonId.value))
 const mineOn = (id: string) => minePending.value.find(p => p.timeframe === id) ?? null
 const existing = computed(() => mineOn(H.value.id))
+
+// ── Confidence (1–5, the user's own input; was hard-coded 3) ────────────────
+// The chips set it for the next call; on a pending call that can still be
+// withdrawn they also update that call (a resolved one is locked).
+const confidence = ref<number>(callDefaults.value.confidence ?? DEFAULT_CONFIDENCE)
+const shownConfidence = computed(() => existing.value ? clampConfidence(existing.value.confidence) : confidence.value)
+/** "from Settings" next to the chips while the next call's confidence is the Settings default. */
+const confidenceFromSettings = computed(() => !existing.value && !confidenceChosen.value && callDefaults.value.confidenceSource === 'settings')
+const horizonNote = computed(() => horizonChosen.value ? '' : horizonDefaultNote(callDefaults.value))
+
+// Settings arrive after the first paint: apply them unless the user already chose.
+watch(callDefaults, (d) => {
+  if (!confidenceChosen.value) confidence.value = d.confidence
+  if (!horizonChosen.value && !windowSpan.value && !priceSpan.value && !minePending.value.length && horizonId.value !== d.horizonId) horizonId.value = d.horizonId
+})
+
+function setConfidence(level: number) {
+  const c = clampConfidence(level)
+  confidenceChosen.value = true
+  confidence.value = c
+  const p = existing.value
+  if (p && canWithdrawCall(p) && p.confidence !== c) {
+    store.updatePrediction(p.id, { confidence: c })
+    tracker.track('prediction_set', {
+      component: 'PredictPanel', intent: 'confidence', asset_id: props.asset.id, symbol: symbol.value,
+      horizon: p.timeframe, confidence: c, previous: p.confidence,
+    })
+  }
+}
 
 /** Hours of past and future, once the user has dragged an end of the date axis. */
 const windowSpan = ref<{ pastH: number; futureH: number } | null>(null)
@@ -92,6 +132,7 @@ const futureHours = computed(() => windowSpan.value?.futureH ?? H.value.hours)
 
 function pickHorizon(id: string) {
   if (!HORIZONS.some(h => h.id === id)) return
+  horizonChosen.value = true
   horizonId.value = id
   windowSpan.value = null
   priceSpan.value = null
@@ -103,6 +144,7 @@ const MAX_FUTURE = HORIZONS[HORIZONS.length - 1]!.hours * 1.2
 const MAX_PAST = MAX_FUTURE * PAST_PER_HORIZON
 
 function onWindow(edge: 'start' | 'end', t: number) {
+  horizonChosen.value = true
   const n = now.value
   let pastH = pastHours.value
   let futureH = futureHours.value
@@ -255,7 +297,7 @@ function writeCall(prev: Prediction | null, stops: { t: number; price: number }[
     targetDate: new Date(end.t).toISOString(),
     targetTs: end.t,
     horizonHours: Math.round(((end.t - made) / HOUR) * 100) / 100,
-    confidence: prev?.confidence ?? 3,
+    confidence: prev ? clampConfidence(prev.confidence) : confidence.value,
     note: prev?.note ?? '',
     legs,
     rangeMin: roundPrice(r.min),
@@ -284,13 +326,16 @@ function place(t: number, price: number) {
 }
 
 function removeStop(p: Prediction, index: number) {
+  if (!canWithdrawCall(p)) return // resolved / past target: the call is a record
   const left = dropStop(userStops(p), index)
   if (!left.length) { removeCall(p); return }
   const saved = writeCall(p, left)
   if (saved) logCall('drop', saved, pathPattern(saved.currentPrice, left))
 }
 
+/** Withdraw a call: only while it is pending and its target is still ahead. */
 function removeCall(p: Prediction) {
+  if (!canWithdrawCall(p)) return
   const stops = userStops(p)
   store.deletePrediction(p.id)
   preview.value = null
@@ -466,7 +511,7 @@ defineExpose({
 
     <div class="pp-rest">
     <div class="pp-bar">
-      <div class="pp-horizons" role="group" aria-label="Prediction horizon">
+      <div class="pp-horizons" role="group" aria-label="Prediction horizon" :title="horizonNote || undefined">
         <button
           v-for="h in HORIZONS" :key="h.id" type="button"
           class="pp-h" :class="{ active: h.id === H.id, bull: mineOn(h.id) && mineOn(h.id)!.predictedChangePct >= 0, bear: mineOn(h.id) && mineOn(h.id)!.predictedChangePct < 0 }"
@@ -482,6 +527,20 @@ defineExpose({
     </div>
 
     <div class="pp-foot">
+      <span class="pp-conf" role="group" aria-label="Confidence in this call, 1 to 5">
+        <span class="pp-k">Confidence</span>
+        <button
+          v-for="lv in CONFIDENCE_LEVELS" :key="lv" type="button"
+          class="pp-c" :class="{ on: lv <= shownConfidence }"
+          :aria-pressed="lv === shownConfidence"
+          :disabled="!!existing && !canWithdrawCall(existing)"
+          :title="`${lv} · ${CONFIDENCE_LABEL[lv]}${existing ? ' (updates your pending call)' : ' (for your next call)'}`"
+          @click="setConfidence(lv)"
+        >{{ lv }}</button>
+        <span class="pp-muted">{{ CONFIDENCE_LABEL[shownConfidence] }}</span>
+        <NuxtLink v-if="confidenceFromSettings" :to="SETTINGS_HREF.default_confidence" class="pp-from"
+          title="Your default confidence (Settings › Primary values). Pick a level to change it for this call.">from Settings</NuxtLink>
+      </span>
       <span class="pp-range">
         Range ({{ pastLabel }} of history{{ boost ? `, widened ×${(1 + boost).toFixed(2)}` : '' }}):
         <b class="down">{{ fmtAxisPrice(range.min, kind) }}</b> – <b class="up">{{ fmtAxisPrice(range.max, kind) }}</b>
@@ -510,7 +569,9 @@ defineExpose({
           <span class="pp-muted">by {{ zonedTarget(targetTsOf(p), horizonById(p.timeframe).hours) }}</span>
           <span class="pp-muted pp-made">made {{ shortDate(p.timestamp) }}<template v-if="userStops(p).length > 1"> · {{ userStops(p).length }} steps</template></span>
           <span class="pp-status" :title="p.status">{{ STATUS_ICON[p.status] ?? '' }}<template v-if="p.accuracyScore !== undefined"> {{ p.accuracyScore }}%</template></span>
-          <button type="button" class="pp-x" :aria-label="`Delete ${p.timeframe} prediction`" @click.stop="removeCall(p)">✕</button>
+          <span class="pp-muted pp-conf-mini" :title="`Confidence ${clampConfidence(p.confidence)} of 5`">{{ clampConfidence(p.confidence) }}/5</span>
+          <button v-if="canWithdrawCall(p)" type="button" class="pp-x" :aria-label="`Withdraw ${p.timeframe} prediction`" title="Withdraw (only while pending)" @click.stop="removeCall(p)">✕</button>
+          <span v-else class="pp-lock" :title="lockedReason(p)" :aria-label="lockedReason(p)">🔒</span>
         </div>
         <div
           v-for="(s, i) in userStops(p).length > 1 ? userStops(p) : []" :key="`${p.id}:${i}`"
@@ -522,7 +583,7 @@ defineExpose({
           </svg>
           <span class="pp-num" :class="stepDir(p, i)">{{ fmtAxisPrice(s.price, kind) }}</span>
           <span class="pp-muted">by {{ zonedTarget(s.t, horizonById(p.timeframe).hours) }}</span>
-          <button type="button" class="pp-x" :aria-label="`Delete step ${i + 1} of the ${p.timeframe} prediction`" @click.stop="removeStop(p, i)">✕</button>
+          <button v-if="canWithdrawCall(p)" type="button" class="pp-x" :aria-label="`Delete step ${i + 1} of the ${p.timeframe} prediction`" @click.stop="removeStop(p, i)">✕</button>
         </div>
       </template>
 
@@ -627,6 +688,20 @@ defineExpose({
 .pp-status { min-width: 16px; text-align: center; }
 .pp-x { min-width: 26px; min-height: 24px; border: 0; border-radius: 5px; background: transparent; color: var(--text-gray, #9aa0a6); cursor: pointer; }
 .pp-x:hover { color: var(--app-color-down, #ff4444); background: rgba(255,68,68,.08); }
+.pp-lock { min-width: 26px; text-align: center; font-size: 0.6rem; opacity: .55; cursor: help; }
+.pp-conf { display: inline-flex; align-items: center; gap: 3px; }
+.pp-conf .pp-k { margin-right: 2px; }
+.pp-from { font-size: 0.62rem; color: var(--primary-blue); text-decoration: none; margin-left: 4px; }
+.pp-from:hover { text-decoration: underline; }
+.pp-c {
+  min-width: 24px; min-height: 24px; padding: 0 5px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border-primary, rgba(255,255,255,.14)); background: transparent;
+  color: var(--text-gray, #9aa0a6); font: 700 0.64rem/1 var(--font-market-data, inherit);
+}
+.pp-c.on { color: var(--text-white, #fff); border-color: rgba(120,170,255,.7); background: rgba(120,170,255,.14); }
+.pp-c:disabled { cursor: not-allowed; opacity: .5; }
+.pp-c:focus-visible { outline: 2px solid var(--text-white, #fff); outline-offset: 1px; }
+.pp-conf-mini { min-width: 22px; text-align: right; }
 .pp-friends {
   align-self: flex-end; display: inline-flex; align-items: center;
   min-height: 26px; padding: 1px 8px 1px 2px; border-radius: 999px; cursor: pointer;

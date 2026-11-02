@@ -1,7 +1,12 @@
 <script setup lang="ts">
+// One tab-title rule: "<page> · Strades". Pages either call useHead({ title }) or set definePageMeta({ title })
+// (the name from utils/routes.ts); the route meta title is used when the page sets no head title.
+const route = useRoute()
 useHead({
+  title: () => (typeof route.meta.title === 'string' ? route.meta.title : undefined),
   titleTemplate: (titleChunk) => {
-    return titleChunk ? `${titleChunk} - Strades` : 'Strades';
+    if (!titleChunk) return 'Strades'
+    return /Strades$/.test(titleChunk) ? titleChunk : `${titleChunk} · Strades`
   },
   meta: [
     { name: 'description', content: 'Strades Social Trading Platform' },

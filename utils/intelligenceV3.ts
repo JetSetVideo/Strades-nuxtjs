@@ -204,17 +204,18 @@ export function intelTypicalityWords(t: IntelTypicality | null | undefined): Int
   if (!t || !finite(t.unusual_pct)) return { level: 'unknown', title: 'Not placed yet', line: 'Your profile is placed once a few of your calls and reads are measured.', pct: null }
   const p = clamp(t.unusual_pct, 0, 100)
   const r = Math.round(p)
-  if (p < 25) return { level: 'typical', title: 'A typical profile', line: `Close to the community's centre: more unusual than only ${r}% of profiles.`, pct: p }
-  if (p < 75) return { level: 'ordinary', title: 'An ordinary profile', line: `Neither central nor rare: more unusual than ${r}% of profiles.`, pct: p }
-  if (p <= 95) return { level: 'distinctive', title: 'A distinctive profile', line: `Your mix of habits stands out: more unusual than ${r}% of profiles.`, pct: p }
+  // thresholds on the rounded value the sentence shows, so title and number never disagree (74.6 → "75%")
+  if (r < 25) return { level: 'typical', title: 'A typical profile', line: `Close to the community's centre: more unusual than only ${r}% of profiles.`, pct: p }
+  if (r < 75) return { level: 'ordinary', title: 'An ordinary profile', line: `Neither central nor rare: more unusual than ${r}% of profiles.`, pct: p }
+  if (r <= 95) return { level: 'distinctive', title: 'A distinctive profile', line: `Your mix of habits stands out: more unusual than ${r}% of profiles.`, pct: p }
   return { level: 'rare', title: 'A rare profile', line: `Few traders combine habits like yours: more unusual than ${r}% of profiles.`, pct: p }
 }
 
-/** PageRank influence: pct (0..100) drives the words, rank (× the average) is shown alongside. */
+/** PageRank influence: pct (0..100) drives the words, rank (× the median trader) is shown alongside. */
 export function intelInfluenceWords(inf: IntelInfluence | null | undefined): IntelWords & { level: 'high' | 'middle' | 'low' | 'unknown'; rank: string } {
   if (!inf || !finite(inf.pct)) return { level: 'unknown', title: 'Not measured yet', line: 'Influence appears once others have endorsed or followed some of your calls.', pct: null, rank: '—' }
   const p = clamp(inf.pct, 0, 100)
-  const rank = finite(inf.rank) ? `${inf.rank.toFixed(2)}× the average` : '—'
+  const rank = finite(inf.rank) ? `${inf.rank.toFixed(2)}× a typical trader` : '—'
   const r = Math.round(p)
   if (p >= 75) return { level: 'high', title: 'Others often end up on your side', line: `After you call, others come round to your side more than for ${r}% of traders.`, pct: p, rank }
   if (p >= 25) return { level: 'middle', title: 'Some pull on others', line: `Others come round to your side about as often as for most traders (above ${r}% of them).`, pct: p, rank }

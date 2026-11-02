@@ -6,6 +6,7 @@ import { useAssetsStore } from '~/stores/assets'
 import { useAgentsStore } from '~/stores/agents'
 import { useCommunityStore } from '~/stores/community'
 import { useAgentTracker } from '~/composables/useAgentTracker'
+import { ROUTE_AREAS, searchPages } from '~/utils/routes'
 
 const props = defineProps({
   searchHistory: { type: Array as PropType<SearchHistory[]>, default: () => [] },
@@ -42,20 +43,20 @@ interface ResultGroup {
   results: Result[]
 }
 
-const PAGES: Result[] = [
-  { type: 'page', id: 'p-prices', label: 'Prices', hint: 'Live markets', to: '/prices', icon: '↗' },
-  { type: 'page', id: 'p-news', label: 'News', hint: 'Sentiment + editorial', to: '/news', icon: '◯' },
-  { type: 'page', id: 'p-wallet', label: 'Wallet', hint: '100% allocation', to: '/wallet', icon: '◔' },
-  { type: 'page', id: 'p-lab', label: 'Trading Lab', hint: 'Strategies, Agents, Bots', to: '/strategies', icon: '◈' },
-  { type: 'page', id: 'p-chat', label: 'Chat', hint: 'Conversations', to: '/chat', icon: '◴' },
-  { type: 'page', id: 'p-creator', label: 'Creator', hint: 'Build a strategy', to: '/creator', icon: '✚' },
-  { type: 'page', id: 'p-profile', label: 'Profile', to: '/profile', icon: '◉' },
-  { type: 'page', id: 'p-settings', label: 'Settings', to: '/settings', icon: '⚙' },
-  { type: 'page', id: 'p-notifications', label: 'Notifications', to: '/notifications', icon: '◔' },
-  { type: 'page', id: 'p-leaderboard', label: 'Leaderboard', to: '/leaderboard', icon: '☷' },
-  { type: 'page', id: 'p-quest', label: 'Quests', to: '/quest', icon: '◈' },
-  { type: 'page', id: 'p-shop', label: 'Shop', to: '/shop', icon: '◫' }
-]
+// Page entries come from utils/routes.ts so search shows the same names as the
+// drawer, the dock and the page titles (no more "Trading Lab" for the Lab).
+// Area homes (Prices, News, Wallet, Lab, Chat, Profile) first: the empty-query list shows 6.
+const AREA_HOMES = ROUTE_AREAS.map(a => a.home)
+const PAGES: Result[] = [...searchPages()]
+  .sort((a, b) => (AREA_HOMES.includes(b.path) ? 1 : 0) - (AREA_HOMES.includes(a.path) ? 1 : 0))
+  .map(r => ({
+  type: 'page' as const,
+  id: `p-${r.path.replace(/\W+/g, '-').replace(/^-|-$/g, '').toLowerCase()}`,
+  label: r.label,
+  hint: r.hint,
+  to: r.path,
+  icon: r.icon,
+}))
 
 /**
  * Forgiving match score: exact substrings rank by how early they start;

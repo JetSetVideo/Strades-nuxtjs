@@ -2,7 +2,7 @@
   <div class="trade">
     <header class="head">
       <div>
-        <h1>Trade with bots</h1>
+        <h1>{{ pageTitle }}</h1>
         <p>Link a crypto wallet, fund bots, and let them trade every liquid market. <b>Paper mode</b>: real prices, simulated dollars.</p>
       </div>
       <select v-if="wallets.length" v-model="walletId" class="wsel">
@@ -49,7 +49,7 @@
         <div><span>Address</span><b class="mono">{{ wallet.address }}</b></div>
         <div><span>Free cash</span><b>{{ usd(+wallet.cash_usd) }}</b></div>
         <div><span>In bots</span><b>{{ usd(+wallet.allocated_usd) }}</b></div>
-        <div><span>Bot P&L (live)</span><b :class="livePnl >= 0 ? 'up' : 'down'">{{ usd(livePnl) }}</b></div>
+        <div><span>Bot P&L (live)</span><b :class="livePnl >= 0 ? 'up' : 'down'">{{ pnl(livePnl) }}</b></div>
         <button class="link" @click="adding = true">+ wallet</button>
       </section>
 
@@ -89,7 +89,7 @@
           <tbody>
             <tr v-for="e in ledger" :key="e.id">
               <td>{{ e.id }}</td><td>{{ e.kind }}</td><td>{{ usd(+e.amount_usd) }}</td>
-              <td :class="+e.pnl_usd >= 0 ? 'up' : 'down'">{{ e.kind === 'release' ? usd(+e.pnl_usd) : '' }}</td>
+              <td :class="+e.pnl_usd >= 0 ? 'up' : 'down'">{{ e.kind === 'release' ? pnl(+e.pnl_usd) : '' }}</td>
               <td class="mono">{{ e.ref.slice(0, 8) }}</td><td>{{ usd(+e.cash_after) }}</td>
             </tr>
           </tbody>
@@ -101,8 +101,12 @@
 
 <script setup lang="ts">
 import { TradingApiError, useTradingApi, type BotStatus, type LedgerEntry, type TradingWallet } from '~/composables/useTradingApi'
+import { routeLabel } from '~/utils/routes'
+import { fmtMoneyKpi } from '~/utils/valueTree'
 
-definePageMeta({ title: 'Trade', layout: 'default' })
+// Title literal = routeLabel('/trade') (tests/pageTitles.test.ts; definePageMeta cannot call it).
+definePageMeta({ title: 'Trade with bots', layout: 'default' })
+const pageTitle = routeLabel('/trade')
 
 const api = useTradingApi()
 const { enrich } = usePredictMarkets()
@@ -134,7 +138,9 @@ function leaveDemo(mode: 'register' | 'login') {
 
 const wallet = computed(() => wallets.value.find(w => w.id === walletId.value))
 const livePnl = computed(() => bots.value.filter(b => b.alive).reduce((s, b) => s + (b.pnl || 0), 0))
-const usd = (v: number) => (v ?? 0).toLocaleString(APP_LOCALE, { style: 'currency', currency: 'USD' })
+// Money: fmtMoneyKpi (2 dp below $1M, compact above; utils/valueTree.ts); P&L cells are signed ("+$2.00", "−$9.00", "$0.00").
+const usd = (v: number) => fmtMoneyKpi(v ?? 0)
+const pnl = (v: number) => fmtMoneyKpi(v ?? 0, { signed: true })
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 
 const guard = async (fn: () => Promise<void>) => {

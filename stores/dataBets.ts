@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { useCreditsStore } from '~/stores/credits'
 import { useAssetsStore } from '~/stores/assets'
 import { useCurrentUser } from '~/composables/useCurrentUser'
+import { userGet, userSet } from '~/utils/userStorage'
 import {
   clampStake, computeParimutuelPayout, MIN_STAKE,
   type DataChallenge, type DataBet, type ChallengeKind, type BetSide
@@ -66,7 +67,7 @@ export const useDataBetsStore = defineStore('dataBets', {
     hydrate() {
       if (this.hydrated || typeof window === 'undefined') return
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY)
+        const raw = userGet(STORAGE_KEY)
         if (raw) {
           const parsed = JSON.parse(raw)
           this.challenges = parsed.challenges ?? []
@@ -82,7 +83,7 @@ export const useDataBetsStore = defineStore('dataBets', {
     persist() {
       if (typeof window === 'undefined') return
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        userSet(STORAGE_KEY, JSON.stringify({
           challenges: this.challenges,
           bets: this.bets,
           nextChallengeId: this.nextChallengeId,

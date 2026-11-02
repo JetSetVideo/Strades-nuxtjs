@@ -48,7 +48,7 @@ describe('tense', () => {
 describe('local adapters', () => {
   const paper = [
     { id: 'p1', user_id: 'u', timestamp: iso(NOW - 2 * D), asset_id: 'btc', asset_symbol: 'BTC', side: 'buy', wallet_pct: 5,
-      simulated_price: 100, notional_value: 500, hypothetical_pnl_pct: 2, hypothetical_pnl_value: 10, is_paper: true, status: 'open' },
+      simulated_price: 100, notional_value: 500, hypothetical_pnl_pct: 2, hypothetical_pnl_value: 10, mark_price: 102, is_paper: true, status: 'open' },
     { id: 'p2', user_id: 'u', timestamp: iso(NOW - 5 * D), asset_id: 'eth', asset_symbol: 'ETH', side: 'sell', wallet_pct: 2,
       simulated_price: 50, notional_value: 200, hypothetical_pnl_pct: 0, hypothetical_pnl_value: 0, is_paper: true,
       status: 'closed', closed_at: iso(NOW - 3 * D), closed_price: 45, realized_pnl_pct: 10, realized_pnl_value: 20 },
@@ -57,6 +57,11 @@ describe('local adapters', () => {
     const [o, c] = fromPaperTrades(paper, NOW)
     expect(o).toMatchObject({ tense: 'present', kind: 'paper_open', mode: 'paper', pnl_usd: 10, start_at: paper[0].timestamp })
     expect(c).toMatchObject({ tense: 'past', kind: 'paper_closed', pnl_usd: 20, at: paper[1].closed_at })
+  })
+  it('paper: an open trade with no live mark has unknown P&L (null), not 0', () => {
+    const [o] = fromPaperTrades([{ ...paper[0], mark_price: null, hypothetical_pnl_pct: 0, hypothetical_pnl_value: 0 }], NOW)
+    expect(o).toMatchObject({ kind: 'paper_open', pnl_usd: null, pct: null })
+    expect(o!.subtitle).toContain('no live price yet')
   })
   it('local calls already on the server are skipped; demo seed calls are sample', () => {
     const preds = [

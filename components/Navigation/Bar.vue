@@ -9,6 +9,7 @@ import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vu
 import { useRoute } from 'vue-router'
 import { useNavPanels } from '~/composables/useNavPanels'
 import { activePanelFor, type PanelId } from '~/utils/navIcons'
+import { dockFor } from '~/utils/routes'
 import PricesIcon from '~/components/Navigation/Icons/PricesIcon.vue'
 import NewsGlobeIcon from '~/components/Navigation/Icons/NewsGlobeIcon.vue'
 import WalletIcon from '~/components/Navigation/Icons/WalletIcon.vue'
@@ -29,7 +30,9 @@ const { panels } = useNavPanels()
 const current = (p: { id: PanelId; to: string }) =>
   p.id !== activeId.value ? undefined : route.path === p.to ? 'page' : 'true'
 const { playHover, playClick, playActiveRoute } = useNavSound()
-const activeId = computed(() => activePanelFor(route.path, panels.value))
+// The lit tab = the dock of the page's area in utils/routes.ts (exact for
+// /profile/[id] vs /profile); prefixes only cover paths outside the registry.
+const activeId = computed(() => dockFor(route.path) ?? activePanelFor(route.path, panels.value))
 watch(activeId, () => playActiveRoute())
 
 // Live per-user readouts differ between the server render and the client, so

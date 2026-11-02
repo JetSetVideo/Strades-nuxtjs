@@ -5,6 +5,8 @@
  * optional geolocation, and outcome evaluation once the target date passes.
  */
 import { defineStore } from 'pinia'
+import { canWithdrawCall, lockedReason } from '~/utils/callRules'
+import { userGet, userSet } from '~/utils/userStorage'
 
 export type PredictionDirection = 'bullish' | 'bearish' | 'neutral'
 export type PredictionStatus    = 'pending' | 'accurate' | 'missed' | 'expired'
@@ -82,14 +84,14 @@ const TIMEFRAME_DAYS: Record<string, number> = {
 function loadFromStorage(): Prediction[] {
   if (typeof window === 'undefined') return []
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = userGet(STORAGE_KEY)
     return raw ? (JSON.parse(raw) as Prediction[]) : []
   } catch { return [] }
 }
 
 function saveToStorage(predictions: Prediction[]): void {
   if (typeof window === 'undefined') return
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(predictions)) } catch {}
+  try { userSet(STORAGE_KEY, JSON.stringify(predictions)) } catch {}
 }
 
 export function computeTargetDate(timeframe: string): string {
@@ -342,10 +344,18 @@ export const usePredictionsStore = defineStore('predictions', {
       }
     },
 
-    /** Delete a prediction by ID */
-    deletePrediction(id: string) {
-      this.predictions = this.predictions.filter(p => p.id !== id)
+    /** Withdraw a call. Refused (returns false, nothing removed) once it is resolved or past its target:
+     *  a call on record cannot be erased (utils/callRules.ts canWithdrawCall). */
+    deletePrediction(id: string): boolean {
+      const p = this.predictions.find(x => x.id === id)
+      if (!p) return false
+      if (!canWithdrawCall(p)) {
+        console.warn(`[predictions] delete refused for ${id}: ${lockedReason(p)}`)
+        return false
+      }
+      this.predictions = this.predictions.filter(x => x.id !== id)
       saveToStorage(this.predictions)
+      return true
     },
 
     /** Clear all predictions (dev/reset) */

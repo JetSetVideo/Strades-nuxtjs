@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePageAction } from '~/composables/usePageAction'
+import { routeLabel } from '~/utils/routes'
 
 interface ContextAction {
   id: string
@@ -42,7 +43,7 @@ const ACTIONS: Array<{ match: (path: string) => boolean; items: ContextAction[] 
   {
     match: p => p.startsWith('/creator'),
     items: [
-      { id: 'strategy-lab', label: 'Lab', title: 'Back to strategy lab', icon: 'watch', tone: 'blue', to: '/strategies' }
+      { id: 'strategy-lab', label: routeLabel('/strategies'), title: `Back to ${routeLabel('/strategies')}`, icon: 'watch', tone: 'blue', to: '/strategies' }
     ]
   }
 ]

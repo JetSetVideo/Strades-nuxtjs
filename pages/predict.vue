@@ -20,10 +20,10 @@
 
     <p v-if="error" class="err">{{ error }}</p>
     <p v-else-if="loading && !markets.length" class="muted">Loading markets…</p>
-    <p v-else class="muted small">{{ visibleMarkets.length.toLocaleString(APP_LOCALE) }} of {{ total.toLocaleString(APP_LOCALE) }} markets · sorted by 24 h volume · prices in ¢ (100¢ = $1 payout if right)</p>
+    <p v-else class="muted small">{{ visibleMarkets.length.toLocaleString(APP_LOCALE) }} of {{ total.toLocaleString(APP_LOCALE) }} markets<template v-if="hiddenRows"> (first {{ shownMarkets.length.toLocaleString(APP_LOCALE) }} shown)</template> · sorted by 24 h volume · prices in ¢ (100¢ = $1 payout if right)</p>
 
     <ul class="list">
-      <li v-for="m in visibleMarkets" :key="m.ticker" class="mkt" :class="{ open: selected === m.ticker }">
+      <li v-for="m in shownMarkets" :key="m.ticker" class="mkt" :class="{ open: selected === m.ticker }">
         <div class="mkt-main" role="button" tabindex="0" :aria-expanded="selected === m.ticker"
           @click="toggle(m.ticker)" @keydown.enter="toggle(m.ticker)">
           <div class="mkt-title">
@@ -44,6 +44,15 @@
         <PredictBotForm v-if="selected === m.ticker" :market="m" @launched="onLaunched" />
       </li>
     </ul>
+    <!-- 50 rows at a time (a 200-row list was 2.7k DOM nodes: board-optimization O8). -->
+    <div v-if="hiddenRows" class="more">
+      <button type="button" class="more-btn" @click="shown = nextShown(shown, visibleMarkets.length)">
+        Show {{ Math.min(LIST_PAGE, hiddenRows) }} more
+      </button>
+      <button type="button" class="more-btn ghost" @click="shown = visibleMarkets.length">
+        Show all ({{ hiddenRows.toLocaleString(APP_LOCALE) }} left)
+      </button>
+    </div>
     <p v-if="launchedMsg" class="ok" role="status">{{ launchedMsg }}</p>
   </div>
 </template>
@@ -51,6 +60,7 @@
 <script setup lang="ts">
 import type { PredictMarket } from '~/server/api/predict/markets.get'
 import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
+import { LIST_PAGE, hiddenCount, listWindow, nextShown } from '~/utils/listWindow'
 
 definePageMeta({ title: 'Predict', layout: 'default' })
 
@@ -84,6 +94,11 @@ async function load() {
 let t: ReturnType<typeof setTimeout> | undefined
 const debounced = () => { clearTimeout(t); t = setTimeout(load, 300) }
 const visibleMarkets = computed(() => markets.value.filter(m => allowsValue(m.category, catStates)))
+// Render the first 50; a new search or category starts at 50 again.
+const shown = ref(LIST_PAGE)
+const shownMarkets = computed(() => listWindow(visibleMarkets.value, shown.value))
+const hiddenRows = computed(() => hiddenCount(shown.value, visibleMarkets.value.length))
+watch([q, catStates], () => { shown.value = LIST_PAGE }, { deep: true })
 const toggle = (ticker: string) => { selected.value = selected.value === ticker ? null : ticker }
 function onLaunched(name: string) {
   launchedMsg.value = `Bot launched on "${name}". Follow it in Trade, or see everyone's public bots in Community.`
@@ -114,6 +129,10 @@ h1 { margin: 0 0 .2rem; }
 .small { font-size: .75rem; }
 .err { color: var(--app-color-down, #ff4444); }
 .ok { color: var(--app-color-up, #00ff88); }
+.more { display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap; }
+.more-btn { padding: .45rem .9rem; border-radius: 8px; border: 1px solid var(--border-primary); background: var(--surface-raised, transparent); color: var(--text-primary); cursor: pointer; font: inherit; font-size: .82rem; }
+.more-btn.ghost { background: transparent; color: var(--text-secondary); }
+.more-btn:hover { border-color: var(--border-accent); }
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
 .mkt { border: 1px solid var(--border-primary); border-radius: var(--radius-md, 10px); background: var(--surface-raised, transparent); }
 .mkt.open { border-color: var(--border-accent); }

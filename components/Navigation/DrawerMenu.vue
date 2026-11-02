@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ROUTE_AREAS, areaOf, drawerFooter, drawerGroups, findRoute, type AreaId, type RouteEntry } from '~/utils/routes'
 
 const props = withDefaults(defineProps<{
   /** When true, hide the built-in trigger button (caller controls open externally). */
@@ -36,91 +37,36 @@ const signOut = () => logout()
 
 interface MenuItem { label: string; to: string; hint: string; icon: string }
 interface MenuGroup {
-  key: string
+  key: AreaId
   title: string
   blurb: string
   items: MenuItem[]
-  /** Detail routes that belong here even though their index is not a child link. */
-  also: string[]
 }
 
-// Bottom bar already covers Prices, News, Wallet, Lab (/strategies), and Chat.
-// Landing (/) and sign-in (/auth) sit outside the app. Detail routes need an id.
-const GROUPS: MenuGroup[] = [
-  {
-    key: 'trade',
-    title: 'Trade',
-    blurb: 'Paper wallets, prediction bots, public bots, and the strategies that run them',
-    also: ['/bots', '/strategy', '/summarizer'],
-    items: [
-      { label: 'Trade', to: '/trade', hint: 'Wallet, bots, and the ledger', icon: '⇅' },
-      { label: 'Predict', to: '/predict', hint: 'Paper bot on a market', icon: '◐' },
-      { label: 'Community bots', to: '/community', hint: 'Public bots from other traders', icon: '◎' },
-      { label: 'Strategy Creator', to: '/creator', hint: 'Build rules and backtest them', icon: '✎' },
-    ],
-  },
-  {
-    key: 'markets',
-    title: 'Markets',
-    blurb: 'Chart, data catalog, calendar, deal pipeline, history, and exposure',
-    also: [],
-    items: [
-      { label: 'Candle Chart', to: '/CandleChart', hint: 'Full-screen chart', icon: '▥' },
-      { label: 'Data Catalog', to: '/data', hint: 'Series an avatar can pull', icon: '▦' },
-      { label: 'Calendar', to: '/calendar', hint: 'Sessions and event days', icon: '▣' },
-      { label: 'Deals', to: '/deals', hint: 'Pipeline from idea to fill', icon: '⟷' },
-      { label: 'History', to: '/historic', hint: 'What already printed', icon: '⌖' },
-      { label: 'Risk & Exposure', to: '/risk', hint: 'Exposure across the book', icon: '⚠' },
-    ],
-  },
-  {
-    key: 'compete',
-    title: 'Compete',
-    blurb: 'Avatars, arena, quests, standings, and strategies other people sell',
-    also: [],
-    items: [
-      { label: 'Avatar Marketplace', to: '/agents', hint: 'Bots trained with other people', icon: '☰' },
-      { label: 'Arena', to: '/arena', hint: 'Post a read, stake credits', icon: '⚔' },
-      { label: 'Quests', to: '/quest', hint: 'Shared drills', icon: '◈' },
-      { label: 'Leaderboard', to: '/leaderboard', hint: 'Who is ahead on paper', icon: '☷' },
-      { label: 'Strategy Shop', to: '/shop', hint: 'Browse strategies to buy or rent', icon: '◫' },
-    ],
-  },
-  {
-    key: 'you',
-    title: 'You',
-    blurb: 'Profile, settings, alerts, and the API accounts tied to you',
-    also: [],
-    items: [
-      { label: 'Profile', to: '/profile', hint: 'Your record and trained avatars', icon: '◉' },
-      { label: 'Insights', to: '/insights', hint: 'How you trade, who you trade well with', icon: '◎' },
-      { label: 'Settings', to: '/settings', hint: 'Appearance, chart, and timezone', icon: '⚙' },
-      { label: 'Notifications', to: '/notifications', hint: 'Alerts from avatars and the desk', icon: '◔' },
-      { label: 'API Connections', to: '/apis', hint: 'Broker feeds that train avatars', icon: '⇄' },
-    ],
-  },
-  {
-    key: 'help',
-    title: 'Help',
-    blurb: 'How the desk works, what Strades is, and how to reach the team',
-    also: [],
-    items: [
-      { label: 'Help', to: '/help', hint: 'How to train an avatar', icon: '?' },
-      { label: 'About', to: '/about', hint: 'What Strades is', icon: '★' },
-      { label: 'Contact', to: '/contact', hint: 'Reach the desk', icon: '✉' },
-    ],
-  },
-]
+const toItem = (r: RouteEntry): MenuItem => ({ label: r.label, to: r.path, hint: r.hint ?? '', icon: r.icon ?? '' })
+
+// Groups = the six areas of utils/routes.ts, items = their drawer pages, so every
+// label here is the page's own title. Detail routes (an id in the path) open the
+// group of their area through `areaOf`. Help / About / Contact sit in the footer.
+const GROUPS: MenuGroup[] = drawerGroups()
+  .filter(group => group.items.length)
+  .map(group => ({ key: group.id, title: group.label, blurb: group.blurb, items: group.items.map(toItem) }))
+const FOOTER: MenuItem[] = drawerFooter().map(toItem)
 
 const route = useRoute()
 
-const matches = (path: string, to: string) => path === to || path.startsWith(`${to}/`)
+const matches = (path: string, to: string) => {
+  const p = path.toLowerCase(), t = to.toLowerCase()
+  return p === t || p.startsWith(`${t}/`)
+}
 
 const groupHasRoute = (group: MenuGroup) => {
   const path = route.path
-  return group.items.some(item => matches(path, item.to))
-    || group.also.some(to => matches(path, to))
+  return group.items.some(item => isCurrent(item.to)) || areaOf(path) === group.key
 }
+
+/** Link is the page, or a detail page of the same area (/agents/a1 → Avatar Marketplace; /profile/u_2 is not "Profile"). */
+const isCurrent = (to: string) => matches(route.path, to) && areaOf(route.path) === areaOf(to)
 
 const openGroups = reactive<Record<string, boolean>>(
   Object.fromEntries(GROUPS.map(group => [group.key, true]))
@@ -138,13 +84,10 @@ watch(isOpen, (v) => { if (v) expandCurrent() })
 const toggleGroup = (key: string) => { openGroups[key] = !openGroups[key] }
 
 const here = computed(() => {
-  const path = route.path
-  for (const group of GROUPS) {
-    const item = group.items.find(entry => matches(path, entry.to))
-    if (item) return `${group.title} / ${item.label}`
-    if (group.also.some(to => matches(path, to))) return group.title
-  }
-  return 'Menu'
+  const entry = findRoute(route.path)
+  if (!entry) return 'Menu'
+  const area = ROUTE_AREAS.find(a => a.id === entry.area)
+  return entry.drawer === 'footer' || !area ? entry.label : `${area.label} / ${entry.label}`
 })
 
 defineExpose({ open: isOpen, toggle, close })
@@ -201,9 +144,9 @@ defineExpose({ open: isOpen, toggle, close })
                     :key="item.to"
                     :to="item.to"
                     class="tree-child"
-                    :class="{ 'is-current': matches(route.path, item.to) }"
+                    :class="{ 'is-current': isCurrent(item.to) }"
                     :title="item.hint"
-                    :aria-current="matches(route.path, item.to) ? 'page' : undefined"
+                    :aria-current="isCurrent(item.to) ? 'page' : undefined"
                     @click="close"
                   >
                     <span class="tree-child-icon" aria-hidden="true">{{ item.icon }}</span>
@@ -216,6 +159,18 @@ defineExpose({ open: isOpen, toggle, close })
           </nav>
 
           <footer class="drawer-foot">
+            <nav class="foot-links" aria-label="Help">
+              <NuxtLink
+                v-for="item in FOOTER"
+                :key="item.to"
+                :to="item.to"
+                class="foot-link"
+                :class="{ 'is-current': isCurrent(item.to) }"
+                :title="item.hint"
+                :aria-current="isCurrent(item.to) ? 'page' : undefined"
+                @click="close"
+              >{{ item.label }}</NuxtLink>
+            </nav>
             <button type="button" class="signout" @click="close(); signOut()">Sign out</button>
           </footer>
         </aside>
@@ -528,6 +483,23 @@ defineExpose({ open: isOpen, toggle, close })
   border-radius: var(--drawer-tree-radius);
 }
 .signout:hover { background: var(--drawer-tree-signout-hover-bg); }
+
+/* Help / About / Contact: one quiet row above Sign out (not an area). */
+.drawer-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 0.5rem; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 0.1rem 0.5rem; }
+.foot-link {
+  padding: 0.4rem 0.2rem;
+  color: var(--drawer-tree-signout-color);
+  font-size: var(--drawer-tree-signout-size);
+  text-decoration: none;
+  border-radius: var(--drawer-tree-radius);
+}
+.foot-link:hover { background: var(--drawer-tree-signout-hover-bg); }
+.foot-link.is-current { color: var(--drawer-tree-current-color); }
+.foot-link:focus-visible {
+  outline: var(--drawer-tree-focus-width) solid var(--drawer-tree-focus);
+  outline-offset: var(--drawer-tree-focus-offset);
+}
 
 @media (min-width: 640px) {
   .brand-word { display: inline; }

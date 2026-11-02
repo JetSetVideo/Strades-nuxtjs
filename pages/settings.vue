@@ -26,9 +26,10 @@ function onPicture(event: Event) {
   if (file) face.setAvatar(file)
 }
 const signingOut = ref(false)
+const forgetDevice = ref(false)
 async function signOut() {
   signingOut.value = true
-  try { await auth.logout() } finally { signingOut.value = false }
+  try { await auth.logout({ forgetDevice: forgetDevice.value }) } finally { signingOut.value = false }
 }
 
 const claimEmail = ref('')
@@ -73,7 +74,8 @@ async function issueDemoCode() {
 
 const tradingApi = useTradingApi()
 // Never for demo visitors: reset acts on EVERY user's bots in the shared session.
-const showDevTools = computed(() => import.meta.dev || auth.user.value?.role === 'admin')
+// The server only accepts these from staff accounts (apps/wallets/bot_views.py), so only staff see them.
+const showDevTools = computed(() => auth.user.value?.role === 'admin')
 const devBusy = ref(false)
 const devResult = ref('')
 async function dev(fn: () => Promise<unknown>, label: string) {
@@ -134,6 +136,9 @@ const saveSettings = () => { /* persist later */ }
         </div>
         <button class="btn danger" :disabled="signingOut" @click="signOut">{{ signingOut ? 'Signing out…' : 'Sign out' }}</button>
       </div>
+      <label class="acct-meta forget">
+        <input v-model="forgetDevice" type="checkbox" /> Forget this device when signing out (removes this browser's local data and the demo ID)
+      </label>
       <!-- Demo id: resume this demo on any device (POST /api/auth/demo/resume/). -->
       <div v-if="auth.user.value?.is_demo && !claimed" class="claim" data-testid="demo-id-block">
         <b>Your demo ID</b>
@@ -145,6 +150,9 @@ const saveSettings = () => { /* persist later */ }
         <div class="claim-row">
           <button type="button" class="btn" :disabled="demoCodeBusy" @click="issueDemoCode">
             {{ demoCodeBusy ? 'Issuing…' : demoCode ? 'Issue a new ID (old one stops working)' : 'Show my demo ID' }}
+          </button>
+          <button v-if="demoCode" type="button" class="btn" @click="forgetDemoCode(); demoCode = null">
+            Forget the demo ID on this device
           </button>
         </div>
         <span v-if="demoCodeError" class="claim-err">{{ demoCodeError }}</span>
@@ -203,14 +211,20 @@ const saveSettings = () => { /* persist later */ }
       </UICard>
     </div>
 
+    <!-- Primary values: the roots every derived number is computed from (server-side, apps/users/primary.py). -->
+    <UICard id="primary" title="Primary values">
+      <template #action><UIPill tone="info">Top of the tree</UIPill></template>
+      <SettingsPrimaryValues />
+    </UICard>
+
     <!-- Trading: defaults the trade forms start from. -->
     <UICard title="Trading">
       <template #action><UIPill tone="info">Paper trading</UIPill></template>
       <div class="prefs">
-        <label>Default bot capital (USD)
+        <label>Bot capital when signed out (USD)
           <input type="number" min="10" step="any" inputmode="decimal" :value="prefs.defaultCapital"
             @change="prefs.update({ defaultCapital: Number(($event.target as HTMLInputElement).value) })" />
-          <small>Pre-filled when you launch a bot or run a strategy on a wallet.</small>
+          <small>Signed in, new bots start from <a href="#set-starting_capital">Paper starting capital</a> (Primary values above).</small>
         </label>
         <label>Default re-weight period
           <select :value="prefs.defaultPeriodS" @change="prefs.update({ defaultPeriodS: Number(($event.target as HTMLSelectElement).value) })">
@@ -235,7 +249,7 @@ const saveSettings = () => { /* persist later */ }
     <!-- Developer tools: the replay/roll/reset processes had API endpoints but no control (PROCESSES.md §A6). -->
     <UICard v-if="showDevTools" title="Developer tools">
       <template #action><UIPill tone="warning" show-dot>Developers and admins only</UIPill></template>
-      <p class="dev-note">Drive the shared replay clock that paper bots trade on. The server refuses these outside DEBUG or for non-staff accounts.</p>
+      <p class="dev-note">Drive the shared replay clock that paper bots trade on. The server accepts these from staff accounts only.</p>
       <div class="dev-actions">
         <button class="btn" :disabled="devBusy" @click="dev(() => tradingApi.stepReplay(24), 'Replayed')">Replay +24 bars</button>
         <button class="btn" :disabled="devBusy" @click="dev(() => tradingApi.stepReplay(200), 'Replayed')">Replay +200 bars</button>

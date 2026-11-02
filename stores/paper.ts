@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { useWalletStore } from '~/stores/wallet'
-import { useAllocationStore } from '~/stores/allocation'
+import { useAssetsStore } from '~/stores/assets'
+import { DEFAULT_PAPER_CAPITAL, GUEST_OWNER, livePriceOf, paperMark } from '~/utils/paperMarks'
+import { userGet, userSet } from '~/utils/userStorage'
 
 /**
  * Paper Trading Engine — simulated bets expressed as percentages of the wallet.
@@ -26,10 +27,18 @@ export interface PaperTrade {
   simulated_price: number
   /** Hypothetical position size in wallet currency */
   notional_value: number
-  /** Marked-to-market P&L as % of notional */
+  /** Marked-to-market P&L as % of notional (0 while unmarked: check `mark_price`) */
   hypothetical_pnl_pct: number
-  /** Marked-to-market P&L in wallet currency */
+  /** Marked-to-market P&L in wallet currency (0 while unmarked: check `mark_price`) */
   hypothetical_pnl_value: number
+  /** Live price used for the last mark; null/undefined = no live price → show "—" */
+  mark_price?: number | null
+  marked_at?: string | null
+  /** Capital the % was taken of, and where it came from */
+  capital_usd?: number
+  capital_source?: 'paper_wallet' | 'default'
+  /** Seeded demo row (seedDemo): not a trade the user placed */
+  sample?: boolean
   /** Strategy that triggered this trade (undefined = manual) */
   strategy_id?: string
   /** Avatar that triggered this trade (if swarm-driven) */
@@ -52,7 +61,7 @@ export interface PaperLedgerState {
   nextId: number
 }
 
-const STORAGE_KEY = 'strades_paper_ledger_v1'
+const STORAGE_KEY = 'strades_paper_ledger_v1'   // per user via utils/userStorage (S13)
 
 export const MIN_WALLET_PCT = 0.1
 export const MAX_WALLET_PCT = 50
@@ -69,13 +78,8 @@ export function computeNotional(walletPct: number, totalWalletValue: number): nu
   return (walletPct / 100) * safeTotal
 }
 
-/** Deterministic pseudo-random walk for marking paper P&L */
-const markPrice = (entryPrice: number, ageHours: number, seed: number): number => {
-  // Simple sinusoidal + noise model: prices drift ±3% per 24h
-  const drift = Math.sin(seed * 7 + ageHours / 24) * 0.03
-  const noise = (Math.sin(seed * 13 + ageHours) * 0.5 + 0.5) * 0.01
-  return entryPrice * (1 + drift + noise)
-}
+// Removed (wave 2): P&L used to be a sine wave of the entry price. Marks now come
+// from the live price the asset page shows (utils/paperMarks.ts); no price → "—".
 
 export const usePaperStore = defineStore('paper', {
   state: (): PaperLedgerState => ({
@@ -130,7 +134,7 @@ export const usePaperStore = defineStore('paper', {
     hydrate() {
       if (this.hydrated || typeof window === 'undefined') return
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY)
+        const raw = userGet(STORAGE_KEY)
         if (raw) {
           const parsed = JSON.parse(raw)
           this.trades = parsed.trades ?? []
@@ -144,7 +148,7 @@ export const usePaperStore = defineStore('paper', {
     persist() {
       if (typeof window === 'undefined') return
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        userSet(STORAGE_KEY, JSON.stringify({
           trades: this.trades,
           mode: this.mode,
           nextId: this.nextId
@@ -169,17 +173,22 @@ export const usePaperStore = defineStore('paper', {
       simulated_price: number
       strategy_id?: string
       agent_id?: string
+      /** Signed-in user's id (resolve with useAuth in the component's setup); default "guest" */
+      user_id?: string
+      /** User's paper cash (custody paper wallets); default DEFAULT_PAPER_CAPITAL, labelled */
+      capital_usd?: number | null
+      sample?: boolean
     }): PaperTrade {
-      const walletStore = useWalletStore()
-      const defaultWallet = walletStore.wallets.find(w => w.is_default) ?? walletStore.wallets[0]
-      const totalValue = defaultWallet?.total_value ?? 100_000
+      const fromWallet = typeof args.capital_usd === 'number' && Number.isFinite(args.capital_usd) && args.capital_usd > 0
+      const totalValue = fromWallet ? (args.capital_usd as number) : DEFAULT_PAPER_CAPITAL
 
       const pct = clampWalletPct(args.wallet_pct)
       const notional = computeNotional(pct, totalValue)
 
       const trade: PaperTrade = {
         id: `paper_${String(this.nextId++).padStart(4, '0')}`,
-        user_id: defaultWallet?.user_id ?? 'user_001',
+        // Never the demo user_001: the signed-in user's id, else "guest".
+        user_id: args.user_id || GUEST_OWNER,
         timestamp: new Date().toISOString(),
         asset_id: args.asset_id,
         asset_symbol: args.asset_symbol,
@@ -189,6 +198,11 @@ export const usePaperStore = defineStore('paper', {
         notional_value: notional,
         hypothetical_pnl_pct: 0,
         hypothetical_pnl_value: 0,
+        mark_price: null,
+        marked_at: null,
+        capital_usd: totalValue,
+        capital_source: fromWallet ? 'paper_wallet' : 'default',
+        ...(args.sample ? { sample: true } : {}),
         strategy_id: args.strategy_id,
         agent_id: args.agent_id,
         is_paper: true,
@@ -199,31 +213,44 @@ export const usePaperStore = defineStore('paper', {
       return trade
     },
 
-    /** Mark all open paper trades to the current simulated price. */
-    markToMarket() {
-      const now = Date.now()
+    /**
+     * Mark open paper trades to the live price of their asset (the price the asset
+     * page shows). No live price → mark_price null and the UI shows "—".
+     * `priceOf` is injectable for tests.
+     */
+    markToMarket(priceOf?: (t: PaperTrade) => number | null) {
+      const lookup = priceOf ?? ((t: PaperTrade) => livePriceOf(useAssetsStore().assets, t.asset_id, t.asset_symbol))
+      const at = new Date().toISOString()
       for (const t of this.openTrades) {
-        const ageHours = (now - new Date(t.timestamp).getTime()) / 3_600_000
-        const seed = parseInt(t.id.replace(/\D/g, ''), 10) || 1
-        const cur = markPrice(t.simulated_price, ageHours, seed)
-        const direction = t.side === 'buy' ? 1 : -1
-        t.hypothetical_pnl_pct = ((cur - t.simulated_price) / t.simulated_price) * 100 * direction
-        t.hypothetical_pnl_value = (t.hypothetical_pnl_pct / 100) * t.notional_value
+        const price = lookup(t)
+        const mark = paperMark(t, price)
+        if (!mark) {
+          t.mark_price = null
+          t.hypothetical_pnl_pct = 0
+          t.hypothetical_pnl_value = 0
+          continue
+        }
+        t.mark_price = price
+        t.marked_at = at
+        t.hypothetical_pnl_pct = mark.pct
+        t.hypothetical_pnl_value = mark.value
       }
     },
 
+    /** Close at `closePrice`, else at the live mark. With no price the P&L stays unknown. */
     closeTrade(id: string, closePrice?: number) {
       const t = this.trades.find(x => x.id === id)
       if (!t || t.status === 'closed') return
-      this.markToMarket()
-      const finalPrice = closePrice ?? t.simulated_price * (1 + t.hypothetical_pnl_pct / 100)
-      const direction = t.side === 'buy' ? 1 : -1
-      const pnlPct = ((finalPrice - t.simulated_price) / t.simulated_price) * 100 * direction
+      if (closePrice === undefined) this.markToMarket()
+      const finalPrice = closePrice ?? t.mark_price ?? null
+      const mark = paperMark(t, finalPrice)
       t.status = 'closed'
       t.closed_at = new Date().toISOString()
-      t.closed_price = finalPrice
-      t.realized_pnl_pct = pnlPct
-      t.realized_pnl_value = (pnlPct / 100) * t.notional_value
+      if (mark && finalPrice !== null) {
+        t.closed_price = finalPrice
+        t.realized_pnl_pct = mark.pct
+        t.realized_pnl_value = mark.value
+      }
       this.persist()
     },
 
@@ -245,7 +272,7 @@ export const usePaperStore = defineStore('paper', {
         { asset_id: 'apple',    asset_symbol: 'AAPL', side: 'buy'  as const, wallet_pct: 8, simulated_price: 198.50, agent_id: 'avatar_pro_momentum' },
         { asset_id: 'gold',     asset_symbol: 'XAU',  side: 'sell' as const, wallet_pct: 2, simulated_price: 2_310 }
       ]
-      for (const s of samples) this.placeOrder(s)
+      for (const s of samples) this.placeOrder({ ...s, sample: true })
       // Close the oldest one as a winner for the demo
       if (this.trades.length > 0) {
         const last = this.trades[this.trades.length - 1]

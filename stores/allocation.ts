@@ -1,30 +1,41 @@
 import { defineStore } from 'pinia'
 import type { AllocationPie } from '~/types/allocation'
-import { EQUAL_ALLOCATION_PIE } from '~/types/allocation'
+import { EMPTY_ALLOCATION_PIE } from '~/types/allocation'
 
 export type { AllocationPie } from '~/types/allocation'
 
 export interface AllocationState {
   userId: string
   baseCurrency: string
+  /**
+   * The allocation of the book on screen, written from actual holdings (Wallet's
+   * AllocationSlider, Risk derives its own from the account's book) or by the swarm.
+   * Starts at all zeros: "no holdings known yet". It used to start at 25/25/25/25,
+   * which Risk showed as the user's allocation (board-data P1 #6).
+   */
   allocationPie: AllocationPie
   flowVelocity: number
 }
 
 export const useAllocationStore = defineStore('allocation', {
   state: (): AllocationState => {
-    let userId = 'user_001'
+    // No fallback to the demo id: an unknown user is '' (board-security: user_001 fallbacks).
+    let userId = ''
     try {
       userId = useCurrentUser().getUserId()
     } catch { /* early init */ }
     return {
       userId,
       baseCurrency: 'USD',
-      allocationPie: { ...EQUAL_ALLOCATION_PIE },
+      allocationPie: { ...EMPTY_ALLOCATION_PIE },
       flowVelocity: 0.1
     }
   },
   actions: {
+    /** Replace the pie with weights derived from holdings (all zeros when there are none). */
+    setFromHoldings(pie: AllocationPie) {
+      this.allocationPie = { ...pie }
+    },
     updateAllocation(category: keyof AllocationPie, newPercentage: number) {
       const oldPercentage = this.allocationPie[category]
       const difference = newPercentage - oldPercentage

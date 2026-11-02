@@ -6,19 +6,26 @@
  * blocking during high-volatility ticks.
  *
  * This plugin replaces ad-hoc onMounted fetches in pages by hydrating the global
- * stores on app boot, and starts a mock event-loop that simulates WebSocket
- * deltas (volatility jitter, flow direction changes, news pulses).
+ * stores on app boot, and runs the client loops that are driven by real inputs:
+ * the news-globe pointer (picks a real post), the training drain (the user's own
+ * behaviour buffer), the activity-log compaction and the swarm re-aggregation.
+ *
+ * Honest data (swarm 2026-10-30b, board-data P0 #2, board-optimization O7): it no
+ * longer invents numbers. The macro jitter (volatility, per-class volatility,
+ * fear/greed, flow, news count), the live-bot P&L random walk, the agent opinion
+ * wobble and the fixed-pie avatar drift are gone: they moved figures users read
+ * (Risk vol/VaR, bot P&L, swarm divergence) with no market event behind them.
  */
 import { defineNuxtPlugin } from '#app'
 import { publicAssetUrl } from '~/composables/useLocalJson'
-import { useMacroStore, type AssetClass } from '~/stores/macro'
+import { useMacroStore } from '~/stores/macro'
 import { useUserPreferencesStore } from '~/stores/userPreferences'
 import { useNewsStore } from '~/stores/news'
 import { usePipelineStore } from '~/stores/pipeline'
 import { usePrefetchStore } from '~/stores/prefetch'
 import { useAgentsStore } from '~/stores/agents'
 import { useTrainingStore } from '~/stores/training'
-import { useOpinionsStore } from '~/stores/opinions'
+import { useOpinionsStore, type PlugsApi } from '~/stores/opinions'
 import { usePlatformsStore } from '~/stores/platforms'
 import { useInfluencersStore } from '~/stores/influencers'
 import { useBotsStore } from '~/stores/bots'
@@ -80,6 +87,13 @@ export default defineNuxtPlugin({
       pipeline.markStage('agents', 'streaming')
       if (agents.personalId) opinions.plug(agents.personalId, 0.6)
       opinions.recompute()
+      // Signed in: the saved plugs (server) replace the local default. A first-time account gets its
+      // personal agent plugged and saved, so /wallet and /creator see the same list as /agents.
+      if (import.meta.client) {
+        const auth = useAuth()
+        void opinions.connect({ signedIn: auth.isAuthenticated.value, userId: auth.user.value?.id, api: nuxtApp.$api as PlugsApi })
+          .then(() => opinions.recompute())
+      }
     }),
     platforms.fetchPlatforms().then(() => pipeline.markStage('platforms', 'streaming')),
     influencers.fetchInfluencers().then(() => pipeline.markStage('influencers', 'streaming')),
@@ -120,26 +134,12 @@ export default defineNuxtPlugin({
     } catch { /* posts.json optional */ }
 
   let lastTick = performance.now()
-  let pendingPatch: Record<string, any> = {}
   let pendingNewsCoords: { lat: number; lng: number } | null = null
 
-  // Source of synthetic updates — every ~1.5s we mutate the macro state slightly
-  const synth = setInterval(() => {
-    const vol = macro.global_volatility_index
-    // Jitter volatility around its mean
-    pendingPatch.global_volatility_index = clamp(vol + (Math.random() - 0.5) * 0.08)
-    pendingPatch.flow_velocity = clamp(macro.flow_velocity + (Math.random() - 0.5) * 0.05)
-    pendingPatch.news_pulse_count = macro.news_pulse_count + (Math.random() < 0.3 ? 1 : 0)
-    pendingPatch.fear_greed = Math.round(clamp(macro.fear_greed + (Math.random() - 0.5) * 4, 0, 100))
-
-    // Per-class volatility wobble
-    const vbc = { ...macro.volatility_by_class }
-    ;(Object.keys(vbc) as AssetClass[]).forEach(k => {
-      vbc[k] = clamp(vbc[k] + (Math.random() - 0.5) * 0.04)
-    })
-    pendingPatch.volatility_by_class = vbc
-
-    // Occasionally rotate the news globe — weighted pick from posts cache
+  // News globe pointer: every ~1.5 s it may move to a real post's origin
+  // (weighted pick from posts.json). It moves a map marker, never a number.
+  // The macro jitter that used to run here is gone (see the header note).
+  const newsPointer = setInterval(() => {
     if (Math.random() < 0.35 && postsCache.length > 0) {
       const totalWeight = postsCache.reduce((s, p) => s + (p.weight ?? 0.5), 0)
       let r = Math.random() * totalWeight
@@ -149,20 +149,6 @@ export default defineNuxtPlugin({
       }
     }
   }, 1500)
-
-  // Bot tick — every 6s nudge live bot PnL so the UI feels alive
-  const botTick = setInterval(() => {
-    pipeline.markStage('bots', 'streaming')
-    bots.list.forEach(b => {
-      if (b.status !== 'live') return
-      const delta = (Math.random() - 0.48) * 8 // mostly small, slight positive bias
-      b.pnl_today_usd = +(b.pnl_today_usd + delta).toFixed(2)
-      b.pnl_30d_usd = +(b.pnl_30d_usd + delta).toFixed(2)
-      if (b.capital_allocated_usd > 0) {
-        b.pnl_30d_pct = +((b.pnl_30d_usd / b.capital_allocated_usd) * 100).toFixed(2)
-      }
-    })
-  }, 6000)
 
   // Training tick — drains the user-behavior buffer and applies aggregate deltas
   // to the personal Avatar. Runs every 8s by default; faster if the buffer fills.
@@ -185,64 +171,23 @@ export default defineNuxtPlugin({
     activityLog.reduce()
   }, 4000)
 
-  // Opinion tick — every 4s each plugged agent's opinion is re-aggregated and
-  // (in 'auto' mode) pushed straight to the wallet allocation. Per CodingAgent.md
-  // section 3: "When dropped into the NodeCanvas this Opinion Vector acts as a live data source".
+  // Opinion tick — every 4s the plugged agents' CURRENT opinions are re-aggregated
+  // (plug/unplug and training change them) and, in 'auto' mode, pushed to the
+  // allocation. No random wobble and no fixed-pie avatar drift: the swarm only
+  // moves when one of its inputs moved.
   const opinionTick = setInterval(() => {
     pipeline.markStage('opinions', 'streaming')
-    // Wobble each agent's opinion slightly to simulate live re-inference
-    agents.all.forEach(a => {
-      const ov = { ...a.opinion_vector }
-      const k = (['fiat','crypto','stocks','commodities'] as const)[Math.floor(Math.random() * 4)]!
-      const delta = (Math.random() - 0.5) * 2 // ±1%
-      ov[k] = clamp(ov[k] + delta, 0, 100)
-      // Renormalize so the four still sum to 100
-      const sum = ov.fiat + ov.crypto + ov.stocks + ov.commodities
-      if (sum > 0) {
-        ov.fiat = (ov.fiat / sum) * 100
-        ov.crypto = (ov.crypto / sum) * 100
-        ov.stocks = (ov.stocks / sum) * 100
-        ov.commodities = (ov.commodities / sum) * 100
-      }
-      agents.patchAgent(a.id, { opinion_vector: ov })
-    })
     opinions.recompute()
   }, 4000)
-
-  // Avatar drift tick — every 12s the personal avatar's opinion vector drifts
-  // toward the user's current wallet allocation, making the avatar learn their
-  // preferences. Per "avatar that trades like they would" in the vision.
-  const avatarDrift = setInterval(() => {
-    const personal = agents.personal
-    if (!personal) return
-    const walletPie = macro.dominant_asset_class === 'crypto'
-      ? { fiat: 15, crypto: 45, stocks: 25, commodities: 15 }
-      : macro.dominant_asset_class === 'stocks'
-        ? { fiat: 20, crypto: 10, stocks: 55, commodities: 15 }
-        : macro.dominant_asset_class === 'commodities'
-          ? { fiat: 20, crypto: 15, stocks: 25, commodities: 40 }
-          : { fiat: 40, crypto: 20, stocks: 25, commodities: 15 }
-    // Drift the opinion vector 3% toward the wallet allocation per tick
-    const DRIFT_RATE = 0.03
-    const ov = { ...personal.opinion_vector }
-    ;(Object.keys(ov) as Array<keyof typeof ov>).forEach(cls => {
-      ov[cls] += (walletPie[cls] - ov[cls]) * DRIFT_RATE
-    })
-    agents.patchAgent(personal.id, { opinion_vector: ov })
-  }, 12000)
 
   // RAF batcher — applies pending patches at most once per frame, with min budget
   const flush = () => {
     const now = performance.now()
     if (now - lastTick >= TICK_BUDGET_MS) {
-      if (Object.keys(pendingPatch).length > 0) {
-        macro.applyTick(pendingPatch)
-        pendingPatch = {}
-        pipeline.recordTick()
-      }
       if (pendingNewsCoords) {
         prefetch.updateLatestNewsCoords(pendingNewsCoords.lat, pendingNewsCoords.lng)
         pendingNewsCoords = null
+        pipeline.recordTick()
       }
       lastTick = now
     }
@@ -253,13 +198,11 @@ export default defineNuxtPlugin({
   // Cleanup on hot-reload / app teardown
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
-      clearInterval(synth)
+      clearInterval(newsPointer)
       clearInterval(trainingTick)
       clearInterval(trainingOverflowWatch)
       clearInterval(activityReduceWatch)
       clearInterval(opinionTick)
-      clearInterval(avatarDrift)
-      clearInterval(botTick)
       cancelAnimationFrame(rafId)
     })
   }
@@ -267,6 +210,3 @@ export default defineNuxtPlugin({
   },
 })
 
-function clamp(v: number, min = 0, max = 1) {
-  return Math.max(min, Math.min(max, v))
-}

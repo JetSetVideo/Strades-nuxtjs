@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { userGet, userSet } from '~/utils/userStorage'
 
 export type AnnotationKind = 'trendline' | 'level' | 'note'
 
@@ -55,7 +56,7 @@ const nextId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toSt
 function loadFromStorage(): Partial<AssetAnnotationsState> {
   if (typeof window === 'undefined') return {}
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = userGet(STORAGE_KEY)
     if (!raw) return {}
     return JSON.parse(raw)
   } catch {
@@ -66,7 +67,7 @@ function loadFromStorage(): Partial<AssetAnnotationsState> {
 function saveToStorage(state: AssetAnnotationsState) {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    userSet(STORAGE_KEY, JSON.stringify({
       annotationsById: state.annotationsById,
       triggersById: state.triggersById,
       tagsById: state.tagsById

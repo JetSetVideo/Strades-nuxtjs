@@ -4,18 +4,33 @@
  * Supports:
  *  - Email + password login/registration
  *  - Google Sign-In (sends ID token to backend)
- *  - JWT token management (access in memory, refresh in cookie)
+ *  - JWT tokens: access in memory; refresh in an httpOnly cookie the BACKEND sets (board-security S5)
  *  - Automatic token refresh on 401
+ *
+ * Refresh cookie (S5). Page scripts never see the refresh token any more:
+ *  - login / register / google / demo / demo resume / refresh / logout go to `/api/auth/*` on THIS
+ *    origin; nuxt.config.ts proxies them to the API, so the `strades_rt` cookie the API sets
+ *    (HttpOnly; SameSite=Lax; Path=/api/auth/) is first-party whatever host the API runs on
+ *    (localhost:3000 vs 127.0.0.1:8000 are different sites: a cookie set by the API host directly
+ *    would never come back).
+ *  - Every such call sends `X-Strades-Refresh-Cookie: 1`, so the API leaves the token out of JSON.
+ *  - `strades_session=1` is a non-secret hint cookie (no token in it) so SSR and the boot plugin
+ *    know whether a refresh is worth trying.
+ *  - Migration: a refresh token still sitting in the old JS-readable `strades_refresh` cookie is
+ *    sent once in the body; the API answers with the httpOnly cookie, and the old cookie is deleted.
  */
 
 import type { Ref } from 'vue'
+import type { Router } from 'vue-router'
 import type { AuthUser } from '~/types/user'
+import { clearUserStorage, setStorageUser } from '~/utils/userStorage'
 
 
 interface AuthResponse {
   user: AuthUser
   access: string
-  refresh: string
+  /** Only for callers that did not opt into the cookie (old tabs during the transition release). */
+  refresh?: string
 }
 
 interface DemoMeta {
@@ -28,7 +43,8 @@ interface DemoMeta {
 type DemoResponse = AuthResponse & { demo?: DemoMeta }
 
 // The demo id stays on this device (not a cookie: the server never needs it back). It is a bearer
-// credential for a paper-money account, so it lives where the refresh token already lives: the browser.
+// credential for a paper-money account. It is removed by "Forget this device" at sign-out, by
+// Settings › "Forget the demo ID on this device", and when the demo is claimed (board-security S6).
 const DEMO_CODE_KEY = 'strades_demo_code'
 
 /** The demo id remembered on this device, if any (client only). */
@@ -42,9 +58,62 @@ function rememberDemoCode(code: string) {
   try { localStorage.setItem(DEMO_CODE_KEY, code) } catch { /* private mode: the id is still shown once */ }
 }
 
+/** HTTP status of a $fetch error (0 = no answer: network error, server restarting). */
+export function httpStatusOf(e: unknown): number {
+  return (e as { response?: { status?: number } })?.response?.status
+    ?? (e as { statusCode?: number }).statusCode ?? 0
+}
+
 export function forgetDemoCode() {
   if (!import.meta.client) return
   try { localStorage.removeItem(DEMO_CODE_KEY) } catch { /* ignore */ }
+}
+
+// ---------------------------------------------------------------------------
+// Cookies the browser code may touch (none of them holds a token any more)
+// ---------------------------------------------------------------------------
+const LEGACY_REFRESH_COOKIE = 'strades_refresh'   // pre-S5, JS-readable: migrated then deleted
+const SESSION_HINT_COOKIE = 'strades_session'     // "a refresh cookie was issued here" — no secret
+const THIRTY_DAYS = 60 * 60 * 24 * 30
+
+function readBrowserCookie(name: string): string | null {
+  if (!import.meta.client) return null
+  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  return m ? decodeURIComponent(m[1]!) : null
+}
+
+function writeBrowserCookie(name: string, value: string, maxAge: number) {
+  if (!import.meta.client) return
+  const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax${secure}`
+}
+
+const legacyRefreshCookie = () => readBrowserCookie(LEGACY_REFRESH_COOKIE) || null
+const dropLegacyRefreshCookie = () => { if (readBrowserCookie(LEGACY_REFRESH_COOKIE) !== null) writeBrowserCookie(LEGACY_REFRESH_COOKIE, '', 0) }
+const hasSessionHint = () => readBrowserCookie(SESSION_HINT_COOKIE) === '1'
+const setSessionHint = () => writeBrowserCookie(SESSION_HINT_COOKIE, '1', THIRTY_DAYS)
+const dropSessionHint = () => { if (readBrowserCookie(SESSION_HINT_COOKIE) !== null) writeBrowserCookie(SESSION_HINT_COOKIE, '', 0) }
+
+/**
+ * Same-origin call to an /api/auth/* endpoint (proxied to the API by nuxt.config.ts), with the
+ * refresh cookie and the cookie-only opt-in. A 502/503/504 from the proxy means "the API did not
+ * answer": surfaced as status 0, exactly like a network error, so the existing retry / "can't reach
+ * the server" / sample-data paths keep working.
+ */
+async function authFetch<T>(path: string, body: Record<string, unknown> = {}): Promise<T> {
+  try {
+    return await $fetch<T>(path, {
+      method: 'POST',
+      body,
+      credentials: 'include',
+      headers: { 'X-Strades-Refresh-Cookie': '1' },
+    })
+  } catch (e: unknown) {
+    if ([502, 503, 504].includes(httpStatusOf(e))) {
+      throw Object.assign(new Error("Can't reach the Strades server"), { statusCode: 0, cause: e })
+    }
+    throw e
+  }
 }
 
 // Where the access token lives — it must be per-request on the server AND
@@ -54,16 +123,9 @@ export function forgetDemoCode() {
 //  * useState() is per-request but is shipped in __NUXT_DATA__, i.e. the JWT
 //    ends up inside the page HTML (caches, saved pages, proxy logs).
 // So: server → the request's own event.context; client → a module ref (one tab
-// is one user). The client re-derives its token from the refresh cookie.
+// is one user). The client re-derives its token from the httpOnly refresh cookie.
 let clientAccessToken: Ref<string | null> | undefined
 let clientRefreshInflight: Promise<boolean> | null = null
-
-/** The refresh cookie as the browser holds it right now (another tab may have rotated it). */
-function browserRefreshCookie(): string | null {
-  if (!import.meta.client) return null
-  const m = document.cookie.match(/(?:^|; )strades_refresh=([^;]*)/)
-  return m ? decodeURIComponent(m[1]!) : null
-}
 
 function accessTokenRef(): Ref<string | null> {
   if (import.meta.server) {
@@ -73,42 +135,50 @@ function accessTokenRef(): Ref<string | null> {
   return (clientAccessToken ??= ref<string | null>(null))
 }
 
+/** After an account switch, reload once the caller has navigated, so no store keeps the previous user's state. */
+function reloadAfterNextNavigation(router: Router | null) {
+  if (!import.meta.client || !router) return
+  const off = router.afterEach((to) => {
+    off()
+    reloadNuxtApp({ path: to.fullPath, force: true })
+  })
+}
+
 export const useAuth = () => {
   const config = useRuntimeConfig()
   const apiBase = config.public.apiBase as string
+  let router: Router | null = null
+  try { router = useRouter() } catch { /* outside a Nuxt context */ }
 
   // Access token: memory only, per request, never in the SSR payload (see above).
   const accessToken = accessTokenRef()
   // The user profile is not a secret and is safe to hydrate.
   const currentUser = useState<AuthUser | null>('auth.user', () => null)
 
-  // Refresh token cookie. The client sets it, so it cannot be httpOnly; at least make it Secure + SameSite=strict
-  // whenever the site runs over HTTPS (production/staging). Plain http://localhost dev keeps working.
-  // Target (programming manual §8): backend sets an httpOnly cookie itself — tracked as a P0 task.
-  const isHttps = import.meta.client
-    ? window.location.protocol === 'https:'
-    : (useRequestURL().protocol === 'https:')
-  const refreshToken = useCookie<string | null>('strades_refresh', {
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-    sameSite: isHttps ? 'strict' : 'lax',
-    secure: isHttps,
-  })
-
   const isAuthenticated = computed(() => !!accessToken.value)
 
   // -------------------------------------------------------------------------
   // Internal helpers
   // -------------------------------------------------------------------------
+  /** Per-user local storage (S13): switch namespace; on an account switch reload after navigation. */
+  const _adoptStorageUser = (user: AuthUser | null | undefined, reloadOnSwitch: boolean) => {
+    if (!import.meta.client || !user?.id) return
+    const switched = setStorageUser(user.id)
+    if (switched && reloadOnSwitch) reloadAfterNextNavigation(router)
+  }
+
   const _storeTokens = (response: AuthResponse) => {
     accessToken.value = response.access
-    refreshToken.value = response.refresh
     currentUser.value = response.user
+    setSessionHint()
+    dropLegacyRefreshCookie()        // the API has just set the httpOnly cookie
+    _adoptStorageUser(response.user, true)
   }
 
   const _clearTokens = () => {
     accessToken.value = null
-    refreshToken.value = null
     currentUser.value = null
+    dropSessionHint()
   }
 
   // -------------------------------------------------------------------------
@@ -121,11 +191,7 @@ export const useAuth = () => {
     last_name?: string
     username?: string
   }) => {
-    const data = await $fetch<AuthResponse>('/api/auth/register/', {
-      baseURL: apiBase,
-      method: 'POST',
-      body: payload,
-    })
+    const data = await authFetch<AuthResponse>('/api/auth/register/', payload)
     _storeTokens(data)
     return data.user
   }
@@ -134,11 +200,7 @@ export const useAuth = () => {
   // Login (email + password)
   // -------------------------------------------------------------------------
   const login = async (email: string, password: string) => {
-    const data = await $fetch<AuthResponse>('/api/auth/login/', {
-      baseURL: apiBase,
-      method: 'POST',
-      body: { email, password },
-    })
+    const data = await authFetch<AuthResponse>('/api/auth/login/', { email, password })
     _storeTokens(data)
     nextTick(() => useTracking().startSession())
     return data.user
@@ -148,59 +210,49 @@ export const useAuth = () => {
   // Google Sign-In (frontend sends Google ID token to backend)
   // -------------------------------------------------------------------------
   const loginWithGoogle = async (idToken: string) => {
-    const data = await $fetch<AuthResponse>('/api/auth/google/', {
-      baseURL: apiBase,
-      method: 'POST',
-      body: { id_token: idToken },
-    })
+    const data = await authFetch<AuthResponse>('/api/auth/google/', { id_token: idToken })
     _storeTokens(data)
     nextTick(() => useTracking().startSession())
     return data.user
   }
 
   // -------------------------------------------------------------------------
-  // Refresh access token using stored refresh token
+  // Refresh the access token from the httpOnly refresh cookie
   // -------------------------------------------------------------------------
   /**
-   * Refresh tokens are single-use (rotated + blacklisted). Parallel loads (several
-   * tabs, a reload while another tab refreshes) all present the same token: one
-   * wins, the rest get 401. Deleting the cookie on that 401 used to log EVERY tab
-   * out (reproduced 2026-10-08: 4 parallel loads → all on /auth). So:
+   * Refresh tokens are single-use (rotated + blacklisted). Parallel loads (several tabs, a reload
+   * while another tab refreshes) all present the same cookie: the API answers the losers with the
+   * pair it already issued (120 s grace) and sets the same cookie, so rotation is server-driven.
+   * Here:
    *  - in the browser, one refresh at a time (callers share the request);
-   *  - after a 401, retry once with whatever the browser cookie holds NOW (a
-   *    sibling tab may just have rotated it);
-   *  - never delete the cookie during SSR or on a network error. Only a definite
-   *    rejection with no newer cookie available signs the user out.
+   *  - after a rejection, ask once more: the browser then sends whatever cookie a sibling tab may
+   *    have just received;
+   *  - never sign out during SSR or on a network error. Only a second definite rejection does.
    */
   const refreshAccessToken = async (): Promise<boolean> => {
     // The server never rotates: SSR renders no private data, and a server-side rotation
-    // races the browser's own refresh (lost response → stale cookie → logout). The browser
-    // does the one refresh per load.
+    // races the browser's own refresh. The browser does the one refresh per load.
     if (import.meta.server) return false
     if (clientRefreshInflight) return clientRefreshInflight
     const run = async (): Promise<boolean> => {
-      const attempt = async (token: string) => {
-        const data = await $fetch<{ access: string; refresh: string }>('/api/auth/token/refresh/', {
-          baseURL: apiBase, method: 'POST', body: { refresh: token },
-        })
-        accessToken.value = data.access
-        refreshToken.value = data.refresh
-        return true
-      }
-      const used = refreshToken.value
-      if (!used) return false
-      try {
-        return await attempt(used)
-      } catch (e: unknown) {
-        const status = (e as { response?: { status?: number } })?.response?.status ?? 0
-        if (!status) return false                          // network error: keep the session
-        const fresh = browserRefreshCookie()
-        if (fresh && fresh !== used) {
-          try { return await attempt(fresh) } catch { /* fall through */ }
+      let legacy = legacyRefreshCookie()
+      if (!legacy && !hasSessionHint()) return false        // never signed in here: no request
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const data = await authFetch<{ access: string }>('/api/auth/token/refresh/',
+            legacy ? { refresh: legacy } : {})
+          accessToken.value = data.access
+          setSessionHint()
+          dropLegacyRefreshCookie()
+          return true
+        } catch (e: unknown) {
+          if (!httpStatusOf(e)) return false                          // network error: keep the session
+          if (legacy) { dropLegacyRefreshCookie(); legacy = null }    // migrated by another tab, or dead
+          if (attempt === 0) await new Promise(res => setTimeout(res, 200))
         }
-        if (browserRefreshCookie() === used) _clearTokens() // nobody rotated it: genuinely expired/revoked
-        return false
       }
+      _clearTokens()                                                  // rejected twice: expired or revoked
+      return false
     }
     clientRefreshInflight = run().finally(() => { clientRefreshInflight = null })
     return clientRefreshInflight
@@ -220,6 +272,7 @@ export const useAuth = () => {
         headers: { Authorization: `Bearer ${accessToken.value}` },
       })
       currentUser.value = user
+      _adoptStorageUser(user, false)     // app boot (plugins/tracking.client.ts): stores not hydrated yet
       return user
     } catch {
       _clearTokens()
@@ -228,30 +281,36 @@ export const useAuth = () => {
   }
 
   // -------------------------------------------------------------------------
-  // Logout — blacklist refresh token on server
+  // Logout — revoke the refresh cookie on the server, clear this device
   // -------------------------------------------------------------------------
-  const logout = async () => {
-    // After a reload the access token isn't in memory; get one so the server can revoke the refresh token.
-    if (refreshToken.value && !accessToken.value) await refreshAccessToken().catch(() => false)
-    if (refreshToken.value && accessToken.value) {
-      try {
-        await $fetch('/api/auth/logout/', {
-          baseURL: apiBase,
-          method: 'POST',
-          headers: { Authorization: `Bearer ${accessToken.value}` },
-          body: { refresh: refreshToken.value },
-        })
-      } catch {
-        // Proceed with local clear even if server call fails
-      }
+  /**
+   * Always: the server revokes the refresh token and clears its cookie; this tab forgets the access
+   * token, the active-user pointer and the unscoped local copies, then reloads /auth so no store keeps
+   * the signed-out user's data in memory. The user's own namespaced data stays for their next sign-in
+   * and is invisible to any other account (S13).
+   * `forgetDevice: true` also removes every account's local data on this browser and the remembered
+   * demo id (S6): "Continue my demo" then starts a new demo.
+   */
+  const logout = async (opts: { forgetDevice?: boolean } = {}) => {
+    const demoFlag = useCookie('strades_demo')
+    const legacy = legacyRefreshCookie()
+    try {
+      // No access token needed: the cookie (or a legacy body token) is the credential.
+      await authFetch('/api/auth/logout/', legacy ? { refresh: legacy } : {})
+    } catch {
+      // Proceed with local clear even if server call fails
     }
+    dropLegacyRefreshCookie()
     _clearTokens()
-    useCookie('strades_demo').value = null
+    demoFlag.value = null
     try {
       usePriceCache().clearAll()
     } catch { /* ignore */ }
-    useTracking().stopHeartbeat()
-    await navigateTo('/auth')
+    try { useTracking().stopHeartbeat() } catch { /* ignore */ }
+    clearUserStorage({ forgetDevice: !!opts.forgetDevice })
+    if (opts.forgetDevice) forgetDemoCode()
+    if (import.meta.client) reloadNuxtApp({ path: '/auth', force: true })
+    else await navigateTo('/auth')
   }
 
   // -------------------------------------------------------------------------
@@ -275,7 +334,7 @@ export const useAuth = () => {
    * account. The account lives while it is used and is deleted after 30 days without a visit.
    */
   const startDemo = async () => {
-    const data = await $fetch<DemoResponse>('/api/auth/demo/', { baseURL: apiBase, method: 'POST' })
+    const data = await authFetch<DemoResponse>('/api/auth/demo/')
     _storeTokens(data)
     if (data.demo?.code) rememberDemoCode(data.demo.code)
     nextTick(() => useTracking().startSession())
@@ -283,13 +342,46 @@ export const useAuth = () => {
   }
 
   const resumeDemo = async (code: string) => {
-    const data = await $fetch<DemoResponse>('/api/auth/demo/resume/', {
-      baseURL: apiBase, method: 'POST', body: { code: code.trim() },
-    })
+    const data = await authFetch<DemoResponse>('/api/auth/demo/resume/', { code: code.trim() })
     _storeTokens(data)
     rememberDemoCode(code.trim().toUpperCase())
     nextTick(() => useTracking().startSession())
     return data
+  }
+
+  /**
+   * Make sure this visitor has a REAL demo account: resume the one remembered on this device, else mint
+   * one. Retries when the server does not answer (in development the API restarts on every code change;
+   * one failed request used to drop visitors into the sample-data mode, where the profile mirror,
+   * wallets and bots have no account behind them). Clears the sample-data flag on success.
+   */
+  const activateDemo = async (attempts = 3): Promise<DemoResponse> => {
+    const demoFlag = useCookie('strades_demo')
+    let last: unknown
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const saved = storedDemoCode()
+        if (saved) {
+          try {
+            const d = await resumeDemo(saved)
+            demoFlag.value = null
+            return d
+          } catch (e: unknown) {
+            if (httpStatusOf(e) !== 404) throw e
+            forgetDemoCode()             // deleted after 30 idle days, or claimed: start a fresh one
+          }
+        }
+        const d = await startDemo()
+        demoFlag.value = null
+        return d
+      } catch (e: unknown) {
+        last = e
+        const s = httpStatusOf(e)
+        if (s && ![502, 503, 504].includes(s)) throw e      // a real answer (429, 4xx): retrying won't help
+        await new Promise(res => setTimeout(res, 700 * (i + 1)))
+      }
+    }
+    throw last
   }
 
   /** A fresh demo id for the signed-in demo account (the previous id stops working). */
@@ -313,6 +405,7 @@ export const useAuth = () => {
     login,
     startDemo,
     resumeDemo,
+    activateDemo,
     newDemoCode,
     loginWithGoogle,
     logout,

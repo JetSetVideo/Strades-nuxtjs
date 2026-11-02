@@ -36,9 +36,11 @@ import ChartWorkspace, { type WsTool, type WsCall, type WsCompare } from '~/comp
 import ChartStyleToggle from '~/components/Asset/ChartStyleToggle.vue'
 import PredictPanel from '~/components/Asset/PredictPanel.vue'
 import AssetQuickPaperBet from '~/components/Asset/QuickPaperBet.vue'
+import { livePrice } from '~/utils/quickBet'
 import UIEmptyState from '~/components/UI/EmptyState.vue'
 
-definePageMeta({ title: 'Chart', description: 'Chart workspace: candles, indicators, drawings, alerts, calls.', layout: 'default' })
+// Title literal = routeLabel('/CandleChart') (tests/pageTitles.test.ts; definePageMeta cannot call it).
+definePageMeta({ title: 'Candle Chart', description: 'Chart workspace: candles, indicators, drawings, alerts, calls.', layout: 'default' })
 
 const route = useRoute()
 const router = useRouter()
@@ -125,7 +127,7 @@ const kind = computed(() => priceKindOf(asset.value))
 const currency = computed(() => String(asset.value?.currency || 'USD'))
 const tColor = computed(() => typeColor(asset.value?.type))
 const change = computed(() => (typeof asset.value?.change_24h_pct === 'number' ? asset.value.change_24h_pct : null))
-useHead(() => ({ title: asset.value ? `${asset.value.symbol} chart · Strades` : 'Chart · Strades' }))
+useHead(() => ({ title: asset.value ? `${asset.value.symbol} · Candle Chart · Strades` : 'Candle Chart · Strades' }))
 
 function matchList(s: string, exclude: string[] = []) {
   const k = s.trim().toLowerCase()
@@ -612,7 +614,8 @@ const SIDE_TABS = computed(() => [
               :friends="friends.predictions.value" :reveal-friends="friends.isRevealed.value" @toggle-friends="friends.toggle()" />
           </ClientOnly>
 
-          <AssetQuickPaperBet v-if="side === 'trade'" :asset-id="String(asset.id)" :asset-symbol="asset.symbol" :current-price="Number(asset.current_price) || 100" />
+          <!-- No fake price: without a quote the form still shows but cannot be submitted (QuickPaperBet takes null). -->
+          <AssetQuickPaperBet v-if="side === 'trade'" :asset-id="String(asset.id)" :asset-symbol="asset.symbol" :current-price="livePrice(asset.current_price)" />
 
           <template v-if="side === 'alerts'">
             <form class="cw-row" @submit.prevent="addAlertFromInput">

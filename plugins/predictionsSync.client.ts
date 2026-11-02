@@ -3,7 +3,9 @@
  *
  * The predictions store stays the UI's source (instant, works offline, localStorage). This plugin:
  *  - PULLS the user's calls once signed in: resolution results (status, resolved price, score)
- *    are written back onto the local calls; calls made on another device are imported.
+ *    are written back onto the local calls; calls made on another device are imported. At most
+ *    one pull per 5 min per account, remembered across reloads (`strades:predictions:pull:v1`);
+ *    after the first one it asks only for rows changed since (`updated_since`).
  *  - PUSHES new or moved pending calls in batches of up to 50 (POST /predictions/sync/), 1.5 s
  *    after the last change. Idempotent on the local id (`client_id`), so a retry never duplicates.
  *  - WITHDRAWS on the server a pending call deleted locally (DELETE, the server keeps it as
@@ -19,10 +21,15 @@ import {
   isPredictionSyncable, predictionFromApi, predictionSyncSignature as signature, predictionToApi,
   type ServerPrediction as ServerCall,
 } from '~/utils/predictionSync'
+import { predictionPullDue, predictionPullSince, type PullMark } from '~/utils/requestGate'
 
 const SYNC_KEY = 'strades:predictions:sync:v1'
+/** When/for whom the last pull ran. Persisted, so a page reload no longer re-pulls 200 rows (O4). */
+const PULL_KEY = 'strades:predictions:pull:v1'
 const BATCH = 50
 const DEBOUNCE_MS = 1500
+/** Resolution results arrive with the server's upkeep run; a pull more often than this finds nothing new. */
+const PULL_EVERY_MS = 5 * 60_000
 
 interface SyncEntry { sid?: string; sig: string; err?: string; pending?: boolean }
 type SyncMap = Record<string, SyncEntry>
@@ -33,25 +40,44 @@ function readMap(): SyncMap {
 function writeMap(m: SyncMap) {
   try { localStorage.setItem(SYNC_KEY, JSON.stringify(m)) } catch { /* quota: next run resends, idempotent */ }
 }
+function readMark(): PullMark | null {
+  try {
+    const m = JSON.parse(localStorage.getItem(PULL_KEY) || 'null')
+    return m && typeof m.at === 'number' ? m as PullMark : null
+  } catch { return null }
+}
+function writeMark(m: PullMark | null) {
+  try {
+    if (m) localStorage.setItem(PULL_KEY, JSON.stringify(m))
+    else localStorage.removeItem(PULL_KEY)
+  } catch { /* quota: the next boot pulls again */ }
+}
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.hook('app:mounted', () => {
-    const { isAuthenticated, accessToken } = useAuth()
+    const { isAuthenticated, accessToken, user } = useAuth()
     const apiBase = useRuntimeConfig().public.apiBase as string
     const store = usePredictionsStore()
     if (!store.initialized) store.init()
+    const uid = () => String(user.value?.id ?? '')
 
     const api = <T>(path: string, opts: Record<string, any> = {}) => $fetch<T>(path, {
       baseURL: apiBase, ...opts, headers: { Authorization: `Bearer ${accessToken.value}`, ...(opts.headers ?? {}) },
     })
 
-    const PULL_EVERY_MS = 10 * 60_000   // resolution results arrive with the server's upkeep run
-    let lastPull = 0
     let busy = false
     let timer: ReturnType<typeof setTimeout> | null = null
 
+    /**
+     * Full pull the first time (per account), then incremental: `updated_since` asks only for rows
+     * changed since the last pull. A backend that ignores the parameter answers with the latest 200,
+     * which this merge handles the same way.
+     */
     async function pull() {
-      const res = await api<{ results: ServerCall[] }>('/api/v1/predictions/', { query: { limit: 200 } })
+      const since = predictionPullSince(readMark(), uid())
+      const res = await api<{ results: ServerCall[] }>('/api/v1/predictions/', {
+        query: { limit: 200, ...(since ? { updated_since: since } : {}) },
+      })
       const map = readMap()
       const local = new Map(store.predictions.map(p => [p.id, p]))
       const imports: Prediction[] = []
@@ -70,7 +96,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       }
       if (imports.length) store.importPredictions(imports)
       writeMap(map)
-      lastPull = Date.now()
+      writeMark({ at: Date.now(), uid: uid(), count: store.predictions.length })
     }
 
     async function push() {
@@ -113,7 +139,10 @@ export default defineNuxtPlugin((nuxtApp) => {
       if (busy || !isAuthenticated.value) return
       busy = true
       try {
-        if (Date.now() - lastPull > PULL_EVERY_MS) await pull()
+        // Skip the pull when this account pulled < 5 min ago (even before a reload) and no local
+        // calls were lost since; pushes still run on every change. Wait for the account id
+        // (auth/me) so the mark is never written for an unknown account.
+        if (uid() && predictionPullDue({ mark: readMark(), uid: uid(), localCount: store.predictions.length, now: Date.now(), everyMs: PULL_EVERY_MS })) await pull()
         await push()
       } catch {
         // offline / 401 during a token refresh / 429: the next change or the minute timer retries
@@ -128,7 +157,9 @@ export default defineNuxtPlugin((nuxtApp) => {
     }
 
     watch(() => store.predictions, () => schedule(), { deep: true })
-    watch(isAuthenticated, (v) => { lastPull = 0; if (v) schedule(0) }, { immediate: true })
+    // Signing out forgets the pull mark, so the next sign-in (maybe another account) pulls in full.
+    watch(isAuthenticated, (v, was) => { if (was && !v) writeMark(null); if (v) schedule(0) }, { immediate: true })
+    watch(uid, (id) => { if (id && isAuthenticated.value) schedule(0) })
     setInterval(() => { if (document.visibilityState === 'visible') void run() }, 60_000)
   })
 })

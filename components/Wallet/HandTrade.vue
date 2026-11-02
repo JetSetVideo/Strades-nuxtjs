@@ -7,6 +7,7 @@
  */
 import { TradingApiError, useTradingApi, type SamplePortfolio } from '~/composables/useTradingApi'
 import { useAssetsStore } from '~/stores/assets'
+import { fmtMoney, fmtPctFromFraction } from '~/utils/format'
 
 const api = useTradingApi()
 const assets = useAssetsStore()
@@ -27,7 +28,8 @@ onMounted(() => { load(); if (!assets.assets.length) assets.initializeStore() })
 const tradable = computed(() => [...assets.assets].sort((a, b) => a.symbol.localeCompare(b.symbol)))
 const price = computed(() => assets.getAssetById(assetId.value)?.current_price ?? 0)
 const cost = computed(() => (Number(qty.value) || 0) * price.value)
-const usd = (v: number | string) => Number(v).toLocaleString(APP_LOCALE, { style: 'currency', currency: 'USD' })
+// Prices: utils/format.ts fmtMoney (2 dp, "$1,234.56"); the gap is a percent (1 dp, 2 dp under 1 %).
+const usd = (v: number | string) => fmtMoney(Number(v))
 
 async function submit() {
   busy.value = true
@@ -41,7 +43,7 @@ async function submit() {
     const fillPrice = fill ? Number(fill.price) : price.value
     const gap = price.value ? Math.abs(fillPrice - price.value) / price.value : 0
     msg.value = { ok: true, text: `${side.value === 'buy' ? 'Bought' : 'Sold'} ${qty.value} ${sym} at ${usd(fillPrice)} (server fill)`
-      + (gap > 0.001 ? `: the live quote was ${usd(price.value)}; the server's stored price is ${(gap * 100).toFixed(2)}% off.` : '.') }
+      + (gap > 0.001 ? `: the live quote was ${usd(price.value)}; the server's stored price is ${fmtPctFromFraction(gap)} off.` : '.') }
   } catch (e) {
     msg.value = { ok: false, text: e instanceof TradingApiError ? e.message : 'Trade failed.' }
   } finally {
@@ -86,7 +88,7 @@ async function submit() {
         <tr v-for="h in pf.holdings" :key="h.asset?.id ?? h.asset_id">
           <td>{{ h.asset?.symbol ?? h.symbol }}</td><td>{{ Number(h.quantity) }}</td><td>{{ usd(h.average_buy_price) }}</td>
           <td>{{ usd(h.current_value ?? 0) }}</td>
-          <td :class="(h.unrealized_pnl ?? 0) >= 0 ? 'up' : 'down'">{{ usd(h.unrealized_pnl ?? 0) }}</td>
+          <td :class="(h.unrealized_pnl ?? 0) >= 0 ? 'up' : 'down'">{{ fmtMoney(Number(h.unrealized_pnl ?? 0), { signed: true }) }}</td>
         </tr>
       </tbody>
     </table>

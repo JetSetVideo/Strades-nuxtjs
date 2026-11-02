@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { User } from '@/stores/users'
 import ProfileMark from '@/components/Profile/Mark.vue'
 import { profileMask } from '~/utils/profileMask'
+import { DESK_PENDING_NOTE } from '~/utils/profileDesk'
 
 const props = defineProps<{
   user: User
@@ -15,6 +16,8 @@ const props = defineProps<{
   note?: string
   plan?: string
   paid?: boolean
+  /** The account has no own desk row: 30D / 7D / 24H / Win / Trades print "—" + one pending chip. */
+  figuresPending?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -103,6 +106,10 @@ const photo = computed(() => {
           </h1>
           <span class="verified" :class="{ on: user.is_verified }" :title="user.is_verified ? 'Verified' : 'Not verified'">✓</span>
           <span class="role-tag" :class="{ paid }">{{ plan || user.role }}</span>
+          <UISourceChip
+            v-if="figuresPending" source="sample"
+            note="Portrait, bio, place, level and follower counts are the demo persona, not your account. Your own name and picture are set in Settings."
+          />
         </div>
         <div class="handle">@{{ shownHandle }} · {{ user.city }}, {{ user.country }}</div>
         <p class="bio">{{ user.bio }}</p>
@@ -110,28 +117,35 @@ const photo = computed(() => {
       </div>
     </div>
 
-    <!-- Performance ribbon -->
+    <!-- Performance ribbon. `figuresPending`: the account has no own desk row, so print "—", never another user's numbers. -->
     <div class="perf-ribbon">
       <div class="perf-tile">
         <span class="perf-label">30d</span>
-        <span class="perf-value" :class="user.performance_30d < 0 ? 'down' : 'up'">{{ user.performance_30d >= 0 ? '+' : '' }}{{ user.performance_30d.toFixed(1) }}%</span>
+        <span v-if="figuresPending" class="perf-value">—</span>
+        <span v-else class="perf-value" :class="user.performance_30d < 0 ? 'down' : 'up'">{{ user.performance_30d >= 0 ? '+' : '' }}{{ user.performance_30d.toFixed(1) }}%</span>
       </div>
       <div class="perf-tile">
         <span class="perf-label">7d</span>
-        <span class="perf-value" :class="user.performance_7d < 0 ? 'down' : 'up'">{{ user.performance_7d >= 0 ? '+' : '' }}{{ user.performance_7d.toFixed(1) }}%</span>
+        <span v-if="figuresPending" class="perf-value">—</span>
+        <span v-else class="perf-value" :class="user.performance_7d < 0 ? 'down' : 'up'">{{ user.performance_7d >= 0 ? '+' : '' }}{{ user.performance_7d.toFixed(1) }}%</span>
       </div>
       <div class="perf-tile">
         <span class="perf-label">24h</span>
-        <span class="perf-value" :class="user.performance_1d < 0 ? 'down' : 'up'">{{ user.performance_1d >= 0 ? '+' : '' }}{{ user.performance_1d.toFixed(1) }}%</span>
+        <span v-if="figuresPending" class="perf-value">—</span>
+        <span v-else class="perf-value" :class="user.performance_1d < 0 ? 'down' : 'up'">{{ user.performance_1d >= 0 ? '+' : '' }}{{ user.performance_1d.toFixed(1) }}%</span>
       </div>
       <div class="perf-tile">
         <span class="perf-label">Win</span>
-        <span class="perf-value up">{{ user.win_rate.toFixed(1) }}%</span>
+        <span v-if="figuresPending" class="perf-value">—</span>
+        <span v-else class="perf-value up">{{ user.win_rate.toFixed(1) }}%</span>
       </div>
       <div class="perf-tile">
         <span class="perf-label">Trades</span>
-        <span class="perf-value">{{ user.total_trades.toLocaleString(APP_LOCALE) }}</span>
+        <span class="perf-value">{{ figuresPending ? '—' : user.total_trades.toLocaleString(APP_LOCALE) }}</span>
       </div>
+      <span v-if="figuresPending" class="perf-chip">
+        <UISourceChip source="pending" :note="DESK_PENDING_NOTE" />
+      </span>
     </div>
 
     <!-- Tags & metadata -->
@@ -140,15 +154,15 @@ const photo = computed(() => {
       <span class="tag style-tag">{{ styleLabel }}</span>
       <span class="tag">{{ user.country }}</span>
       <span class="tag">Since {{ joinedYear }}</span>
-      <span class="tag exp-tag">Lv.{{ user.experience?.level }} — {{ user.experience?.title }}</span>
+      <span class="tag exp-tag">{{ figuresPending ? 'Level —' : `Lv.${user.experience?.level} — ${user.experience?.title}` }}</span>
     </div>
 
-    <!-- Social stats -->
+    <!-- Social stats (persona counts are not the account's: "—" while figuresPending, the fields stay) -->
     <div class="social-stats">
-      <span><strong>{{ user.followers_count.toLocaleString(APP_LOCALE) }}</strong> followers</span>
-      <span><strong>{{ user.following_count.toLocaleString(APP_LOCALE) }}</strong> following</span>
-      <span><strong>{{ user.friends_count }}</strong> contacts</span>
-      <span><strong>{{ user.active_strategies_count }}</strong> strategies</span>
+      <span><strong>{{ figuresPending ? '—' : user.followers_count.toLocaleString(APP_LOCALE) }}</strong> followers</span>
+      <span><strong>{{ figuresPending ? '—' : user.following_count.toLocaleString(APP_LOCALE) }}</strong> following</span>
+      <span><strong>{{ figuresPending ? '—' : user.friends_count }}</strong> contacts</span>
+      <span><strong>{{ figuresPending ? '—' : user.active_strategies_count }}</strong> strategies</span>
     </div>
 
     <!-- CTA -->
@@ -318,6 +332,7 @@ a.avatar-wrap { text-decoration: none; color: inherit; }
 }
 .perf-value.up { color: var(--primary-green, #00ff88); }
 .perf-value.down { color: #ff5555; }
+.perf-chip { display: inline-flex; align-items: center; align-self: center; }
 
 .perf-label {
   font-size: 0.65rem;

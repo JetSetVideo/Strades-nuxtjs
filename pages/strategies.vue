@@ -6,15 +6,22 @@ import Filters from '@/components/Filters.vue'
 import Comparator from '@/components/Comparator.vue'
 import { useStrategies } from '@/composables/useStrategies'
 import { useStrategiesStore } from '@/stores/strategies'
+import { routeLabel } from '~/utils/routes'
 
+// Title = utils/routes.ts label. definePageMeta is hoisted out of setup and cannot call
+// routeLabel; tests/pageTitles.test.ts checks this literal against the registry.
 definePageMeta({
-  title: 'Strategies',
-  description: 'Trading strategies hub',
+  title: 'Lab',
+  description: 'Your strategies, plus samples to start from',
   layout: 'default',
 })
 
-const { strategies, fetchStrategies, updateStrategy, deleteStrategy, toggleStrategyStatus } = useStrategies()
+const PAGE_TITLE = routeLabel('/strategies')
+const { strategies: allStrategies, fetchStrategies, deleteStrategy, toggleStrategyStatus, generateComplementary } = useStrategies()
 const strategiesStore = useStrategiesStore()
+// "My strategies" = the user's own; catalog samples are listed apart, labelled Sample.
+const strategies = computed(() => allStrategies.value.filter(s => !s.sample))
+const sampleStrategies = computed(() => allStrategies.value.filter(s => !!s.sample))
 
 const selectedStrategies = ref<Record<string,any>[]>([])
 const showComparator    = ref(false)
@@ -175,13 +182,14 @@ onMounted(fetchStrategies)
   <div class="strategies-page">
 
     <StrategySavedList />
-    <StrategyLiveDesk :strategies="strategiesStore.strategies" />
-    <StrategyBoard :strategies="strategiesStore.strategies" :focus-ids="selectedStrategies.map(s => s.id)" />
+    <StrategyLiveDesk :strategies="strategiesStore.ownStrategies" />
+    <StrategyBoard :strategies="strategiesStore.ownStrategies" :focus-ids="selectedStrategies.map(s => s.id)" />
 
     <!-- ── Page header: title + controls ── -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">My Strategies</h1>
+        <h1 class="page-title">{{ PAGE_TITLE }}</h1>
+        <span class="page-sub">My strategies</span>
         <span class="strategy-count">
           {{ sortedStrategies.length }}<span class="count-of"> / {{ strategies.length }}</span>
         </span>
@@ -210,8 +218,16 @@ onMounted(fetchStrategies)
     <!-- ── Main content ── -->
     <div class="content-area">
 
+      <!-- No strategy of the user's own: say so, keep the way to make one, samples stay below. -->
+      <p v-if="!strategies.length" class="own-empty">
+        No strategy of yours yet —
+        <NuxtLink to="/creator" class="own-empty-link">Create one</NuxtLink>
+        <template v-if="sampleStrategies.length">, or open a sample below.</template>
+      </p>
+
       <!-- Carousel: featured + compact row -->
       <Carousel
+        v-else
         :strategies="sortedStrategies"
         :selectedStrategies="selectedStrategies"
         @select-strategy="handleStrategySelect"
@@ -221,6 +237,18 @@ onMounted(fetchStrategies)
         @share="() => {}"
         @copy="() => {}"
       />
+
+      <!-- Catalog samples: not the user's, each row labelled Sample. -->
+      <section v-if="sampleStrategies.length" class="sample-list" aria-label="Sample strategies">
+        <h2 class="sample-head">Sample strategies <UISourceChip source="sample" /></h2>
+        <div v-for="s in sampleStrategies" :key="s.id" class="sample-row">
+          <NuxtLink :to="`/strategy/${s.id}`" class="sample-name">{{ s.name }}</NuxtLink>
+          <UISourceChip source="sample" />
+          <span class="sample-gain" :data-tone="(s.monthlyGain ?? 0) >= 0 ? 'pos' : 'neg'">
+            {{ (s.monthlyGain ?? 0) >= 0 ? '+' : '' }}{{ (s.monthlyGain ?? 0).toFixed(1) }}% / mo
+          </span>
+        </div>
+      </section>
 
     </div>
 
@@ -317,6 +345,18 @@ onMounted(fetchStrategies)
   font-weight: 700;
   color: var(--text-white);
 }
+.page-sub { font-size: 0.8rem; color: var(--text-gray, #9aa); }
+.own-empty { margin: 0.5rem 0 1rem; font-size: 0.9rem; color: var(--text-gray, #9aa); }
+.own-empty-link { color: var(--primary-blue); font-weight: 700; }
+.sample-list { margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.sample-head { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.25rem; font-size: 0.95rem; font-weight: 700; color: var(--text-white); }
+.sample-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.6rem; border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.12); font-size: 0.85rem; }
+.sample-name { color: var(--text-white); text-decoration: none; font-weight: 600; }
+.sample-name:hover { text-decoration: underline; }
+.sample-gain { margin-left: auto; font-variant-numeric: tabular-nums; }
+.sample-gain[data-tone="pos"] { color: oklch(0.7 0.2 145); }
+.sample-gain[data-tone="neg"] { color: oklch(0.65 0.2 25); }
 
 .count-of { color: var(--text-gray); font-weight: 400; }
 

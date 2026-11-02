@@ -1,82 +1,142 @@
-<script setup lang="ts">import { ref, computed, onMounted } from 'vue'
+<script setup lang="ts">import { ref, shallowRef, computed, onMounted } from 'vue'
 import { useMacroStore } from '@/stores/macro'
-import { useWalletStore } from '@/stores/wallet'
 import { useAssetsStore } from '@/stores/assets'
 import { useAllocationStore } from '@/stores/allocation'
-import { useBacktest } from '@/composables/useBacktest'
+import { useTradingApi } from '@/composables/useTradingApi'
+import { usePrimarySettings } from '@/composables/usePrimarySettings'
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
 import UIStat from '@/components/UI/Stat.vue'
 import UIMetricRow from '@/components/UI/MetricRow.vue'
 import UIPill from '@/components/UI/Pill.vue'
+import UISourceChip from '@/components/UI/SourceChip.vue'
+import UIValueTree from '@/components/UI/ValueTree.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import StrategyConsensusMeter from '@/components/Strategy/ConsensusMeter.vue'
 import AssetCommodityPipeline from '@/components/Asset/CommodityPipeline.vue'
+import { OWN_BOOK_NOTE, bookLoadState, emptyOwnBook, loadOwnBook, type OwnBook } from '@/utils/ownBook'
+import { recordingBookApi, type OwnBookRaw } from '@/utils/walletTree'
+import {
+  CLASS_VOL_NOTE,
+  RISK_BUDGET_NOTE,
+  STRESS_PENDING_NOTE,
+  classRiskRows,
+  portfolioVolPct,
+  riskBudgetMeaning,
+  riskBudgetUsedPct,
+  valueAtRisk,
+  varParams,
+} from '@/utils/riskBook'
+import { DEFAULT_VOL_SOURCE, riskTrees } from '@/utils/riskTree'
+import { fmtNumber, fmtPctFromFraction, fmtPctFromPercent } from '@/utils/format'
+import { fmtMoneyKpi } from '@/utils/valueTree'
 
 definePageMeta({ title: 'Risk & Exposure', layout: 'default' })
 
 const macro = useMacroStore()
-const walletStore = useWalletStore()
 const assetsStore = useAssetsStore()
 const allocation = useAllocationStore()
-const { userId } = useCurrentUser()
-const backtest = useBacktest()
+const tradingApi = useTradingApi()
 
 const loading = ref(true)
-const stressTestResult = ref<number | null>(null)
-const stressRunning = ref(false)
+
+// ─── The signed-in account's own book ────────────────────────────────────────
+// Custody paper wallets (cash + live bot equity) + /api/portfolio/ (cash + holdings).
+// It used to read the demo wallets.json by user id: $0 for every real account, while
+// the pie stayed on the 25/25/25/25 store default (board-finance F3, board-data P0 #1).
+const book = ref<OwnBook>(emptyOwnBook())
+const bookState = ref<'loading' | 'ready' | 'signed-out' | 'error'>('loading')
+const bookReady = computed(() => bookState.value === 'ready')
+/** The raw rows the loader read: the Portfolio Value tree shows each part from them (utils/walletTree.ts). */
+const bookRaw = shallowRef<OwnBookRaw | null>(null)
+
+async function loadBook() {
+  try {
+    const rec = recordingBookApi(tradingApi)
+    book.value = await loadOwnBook(rec.api)
+    bookRaw.value = rec.raw
+    bookState.value = 'ready'
+    // The shared allocation now holds the account's actual mix (Creator / Composer read it).
+    allocation.setFromHoldings(book.value.pie)
+  } catch (error) {
+    bookState.value = bookLoadState(error)
+  }
+}
+
+// ─── The user's primary values (Settings): VaR confidence / horizon, days per year, drawdown alert ──
+const primary = usePrimarySettings()
+/** Signed out / not read → built-in defaults (95 % · 1 d · 365 d · 10 %), flagged "default". */
+const params = computed(() => varParams(primary.values.value, primary.defaults.value, primary.status.value === 'ready'))
+const paramsNote = computed(() => {
+  if (params.value.fromSettings) return ''
+  if (primary.status.value === 'error') return 'Default 95% · 1 d: your settings could not be read.'
+  if (primary.status.value === 'signed-out') return 'Default 95% · 1 d: sign in to use your settings.'
+  return 'Default 95% · 1 d until your settings are read.'
+})
 
 onMounted(async () => {
   await Promise.all([
     macro.fetchMacroState(),
-    walletStore.initializeStore(),
-    assetsStore.initializeStore()
+    assetsStore.initializeStore(),
+    loadBook(),
+    primary.load(),
   ])
   loading.value = false
 })
 
-// ─── Allocation pie ──────────────────────────────────────────────────────────
-const pie = computed(() => allocation.allocationPie)
+const bookReason = computed(() => {
+  if (bookState.value === 'signed-out') return 'Sign in to read your own book.'
+  if (bookState.value === 'error') return 'Your wallets could not be read right now.'
+  if (bookState.value === 'loading') return 'Reading your wallets…'
+  if (book.value.empty) return 'No paper wallet yet: create one in Trade. Values stay at 0.'
+  return ''
+})
+
+// Money: fmtMoneyKpi (2 dp below $1M, compact above; utils/valueTree.ts). Percent: utils/format.ts
+// (1 dp, 2 dp under 1 %). Portfolio Value, VaR and the VaR hint now print the same way ("$9,741.23").
+
+// ─── Allocation: actual holdings of the book (zeros when there are none) ─────
+const pie = computed(() => book.value.pie)
 
 // ─── Asset class risk (volatility × allocation) ──────────────────────────────
 const volatilityByClass = computed(() => macro.volatility_by_class ?? {
   fiat: 0.05, crypto: 0.7, stocks: 0.3, commodities: 0.35
 })
 
-const riskByClass = computed(() => {
-  const classes = ['fiat', 'crypto', 'stocks', 'commodities'] as const
-  return classes.map(cls => ({
-    class: cls,
-    allocation: pie.value[cls] ?? 0,
-    volatility: volatilityByClass.value[cls] ?? 0.2,
-    risk: ((pie.value[cls] ?? 0) / 100) * (volatilityByClass.value[cls] ?? 0.2) * 100,
-    color: cls === 'fiat' ? '#4A90E2' : cls === 'crypto' ? '#F5A623' : cls === 'stocks' ? '#7ED321' : '#F8E71C'
-  }))
-})
+const CLASS_COLOR: Record<string, string> = { fiat: '#4A90E2', crypto: '#F5A623', stocks: '#7ED321', commodities: '#F8E71C' }
 
-const totalRisk = computed(() =>
-  riskByClass.value.reduce((s, r) => s + r.risk, 0)
+const riskByClass = computed(() =>
+  classRiskRows(pie.value, volatilityByClass.value).map(row => ({ ...row, color: CLASS_COLOR[row.class] })),
 )
 
-// ─── Value at Risk (95% confidence, 1-day horizon) ───────────────────────────
-const portfolioValue = computed(() => {
-  // Wallets are keyed by the real user id (user_001 in demo), never 'current_user' —
-  // that lookup always missed and the page silently fell back to $10,000.
-  const w = walletStore.getDefaultWallet(userId.value) ?? walletStore.getUserWallets(userId.value)[0]
-  return w?.total_value ?? 0
-})
+/** Σ w·σ (ρ = 1). The old "Total Risk Score" was this same number under a second label. */
+const portfolioVol = computed(() => portfolioVolPct(riskByClass.value))
 
-const var95 = computed(() => {
-  // VaR = portfolioValue * sqrt(weighted variance) * 1.645
-  let weightedVar = 0
-  for (const r of riskByClass.value) {
-    const w = r.allocation / 100
-    weightedVar += (w * r.volatility / Math.sqrt(252)) ** 2
-  }
-  const dailyVol = Math.sqrt(weightedVar)
-  const varLoss = portfolioValue.value * dailyVol * 1.645 // 95% CI
-  return Math.round(varLoss * 100) / 100
-})
+// ─── Value at Risk (your confidence and horizon; see utils/riskBook.ts) ─────
+const portfolioValue = computed(() => (bookReady.value ? book.value.total : null))
+
+/** The page's figure: classes independent (ρ = 0). */
+const varUsd = computed(() => valueAtRisk(book.value.total, riskByClass.value, 0, params.value))
+/** The other bound, shown in the one-line label: classes all move together (ρ = 1). */
+const varTogether = computed(() => valueAtRisk(book.value.total, riskByClass.value, 1, params.value))
+const varHint = computed(() => `Assumes the 4 classes move independently (ρ = 0); if they all moved together (ρ = 1): ${fmtMoneyKpi(varTogether.value)}.`)
+
+// ─── Risk budget used: VaR ÷ (Portfolio Value × your drawdown alert) ────────
+const budgetUsed = computed(() => riskBudgetUsedPct(bookReady.value ? varUsd.value : null, portfolioValue.value, params.value.alertDrawdownPct))
+const budgetMeaning = computed(() => riskBudgetMeaning(budgetUsed.value, params.value, portfolioValue.value))
+
+// ─── Value trees: each KPI opens to its formula, inputs and the settings that drive it ──
+const volSource = computed(() => (macro.volatility_by_class ? DEFAULT_VOL_SOURCE : 'built-in fallback (macro state has none)'))
+const trees = computed(() => riskTrees({
+  state: bookState.value,
+  raw: bookRaw.value,
+  value: portfolioValue.value,
+  rows: riskByClass.value,
+  params: params.value,
+  volSource: volSource.value,
+  settings: primary.values.value,
+  settingsDefaults: primary.defaults.value,
+}))
 
 // ─── Counterparty exposure from supply chain ─────────────────────────────────
 const counterpartyExposure = computed(() => {
@@ -97,27 +157,19 @@ const counterpartyExposure = computed(() => {
 })
 
 // ─── Stress test ─────────────────────────────────────────────────────────────
-async function runStressTest(scenario: string) {
-  stressRunning.value = true
-  const config = {
-    id: 'stress_test',
-    name: scenario,
-    conditions: [],
-    variables: { stop_loss_percent: 10, take_profit_percent: 20, position_size: 100 },
-    targetAssets: ['BTC'],
-    initialCapital: portfolioValue.value,
-    frequency: '1D',
-    period: { start: new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10), end: new Date().toISOString().slice(0, 10) },
-    counterpartyRiskFactor: scenario === 'supply_shock' ? 0.8 : scenario === 'volatility_crisis' ? 0.6 : 0.2,
-    commodityCorrelation: scenario === 'commodity_spike' ? 0.7 : 0.3,
-  }
-  try {
-    const result = await backtest.runBacktest(config, 100)
-    stressTestResult.value = result.metrics.maxDrawdownPct
-  } catch {
-    stressTestResult.value = null
-  }
-  stressRunning.value = false
+// The old handler ran a backtest with `conditions: []` on BTC: it never entered a
+// trade and always reported 0.0% "Resilient" (board-finance F4). The scenarios stay
+// visible; the result is "—" until a strategy with an entry rule drives it.
+const STRESS_LABELS: Record<string, string> = {
+  supply_shock: 'Supply Shock',
+  volatility_crisis: 'Volatility Crisis',
+  commodity_spike: 'Commodity Spike',
+  rate_hike: 'Rate Hike',
+}
+const stressScenario = ref<string | null>(null)
+
+function runStressTest(scenario: string) {
+  stressScenario.value = scenario
 }
 
 // ─── Exposure by counterparty type ───────────────────────────────────────────
@@ -143,31 +195,54 @@ const exposureByType = computed(() => {
     </template>
 
     <template v-else>
-      <!-- ── Portfolio Value & VaR ──────────────────────────────────── -->
-      <UIMetricRow :cols="4">
-        <UIStat label="Portfolio Value" :value="portfolioValue" :precision="0" suffix="USD" size="lg" />
-        <UIStat label="VaR (95% 1d)" :value="var95" :precision="0" suffix="USD" tone="negative" size="lg" />
-        <UIStat label="Total Risk Score" :value="totalRisk" :precision="1" tone="auto" size="lg" />
-        <UIStat label="Portfolio Vol" :value="riskByClass.reduce((s, r) => s + r.volatility * (r.allocation / 100), 0) * 100" :precision="1" suffix="%" size="lg" />
+      <!-- ── Portfolio Value, VaR, Risk budget used: each opens to its formula, inputs and settings ── -->
+      <UIMetricRow :cols="4" class="kpi-row">
+        <div class="kpi">
+          <UIValueTree :node="trees.value" size="lg" />
+          <p class="kpi-hint">
+            <UISourceChip :source="bookReady ? 'paper' : 'pending'" :note="bookReady ? OWN_BOOK_NOTE : bookReason" />
+            <span>{{ bookReason || 'Your own paper book. Click the number to see its parts.' }}</span>
+          </p>
+        </div>
+        <div class="kpi">
+          <UIValueTree :node="trees.var" size="lg" />
+          <p class="kpi-hint">
+            <UISourceChip v-if="!params.fromSettings" source="pending" :note="paramsNote" />
+            <span>{{ bookReady ? varHint : bookReason }}<template v-if="paramsNote"> {{ paramsNote }}</template></span>
+          </p>
+        </div>
+        <div class="kpi">
+          <UIValueTree :node="trees.budget" size="lg" />
+          <p class="kpi-hint" :title="RISK_BUDGET_NOTE">{{ budgetMeaning }}</p>
+        </div>
+        <UIStat label="Portfolio Vol" :value="portfolioVol" suffix="%" size="lg" hint="Σ weight × class vol: assumes the classes move together (ρ = 1), an upper bound." />
       </UIMetricRow>
 
       <!-- ── Asset Class Risk Breakdown ─────────────────────────────── -->
       <UICard title="Risk by Asset Class">
+        <p class="src-note">
+          <UISourceChip source="sample" :note="CLASS_VOL_NOTE" />
+          <span>Weights: your own book. Volatilities: bundled macro state (sample).</span>
+        </p>
         <div class="risk-bars">
           <div v-for="r in riskByClass" :key="r.class" class="risk-row" :style="{ '--bar-color': r.color }">
             <span class="risk-class" :style="{ color: r.color }">{{ r.class.toUpperCase() }}</span>
             <div class="risk-bar-track">
               <div class="risk-bar-fill" :style="{ width: `${r.risk}%`, background: r.color }" />
             </div>
-            <span class="risk-alloc">{{ r.allocation.toFixed(1) }}%</span>
-            <span class="risk-vol">{{ (r.volatility * 100).toFixed(0) }}% vol</span>
-            <span class="risk-score">{{ r.risk.toFixed(1) }}</span>
+            <span class="risk-alloc">{{ fmtPctFromPercent(r.allocation) }}</span>
+            <span class="risk-vol">{{ fmtPctFromFraction(r.volatility) }} vol</span>
+            <span class="risk-score">{{ fmtNumber(r.risk, { decimals: 1 }) }}</span>
           </div>
         </div>
       </UICard>
 
       <!-- ── Allocation Pie Preview ─────────────────────────────────── -->
       <UICard title="Current Allocation">
+        <p class="src-note">
+          <UISourceChip :source="bookReady ? 'paper' : 'pending'" :note="bookReady ? OWN_BOOK_NOTE : bookReason" />
+          <span>{{ bookReason || 'Share of your own paper book by class, from actual holdings.' }}</span>
+        </p>
         <div class="alloc-preview">
           <div class="alloc-strip">
             <div
@@ -175,12 +250,12 @@ const exposureByType = computed(() => {
               :key="r.class"
               class="alloc-seg"
               :style="{ width: `${r.allocation}%`, background: r.color }"
-              :title="`${r.class}: ${r.allocation.toFixed(1)}%`"
+              :title="`${r.class}: ${fmtPctFromPercent(r.allocation)}`"
             />
           </div>
           <div class="alloc-labels">
             <span v-for="r in riskByClass" :key="r.class" class="alloc-label" :style="{ color: r.color }">
-              {{ r.class }}: {{ r.allocation.toFixed(1) }}%
+              {{ r.class }}: {{ fmtPctFromPercent(r.allocation) }}
             </span>
           </div>
         </div>
@@ -192,7 +267,7 @@ const exposureByType = computed(() => {
           <div v-for="e in counterpartyExposure" :key="e.name" class="cp-row">
             <span class="cp-name">{{ e.name }}</span>
             <UIPill :tone="e.risk > 40 ? 'danger' : e.risk > 20 ? 'warning' : 'success'" size="sm">
-              {{ e.risk.toFixed(0) }}% risk
+              {{ fmtPctFromPercent(e.risk) }} risk
             </UIPill>
             <span class="cp-type">{{ e.type }}</span>
           </div>
@@ -207,7 +282,7 @@ const exposureByType = computed(() => {
             <div class="ex-bar-track">
               <div class="ex-bar-fill" :style="{ width: `${e.risk * 1.5}%` }" />
             </div>
-            <span class="ex-val">{{ e.risk.toFixed(0) }}%</span>
+            <span class="ex-val">{{ fmtPctFromPercent(e.risk) }}</span>
           </div>
         </div>
       </UICard>
@@ -218,7 +293,6 @@ const exposureByType = computed(() => {
         <div class="stress-grid">
           <button
             class="stress-btn"
-            :disabled="stressRunning"
             @click="runStressTest('supply_shock')"
           >
             <span class="stress-icon">⚡</span>
@@ -227,7 +301,6 @@ const exposureByType = computed(() => {
           </button>
           <button
             class="stress-btn"
-            :disabled="stressRunning"
             @click="runStressTest('volatility_crisis')"
           >
             <span class="stress-icon">🌪️</span>
@@ -236,7 +309,6 @@ const exposureByType = computed(() => {
           </button>
           <button
             class="stress-btn"
-            :disabled="stressRunning"
             @click="runStressTest('commodity_spike')"
           >
             <span class="stress-icon">🛢️</span>
@@ -245,7 +317,6 @@ const exposureByType = computed(() => {
           </button>
           <button
             class="stress-btn"
-            :disabled="stressRunning"
             @click="runStressTest('rate_hike')"
           >
             <span class="stress-icon">📈</span>
@@ -254,17 +325,11 @@ const exposureByType = computed(() => {
           </button>
         </div>
 
-        <!-- Result -->
-        <div v-if="stressRunning" class="stress-progress">
-          <div class="spinner" />
-          <span>Running Monte Carlo stress test...</span>
-        </div>
-        <div v-else-if="stressTestResult !== null" class="stress-result">
-          <span class="result-icon">🔴</span>
-          <span class="result-text">Projected max drawdown: <strong>{{ stressTestResult.toFixed(1) }}%</strong></span>
-          <UIPill :tone="stressTestResult > 30 ? 'danger' : stressTestResult > 15 ? 'warning' : 'success'" size="sm">
-            {{ stressTestResult > 30 ? 'High Risk' : stressTestResult > 15 ? 'Moderate' : 'Resilient' }}
-          </UIPill>
+        <!-- Result: not computed until a strategy with an entry rule drives the scenario -->
+        <div v-if="stressScenario" class="stress-result">
+          <span class="result-text">{{ STRESS_LABELS[stressScenario] }} · projected max drawdown: <strong>—</strong></span>
+          <UISourceChip source="pending" :note="STRESS_PENDING_NOTE" />
+          <span class="result-why">not computed: needs a strategy with an entry rule</span>
         </div>
       </UICard>
 
@@ -294,6 +359,21 @@ const exposureByType = computed(() => {
   flex-direction: column;
   gap: var(--page-gap, 0.6rem);
   min-width: 0;
+}
+
+/* KPI row: value trees open in place; the other tiles keep their height */
+.kpi-row { align-items: start; }
+.kpi { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.kpi-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.4rem;
+  margin: 0;
+  padding: 0 0.2rem;
+  font-size: 0.6rem;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.4);
 }
 
 /* Risk bars */
@@ -405,11 +485,26 @@ const exposureByType = computed(() => {
 }
 .stress-result {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   margin-top: var(--spacing-sm);
   font-size: 0.82rem;
 }
+.result-why { font-size: 0.7rem; color: var(--text-gray); }
+
+/* Where a number comes from (wave 2 honest data) */
+.src-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--text-gray);
+}
+.stat-sfx { font-size: 0.7em; font-weight: 500; color: rgba(255,255,255,0.55); }
 
 /* Consensus grid */
 .consensus-grid {

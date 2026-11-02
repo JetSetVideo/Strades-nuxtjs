@@ -1,7 +1,7 @@
 [
   {
     "id": "avatar_user_001",
-    "name": "Alice's Avatar",
+    "name": "Your avatar",
     "owner_id": "user_001",
     "kind": "personal",
     "avatar_url": "/avatars/Ellipse5.png",

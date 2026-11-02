@@ -3,11 +3,13 @@
  * "You, as your behaviour reads": declared vs behaviour-read code, the four axes, archetype, metrics,
  * strengths / weaknesses and coaching advice. These are behavioural reads, not a psychology diagnosis.
  */
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import {
-  axisBar, axisRead, codeAgreement, intelHour, intelPct, isNewcomer, metricRows, severityTone,
+  axisBar, axisRead, codeAgreement, intelHour, intelPct, isNewcomer, severityTone,
   type IntelLastRun, type IntelProfile,
 } from '~/utils/intelligence'
+import { profMetricRows } from '~/utils/profileTree'
+import UIValueTree from '~/components/UI/ValueTree.vue'
 
 const props = defineProps<{
   profile: IntelProfile | null
@@ -21,8 +23,8 @@ const emit = defineEmits<{ refresh: [] }>()
 const newcomer = computed(() => isNewcomer(props.profile))
 const code = computed(() => codeAgreement(props.profile?.code_declared, props.profile?.code_inferred))
 const axes = computed(() => (props.profile?.axes ?? []).map(a => ({ a, read: axisRead(a), bar: axisBar(a.value) })))
-const metrics = computed(() => metricRows(props.profile?.metrics))
-const openMetric = ref<string | null>(null)
+// Metric rows open to their formula (apps/intelligence/profiles.py) and the evidence counts (profile.stats).
+const metrics = computed(() => profMetricRows(props.profile))
 const mix = computed(() => Object.entries(props.profile?.asset_mix ?? {}).sort((a, b) => b[1] - a[1]))
 const hours = computed(() => {
   const h = props.profile?.hours ?? []
@@ -97,15 +99,11 @@ const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleSt
 
       <div class="grid2">
         <div>
-          <h3 class="sub">Metrics <span class="muted">· tap a row for what it means</span></h3>
+          <h3 class="sub">Metrics <span class="muted">· tap a row for how it is computed</span></h3>
           <ul class="metrics">
-            <li v-for="m in metrics" :key="m.key">
-              <button type="button" class="metric" :aria-expanded="openMetric === m.key" @click="openMetric = openMetric === m.key ? null : m.key">
-                <span class="metric-l">{{ m.label }}</span>
-                <span v-if="m.bar !== null" class="metric-bar" aria-hidden="true"><span :style="{ width: `${m.bar * 100}%` }" /></span>
-                <span class="metric-v num">{{ m.display }}</span>
-              </button>
-              <p v-if="openMetric === m.key" class="metric-x">{{ m.explain }}</p>
+            <li v-for="m in metrics" :key="m.key" class="metric">
+              <UIValueTree :node="m.node" size="sm" layout="row" />
+              <span v-if="m.bar !== null" class="metric-bar" aria-hidden="true"><span :style="{ width: `${m.bar * 100}%` }" /></span>
             </li>
           </ul>
           <p v-if="stats" class="muted small">
@@ -196,15 +194,12 @@ const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleSt
 .sub { margin: 0 0 0.35rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-light-gray); }
 .sub .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .metrics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.1rem; }
-.metric { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) auto; gap: 0.5rem; align-items: center; padding: 0.25rem 0.3rem; border-radius: var(--radius-sm); min-height: 24px; }
+/* each row is a UIValueTree (label … value ▸); the score bar sits between label and value, as before */
+.metric { position: relative; min-width: 0; border-radius: var(--radius-sm); }
 .metric:hover { background: var(--nav-hover-bg); }
-.metric:focus-visible { outline: 2px solid var(--primary-blue); outline-offset: 1px; }
-.metric-l { font-size: 0.76rem; color: var(--text-light-gray); }
-.metric-bar { grid-column: 2; height: 0.35rem; border-radius: 999px; background: rgba(255,255,255,0.05); overflow: hidden; }
+.metric-bar { position: absolute; left: 8.5rem; right: 5.2rem; top: 0.62rem; height: 0.35rem; border-radius: 999px; background: rgba(255,255,255,0.05); overflow: hidden; pointer-events: none; }
 .metric-bar span { display: block; height: 100%; background: color-mix(in oklch, var(--primary-blue) 75%, transparent); }
-.metric-v { grid-column: 3; font-size: 0.74rem; color: var(--text-white); text-align: right; min-width: 0; overflow-wrap: anywhere; }
-@media (max-width: 420px) { .metric { grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr) minmax(0, auto); } }
-.metric-x { margin: 0 0.3rem 0.3rem; font-size: 0.7rem; color: var(--text-gray); }
+@media (max-width: 420px) { .metric-bar { left: 7rem; right: 4.8rem; } }
 .small { font-size: 0.68rem; margin: 0.4rem 0 0; }
 .muted { color: var(--text-gray); }
 

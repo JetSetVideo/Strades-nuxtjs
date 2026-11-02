@@ -6,6 +6,10 @@ import { useAgentsStore } from '@/stores/agents'
 import { useStrategiesStore } from '@/stores/strategies'
 import { usePlatformsStore } from '@/stores/platforms'
 import { seededRandom } from '@/composables/useSeededRandom'
+import { useAssetsStore } from '@/stores/assets'
+import { botFillsView, botStatusText, nextActionTs } from '~/utils/strategyRun'
+import { livePriceOf } from '~/utils/paperMarks'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UICard from '@/components/UI/Card.vue'
@@ -18,6 +22,8 @@ import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import StrategyEquityCurve from '@/components/Strategy/EquityCurve.vue'
 import BotLinkRow from '@/components/Bot/LinkRow.vue'
 import BotFillsList from '@/components/Bot/FillsList.vue'
+import { fmtDateTime, fmtPctFromFraction, fmtRelative } from '~/utils/format'
+import { fmtMoneyKpi, signTone } from '~/utils/valueTree'
 
 definePageMeta({ title: 'Bot', layout: 'default' })
 
@@ -39,6 +45,8 @@ onMounted(async () => {
     !platforms.hydrated ? platforms.fetchPlatforms() : Promise.resolve(),
     strategies.fetchStrategies()
   ])
+  // Live prices for the fill notice (no await: the page does not wait on quotes).
+  if (!assets.assets.length) void assets.initializeStore()
   loading.value = false
 })
 
@@ -59,24 +67,18 @@ const statusTone = computed(() => {
   }
 })
 
+// Dates: utils/format.ts fmtRelative ("3 d ago", "in 5 min", the plain date beyond 7 days).
 const startedRel = computed(() => {
   if (!bot.value?.started_at) return '—'
-  const days = Math.floor((Date.now() - new Date(bot.value.started_at).getTime()) / 86_400_000)
-  if (days === 0) return 'today'
-  if (days === 1) return '1 day ago'
-  if (days < 30) return `${days} days ago`
-  if (days < 365) return `${Math.floor(days / 30)} months ago`
-  return `${Math.floor(days / 365)} years ago`
+  return fmtRelative(bot.value.started_at)
 })
 
 const nextActionRel = computed(() => {
-  if (!bot.value?.next_action_at) return null
-  const ms = new Date(bot.value.next_action_at).getTime() - Date.now()
-  if (ms < 0)           return 'now'
-  if (ms < 60_000)      return `in ${Math.round(ms / 1000)}s`
-  if (ms < 3_600_000)   return `in ${Math.round(ms / 60_000)}m`
-  if (ms < 86_400_000)  return `in ${Math.round(ms / 3_600_000)}h`
-  return `in ${Math.round(ms / 86_400_000)}d`
+  if (nextTs.value === null) return null
+  const now = Date.now()
+  if (nextTs.value - now < 0) return 'now'
+  const rel = fmtRelative(nextTs.value, now)
+  return rel === 'just now' ? 'in under a minute' : rel
 })
 
 interface Fill {
@@ -84,27 +86,27 @@ interface Fill {
   asset: string; price: number; size: number; pnl: number
 }
 
-const recentFills = computed<Fill[]>(() => {
-  if (!bot.value || !strategy.value) return []
-  const rand = seededRandom(bot.value.id + 'fills')
-  const assets = (strategy.value as any).target_assets ?? ['BTC']
-  const n = Math.min(12, bot.value.trades_30d)
-  const out: Fill[] = []
-  for (let i = 0; i < n; i++) {
-    const isBuy = rand() < 0.5
-    const asset = assets[Math.floor(rand() * assets.length)]
-    out.push({
-      id: `f_${bot.value.id}_${i}`,
-      ts: Date.now() - (i + 1) * 3_600_000 * (1 + rand() * 4),
-      side: isBuy ? 'buy' : 'sell',
-      asset,
-      price: 100 + rand() * 100000,
-      size: Number((rand() * 5).toFixed(3)),
-      pnl: (rand() - 0.45) * 200
-    })
-  }
-  return out
+// Bots in this store come from the bundled catalog (public/data/core/bots.json): none of
+// them is a server bot (those live on /trade). So the page never says LIVE, every number
+// is chipped Simulated, and fills are only drawn around a real live price (BTC @ $1,277
+// was printed under "LIVE"); with no live price the fill list is replaced by a notice.
+const isServerBot = false
+const assets = useAssetsStore()
+const statusText = computed(() => bot.value ? botStatusText(bot.value.status, isServerBot) : '')
+const nextTs = computed(() => nextActionTs(bot.value?.next_action_at))
+
+const fillsView = computed(() => {
+  if (!bot.value || !strategy.value) return { fills: [] as Fill[], hidden: true, reason: 'No strategy linked, so no fills.' }
+  return botFillsView({
+    botId: bot.value.id,
+    botName: bot.value.name,
+    count: bot.value.trades_30d,
+    assets: (strategy.value as any).target_assets ?? [],
+    priceOf: (a: string) => livePriceOf(assets.assets, a.toLowerCase(), a),
+    rand: seededRandom(bot.value.id + 'fills'),
+  })
 })
+const recentFills = computed<Fill[]>(() => fillsView.value.fills)
 
 function toggleStatus() {
   if (!bot.value) return
@@ -128,7 +130,8 @@ function toggleStatus() {
   <div v-else-if="bot" class="bot-detail">
     <UIPageHeader :title="bot.name" :subtitle="`Bot · started ${startedRel}`">
       <template #actions>
-        <UIPill :tone="statusTone" show-dot>{{ bot.status }}</UIPill>
+        <UISourceChip source="simulated" note="Sample bot from the catalog: it does not trade and is not connected to an exchange. Your real paper bots are on /trade." />
+        <UIPill :tone="isServerBot ? statusTone : 'neutral'" :show-dot="isServerBot">{{ statusText }}</UIPill>
         <button
           class="action"
           :disabled="bot.status === 'stopped' || bot.status === 'error'"
@@ -139,15 +142,23 @@ function toggleStatus() {
       </template>
     </UIPageHeader>
 
+    <div class="sim-banner" role="note">
+      <UISourceChip source="simulated" />
+      Every number on this page is simulated: this bot is a sample, not one of your bots.
+      <NuxtLink to="/trade">Your paper bots →</NuxtLink>
+    </div>
+
     <UIMetricRow :cols="4">
-      <UIStat label="Capital"   :value="bot.capital_allocated_usd" :precision="0" suffix="USD" size="lg" />
-      <UIStat label="PnL today" :value="bot.pnl_today_usd"          tone="auto" :precision="0" suffix="USD" size="md" />
-      <UIStat label="PnL 30d"   :value="bot.pnl_30d_pct"            tone="auto" suffix="%" :precision="2" size="md" />
-      <UIStat label="Uptime"    :value="bot.uptime_pct"             suffix="%" :precision="1" size="md" />
+      <!-- Money: fmtMoneyKpi (2 dp below $1M, compact above): "$12,500.00", "−$9.00", "+$2.00", "$0.00". -->
+      <UIStat label="Capital"   :value="fmtMoneyKpi(bot.capital_allocated_usd)" size="lg" />
+      <UIStat label="PnL today" :value="fmtMoneyKpi(bot.pnl_today_usd, { signed: true })" :tone="signTone(bot.pnl_today_usd)" size="md" />
+      <UIStat label="PnL 30d"   :value="bot.pnl_30d_pct"            tone="auto" suffix="%" size="md" />
+      <UIStat label="Uptime"    :value="bot.uptime_pct"             suffix="%" size="md" />
     </UIMetricRow>
 
     <UICard title="Equity · 30d">
       <template #action>
+        <UISourceChip source="simulated" note="Illustrative path between the sample's start and end values." />
         <UIPill ghost tone="neutral">{{ bot.trades_30d }} trades</UIPill>
       </template>
       <StrategyEquityCurve
@@ -194,7 +205,7 @@ function toggleStatus() {
           :mark-bg="platform.color"
           mark-color="#fff"
           :title="platform.name"
-          :subtitle="`API health ${Math.round(platform.api_health * 100)}% · ${platform.status.replace('_', ' ')}`"
+          :subtitle="`API health ${fmtPctFromFraction(platform.api_health)} · ${platform.status.replace('_', ' ')}`"
         />
         <UIEmptyState v-else size="sm" icon="◯" message="No platform configured." />
       </UICard>
@@ -206,7 +217,7 @@ function toggleStatus() {
           <span class="schedule-icon">↻</span>
           <div class="schedule-body">
             <strong>Next action {{ nextActionRel }}</strong>
-            <small>{{ new Date(bot.next_action_at!).toLocaleString(APP_LOCALE) }}</small>
+            <small>{{ nextTs !== null ? fmtDateTime(nextTs) : '' }} · simulated schedule</small>
           </div>
         </div>
       </UICard>
@@ -220,11 +231,13 @@ function toggleStatus() {
 
     <UICard title="Recent fills">
       <template #action>
+        <UISourceChip source="simulated" :note="fillsView.reason" />
         <UIPill ghost tone="neutral">
           {{ recentFills.length }} shown · {{ bot.trades_30d }} this month
         </UIPill>
       </template>
-      <UIEmptyState v-if="recentFills.length === 0" icon="◯" message="No fills yet." />
+      <UIEmptyState v-if="fillsView.hidden" icon="◯" title="No fills to show" :message="fillsView.reason" />
+      <UIEmptyState v-else-if="recentFills.length === 0" icon="◯" message="No fills yet." />
       <BotFillsList v-else :fills="recentFills" />
     </UICard>
   </div>
@@ -242,6 +255,12 @@ function toggleStatus() {
   gap: var(--page-gap, 0.6rem);
   min-width: 0;
 }
+.sim-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 0.7rem; border-radius: var(--app-border-radius, 6px); font-size: 0.78rem;
+  border: 1px dashed rgba(180,140,255,0.45); color: rgba(255,255,255,0.8);
+}
+.sim-banner a { color: var(--primary-blue, #00aaff); }
 
 .loading-shell { display: flex; flex-direction: column; gap: 0.5rem; }
 .skel-metrics {

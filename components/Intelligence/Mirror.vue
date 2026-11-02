@@ -7,7 +7,7 @@
  * Data: composables/useIntelligence.ts (GET /api/v1/intelligence/me/, /space/, /entourage/, /similar/), client-side.
  * Deep links: #intelligence (section), #intelligence-truth | -entourage | -intelligences | -avatar | -factors (tab).
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { intelTruthEmpty } from '~/utils/intelligenceV2'
 import type { IntelCommunityV3, IntelProfileV3 } from '~/utils/intelligenceV3'
 
@@ -54,7 +54,31 @@ function select(t: Tab) {
 }
 const onSpace = (x: string, y: string) => { void intel.loadSpace(x, y) }
 
+// No account (sample-data browsing or signed out): create or resume the demo account right here.
+const auth = useAuth()
+const apiBase = useRuntimeConfig().public.apiBase as string
+const activating = ref(false)
+const activateError = ref('')
+const hasSavedDemo = ref(false)
+const unreachable = computed(() => status.value === 'error' && /reach|fetch|network/i.test(error.value ?? ''))
+async function activate() {
+  activating.value = true
+  activateError.value = ''
+  try {
+    await auth.activateDemo()
+    // reload so every store (wallets, bots, chat) switches from the sample files to the account
+    reloadNuxtApp({ path: '/profile#intelligence-' + tab.value, force: true })
+  } catch (e: unknown) {
+    activateError.value = httpStatusOf(e) === 429
+      ? 'Too many demo accounts from this network right now. Please sign in or try again later.'
+      : `Can't reach the Strades server at ${apiBase} yet. Please try again in a moment.`
+  } finally {
+    activating.value = false
+  }
+}
+
 onMounted(async () => {
+  hasSavedDemo.value = !!storedDemoCode()
   const h = route.hash || ''
   const t = h.startsWith('#intelligence') ? fromHash(h) : null
   if (t) tab.value = t
@@ -67,10 +91,13 @@ onMounted(async () => {
   }
 })
 watch(() => route.hash, (h) => { const t = h?.startsWith('#intelligence') ? fromHash(h) : null; if (t) select(t) })
+// The pulsing skeleton kept running after the page left and held the subtree in memory (swarm O1).
+const rootEl = ref<HTMLElement | null>(null)
+onBeforeUnmount(() => { cancelSubtreeAnimations(rootEl.value) })
 </script>
 
 <template>
-  <div class="mi">
+  <div ref="rootEl" class="mi">
     <header class="mi-head">
       <div class="mi-id">
         <p class="mi-k">How you compare</p>
@@ -80,14 +107,11 @@ watch(() => route.hash, (h) => { const t = h?.startsWith('#intelligence') ? from
       <NuxtLink to="/insights" class="mi-link" data-testid="insights-entry">Open Insights →</NuxtLink>
     </header>
 
-    <p v-if="status === 'signed-out'" class="mi-msg">Sign in to see how you compare with everybody else.</p>
-    <div v-else-if="status === 'idle' || (status === 'loading' && !profileV2)" class="mi-skel" aria-busy="true">
+    <div v-if="status === 'idle' || (status === 'loading' && !profileV2)" class="mi-skel" aria-busy="true">
       <span /><span /><span />
     </div>
-    <p v-else-if="status === 'error'" class="mi-msg err" role="alert">
-      {{ error }} <button type="button" class="lnk" @click="intel.load()">Retry</button>
-    </p>
     <template v-else>
+      <!-- The six tabs are always shown (and wrap, never scroll out of sight), whatever the account state. -->
       <div class="tabs" role="tablist" aria-label="Your mirror">
         <button
           v-for="t in TABS" :id="`mi-tab-${t.key}`" :key="t.key" type="button" role="tab" class="tab"
@@ -95,7 +119,29 @@ watch(() => route.hash, (h) => { const t = h?.startsWith('#intelligence') ? from
         >{{ t.label }}</button>
       </div>
 
-      <div :id="`mi-panel-${tab}`" role="tabpanel" :aria-labelledby="`mi-tab-${tab}`" class="panel">
+      <!-- No account behind this page (sample data, or signed out): one click gets the demo account. -->
+      <div v-if="status === 'signed-out'" :id="`mi-panel-${tab}`" role="tabpanel" class="mi-cta" data-testid="mirror-activate">
+        <p class="mi-msg">
+          <b>{{ TABS.find(t => t.key === tab)?.label }}</b> is computed from your own account, and this page is showing
+          sample data with no account behind it.
+        </p>
+        <button type="button" class="btn-act" :disabled="activating" @click="activate">
+          {{ activating ? 'Starting…' : hasSavedDemo ? 'Continue my demo account' : 'Start my demo account' }}
+        </button>
+        <span class="mi-msg small">Free, no email. Kept while you use it, deleted after 30 days without a visit.
+          <NuxtLink to="/auth">Sign in instead</NuxtLink></span>
+        <p v-if="activateError" class="mi-msg err" role="alert">{{ activateError }}</p>
+      </div>
+      <div v-else-if="status === 'error'" :id="`mi-panel-${tab}`" role="tabpanel" class="mi-cta">
+        <p class="mi-msg err" role="alert">{{ error }}</p>
+        <p v-if="unreachable" class="mi-msg small">
+          The page cannot reach the Strades server at {{ apiBase }}. On this computer, check that the backend is running;
+          on another device, the app has to be opened with this computer's network address.
+        </p>
+        <button type="button" class="btn-act" @click="intel.load(true)">Retry</button>
+      </div>
+
+      <div v-else :id="`mi-panel-${tab}`" role="tabpanel" :aria-labelledby="`mi-tab-${tab}`" class="panel">
         <template v-if="tab === 'space'">
           <IntelligenceSpaceStrips :space="profileV2?.space" :community="community" :people="people" />
           <h3 class="sub">The community map</h3>
@@ -140,7 +186,12 @@ watch(() => route.hash, (h) => { const t = h?.startsWith('#intelligence') ? from
 .mi-skel span { height: 2.2rem; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.04); animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.5; } }
 @media (prefers-reduced-motion: reduce) { .mi-skel span { animation: none; } }
-.tabs { display: flex; gap: 0.3rem; overflow-x: auto; scrollbar-width: thin; padding-bottom: 0.15rem; max-width: 100%; }
+.tabs { display: flex; flex-wrap: wrap; gap: 0.3rem; max-width: 100%; }   /* wrap: a scrolled-away tab is invisible on macOS/iOS */
+.mi-cta { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; padding: 0.8rem; border-radius: var(--radius-sm); border: 1px dashed var(--edge-raised); }
+.mi-msg.small { font-size: 0.72rem; color: var(--text-gray); }
+.btn-act { all: unset; box-sizing: border-box; cursor: pointer; padding: 0.5rem 0.9rem; border-radius: 999px; background: var(--primary-blue); color: var(--secondary-darker); font-weight: 600; font-size: 0.8rem; min-height: 32px; }
+.btn-act[disabled] { opacity: 0.6; cursor: progress; }
+.btn-act:focus-visible { outline: 2px solid var(--text-white); outline-offset: 2px; }
 .tab { all: unset; box-sizing: border-box; cursor: pointer; flex: 0 0 auto; font-size: 0.74rem; padding: 0.4rem 0.75rem; border-radius: 999px; border: 1px solid var(--edge-raised); color: var(--text-light-gray); min-height: 24px; white-space: nowrap; }
 .tab:hover { border-color: var(--edge-lit); }
 .tab[aria-selected='true'] { background: var(--primary-blue); border-color: var(--primary-blue); color: var(--secondary-darker); font-weight: 600; }

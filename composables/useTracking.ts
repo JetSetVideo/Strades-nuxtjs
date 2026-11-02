@@ -111,6 +111,19 @@ export const useTracking = () => {
     }
   }
 
+  /**
+   * A 401 on telemetry: the access token expired (these calls bypass the $api refresh plugin). Refresh once;
+   * if the session is really gone, stop the timers so a dead tab stops hammering the API (the swarm audit
+   * measured 76 % of all backend requests as 401s from such tabs, ~540 an hour).
+   */
+  const _onUnauthorized = async () => {
+    const ok = await useAuth().refreshAccessToken().catch(() => false)
+    if (!ok) {
+      stopHeartbeat()
+      state.sessionId = null
+    }
+  }
+
   /** Send queued events now. `beacon` = the page is going away: keepalive fetch, no retry. */
   const flush = async (beacon = false): Promise<void> => {
     if (!import.meta.client || !isAuthenticated.value || state.inFlight) return
@@ -132,6 +145,7 @@ export const useTracking = () => {
       state.backoffMs = 0
     } catch (e: any) {
       const code = e?.response?.status ?? e?.statusCode
+      if (code === 401) await _onUnauthorized()
       if (code !== 400) {
         // offline, 401 during a refresh, 429, 5xx: keep the events and back off
         _requeue(batch)
@@ -198,7 +212,9 @@ export const useTracking = () => {
           headers: _headers(),
           body: { session_id: state.sessionId },
         })
-      } catch {}
+      } catch (e: any) {
+        if ((e?.response?.status ?? e?.statusCode) === 401) await _onUnauthorized()
+      }
     }, 30_000)
   }
 

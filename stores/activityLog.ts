@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { publicAssetUrl } from '~/composables/useLocalJson'
 import { useTrainingStore, type TrainingEventType } from '~/stores/training'
 import { useAgentsStore } from '~/stores/agents'
+import { userGet, userSet } from '~/utils/userStorage'
 
 /**
  * Activity Log — durable interaction journal for Avatar training & trading profile.
@@ -214,7 +215,7 @@ export const useActivityLogStore = defineStore('activityLog', {
       const seedUrl = publicAssetUrl('/data/tracking/activity_log.json')
       if (applyBrowser && import.meta.client) {
         try {
-          const raw = localStorage.getItem(STORAGE_KEY)
+          const raw = userGet(STORAGE_KEY)
           if (raw) {
             const parsed = JSON.parse(raw) as Partial<ActivityLogState>
             this.raw = parsed.raw ?? []
@@ -254,7 +255,7 @@ export const useActivityLogStore = defineStore('activityLog', {
     persist() {
       if (!import.meta.client) return
       try {
-        localStorage.setItem(
+        userSet(
           STORAGE_KEY,
           JSON.stringify({
             raw: this.raw,
@@ -270,7 +271,7 @@ export const useActivityLogStore = defineStore('activityLog', {
         if (this.raw.length > this.retainRawAfterReduce) {
           this.reduce()
           try {
-            localStorage.setItem(
+            userSet(
               STORAGE_KEY,
               JSON.stringify({
                 raw: this.raw,

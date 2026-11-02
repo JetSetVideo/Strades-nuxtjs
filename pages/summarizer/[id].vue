@@ -12,9 +12,14 @@ import UIEmptyState from '@/components/UI/EmptyState.vue'
 import AppSkeletonLoader from '@/components/App/SkeletonLoader.vue'
 import StrategyCodeView from '@/components/Strategy/CodeView.vue'
 import { strategyToCodeView } from '~/utils/strategyCode'
+import UISourceChip from '@/components/UI/SourceChip.vue'
+import { routeLabel } from '~/utils/routes'
+// Dates via utils/format.ts ("Jan 1, 2024"; "—" when missing).
+import { fmtDate } from '~/utils/format'
 
+// Title literal = routeLabel('/summarizer/[id]') (tests/pageTitles.test.ts; definePageMeta cannot call it).
 definePageMeta({
-  title: 'Strategy Summary',
+  title: 'Review',
   description: 'Review your strategy before backtesting.',
   layout: 'default'
 })
@@ -39,13 +44,14 @@ if (!strategy.value && import.meta.client) {
 }
 
 const summaryCode = computed(() => strategy.value ? strategyToCodeView(strategy.value) : {})
+const isSample = computed(() => !!(strategy.value as { sample?: boolean } | null)?.sample)
 
 async function testStrategy() {
   if (!strategy.value) return
   isTesting.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    router.push(`/strategy/${strategy.value.id}?tab=backtest`)
+    // The strategy page runs it (run=1) and shows progress, the result or the server's error.
+    await router.push(`/strategy/${strategy.value.id}?tab=backtest&run=1`)
   } catch (error) {
     console.error('Strategy test failed:', error)
   } finally {
@@ -65,12 +71,13 @@ async function testStrategy() {
 
     <template v-else-if="strategy">
       <UIPageHeader
-        :title="`Review · ${strategy.name}`"
+        :title="`${routeLabel('/summarizer/[id]')} · ${strategy.name}`"
         subtitle="Final check before we run a backtest. Edit anything in the Creator."
       >
         <template #actions>
+          <UISourceChip v-if="isSample" source="sample" note="Sample strategy from the catalog: not one of yours. Back to Creator opens a copy you can edit." />
           <UIPill tone="info">{{ strategy.category || 'strategy' }}</UIPill>
-          <NuxtLink to="/creator" class="cta secondary">↩ Back to Creator</NuxtLink>
+          <NuxtLink :to="`/creator?id=${encodeURIComponent(strategy.id)}`" class="cta secondary">↩ Back to Creator</NuxtLink>
           <button class="cta primary" :disabled="isTesting" @click="testStrategy">
             {{ isTesting ? 'Backtesting…' : '▶ Run backtest' }}
           </button>
@@ -81,7 +88,7 @@ async function testStrategy() {
         <UIStat label="Indicators"   :value="strategy.indicators?.length ?? 0" :precision="0" size="md" />
         <UIStat label="Target assets" :value="strategy.target_assets?.length ?? 0" :precision="0" size="md" />
         <UIStat label="Risk level"   :value="strategy.risk_level || '—'" size="md" />
-        <UIStat label="Period"       :value="`${strategy.backtest_period?.start ?? '—'} → ${strategy.backtest_period?.end ?? '—'}`" size="sm" />
+        <UIStat label="Period"       :value="`${fmtDate(strategy.backtest_period?.start)} → ${fmtDate(strategy.backtest_period?.end)}`" size="sm" />
       </UIMetricRow>
 
       <div class="row two-col">

@@ -148,8 +148,10 @@ export function fromPaperTrades(trades: PaperTrade[], now: number): HistoryEvent
       out.push(base({
         ...common, id: `paper:${t.id}`, at: new Date(now).toISOString(), start_at: t.timestamp, tense: 'present',
         kind: 'paper_open', title: `${verb} ${sym} · ${t.wallet_pct.toFixed(1)}% of wallet`,
-        subtitle: `Entered at ${histPrice(t.simulated_price)}`, pnl_usd: t.hypothetical_pnl_value,
-        pct: t.hypothetical_pnl_pct, status: 'open',
+        // No live mark yet → P&L unknown (null, shown "—"), not a hypothetical 0.
+        subtitle: `Entered at ${histPrice(t.simulated_price)}${t.mark_price == null ? ' · no live price yet' : ''}`,
+        pnl_usd: t.mark_price == null ? null : t.hypothetical_pnl_value,
+        pct: t.mark_price == null ? null : t.hypothetical_pnl_pct, status: 'open',
       }, now))
     } else {
       out.push(base({

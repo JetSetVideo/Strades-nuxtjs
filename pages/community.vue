@@ -41,6 +41,7 @@
 
 <script setup lang="ts">
 import { TradingApiError, useTradingApi, type BotStatus } from '~/composables/useTradingApi'
+import { pollDue } from '~/utils/requestGate'
 
 definePageMeta({ title: 'Community bots', layout: 'default' })
 
@@ -51,9 +52,13 @@ const loading = ref(false)
 const error = ref('')
 const signedOut = ref(false)
 
+const POLL_MS = 60_000
+let lastLoadAt = 0
+
 async function load() {
   loading.value = true
   error.value = ''
+  lastLoadAt = Date.now()
   try {
     bots.value = await enrich(await api.publicBots())
   } catch (e) {
@@ -70,12 +75,22 @@ const kindLabel = (b: BotStatus) => (b.kind === 'prediction' ? 'Kalshi market' :
 const usd = (v: number) => (v ?? 0).toLocaleString(APP_LOCALE, { style: 'currency', currency: 'USD' })
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${usd(Math.abs(v ?? 0))}`
 
+// Poll every 60 s, only while the tab is visible (was 15 s: board-optimization O5).
+// Coming back to the tab refreshes at once if the list is older than that.
 let timer: ReturnType<typeof setInterval> | undefined
+const tick = () => {
+  if (signedOut.value) return
+  if (pollDue({ lastAt: lastLoadAt, now: Date.now(), everyMs: POLL_MS, hidden: document.hidden, busy: loading.value })) load()
+}
 onMounted(() => {
   load()
-  timer = setInterval(() => { if (!document.hidden && !signedOut.value) load() }, 15000)
+  timer = setInterval(tick, 15_000) // a cheap check; a request only when pollDue says so
+  document.addEventListener('visibilitychange', tick)
 })
-onBeforeUnmount(() => clearInterval(timer))
+onBeforeUnmount(() => {
+  clearInterval(timer)
+  document.removeEventListener('visibilitychange', tick)
+})
 </script>
 
 <style scoped>

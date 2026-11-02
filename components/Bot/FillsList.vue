@@ -11,17 +11,12 @@ interface Fill {
 
 defineProps<{ fills: Fill[] }>()
 
-const fmtUsd = (n: number) => `$${Math.round(n).toLocaleString(APP_LOCALE)}`
-
+// One format with the rest of the app (utils/format.ts): "−$9.00", "+$2.00", "$0.00", times in UTC.
 function fmtRelTime(ts: number) {
   const days = Math.floor((Date.now() - ts) / 86_400_000)
-  const d = new Date(ts)
-  if (days === 0) return d.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })
-  if (days < 7) {
-    return d.toLocaleDateString(APP_LOCALE, { weekday: 'short' }) +
-      ' ' + d.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })
-  }
-  return d.toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric' })
+  if (days === 0) return fmtTime(ts)
+  if (days < 7) return fmtDayTime(ts)
+  return fmtShortDate(ts)
 }
 </script>
 
@@ -31,9 +26,9 @@ function fmtRelTime(ts: number) {
       <span :class="['side', f.side]">{{ f.side === 'buy' ? '+ BUY' : '− SELL' }}</span>
       <span class="asset">{{ f.asset }}</span>
       <span class="size">{{ f.size }} <em>{{ f.asset }}</em></span>
-      <span class="price">@ ${{ f.price.toFixed(2) }}</span>
-      <span :class="['pnl', f.pnl >= 0 ? 'pos' : 'neg']">
-        {{ f.pnl >= 0 ? '+' : '' }}{{ fmtUsd(f.pnl) }}
+      <span class="price">@ {{ fmtMoney(f.price) }}</span>
+      <span :class="['pnl', f.pnl > 0 ? 'pos' : f.pnl < 0 ? 'neg' : '']">
+        {{ fmtSignedMoney(f.pnl) }}
       </span>
       <span class="when">{{ fmtRelTime(f.ts) }}</span>
     </li>

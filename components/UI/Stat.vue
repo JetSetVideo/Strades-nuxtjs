@@ -1,17 +1,24 @@
 <template>
-  <div class="ui-stat" :class="[`size-${size}`, tone]">
+  <div class="ui-stat" :class="[`size-${size}`, autoTone]">
     <span class="stat-label">{{ label }}</span>
     <span class="stat-value">
-      <slot>{{ formatted }}</slot>
-      <span v-if="suffix" class="stat-suffix">{{ suffix }}</span>
+      <slot>{{ formatted.text }}</slot>
+      <span v-if="shownSuffix" class="stat-suffix">{{ shownSuffix }}</span>
     </span>
     <span v-if="hint" class="stat-hint">{{ hint }}</span>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useSlots } from 'vue'
+import { fmtStatValue } from '~/utils/format'
 
+/**
+ * Numbers go through utils/format.ts `fmtStatValue` (same rule as UIKpiStrip):
+ *  suffix "USD" → "$1,234" / "+$13" (sign before $, U+2212 minus, suffix dropped);
+ *  suffix "%"   → 1 dp, 2 dp under 1 %; plain → integers bare, else 2 dp, 0 dp from 1,000.
+ *  `precision` overrides the default; tone="auto" marks a delta → "+" on gains.
+ */
 const props = withDefaults(defineProps<{
   label: string
   value?: string | number | null
@@ -19,25 +26,26 @@ const props = withDefaults(defineProps<{
   hint?: string
   size?: 'xs' | 'sm' | 'md' | 'lg'
   tone?: 'neutral' | 'positive' | 'negative' | 'auto'
+  /** Fraction digits; omit for the documented default of the kind (see utils/format.ts). */
   precision?: number
 }>(), {
   size: 'sm',
   tone: 'neutral',
-  precision: 2
+  precision: undefined
 })
 
-const formatted = computed(() => {
-  if (props.value === null || props.value === undefined) return '—'
-  if (typeof props.value === 'number') {
-    if (Math.abs(props.value) >= 1000) return props.value.toLocaleString(APP_LOCALE, { maximumFractionDigits: 0 })
-    return props.value.toFixed(props.precision)
-  }
-  return props.value
-})
+const slots = useSlots()
+
+const formatted = computed(() =>
+  fmtStatValue(props.value, { suffix: props.suffix, precision: props.precision, signed: props.tone === 'auto' })
+)
+// A custom slot value keeps the caller's suffix untouched.
+const shownSuffix = computed(() => (slots.default ? props.suffix : formatted.value.suffix))
 
 const autoTone = computed(() => {
   if (props.tone !== 'auto') return props.tone
-  if (typeof props.value === 'number') {
+  // Same rounding as the text: a value printed as 0 is neutral.
+  if (typeof props.value === 'number' && Number.isFinite(props.value) && !/^[$0.,%\s]*$/.test(formatted.value.text)) {
     if (props.value > 0) return 'positive'
     if (props.value < 0) return 'negative'
   }

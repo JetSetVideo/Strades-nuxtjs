@@ -2,8 +2,17 @@ import { defineStore } from 'pinia'
 import { publicAssetUrl } from '~/composables/useLocalJson'
 import type { Strategy, StrategyAsset, StrategySummary } from '~/types/strategy'
 import { strategyToStrategyCode, type CanonicalStrategyCode } from '~/utils/strategyCode'
+import { tagSampleStrategies } from '~/utils/strategyRun'
 
 export type { Strategy, StrategyAsset, StrategySummary } from '~/types/strategy'
+
+/**
+ * A strategy row in this store. `sample: true` marks rows loaded from the bundled
+ * catalog (public/data/core/strategies.json): they are demo data shown to every
+ * user, not the user's own strategies (swarm audit T8: they were listed as
+ * "My Strategies"). Pages render them with `<UISourceChip source="sample" />`.
+ */
+export type StoredStrategy = Strategy & { sample?: boolean }
 
 export type StrategyCode = CanonicalStrategyCode
 
@@ -102,7 +111,7 @@ function normalizeStrategy(raw: Record<string, unknown>): Strategy {
 }
 
 /** UI-friendly summary derived from canonical Strategy. */
-export function strategyToSummary(s: Strategy): StrategySummary & {
+export function strategyToSummary(s: StoredStrategy): StrategySummary & {
   creationDate: string
   numberOfTrades: number
   monthlyGain: number
@@ -114,8 +123,11 @@ export function strategyToSummary(s: Strategy): StrategySummary & {
   targetAssets: string[]
   creator: string
   trades?: Array<{ asset: string }>
+  /** Catalog sample, not the user's: render <UISourceChip source="sample" /> */
+  sample: boolean
 } {
   return {
+    sample: !!s.sample,
     id: s.id,
     name: s.name,
     description: s.description,
@@ -160,7 +172,7 @@ function parseCsv<T extends object>(csv: string, numberKeys: string[]): T[] {
 
 export const useStrategiesStore = defineStore('strategies', {
   state: () => ({
-    strategies: [] as Strategy[],
+    strategies: [] as StoredStrategy[],
     strategyAssets: [] as StrategyAsset[],
     detailsCache: {} as Record<string, StrategyDetails>,
     loading: false,
@@ -207,6 +219,11 @@ export const useStrategiesStore = defineStore('strategies', {
 
     /** Summaries for carousel / marketplace UIs that expect the index.json shape. */
     strategySummaries: (state) => state.strategies.map(strategyToSummary),
+
+    /** The user's own strategies (built in the creator / saved on the server), samples excluded. */
+    ownStrategies: (state) => state.strategies.filter(s => !s.sample),
+    /** Catalog samples (shown to every user). */
+    sampleStrategies: (state) => state.strategies.filter(s => !!s.sample),
 
     activeStrategiesForOrbit: (state) => {
       const CLASS_COLOR: Record<string, string> = {
@@ -257,7 +274,8 @@ export const useStrategiesStore = defineStore('strategies', {
           raw = await $fetch<unknown[]>(fallback)
         }
         const prior = new Map(this.strategies.map(s => [s.id, s]))
-        const fetched = (raw as Record<string, unknown>[]).map(normalizeStrategy)
+        // Catalog rows are samples for every user, never "mine" (tagged, not deleted).
+        const fetched = tagSampleStrategies((raw as Record<string, unknown>[]).map(normalizeStrategy))
         // A Start or Pause in this session wins over the seed file.
         for (const row of fetched) {
           const old = prior.get(row.id)
@@ -337,7 +355,10 @@ export const useStrategiesStore = defineStore('strategies', {
         created_at: now,
         updated_at: now,
       })
-      this.strategies.push(newStrategy)
+      // Re-opening a server strategy must not add it twice (nav "stop" count drifted, T8).
+      const at = this.strategies.findIndex(s => s.id === newId)
+      if (at >= 0) this.strategies.splice(at, 1, newStrategy)
+      else this.strategies.push(newStrategy)
 
       if (input.code) {
         const defaultCode: StrategyCode = {

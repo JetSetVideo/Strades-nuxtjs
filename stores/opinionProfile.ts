@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { userGet, userSet } from '~/utils/userStorage'
 
 /**
  * Opinion Profiler — builds a political & economic leaning profile per user
@@ -121,7 +122,7 @@ export const useOpinionProfileStore = defineStore('opinionProfile', {
     hydrate() {
       if (this.hydrated || typeof window === 'undefined') return
       try {
-        const raw = window.localStorage.getItem(STORAGE_KEY)
+        const raw = userGet(STORAGE_KEY)
         if (raw) this.profiles = JSON.parse(raw)
       } catch { /* fresh */ }
       this.hydrated = true
@@ -130,7 +131,7 @@ export const useOpinionProfileStore = defineStore('opinionProfile', {
     persist() {
       if (typeof window === 'undefined') return
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this.profiles))
+        userSet(STORAGE_KEY, JSON.stringify(this.profiles))
       } catch { /* quota full — non-fatal */ }
     },
 

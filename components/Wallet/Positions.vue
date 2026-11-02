@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useAssetTone } from '~/composables/useAssetTone'
+import { fmtMoney, fmtPctFromPercent } from '~/utils/format'
+import { fmtMoneyKpi } from '~/utils/valueTree'
 
 interface Position {
   asset_id: string
@@ -33,7 +35,7 @@ const sorted = computed(() => {
     case 'pnl':
       return arr.sort((a, b) => b.return_percentage - a.return_percentage)
     case 'today':
-      return arr.sort((a, b) => (props.todayPctMap[b.asset_id] ?? 0) - (props.todayPctMap[a.asset_id] ?? 0))
+      return arr.sort((a, b) => (props.todayPctMap[b.asset_id] ?? -Infinity) - (props.todayPctMap[a.asset_id] ?? -Infinity))
     case 'value':
       return arr.sort((a, b) => b.current_value - a.current_value)
     default:
@@ -41,8 +43,10 @@ const sorted = computed(() => {
   }
 })
 
-const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
-const fmtSigned = (n: number) => `${n >= 0 ? '+' : ''}$${fmt(Math.abs(n))}`
+// Money: fmtMoneyKpi for values and P&L ("$9,756.84", "+$2.00", "−$9.00"), fmtMoney for unit prices;
+// percent via utils/format.ts (1 dp, 2 dp under 1 %).
+const fmt = (n: number) => fmtMoneyKpi(n)
+const fmtSigned = (n: number) => fmtMoneyKpi(n, { signed: true })
 
 const ASSET_NAMES: Record<string, string> = {
   BTC: 'Bitcoin',
@@ -119,28 +123,31 @@ const colorOf = (sym: string) => COLORS[sym] || '#666'
 
         <span class="c-amount">
           <span class="amt-line">{{ p.amount.toLocaleString('en-US', { maximumFractionDigits: 4 }) }} <em>{{ p.symbol }}</em></span>
-          <small>avg ${{ p.average_price.toLocaleString('en-US', { maximumFractionDigits: 2 }) }}</small>
+          <small>avg {{ fmtMoney(p.average_price) }}</small>
         </span>
 
         <span class="c-price">
-          ${{ p.current_price.toLocaleString('en-US', { maximumFractionDigits: 2 }) }}
+          {{ fmtMoney(p.current_price) }}
         </span>
 
         <span class="c-value">
-          <span class="val-line">${{ fmt(p.current_value) }}</span>
-          <span class="weight-bar" :title="`${p.allocation_percentage.toFixed(1)}% of portfolio`">
+          <span class="val-line">{{ fmt(p.current_value) }}</span>
+          <span class="weight-bar" :title="`${fmtPctFromPercent(p.allocation_percentage)} of portfolio`">
             <span class="weight-fill" :style="{ width: `${Math.min(100, p.allocation_percentage)}%`, background: colorOf(p.symbol) }" />
           </span>
-          <small>{{ p.allocation_percentage.toFixed(1) }}%</small>
+          <small>{{ fmtPctFromPercent(p.allocation_percentage) }}</small>
         </span>
 
         <span :class="['c-pnl', p.return_amount >= 0 ? 'pos' : 'neg']">
           <span class="pnl-amt">{{ fmtSigned(p.return_amount) }}</span>
-          <small>{{ p.return_percentage >= 0 ? '+' : '' }}{{ p.return_percentage.toFixed(2) }}%</small>
+          <small>{{ fmtPctFromPercent(p.return_percentage, { signed: true }) }}</small>
         </span>
 
-        <span :class="['c-today', (todayPctMap[p.asset_id] ?? 0) >= 0 ? 'pos' : 'neg']">
-          {{ (todayPctMap[p.asset_id] ?? 0) >= 0 ? '+' : '' }}{{ (todayPctMap[p.asset_id] ?? 0).toFixed(2) }}%
+        <span v-if="todayPctMap[p.asset_id] === undefined" class="c-today none">
+          —<UISourceChip source="pending" note="Needs a live quote with a 24h change: none for this asset yet." />
+        </span>
+        <span v-else :class="['c-today', todayPctMap[p.asset_id]! >= 0 ? 'pos' : 'neg']">
+          {{ fmtPctFromPercent(todayPctMap[p.asset_id], { signed: true }) }}
         </span>
       </li>
     </ul>
@@ -374,6 +381,7 @@ const colorOf = (sym: string) => COLORS[sym] || '#666'
 }
 .c-today.pos { color: var(--app-color-up, var(--success-green, #00ff88)); background: rgba(0,255,136,0.08); }
 .c-today.neg { color: var(--app-color-down, #ff4d6a); background: rgba(255,77,106,0.08); }
+.c-today.none { color: rgba(255,255,255,0.45); display: inline-flex; gap: 0.25rem; align-items: center; }
 
 /* ─── Tablet ─── */
 @media (max-width: 960px) {

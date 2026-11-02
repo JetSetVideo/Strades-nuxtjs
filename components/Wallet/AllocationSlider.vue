@@ -19,15 +19,15 @@
       <div class="risk-metrics">
         <div class="metric">
           <span class="m-label">Sharpe</span>
-          <span class="m-value">{{ risk.sharpe.toFixed(1) }}</span>
+          <span class="m-value m-pending">—<UISourceChip source="pending" :note="risk.sharpeNote" /></span>
         </div>
         <div class="metric">
           <span class="m-label">Win rate</span>
-          <span class="m-value">{{ risk.winRate.toFixed(1) }}%</span>
+          <span class="m-value">{{ fmtPctFromPercent(risk.winRate) }}</span>
         </div>
         <div class="metric">
           <span class="m-label">Concentration</span>
-          <span class="m-value">{{ (risk.concentration * 100).toFixed(0) }}</span>
+          <span class="m-value">{{ fmtCount(risk.concentration * 100) }}</span>
         </div>
         <div class="metric">
           <span class="m-label">Risk score</span>
@@ -46,12 +46,12 @@
       </div>
       <div
         class="health-indicator"
-        :title="`Capital flow velocity ${(flowPct).toFixed(0)}% — how fast money is moving across this wallet`"
+        :title="`Capital flow velocity ${flowLabel} — how fast money is moving across this wallet`"
       >
         <span class="dot" :style="{ animationDuration: `${Math.max(0.3, 1.6 - flow * 1.4)}s` }" />
         <div class="health-copy">
           <span class="health-label">Flow velocity</span>
-          <span class="flow-label">{{ flowPct }}%</span>
+          <span class="flow-label">{{ flowLabel }}</span>
         </div>
       </div>
     </header>
@@ -63,11 +63,11 @@
         class="total-segment"
         :class="[{ dominant: !isAll && macro.dominant_asset_class === seg.id, muted: isHidden(seg.id) }]"
         :style="{ width: `${seg.pct}%`, background: seg.color }"
-        :title="`${seg.label}: ${seg.pct.toFixed(1)}%`"
+        :title="`${seg.label}: ${fmtPctFromPercent(seg.pct)}`"
       >
         <span v-if="seg.pct >= 10" class="segment-label">
           <span v-if="seg.pct >= 18" class="seg-name">{{ seg.label }}</span>
-          {{ seg.pct.toFixed(1) }}%
+          {{ fmtPctFromPercent(seg.pct) }}
         </span>
       </div>
     </div>
@@ -128,7 +128,7 @@
         <span v-else class="share-track" aria-hidden="true">
           <span class="share-fill" :style="{ width: `${row.pct}%`, background: row.color }" />
         </span>
-        <span class="percent">{{ row.pct.toFixed(1) }}%</span>
+        <span class="percent">{{ fmtPctFromPercent(row.pct) }}</span>
         <button
           type="button"
           class="eye"
@@ -170,6 +170,7 @@ import { useOpinionsStore } from '~/stores/opinions'
 import { useLivingUI } from '~/composables/useLivingUI'
 import { useAgentTracker } from '~/composables/useAgentTracker'
 import { resolveAssetClass, type AssetClassId } from '~/utils/assetClass'
+import { fmtCount, fmtPctFromFraction, fmtPctFromPercent } from '~/utils/format'
 import {
   ALL_WALLETS,
   CLASS_COLORS,
@@ -289,7 +290,7 @@ const walletName = computed(() => props.wallet?.name ?? 'this wallet')
 const lede = computed(() =>
   isAll.value
     ? 'Each wallet’s share of the combined book. The chart splits the same way.'
-    : `Class breakdown of ${walletName.value}. Holdings sum to 100% of invested value.`,
+    : `Class breakdown of ${walletName.value}. Holdings sum to 100% of market value.`,
 )
 
 const risk = computed(() => riskProfile(props.wallet?.assets ?? [], props.wallet?.performance_history))
@@ -357,10 +358,11 @@ const visibleClasses = computed(() => {
 })
 
 const flow = computed(() => allocationStore.flowVelocity || macro.flow_velocity || 0)
-const flowPct = computed(() => Math.round(flow.value * 100))
+// Percent via utils/format.ts: 1 dp, 2 dp under 1 %.
+const flowLabel = computed(() => fmtPctFromFraction(flow.value))
 
 const barAria = computed(() =>
-  barSegments.value.map(seg => `${seg.label} ${seg.pct.toFixed(1)}%`).join(', ')
+  barSegments.value.map(seg => `${seg.label} ${fmtPctFromPercent(seg.pct)}`).join(', ')
 )
 
 const isEqual = computed(() => {
@@ -712,6 +714,7 @@ const resetEqual = () => {
   background: rgba(255, 255, 255, 0.03);
   border-radius: 5px;
 }
+.m-pending { display: inline-flex; align-items: center; gap: 0.25rem; }
 .m-label {
   font-size: 0.52rem;
   letter-spacing: 0.1em;

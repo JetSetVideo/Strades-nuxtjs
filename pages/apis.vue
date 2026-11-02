@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { usePlatformsStore, type TradingPlatform } from '@/stores/platforms'
 import { useStreamedAssets } from '~/composables/useStreamedAssets'
+import { fmtMoneyKpi } from '~/utils/valueTree'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
 import UIStat from '@/components/UI/Stat.vue'
@@ -86,9 +87,10 @@ const emptyMessage = computed(() =>
 
     <UIMetricRow :cols="4" class="overview">
       <UIStat label="Connected"      :value="platforms.connectedCount" :precision="0" tone="positive" size="md" />
-      <UIStat label="Avg API health" :value="platforms.healthAvg * 100" :precision="0" suffix="%" :tone="healthTone(platforms.healthAvg)" size="md" />
-      <UIStat label="Total balance"  :value="platforms.totalBalance"   :precision="0" suffix="USD" size="md" />
-      <UIStat label="Fees 30d"       :value="totalFees30d"             :precision="0" suffix="USD" tone="negative" size="md" />
+      <UIStat label="Avg API health" :value="platforms.healthAvg * 100" suffix="%" :tone="healthTone(platforms.healthAvg)" size="md" />
+      <!-- Money: fmtMoneyKpi (2 dp below $1M, compact above), the same rule as every KPI tile. -->
+      <UIStat label="Total balance"  :value="fmtMoneyKpi(platforms.totalBalance)" size="md" />
+      <UIStat label="Fees 30d"       :value="fmtMoneyKpi(totalFees30d)" tone="negative" size="md" />
     </UIMetricRow>
 
     <section class="price-feeds">

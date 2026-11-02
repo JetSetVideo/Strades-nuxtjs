@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, shallowRef, computed, onMounted } from 'vue'
 import { useWalletStore } from '@/stores/wallet'
 import { useAllocationStore } from '@/stores/allocation'
 import { usePlatformsStore } from '@/stores/platforms'
 import { useBotsStore } from '@/stores/bots'
 import { useMacroStore } from '@/stores/macro'
 import { useAgentsStore } from '@/stores/agents'
+import { useAssetsStore } from '@/stores/assets'
+import { useTradingApi } from '@/composables/useTradingApi'
 
 import UIScreenShell from '@/components/UI/ScreenShell.vue'
 import UICard from '@/components/UI/Card.vue'
 import UIPill from '@/components/UI/Pill.vue'
+import UISourceChip from '@/components/UI/SourceChip.vue'
 import AgentAvatarCard from '@/components/Agent/AvatarCard.vue'
 import WalletSwitcher from '@/components/Wallet/Switcher.vue'
 import WalletHero from '@/components/Wallet/Hero.vue'
@@ -22,7 +25,20 @@ import WalletPlatformBreakdown from '@/components/Wallet/PlatformBreakdown.vue'
 import WalletPaperPanel from '@/components/Wallet/PaperPanel.vue'
 import MapButton from '@/components/Map/MapButton.vue'
 import type { MapMarker } from '@/components/Map/WorldMap.vue'
-import { ALL_WALLETS, aggregateWallets } from '@/utils/walletBook'
+import {
+  ALL_WALLETS,
+  NO_EQUITY_HISTORY,
+  SAMPLE_WALLETS_NOTE,
+  TODAY_PENDING_NOTE,
+  aggregateWallets,
+  holdingTodayPct,
+} from '@/utils/walletBook'
+import { OWN_BOOK_NOTE, bookLoadState, emptyOwnBook, loadOwnBook, type OwnBook } from '@/utils/ownBook'
+import { ownPaperTree, recordingBookApi, type OwnBookRaw } from '@/utils/walletTree'
+import { usePrimarySettings } from '@/composables/usePrimarySettings'
+import UIValueTree from '@/components/UI/ValueTree.vue'
+import { fmtPctFromPercent, pctDecimals } from '~/utils/format'
+import { fmtMoneyKpi, signTone } from '~/utils/valueTree'
 
 definePageMeta({ title: 'Wallet', layout: 'default' })
 
@@ -41,12 +57,47 @@ const platforms = usePlatformsStore()
 const bots = useBotsStore()
 const macro = useMacroStore()
 const agents = useAgentsStore()
+const assetsStore = useAssetsStore()
+const tradingApi = useTradingApi()
 const { userId } = useCurrentUser()
 
 const selectedWalletId = ref<string>('wallet_001')
 const period = ref<'1d' | '7d' | '30d' | '90d' | '1y'>('30d')
 
+/**
+ * The signed-in account's own paper book (custody wallets + bots + portfolio).
+ * The platform wallets below are the bundled demo book (user_001): sample, never
+ * the user's money (swarm 2026-10-30b board-finance F7).
+ */
+const ownBook = ref<OwnBook>(emptyOwnBook())
+const ownBookState = ref<'loading' | 'ready' | 'signed-out' | 'error'>('loading')
+/** The raw rows the loader read: the "Your paper" value tree shows each part from them. */
+const ownRaw = shallowRef<OwnBookRaw | null>(null)
+const primary = usePrimarySettings()
+
+async function loadOwn() {
+  try {
+    const rec = recordingBookApi(tradingApi)
+    ownBook.value = await loadOwnBook(rec.api)
+    ownRaw.value = rec.raw
+    ownBookState.value = 'ready'
+  } catch (error) {
+    ownBookState.value = bookLoadState(error)
+  }
+}
+
+/** "Your paper" -> its inputs -> the Settings primary values (first value tree, DESIGN-AUDIT §3). */
+const paperTree = computed(() => ownPaperTree({
+  state: ownBookState.value,
+  raw: ownRaw.value,
+  settings: primary.values.value,
+  settingsDefaults: primary.defaults.value,
+}))
+
 onMounted(async () => {
+  loadOwn()
+  primary.load()
+  if (!assetsStore.assets.length) assetsStore.initializeStore()
   if (!walletStore.hydrated) await walletStore.initializeStore()
   if (!platforms.hydrated) await platforms.fetchPlatforms()
   if (!bots.hydrated) await bots.fetchBots()
@@ -108,20 +159,33 @@ const portfolioTotals = computed(() => {
   }
 })
 
+// KPI money: fmtMoneyKpi (2 dp below $1M, compact above) — the same rule as the "Your paper" tree below,
+// so the strip and the tree print the same total ("$9,756.84" in both).
+const ownValueLabel = computed(() => {
+  if (ownBookState.value === 'ready') return fmtMoneyKpi(ownBook.value.total)
+  return '—'
+})
+
+const sampleTodayPct = computed(() => currentWallet.value?.daily_change_percentage ?? null)
+
 const kpis = computed(() => [
-  { label: 'Value', value: currentWallet.value ? `$${Math.round(currentWallet.value.total_value).toLocaleString(APP_LOCALE)}` : '—' },
-  { label: 'Today', value: currentWallet.value ? `${currentWallet.value.daily_change_percentage >= 0 ? '+' : ''}${currentWallet.value.daily_change_percentage.toFixed(2)}` : '—', suffix: '%', tone: (currentWallet.value?.daily_change_percentage ?? 0) >= 0 ? 'positive' as const : 'negative' as const },
+  { label: 'Your paper', value: ownValueLabel.value },
+  { label: 'Sample value', value: currentWallet.value ? fmtMoneyKpi(currentWallet.value.total_value) : '—' },
+  { label: 'Sample today', value: fmtPctFromPercent(sampleTodayPct.value, { signed: true }), tone: signTone(sampleTodayPct.value, pctDecimals(sampleTodayPct.value ?? 0)) },
   { label: 'Platforms', value: platforms.connectedCount }
 ])
 
-const todayPctMap = computed<Record<string, number>>(() => {
-  const out: Record<string, number> = {}
-  for (const p of positions.value) {
-    let hash = 0
-    for (let i = 0; i < (p.asset_id ?? '').length; i++) hash = (hash * 31 + p.asset_id.charCodeAt(i)) >>> 0
-    out[p.asset_id] = ((hash % 1000) / 1000 - 0.45) * 10
-  }
-  return out
+/** Real 24h move of each held asset when it has a live quote; absent otherwise (never a hash). */
+const todayPctMap = computed<Record<string, number>>(() =>
+  holdingTodayPct(positions.value, symbol => assetsStore.getAssetBySymbol(symbol)),
+)
+
+const ownBookLine = computed(() => {
+  if (ownBookState.value === 'loading') return 'Reading your paper wallets…'
+  if (ownBookState.value === 'signed-out') return 'Sign in to see your own paper wallets.'
+  if (ownBookState.value === 'error') return 'Your paper wallets could not be read right now.'
+  if (ownBook.value.empty) return 'You have no paper wallet yet: create one in Trade.'
+  return `${ownBook.value.walletCount} custody wallet${ownBook.value.walletCount === 1 ? '' : 's'}${ownBook.value.hasPortfolio ? ' + your portfolio' : ''}. Open Your paper to see each part and the settings behind it.`
 })
 
 const walletMapMarkers = computed<MapMarker[]>(() =>
@@ -152,6 +216,21 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 
       <WalletHandTrade />
 
+      <div class="own-paper">
+        <UIValueTree :node="paperTree" size="lg" />
+        <p class="src-line own" aria-live="polite">
+          <UISourceChip v-if="ownBookState === 'ready'" source="paper" :note="OWN_BOOK_NOTE" />
+          <UISourceChip v-else source="pending" :note="ownBookLine" />
+          <span>{{ ownBookLine }}</span>
+          <NuxtLink to="/trade" class="src-link">Trade →</NuxtLink>
+        </p>
+      </div>
+
+      <p v-if="walletStore.wallets.length" class="src-line">
+        <UISourceChip source="sample" :note="SAMPLE_WALLETS_NOTE" />
+        <span>The platform wallets, totals, chart and holdings below are a sample book (demo account), not your money.</span>
+      </p>
+
       <WalletSwitcher
         v-if="walletStore.wallets.length"
         :wallets="walletStore.wallets"
@@ -173,6 +252,11 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
         :period="period"
       />
 
+      <p v-if="currentWallet" class="src-line">
+        <UISourceChip source="pending" :note="NO_EQUITY_HISTORY" />
+        <span>Equity line joins the stored period start to today. Best, Worst, Max DD and Sharpe: not computed, needs a daily equity history (not recorded yet).</span>
+      </p>
+
       <div class="row two-col">
         <UICard title="Bots & platforms">
           <WalletBotContribution :total-today="currentWallet?.daily_change ?? 0" />
@@ -184,6 +268,10 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
       </div>
 
       <UICard title="Holdings">
+        <p class="src-line in-card">
+          <UISourceChip source="pending" :note="TODAY_PENDING_NOTE" />
+          <span>Today = the asset's live 24h quote move. Without a live quote it is not computed.</span>
+        </p>
         <WalletPositions
           :positions="positions"
           :total-value="currentWallet?.total_value"
@@ -208,4 +296,21 @@ const walletMapMarkers = computed<MapMarker[]>(() =>
 :deep(.screen-shell) { position: relative; z-index: 1; }
 .row { display: grid; gap: 0.6rem; }
 .row.two-col { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+/* Where the numbers come from (wave 2 honest data): one quiet line, no new chrome. */
+.src-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--text-gray, rgba(255,255,255,0.55));
+}
+.src-line.own { color: var(--text-light-gray, rgba(255,255,255,0.75)); }
+/* "Your paper" value tree: same stat card as the tree primitive, kept to one column. */
+.own-paper { display: grid; gap: 0.35rem; max-width: min(100%, 34rem); }
+.src-line.in-card { margin-bottom: 0.4rem; }
+.src-link { color: var(--primary-blue, #5b9cff); text-decoration: none; font-weight: 600; }
+.src-link:hover { text-decoration: underline; }
 </style>

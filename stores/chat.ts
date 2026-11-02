@@ -1,191 +1,73 @@
 import { defineStore } from 'pinia'
 import { publicAssetUrl } from '~/composables/useLocalJson'
+import {
+  applyReactionResult,
+  chatActionError,
+  isServerConversationId,
+  mapServerConversation,
+  mapServerConversationDetail,
+  mapServerMessage,
+  mergeServerConversation,
+  replaceConversationMessages,
+  toggleOwnReaction,
+  upsertConversation,
+  type ChatAction,
+  type ChatSource,
+  type Conversation,
+  type Message,
+  type ServerConversation,
+  type ServerMessage,
+  type ServerProfile,
+  type ServerReactionResult,
+} from '~/utils/chatMap'
 
-// Types for chat and messaging
-export interface Participant {
-  user_id: string
-  username: string
-  full_name: string
-  avatar_url: string
-  is_online: boolean
-  unread_count: number
-}
+// Types live in utils/chatMap.ts (pure, tested); re-exported for existing imports.
+export type { Participant, Conversation, Message, ChatSource } from '~/utils/chatMap'
 
-export interface Conversation {
-  id: string
-  participants: string[]
-  participantDetails: Participant[]
-  type: 'direct' | 'group'
-  title: string | null
-  description: string
-  created_by: string
-  created_at: string
-  last_message_at: string
-  is_active: boolean
-  message_count: number
-  unread_count: number
-  // Legacy per-user keys kept for backward compat with old local JSON
-  unread_count_user_001?: number
-  unread_count_user_002?: number
-  unread_count_user_003?: number
-  unread_count_user_004?: number
-  metadata: {
-    topic?: string
-    shared_strategies?: string[]
-    meeting_scheduled?: string
+/**
+ * Chat store.
+ *  - Signed in  → the user's own conversations from the server (direct chats and group rooms). If the API
+ *                 fails the store says so (`error`) and holds NO sample rows: the page shows the error + Retry.
+ *  - Signed out → the bundled sample conversations (`source: 'sample'`), which the page labels as sample.
+ * `hydratedFor` remembers whose data is loaded ('sample' or 'user:<id>') so a sign-in after the first paint
+ * reloads instead of keeping the sample rows.
+ */
+
+export type OpenResult = 'ok' | 'not-found' | 'error'
+
+let inflight: { key: string; promise: Promise<void> } | null = null
+
+function sessionKey(): { key: string; signedIn: boolean; meId: string } {
+  const { isAuthenticated, user } = useAuth()
+  if (isAuthenticated.value) {
+    const id = user.value?.id ?? ''
+    return { key: `user:${id}`, signedIn: true, meId: id }
   }
+  return { key: 'sample', signedIn: false, meId: 'user_001' }
 }
 
-export interface Message {
-  id: string
-  conversation_id: string
-  sender_id: string
-  sender_username: string
-  sender_full_name: string
-  sender_avatar_url: string
-  recipient_ids: string[]
-  content: string
-  message_type: 'text' | 'image' | 'file' | 'system'
-  content_type: 'text' | 'image' | 'attachment'
-  timestamp: string
-  created_at: string
-  is_read: boolean
-  is_edited: boolean
-  is_deleted: boolean
-  edited_at: string | null
-  reply_to: string | null
-  reply_to_id: string | null
-  reply_to_preview: { id: string; content: string } | null
-  attachment_url: string
-  attachment_name: string
-  attachments: Array<{
-    type: 'image' | 'file' | 'link' | 'share'
-    url?: string
-    filename?: string
-    size_bytes?: number
-    title?: string
-    description?: string
-    share_id?: string
-    share_kind?: string
-    asset_id?: string
-    asset_symbol?: string
-    strategy_id?: string
-    opinion_vector?: { fiat: number; crypto: number; stocks: number; commodities: number }
-  }>
-  reactions: Array<{
-    id?: number
-    user_id: string
-    username?: string
-    reaction?: string
-    emoji?: string
-    timestamp?: string
-  }>
-  metadata: {
-    character_count: number
-    mentions: string[]
-    hashtags: string[]
-  }
+function statusOf(e: unknown): number {
+  const err = e as { status?: number; statusCode?: number; response?: { status?: number } }
+  return err?.response?.status ?? err?.status ?? err?.statusCode ?? 0
 }
 
-// Shape returned by the backend
-interface BackendConversation {
-  id: string
-  type: 'direct' | 'group'
-  name: string
-  topic: string
-  avatar_url: string
-  last_message_at: string
-  last_message_preview: string
-  unread_count: number
-  participants: Array<{
-    user_id: string
-    username: string
-    full_name: string
-    avatar_url: string
-    is_online: boolean
-    unread_count: number
-  }>
+function messageOf(e: unknown): string {
+  const status = statusOf(e)
+  if (status === 401) return 'Your session expired. Sign in again to see your conversations.'
+  if (status >= 500) return `The chat server failed (HTTP ${status}).`
+  if (status) return `The chat server answered HTTP ${status}.`
+  return 'Could not reach the chat server.'
 }
 
-interface BackendMessage {
-  id: string
-  conversation_id: string
-  sender_id: string
-  sender_username: string
-  sender_full_name: string
-  sender_avatar_url: string
-  content: string
-  content_type: 'text' | 'image' | 'attachment'
-  reply_to_id: string | null
-  reply_to_preview: { id: string; content: string } | null
-  attachment_url: string
-  attachment_name: string
-  is_deleted: boolean
-  created_at: string
-  reactions: Array<{ id: number; user_id: string; username: string; emoji: string }>
+/** A failed start / react / send as one plain sentence (uses the server's `detail` when it sent one). */
+export function describeChatError(action: ChatAction, e: unknown): string {
+  const err = e as { data?: { detail?: unknown }; response?: { _data?: { detail?: unknown } } }
+  return chatActionError(action, statusOf(e), err?.data?.detail ?? err?.response?._data?.detail)
 }
 
-// Map backend conversation to local Conversation interface
-function mapBackendConversation(bc: BackendConversation): Conversation {
-  return {
-    id: bc.id,
-    participants: bc.participants.map(p => p.user_id),
-    participantDetails: bc.participants,
-    type: bc.type,
-    title: bc.name || null,
-    description: bc.topic || '',
-    created_by: bc.participants[0]?.user_id || '',
-    created_at: bc.last_message_at,
-    last_message_at: bc.last_message_at,
-    is_active: true,
-    message_count: 0,
-    unread_count: bc.unread_count,
-    metadata: {
-      topic: bc.topic,
-    },
-  }
-}
-
-// Map backend message to local Message interface
-function mapBackendMessage(bm: BackendMessage): Message {
-  return {
-    id: bm.id,
-    conversation_id: bm.conversation_id,
-    sender_id: bm.sender_id,
-    sender_username: bm.sender_username,
-    sender_full_name: bm.sender_full_name,
-    sender_avatar_url: bm.sender_avatar_url,
-    recipient_ids: [],
-    content: bm.content,
-    message_type: bm.content_type === 'attachment' ? 'file' : (bm.content_type as 'text' | 'image'),
-    content_type: bm.content_type,
-    timestamp: bm.created_at,
-    created_at: bm.created_at,
-    is_read: false,
-    is_edited: false,
-    is_deleted: bm.is_deleted,
-    edited_at: null,
-    reply_to: bm.reply_to_id,
-    reply_to_id: bm.reply_to_id,
-    reply_to_preview: bm.reply_to_preview,
-    attachment_url: bm.attachment_url,
-    attachment_name: bm.attachment_name,
-    attachments: bm.attachment_url
-      ? [{ type: 'file', url: bm.attachment_url, filename: bm.attachment_name }]
-      : [],
-    reactions: bm.reactions.map(r => ({
-      id: r.id,
-      user_id: r.user_id,
-      username: r.username,
-      reaction: r.emoji,
-      emoji: r.emoji,
-    })),
-    metadata: {
-      character_count: bm.content.length,
-      mentions: [],
-      hashtags: [],
-    },
-  }
+function api() {
+  const { $api } = useNuxtApp()
+  return $api as typeof $fetch
 }
 
 export const useChatStore = defineStore('chat', {
@@ -195,7 +77,12 @@ export const useChatStore = defineStore('chat', {
     activeConversation: null as Conversation | null,
     hydrated: false,
     loading: false,
-    error: null as Error | null,
+    /** Plain-language reason the list could not load (signed in, API failed). */
+    error: null as string | null,
+    /** Where the rows came from; null before the first load. */
+    source: null as ChatSource | null,
+    /** 'sample' or 'user:<id>' — whose data is loaded. */
+    hydratedFor: null as string | null,
   }),
 
   getters: {
@@ -218,8 +105,7 @@ export const useChatStore = defineStore('chat', {
     getUnreadCount: (state) => (userId: string) => {
       return state.conversations.reduce((total, conversation) => {
         // Support both new unified unread_count and old per-user keys
-        const legacyKey = `unread_count_${userId}` as keyof Conversation
-        const legacyVal = conversation[legacyKey] as number | undefined
+        const legacyVal = conversation[`unread_count_${userId}`]
         return total + (legacyVal ?? conversation.unread_count ?? 0)
       }, 0)
     },
@@ -227,7 +113,8 @@ export const useChatStore = defineStore('chat', {
     getRecentConversations: (state) => (userId: string) => {
       return state.conversations
         .filter(conversation =>
-          // Include all if participantDetails available, else fall back to participants array
+          // Server rows are the caller's by construction; sample rows are filtered to the demo user.
+          conversation.source === 'server' ||
           conversation.participantDetails?.some(p => p.user_id === userId) ||
           conversation.participants.includes(userId)
         )
@@ -236,12 +123,11 @@ export const useChatStore = defineStore('chat', {
 
     /** 0–1 urgency score from unread volume and message recency — drives the nav badge pulse */
     getEmotionalUrgency: (state) => (userId: string) => {
-      const unreadKey = `unread_count_${userId}` as keyof Conversation
       let score = 0
 
       for (const conversation of state.conversations) {
         if (!conversation.participants.includes(userId)) continue
-        const unread = (conversation[unreadKey] as number) || 0
+        const unread = conversation[`unread_count_${userId}`] || 0
         if (unread === 0) continue
 
         const hoursAgo = (Date.now() - new Date(conversation.last_message_at).getTime()) / 3_600_000
@@ -255,125 +141,186 @@ export const useChatStore = defineStore('chat', {
     totalUnread: (state) => {
       return state.conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)
     },
+
+    isSample: (state) => state.source === 'sample',
   },
 
   actions: {
-    async fetchConversations() {
-      const localUrl = publicAssetUrl('/data/chat/conversations.json')
+    /**
+     * Load the list for whoever is signed in now. No-op when that data is already loaded without error.
+     * On the server it does nothing: the session is only known in the browser.
+     */
+    async ensureLoaded(force = false) {
+      if (import.meta.server) return
+      const { key, signedIn, meId } = sessionKey()
+      if (!force && this.hydratedFor === key && !this.error) return
+      if (inflight && inflight.key === key) return inflight.promise
+      const promise = (signedIn ? this.loadServer(meId) : this.loadSample()).then(() => {
+        this.hydratedFor = this.error ? null : key
+        this.hydrated = true
+      })
+      inflight = { key, promise }
+      try {
+        await promise
+      } finally {
+        if (inflight?.promise === promise) inflight = null
+      }
+    },
+
+    async loadServer(meId: string) {
       this.loading = true
       this.error = null
-
-      // The live API is a browser session concern. SSR paints the JSON catalog
-      // so a missing Django process cannot stall the first render.
-      if (import.meta.client) {
-        try {
-          const { $api } = useNuxtApp()
-          const data = await ($api as typeof $fetch)<BackendConversation[]>('/api/v1/social/conversations/')
-          this.conversations = data.map(mapBackendConversation)
-          this.loading = false
-          return
-        } catch (backendError) {
-          console.warn('Backend conversations fetch failed, falling back to local JSON:', backendError)
-        }
-      }
-
-      // Fall back to local JSON
       try {
-        const conversationsData = await $fetch<Conversation[]>(localUrl)
-        this.conversations = conversationsData
-      } catch (error) {
-        this.error = error as Error
-        console.error('Failed to fetch conversations from local JSON:', error)
+        const data = await api()<ServerConversation[] | { results?: ServerConversation[] }>('/api/v1/social/conversations/')
+        const rows = Array.isArray(data) ? data : data?.results ?? []
+        this.conversations = rows.map(c => mapServerConversation(c, meId))
+        // Messages are fetched per conversation (detail endpoint); drop any sample messages.
+        this.messages = this.messages.filter(m => isServerConversationId(m.conversation_id))
+        this.source = 'server'
+      } catch (e) {
+        console.warn('chat: GET /api/v1/social/conversations/ failed', e)
+        // Never fall back to the sample JSON for a signed-in user.
+        this.conversations = []
+        this.messages = []
+        this.source = 'server'
+        this.error = messageOf(e)
       } finally {
         this.loading = false
       }
     },
 
-    async fetchMessages(conversationId?: string) {
-      const localUrl = publicAssetUrl('/data/chat/messages.json')
-      // If a specific conversationId is provided, try the backend endpoint
-      if (conversationId) {
-        try {
-          const { accessToken } = useAuth()
-          const config = useRuntimeConfig()
-          const apiBase = config.public.apiBase as string
-
-          const data = await $fetch<{ messages: BackendMessage[] }>(
-            `/api/v1/social/conversations/${conversationId}/`,
-            {
-              baseURL: apiBase,
-              headers: accessToken.value
-                ? { Authorization: `Bearer ${accessToken.value}` }
-                : {},
-            }
-          )
-
-          const mapped = data.messages.map(mapBackendMessage)
-          // Replace messages for this conversation in the store
-          this.messages = [
-            ...this.messages.filter(m => m.conversation_id !== conversationId),
-            ...mapped,
-          ]
-          return
-        } catch (backendError) {
-          console.warn(
-            `Backend messages fetch failed for conv ${conversationId}, falling back to local JSON:`,
-            backendError
-          )
-        }
-      }
-
-      // Fall back to local JSON (loads all messages)
+    async loadSample() {
+      this.loading = true
+      this.error = null
       try {
-        const messagesData = await $fetch<Message[]>(localUrl)
-        this.messages = messagesData
-      } catch (error) {
-        console.error('Failed to fetch messages from local JSON:', error)
+        const [convs, msgs] = await Promise.all([
+          $fetch<Conversation[]>(publicAssetUrl('/data/chat/conversations.json')),
+          $fetch<Message[]>(publicAssetUrl('/data/chat/messages.json')),
+        ])
+        this.conversations = convs.map(c => ({ ...c, source: 'sample' as const }))
+        this.messages = msgs
+        this.source = 'sample'
+      } catch (e) {
+        console.error('chat: sample conversations failed to load', e)
+        this.conversations = []
+        this.messages = []
+        this.source = 'sample'
+        this.error = 'The sample conversations could not be loaded.'
+      } finally {
+        this.loading = false
       }
     },
 
-    async sendMessageRemote(conversationId: string, content: string) {
-      const { accessToken } = useAuth()
-      const config = useRuntimeConfig()
-      const apiBase = config.public.apiBase as string
+    /** Kept for existing callers: (re)load the list for the current session. */
+    async fetchConversations() {
+      await this.ensureLoaded(true)
+    },
 
+    /** Kept for existing callers: one conversation's messages (server), or nothing more for samples. */
+    async fetchMessages(conversationId?: string) {
+      if (conversationId) await this.openConversation(conversationId)
+    },
+
+    /**
+     * Make one conversation available by id: from the server when signed in (fetched even when it is
+     * not in the list — e.g. a room link from Insights), from the sample JSON otherwise.
+     */
+    async openConversation(conversationId: string): Promise<OpenResult> {
+      await this.ensureLoaded()
+      if (import.meta.server) return 'error'
+      if (this.source !== 'server' || !isServerConversationId(conversationId)) {
+        // Sample rows, or a conversation started in this tab (NewMessageModal) that only lives here.
+        return this.getConversationById(conversationId) ? 'ok' : 'not-found'
+      }
+      const { meId } = sessionKey()
       try {
-        const data = await $fetch<BackendMessage>(
-          `/api/v1/social/conversations/${conversationId}/messages/`,
-          {
-            baseURL: apiBase,
-            method: 'POST',
-            headers: accessToken.value
-              ? { Authorization: `Bearer ${accessToken.value}` }
-              : {},
-            body: { content },
-          }
+        const data = await api()<ServerConversation>(`/api/v1/social/conversations/${conversationId}/`)
+        const { conversation: fresh, messages } = mapServerConversationDetail(data, meId)
+        // The detail has no message_count: keep the list's exact count over the newest-100 window.
+        const conversation = mergeServerConversation(this.getConversationById(fresh.id), fresh)
+        this.conversations = upsertConversation(this.conversations, conversation)
+        this.messages = replaceConversationMessages(this.messages, conversation.id, messages)
+        return 'ok'
+      } catch (e) {
+        const status = statusOf(e)
+        if (status === 404) return 'not-found'
+        console.warn(`chat: GET conversation ${conversationId} failed`, e)
+        return 'error'
+      }
+    },
+
+    /** POST a message to a server conversation; the server's copy is added to the store. Throws on failure. */
+    async sendMessageRemote(conversationId: string, content: string) {
+      const data = await api()<ServerMessage>(
+        `/api/v1/social/conversations/${conversationId}/messages/`,
+        { method: 'POST', body: { content } },
+      )
+      const conversation = this.conversations.find(c => c.id === conversationId)
+      const newMessage = mapServerMessage(data, conversation?.participants ?? [])
+      this.messages.push(newMessage)
+      if (conversation) {
+        conversation.last_message_at = newMessage.created_at
+        conversation.last_message_preview = newMessage.content.slice(0, 200)
+        conversation.message_count += 1
+      }
+      return newMessage
+    },
+
+    /**
+     * Start (or reopen) a direct conversation with `userId` on the server and put it in the list.
+     * Throws an Error whose message is the sentence to show (403: "You can message friends, bots and …").
+     */
+    async startDirectConversation(userId: string): Promise<Conversation> {
+      const { signedIn, meId } = sessionKey()
+      if (!signedIn) throw new Error('Sign in to start a conversation that is saved.')
+      try {
+        const data = await api()<ServerConversation>('/api/v1/social/conversations/', {
+          method: 'POST', body: { user_id: userId },
+        })
+        const fresh = mapServerConversation(data, meId)
+        const conversation = mergeServerConversation(this.getConversationById(fresh.id), fresh)
+        this.conversations = upsertConversation(this.conversations, conversation)
+        if (this.source !== 'server') this.source = 'server'
+        return conversation
+      } catch (e) {
+        console.warn('chat: POST /api/v1/social/conversations/ failed', e)
+        throw new Error(describeChatError('start', e))
+      }
+    },
+
+    /** The public people directory (first page), for the New message picker when signed in. */
+    async fetchProfiles(): Promise<ServerProfile[]> {
+      const data = await api()<ServerProfile[] | { results?: ServerProfile[] }>('/api/v1/social/profiles/')
+      return Array.isArray(data) ? data : data?.results ?? []
+    },
+
+    /**
+     * Toggle my reaction on a server message: optimistic, then the server's answer (my state + per-emoji
+     * totals) wins; on failure the toggle is undone and an Error with the sentence to show is thrown.
+     */
+    async toggleReactionRemote(conversationId: string, messageId: string, emoji: string) {
+      const message = this.messages.find(m => String(m.id) === String(messageId))
+      if (!message) throw new Error('This message is no longer loaded. Reload the conversation.')
+      const { meId } = sessionKey()
+      const username = useAuth().user.value?.username
+      Object.assign(message, toggleOwnReaction(message, meId, emoji, username))
+      try {
+        const res = await api()<ServerReactionResult>(
+          `/api/v1/social/conversations/${conversationId}/messages/${messageId}/reactions/`,
+          { method: 'POST', body: { emoji } },
         )
-
-        const newMessage = mapBackendMessage(data)
-        this.messages.push(newMessage)
-
-        // Update conversation's last message time
-        const conversation = this.conversations.find(c => c.id === conversationId)
-        if (conversation) {
-          conversation.last_message_at = newMessage.created_at
-          conversation.message_count += 1
-        }
-
-        return newMessage
-      } catch (error) {
-        console.error('Failed to send message via backend:', error)
-        throw error
+        Object.assign(message, applyReactionResult(message, meId, res, username))
+        return res
+      } catch (e) {
+        // Undo only my optimistic toggle (toggling again), so a concurrent success on another emoji survives.
+        Object.assign(message, toggleOwnReaction(message, meId, emoji, username))
+        console.warn(`chat: reaction ${emoji} on ${messageId} failed`, e)
+        throw new Error(describeChatError('react', e))
       }
     },
 
     async initializeStore() {
-      if (this.hydrated) return
-      await Promise.all([
-        this.fetchConversations(),
-        this.fetchMessages()
-      ])
-      this.hydrated = true
+      await this.ensureLoaded()
     },
 
     setActiveConversation(conversationId: string) {
@@ -383,6 +330,7 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
+    /** Local-only message (sample conversations and conversations created in this tab). */
     sendMessage(message: Omit<Message, 'id' | 'timestamp' | 'is_read' | 'is_edited' | 'edited_at'>) {
       const newMessage: Message = {
         ...message,
@@ -401,9 +349,9 @@ export const useChatStore = defineStore('chat', {
         conversation.message_count += 1
 
         message.recipient_ids.forEach(recipientId => {
-          const unreadKey = `unread_count_${recipientId}` as keyof Conversation
+          const unreadKey = `unread_count_${recipientId}` as const
           if (unreadKey in conversation) {
-            (conversation[unreadKey] as number) += 1
+            conversation[unreadKey] = (conversation[unreadKey] ?? 0) + 1
           }
         })
       }
@@ -431,9 +379,9 @@ export const useChatStore = defineStore('chat', {
       const conversation = this.conversations.find(c => c.id === conversationId)
       if (conversation) {
         conversation.unread_count = 0
-        const legacyKey = `unread_count_${userId}` as keyof Conversation
+        const legacyKey = `unread_count_${userId}` as const
         if (legacyKey in conversation) {
-          ;(conversation[legacyKey] as number) = 0
+          conversation[legacyKey] = 0
         }
       }
     },

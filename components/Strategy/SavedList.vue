@@ -4,6 +4,7 @@
  * Before this list, a saved strategy vanished from the UI on reload (PROCESSES.md M3).
  */
 import { TradingApiError, useTradingApi, type SavedStrategy } from '~/composables/useTradingApi'
+import { fmtPctFromPercent, fmtShortDate } from '~/utils/format'
 
 const api = useTradingApi()
 const items = ref<SavedStrategy[]>([])
@@ -26,12 +27,13 @@ async function remove(s: SavedStrategy) {
   deleting.value = null
 }
 
-const pct = (v?: number | null) => (v === undefined || v === null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`)
+// Percent and dates via utils/format.ts (1 dp, 2 dp under 1 %; "Nov 2").
+const pct = (v?: number | null) => fmtPctFromPercent(v, { signed: true })
 const tone = (s: SavedStrategy) => {
   const r = s.last_backtest.return_pct, b = s.last_backtest.benchmark?.buy_hold_pct
   return r === undefined || b === undefined ? '' : r >= b ? 'up' : 'down'
 }
-const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric' }) : '')
+const day = (iso: string | null) => (iso ? fmtShortDate(iso) : '')
 </script>
 
 <template>
@@ -53,7 +55,7 @@ const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(APP_
           <td>{{ pct(s.last_backtest.benchmark?.buy_hold_pct) }}</td>
           <td>{{ s.last_backtest.metrics ? pct(-s.last_backtest.metrics.max_dd_pct) : '—' }}</td>
           <td>{{ s.last_backtest.metrics?.trades ?? '—' }}</td>
-          <td>{{ s.last_backtest.metrics?.win_rate === null || s.last_backtest.metrics?.win_rate === undefined ? '—' : `${s.last_backtest.metrics.win_rate.toFixed(0)}%` }}</td>
+          <td>{{ fmtPctFromPercent(s.last_backtest.metrics?.win_rate) }}</td>
           <td><button class="del" :disabled="deleting === s.id" :aria-label="`Delete ${s.name}`" @click="remove(s)">Delete</button></td>
         </tr>
       </tbody>

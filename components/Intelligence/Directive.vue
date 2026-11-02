@@ -3,8 +3,11 @@
  * The agent directive your profile produces: the strategy mix your personal agent starts from, where
  * that mix comes from (own profile / allies / swarm, with shares) and the risk budget. Paper only.
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { intelPct, sourceColor, weightRows, type IntelDirective } from '~/utils/intelligence'
+import { directiveBudgetTrees, dirSourceWord, type DirSettingsState } from '~/utils/directiveTree'
+import { usePrimarySettings } from '~/composables/usePrimarySettings'
+import UIValueTree from '~/components/UI/ValueTree.vue'
 
 const props = defineProps<{ directive: IntelDirective | null }>()
 
@@ -25,13 +28,17 @@ const rows = computed(() => {
 })
 const max = computed(() => Math.max(0.01, ...rows.value.map(r => r.share)))
 const openRow = ref<string | null>(null)
-const budget = computed(() => props.directive
-  ? [
-      { k: 'Max position', v: intelPct(props.directive.max_position_pct, 1), x: 'Largest share of the paper wallet one position may take.' },
-      { k: 'Stop loss', v: intelPct(props.directive.stop_loss_pct, 1), x: 'A position is closed when it falls this far.' },
-      { k: 'Take profit', v: intelPct(props.directive.take_profit_pct, 1), x: 'A position is closed when it gains this much (on paper).' },
-    ]
-  : [])
+
+// Risk budget a NEW bot uses now: Settings value > this directive > engine default (apps/wallets/risk_budget.py).
+const primary = usePrimarySettings()
+onMounted(() => { primary.load() })
+const settingsState = computed<DirSettingsState>(() => {
+  const s = primary.status.value
+  return s === 'ready' ? 'ready' : s === 'error' ? 'error' : s === 'signed-out' ? 'signed-out' : 'loading'
+})
+const budget = computed(() => directiveBudgetTrees({
+  directive: props.directive, settings: primary.values.value, settingsState: settingsState.value,
+}))
 </script>
 
 <template>
@@ -77,18 +84,20 @@ const budget = computed(() => props.directive
               <span class="src-why">{{ s.why }}</span>
             </li>
           </ul>
-
-          <h3 class="sub">Risk budget</h3>
-          <dl class="budget">
-            <div v-for="b in budget" :key="b.k" class="bud">
-              <dt>{{ b.k }}</dt>
-              <dd class="num">{{ b.v }}</dd>
-              <dd class="bud-x">{{ b.x }}</dd>
-            </div>
-          </dl>
         </div>
       </div>
     </template>
+
+    <div class="bud-wrap">
+      <h3 class="sub">Risk budget for new bots <span class="muted">· tap a row</span></h3>
+      <p class="bud-sub">What a bot you launch now uses: your Settings value if set, else {{ directive ? 'this directive' : 'your directive' }}, else the engine default.</p>
+      <ul class="budget">
+        <li v-for="b in budget" :key="b.id" class="bud">
+          <UIValueTree :node="b" size="md" layout="row" />
+          <span v-if="b.inUse" class="bud-src">from {{ dirSourceWord(b.inUse) }}</span>
+        </li>
+      </ul>
+    </div>
   </section>
 </template>
 
@@ -118,12 +127,11 @@ const budget = computed(() => props.directive
 .src-k { font-size: 0.76rem; color: var(--text-white); text-transform: capitalize; display: inline-flex; align-items: center; gap: 0.35rem; }
 .src-k i { width: 0.55rem; height: 0.55rem; border-radius: 2px; display: inline-block; }
 .src-why { font-size: 0.7rem; color: var(--text-gray); padding-left: 0.9rem; }
-.budget { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--card-gap); }
-@media (max-width: 420px) { .budget { grid-template-columns: minmax(0, 1fr); } }
-.bud { padding: 0.45rem 0.6rem; border-radius: var(--radius-md); border: 1px solid var(--edge-raised); background: var(--surface-raised); min-width: 0; }
-.bud dt { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-gray); }
-.bud dd { margin: 0; }
-.bud .num { font-size: 1rem; font-weight: 700; color: var(--text-white); }
-.bud-x { font-size: 0.66rem; color: var(--text-gray); }
+.bud-wrap { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.bud-sub { margin: 0; font-size: 0.7rem; color: var(--text-gray); }
+.budget { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--card-gap); align-items: start; }
+@media (max-width: 760px) { .budget { grid-template-columns: minmax(0, 1fr); } }
+.bud { padding: 0.35rem 0.5rem; border-radius: var(--radius-md); border: 1px solid var(--edge-raised); background: var(--surface-raised); min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.bud-src { font-size: 0.64rem; color: var(--text-gray); padding: 0 0.2rem; }
 .num { font-family: var(--font-market-data); font-variant-numeric: tabular-nums; }
 </style>

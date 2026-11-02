@@ -25,7 +25,10 @@ import { useOpinionsStore } from '@/stores/opinions'
 import { useCreditsStore } from '@/stores/credits'
 import { useBacktest } from '@/composables/useBacktest'
 import { TradingApiError, useTradingApi, type RealBacktest } from '@/composables/useTradingApi'
-import { toServerStrategy, type CreatorCondition } from '@/utils/strategyServer'
+import { toServerStrategy, toSimulatedConditions, tradedPair, type CreatorCondition } from '@/utils/strategyServer'
+import { draftFromCreatorCode, draftFromServer } from '@/utils/creatorDraft'
+import { backtestFailureText } from '@/utils/strategyRun'
+import { useStrategiesStore } from '@/stores/strategies'
 import { useTradingPrefsStore } from '~/stores/tradingPrefs'
 
 definePageMeta({
@@ -70,7 +73,37 @@ function onSwarmChange() {
 onMounted(async () => {
   creditsStore.hydrate()
   try { profiles.value = await $fetch('/data/strategies/profiles.json') } catch { /* ok */ }
+  await reopenFromQuery()
 })
+
+// ── Reopen an existing strategy: /creator?id=<id> (summarizer "Back to Creator") ──
+const route = useRoute()
+const strategiesStore = useStrategiesStore()
+const reopenNote = ref<string | null>(null)
+async function reopenFromQuery() {
+  const id = typeof route.query.id === 'string' ? route.query.id : ''
+  if (!id) return
+  // 1) The creator payload kept with the strategy in this session (exact).
+  const cached = strategiesStore.detailsCache[id]?.code as unknown as Record<string, unknown> | undefined
+  const row = strategiesStore.getStrategyById(id)
+  if (cached && (cached.dataSources || (cached.assets as any)?.from !== undefined)) {
+    Object.assign(strategy.value, draftFromCreatorCode({ name: row?.name, description: row?.description, category: row?.category }, cached, Date.now()))
+    reopenNote.value = `Editing a copy of "${strategy.value.name}". Backtest saves it as a new strategy.`
+    return
+  }
+  // 2) The server copy (assets, frequency, IF rules, stop / take-profit).
+  try {
+    const saved = await tradingApi.getStrategy(id)
+    Object.assign(strategy.value, draftFromServer(saved, Date.now()))
+    reopenNote.value = `Reopened "${saved.name}" from the server: rules, assets and risk settings are back; pick the data sources again.`
+  } catch (e) {
+    const status = e instanceof TradingApiError ? e.status : 0
+    reopenNote.value = row
+      ? `"${row.name}" has no editable rules here${row && (row as { sample?: boolean }).sample ? ' (it is a sample strategy)' : ''}: start from its name below.`
+      : status === 401 ? 'Sign in to reopen a saved strategy.' : 'This strategy could not be reopened: starting a new one.'
+    if (row) strategy.value.name = `${row.name} (copy)`
+  }
+}
 
 // Sync strategy name with layout header
 watch(() => strategy.value.name, n => { layoutTitle.value = n })
@@ -390,7 +423,7 @@ async function handleBacktest() {
       name: strategy.value.name,
       description: strategy.value.description,
       category: strategy.value.category,
-      targetAssets: [strategy.value.assetFrom],
+      targetAssets: [tradedAsset()].filter(Boolean),
       code: buildCodePayload(),
     })
     pendingId.value = s.id
@@ -408,7 +441,7 @@ async function handleDeploy() {
       name: strategy.value.name,
       description: strategy.value.description,
       category: strategy.value.category,
-      targetAssets: [strategy.value.assetFrom],
+      targetAssets: [tradedAsset()].filter(Boolean),
       code: buildCodePayload(),
     })
     await deployStrategy(s.id)
@@ -419,17 +452,20 @@ async function handleDeploy() {
 async function handleBacktestAndDeploy() {
   if (!guard()) return
   try {
+    const serverId = await saveToServer()
+    pendingServerId.value = serverId
     const s = await createStrategy({
+      ...(serverId ? { id: serverId } : {}),
       name: strategy.value.name,
       description: strategy.value.description,
       category: strategy.value.category,
-      targetAssets: [strategy.value.assetFrom],
+      targetAssets: [tradedAsset()].filter(Boolean),
       code: buildCodePayload(),
     })
     pendingId.value = s.id
     pendingAction.value = 'both'
     showCountdown.value = true
-  } catch (e) { actionError.value = 'Failed to create strategy.' }
+  } catch (e) { actionError.value = e instanceof Error && e.message ? e.message : 'Failed to create strategy.' }
 }
 
 async function handleSaveDraft() {
@@ -444,7 +480,7 @@ async function handleSaveDraft() {
       name: strategy.value.name,
       description: strategy.value.description,
       category: strategy.value.category,
-      targetAssets: [strategy.value.assetFrom].filter(Boolean),
+      targetAssets: [tradedAsset()].filter(Boolean),
       code: buildCodePayload(),
     })
     layoutStatus.value = 'saved'
@@ -461,74 +497,81 @@ async function handleSaveDraft() {
   }
 }
 
+/** Asset the engines trade: the non-cash side of FROM → TO (utils/strategyServer tradedPair). */
+function tradedAsset(): string {
+  const p = tradedPair(strategy.value.assetFrom, strategy.value.assetTo)
+  return 'error' in p ? (strategy.value.assetTo || strategy.value.assetFrom) : p.traded
+}
+/** One line under "Asset Flow": what the backtest will actually trade. */
+const tradedHint = computed(() => {
+  if (!strategy.value.assetFrom && !strategy.value.assetTo) return null
+  const p = tradedPair(strategy.value.assetFrom, strategy.value.assetTo)
+  if ('error' in p) return { label: p.error, title: p.error }
+  return { label: `backtest ${p.direction === 'buy' ? 'buys' : 'sells'} ${p.traded}`, title: p.note ?? `The engine trades ${p.traded} against USD.` }
+})
+
+/** Simulated (Monte Carlo) config: only price rules on the traded asset; others are reported, not faked. */
+function simulatedConfig(id: string) {
+  const traded = tradedAsset() || 'BTC'
+  const timeframe = strategy.value.frequency || '1D'
+  const sim = toSimulatedConditions(
+    strategy.value.blocks.filter(b => b.type === 'condition').map(b => b.data as unknown as CreatorCondition),
+    traded, timeframe,
+  )
+  return {
+    skipped: sim.skipped,
+    config: {
+      id,
+      name: strategy.value.name || 'Untitled',
+      conditions: sim.conditions,
+      variables: {
+        stop_loss_percent: Number((strategy.value.variables.find(v => v.key === 'stop_loss')?.value) || 5),
+        take_profit_percent: Number((strategy.value.variables.find(v => v.key === 'take_profit')?.value) || 15),
+        position_size: strategy.value.allocation || 10,
+      },
+      targetAssets: [traded],
+      initialCapital: 10000,
+      frequency: timeframe,
+      period: {
+        start: strategy.value.period.start || new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10),
+        end: strategy.value.period.end || new Date().toISOString().slice(0, 10),
+      },
+      swarmVector: opinionsStore.swarmVector,
+    },
+  }
+}
+
+// What happened to the last backtest of each strategy, read by /strategy/<id>: the server's
+// error (it used to be recorded here and lost on navigation) and the mapping notes.
+const backtestStatus = useState<Record<string, { error: string | null; notes: string[] }>>('backtest:status', () => ({}))
+
 async function onCountdownFinish() {
   if (!pendingId.value) return
-  if (pendingAction.value === 'backtest') {
-    // 1) Real prices: the backend rules engine replays pinned Binance candles.
-    if (pendingServerId.value) {
-      try {
-        const real = await tradingApi.backtestReal(pendingServerId.value, { capital_usd: 10000, bars: tradingPrefs.backtestBars })
-        realBacktests.value = { ...realBacktests.value, [pendingId.value]: real }
-      } catch (e) {
-        actionError.value = e instanceof Error ? `Real-price backtest failed: ${e.message}` : 'Real-price backtest failed.'
-      }
+  const id = pendingId.value
+  const status: { error: string | null; notes: string[] } = { error: null, notes: [...serverNotes.value] }
+  // 1) Real prices: the backend rules engine replays pinned Binance candles.
+  //    Capital / fees / slippage come from Settings › primary values on the server.
+  if (pendingServerId.value) {
+    try {
+      const real = await tradingApi.backtestReal(pendingServerId.value, { bars: tradingPrefs.backtestBars })
+      realBacktests.value = { ...realBacktests.value, [id]: real }
+    } catch (e) {
+      status.error = e instanceof TradingApiError ? backtestFailureText(e.status, e.message) : backtestFailureText(0, e instanceof Error ? e.message : '')
     }
-    // 2) Simulated paths (Monte Carlo on synthetic prices), kept as a separate, labelled view.
-    const config = {
-      id: pendingId.value,
-      name: strategy.value.name || 'Untitled',
-      conditions: strategy.value.blocks.filter(b => b.type === 'condition').map(b => ({
-        datasource: 'price',
-        asset: strategy.value.assetFrom || 'BTC',
-        operator: (b.data as any)?.operator || '>',
-        value: (b.data as any)?.value || 50000,
-        timeframe: strategy.value.frequency || '1D',
-      })),
-      variables: {
-        stop_loss_percent: Number((strategy.value.variables.find(v => v.key === 'stop_loss')?.value) || 5),
-        take_profit_percent: Number((strategy.value.variables.find(v => v.key === 'take_profit')?.value) || 15),
-        position_size: strategy.value.allocation || 10,
-      },
-      targetAssets: [strategy.value.assetFrom].filter(Boolean),
-      initialCapital: 10000,
-      frequency: strategy.value.frequency || '1D',
-      period: {
-        start: strategy.value.period.start || new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10),
-        end: strategy.value.period.end || new Date().toISOString().slice(0, 10),
-      },
-      swarmVector: opinionsStore.swarmVector,
-    }
-    await backtestEngine.runBacktest(config, 250)
   } else {
-    // backtestAndDeploy — run MC then deploy
-    const config = {
-      id: pendingId.value,
-      name: strategy.value.name || 'Untitled',
-      conditions: strategy.value.blocks.filter(b => b.type === 'condition').map(b => ({
-        datasource: 'price',
-        asset: strategy.value.assetFrom || 'BTC',
-        operator: (b.data as any)?.operator || '>',
-        value: (b.data as any)?.value || 50000,
-        timeframe: strategy.value.frequency || '1D',
-      })),
-      variables: {
-        stop_loss_percent: Number((strategy.value.variables.find(v => v.key === 'stop_loss')?.value) || 5),
-        take_profit_percent: Number((strategy.value.variables.find(v => v.key === 'take_profit')?.value) || 15),
-        position_size: strategy.value.allocation || 10,
-      },
-      targetAssets: [strategy.value.assetFrom].filter(Boolean),
-      initialCapital: 10000,
-      frequency: strategy.value.frequency || '1D',
-      period: {
-        start: strategy.value.period.start || new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10),
-        end: strategy.value.period.end || new Date().toISOString().slice(0, 10),
-      },
-      swarmVector: opinionsStore.swarmVector,
-    }
-    await backtestEngine.runBacktest(config, 250)
-    await deployStrategy(pendingId.value)
+    status.error = backtestFailureText(401, '')
   }
-  navigateTo({ path: `/strategy/${pendingId.value}`, query: { tab: 'backtest' } })
+  // 2) Simulated paths (Monte Carlo on synthetic prices), kept as a separate, labelled view.
+  const sim = simulatedConfig(id)
+  status.notes.push(...sim.skipped)
+  if (sim.config.conditions.length) {
+    try { await backtestEngine.runBacktest(sim.config, 250) } catch { status.notes.push('The simulated paths could not be computed.') }
+  } else {
+    status.notes.push('Simulated paths not run: none of your rules is a "Price vs number" rule.')
+  }
+  if (pendingAction.value === 'both') await deployStrategy(id)
+  backtestStatus.value = { ...backtestStatus.value, [id]: status }
+  navigateTo({ path: `/strategy/${id}`, query: { tab: 'backtest' } })
 }
 </script>
 
@@ -674,6 +717,7 @@ async function onCountdownFinish() {
           <span class="sec-status">
             {{ strategy.assetFrom || '?' }} → {{ strategy.assetTo || '?' }}
             <span v-if="strategy.assetFrom && strategy.assetTo"> · {{ strategy.allocation }}%</span>
+            <span v-if="tradedHint" class="traded-hint" :title="tradedHint.title"> · {{ tradedHint.label }}</span>
           </span>
           <span class="sec-chevron" :class="{ open: activeSection === 'assets' }">▾</span>
         </button>
@@ -1044,6 +1088,7 @@ async function onCountdownFinish() {
     <div v-if="actionError" class="error-banner">
       ⚠ {{ actionError }}
     </div>
+    <div v-if="reopenNote" class="reopen-note" role="status">↩ {{ reopenNote }}</div>
 
     <!-- ── Save success toast ─────────────────────────────────────────────── -->
     <Transition name="toast">
@@ -1973,6 +2018,9 @@ async function onCountdownFinish() {
 /* ── Rating + error ── */
 .rating-wrap { margin-top: var(--spacing-sm); }
 
+.reopen-note { margin: 0.4rem 0; padding: 0.45rem 0.7rem; border-radius: 8px; font-size: 0.78rem;
+  border: 1px solid var(--border-primary, rgba(255,255,255,.12)); color: var(--text-light-gray, rgba(255,255,255,.8)); }
+.traded-hint { color: var(--text-gray, #9aa0a6); }
 .error-banner {
   background: rgba(244,67,54,0.1);
   border: 1px solid var(--error-red);
@@ -1992,6 +2040,7 @@ async function onCountdownFinish() {
   border-top: 1px solid var(--border-primary);
   padding: var(--spacing-sm) var(--spacing-md);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-sm);
@@ -2006,14 +2055,17 @@ async function onCountdownFinish() {
 
 .cta-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--spacing-sm);
   flex: 1;
+  min-width: 0;
   justify-content: flex-end;
 }
 
 .cta-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   padding: 9px 16px;
   border: none;
@@ -2025,6 +2077,20 @@ async function onCountdownFinish() {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+}
+
+/* Phones (board-users: Deploy / Both were off-screen at 390 px): credits on one line,
+   the four actions in a 2 × 2 grid that always fits the width. */
+@media (max-width: 560px) {
+  .cta-bar { padding: 6px var(--spacing-sm); gap: 6px; }
+  .cta-buttons {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .cta-btn { min-width: 0; padding: 9px 8px; }
+  .creator-page { padding-bottom: 180px; }
 }
 
 .cta-icon { font-size: 0.9rem; }

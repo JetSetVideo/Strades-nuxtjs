@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { fmtMoney, fmtPctFromPercent } from '~/utils/format'
+import { fmtMoneyKpi } from '~/utils/valueTree'
+
 interface Wallet {
   id: string
   name: string
@@ -18,19 +21,14 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'switch', id: string): void }>()
 
-const fmt = (n: number) => {
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(1)}k`
-  return `$${Math.round(n)}`
-}
+// Chips are compact by design (utils/format.ts compact money: "$12.3k", "$950.00"); the Total Balance
+// uses the KPI rule (fmtMoneyKpi: 2 dp below $1M, compact above). Percent: 1 dp, 2 dp under 1 %.
+const fmt = (n: number) => fmtMoney(n, { compact: true })
 
-const fmtFull = (n: number) =>
-  `$${Math.round(n).toLocaleString('en-US')}`
+const fmtFull = (n: number | null | undefined) => fmtMoneyKpi(n)
 
 const totalPct = computed(() => props.totalChangePct ?? 0)
-const totalPctLabel = computed(() =>
-  `${totalPct.value >= 0 ? '+' : ''}${totalPct.value.toFixed(2)}%`
-)
+const totalPctLabel = computed(() => fmtPctFromPercent(totalPct.value, { signed: true }))
 
 // The "+ Add wallet" chip used to be a button with NO handler — clicking it did
 // nothing. /trade is where a wallet is created or imported, and it had no entry
@@ -68,7 +66,7 @@ const openTrade = () => navigateTo('/trade')
       </span>
       <span class="meta">
         <span class="bal">{{ fmt(w.total_value) }}</span>
-        <span class="pct">{{ (w.daily_change_percentage ?? 0) >= 0 ? '+' : '' }}{{ (w.daily_change_percentage ?? 0).toFixed(2) }}%</span>
+        <span class="pct">{{ fmtPctFromPercent(w.daily_change_percentage ?? 0, { signed: true }) }}</span>
       </span>
     </button>
 

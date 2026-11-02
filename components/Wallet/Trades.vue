@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { allowsValue, cycleKey, type FilterTriState } from '~/utils/priceFilters'
+import { fmtDate, fmtDayTime, fmtTime } from '~/utils/format'
+import { fmtMoneyKpi } from '~/utils/valueTree'
 
 interface Trade {
   id: string
@@ -43,17 +45,19 @@ const totals = computed(() => {
   return { buys: buys.length, sells: sells.length, fees, buyVolume, sellVolume }
 })
 
+// Dates and money via utils/format.ts: today "15:41", this week "Fri, Nov 6, 15:41", older "Nov 2, 2026";
+// money 2 dp ("$1,234.50", the same as the KPI rule below $1M).
 const formatTime = (iso?: string) => {
   if (!iso) return '—'
-  const d = new Date(iso)
-  const now = new Date()
-  const days = (now.getTime() - d.getTime()) / 86_400_000
-  if (days < 1) return d.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })
-  if (days < 7) return d.toLocaleDateString(APP_LOCALE, { weekday: 'short' }) + ' · ' + d.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })
-  return d.toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric', year: 'numeric' })
+  const days = (Date.now() - new Date(iso).getTime()) / 86_400_000
+  if (days < 1) return fmtTime(iso)
+  if (days < 7) return fmtDayTime(iso)
+  return fmtDate(iso)
 }
 
-const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 })
+const fmt = (n: number) => fmtMoneyKpi(n)
+/** Quantity (not money): up to 2 decimals, as before. */
+const qty = (n: number) => n.toLocaleString(APP_LOCALE, { maximumFractionDigits: 2 })
 </script>
 
 <template>
@@ -61,7 +65,7 @@ const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 
     <header class="head">
       <div class="title-row">
         <h3>Recent Trades</h3>
-        <span class="meta">{{ sorted.length }} total · ${{ fmt(totals.fees) }} fees</span>
+        <span class="meta">{{ sorted.length }} total · {{ fmt(totals.fees) }} fees</span>
       </div>
       <UIOpChips
         label="Trade side"
@@ -84,11 +88,11 @@ const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 
           <small>{{ formatTime(t.timestamp) }}</small>
         </span>
         <span class="amount">
-          {{ fmt(t.amount ?? 0) }} <em>{{ t.asset_symbol }}</em>
+          {{ qty(t.amount ?? 0) }} <em>{{ t.asset_symbol }}</em>
         </span>
-        <span class="price">@ ${{ fmt(t.price ?? 0) }}</span>
-        <span class="total">${{ fmt(t.total_value ?? 0) }}</span>
-        <span class="fee">fee ${{ fmt(t.fee ?? 0) }}</span>
+        <span class="price">@ {{ fmt(t.price ?? 0) }}</span>
+        <span class="total">{{ fmt(t.total_value ?? 0) }}</span>
+        <span class="fee">fee {{ fmt(t.fee ?? 0) }}</span>
         <span :class="['status', t.status]">{{ t.status }}</span>
       </li>
     </ul>

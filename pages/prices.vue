@@ -12,7 +12,7 @@
  *  • Each DisplayAsset card opens into its own prediction chart (PredictPanel)
  *  • One Line / Candles switch (ChartStyleToggle) drives every chart
  */
-import { ref, computed, watch, onMounted, onUnmounted, nextTick, reactive } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, onUnmounted, nextTick, reactive } from 'vue'
 import { useTradingPrefsStore } from '@/stores/tradingPrefs'
 import { useStreamedAssets } from '~/composables/useStreamedAssets'
 import { feedKeyForAsset, feedStreams } from '~/utils/assetFeeds'
@@ -37,9 +37,12 @@ import {
   sortAssets,
   type FilterTriState,
 } from '~/utils/priceFilters'
+import { tabQueryFrom, tabStatesFrom } from '~/utils/routes'
+import { cancelSubtreeAnimations } from '~/utils/animations'
 
+// Title literal = routeLabel('/prices') (tests/pageTitles.test.ts; definePageMeta cannot call it).
 definePageMeta({
-  title: 'Market Prices',
+  title: 'Prices',
   description: 'Live asset prices and market data',
   layout: 'default',
 })
@@ -53,7 +56,12 @@ const macroStore       = useMacroStore()
 const selectedAssetId  = ref<string | null>(null)
 const sortBy           = ref<'default' | 'gainers' | 'losers' | 'vol_high' | 'cap'>('default')
 const sortReverse      = ref(false)
-const typeStates       = reactive<Record<string, FilterTriState>>({})
+// Asset-type chips live in the URL (?tab=crypto, ?tab=crypto,-bet) so browser Back
+// from an asset page restores the tab the user was on (board-users U15).
+const route            = useRoute()
+const router           = useRouter()
+const pricesPath       = route.path
+const typeStates       = reactive<Record<string, FilterTriState>>(tabStatesFrom(route.query.tab))
 const searchQuery      = useState('marketQuery', () => '')
 const viewMode         = ref<'list' | 'tree' | 'map'>('list')
 const treeSelected     = ref<string | null>(null)
@@ -105,8 +113,9 @@ let tickCount = 0
 function startTicker() {
   ticker = setInterval(async () => {
     // Every 30 s pull real quotes; live assets never get simulated nudges.
+    // (The store skips the request when another caller pulled < 20 s ago.)
     if (++tickCount % 6 === 0) {
-      await assetsStore.mergeLiveQuotes()
+      await assetsStore.mergeLiveQuotes({ maxAgeMs: 20_000 })
       seedChanges()
     }
     assetsStore.assets.forEach(asset => {
@@ -147,6 +156,7 @@ watch(
 )
 
 onMounted(async () => {
+  // No-op when the boot plugin loaded assets < 30 s ago or is still loading them (shared promise).
   assetsStore.initializeStore()
   predStore.init()
   predStore.seedFromFile()
@@ -154,6 +164,11 @@ onMounted(async () => {
   window.addEventListener('resize', fillListIfNear)
   nextTick(() => fillListIfNear())
 })
+
+// Leak fix (board-optimization O1a): a spinner still spinning inside an interrupted
+// <Transition> kept the whole page on the document timeline. Stop every animation first.
+const pageRoot = ref<HTMLElement | null>(null)
+onBeforeUnmount(() => { cancelSubtreeAnimations(pageRoot.value) })
 
 onUnmounted(() => {
   clearInterval(ticker)
@@ -300,6 +315,21 @@ watch(listSentinel, bindListSentinel)
 watch(() => filtered.value.length, () => { nextTick(() => fillListIfNear()) })
 watch([sortBy, sortReverse, searchQuery, selectedRegionIso], resetListWindow)
 watch(typeStates, resetListWindow, { deep: true })
+
+// typeStates → URL (replace: one history entry per visit, not one per chip click).
+const queryTab = () => (typeof route.query.tab === 'string' ? route.query.tab : undefined)
+watch(() => tabQueryFrom(typeStates), (tab) => {
+  if (route.path !== pricesPath || tab === queryTab()) return
+  router.replace({ query: { ...route.query, tab } })
+})
+// URL → typeStates (Back/Forward, or the Prices tab clicked while already here).
+watch(() => route.query.tab, (q) => {
+  if (route.path !== pricesPath) return
+  const next = tabStatesFrom(q)
+  if (tabQueryFrom(next) === tabQueryFrom(typeStates)) return
+  for (const key of Object.keys(typeStates)) delete typeStates[key]
+  Object.assign(typeStates, next)
+})
 watch(horizonStates, resetListWindow, { deep: true })
 watch(() => tradingPrefs.hideSimulated, resetListWindow)
 
@@ -370,9 +400,11 @@ function navigateToAsset(assetId: string) {
 </script>
 
 <template>
-  <div class="prices-page">
+  <div ref="pageRoot" class="prices-page">
 
-    <!-- ── Background-refresh overlay spinner ───────────────────────── -->
+    <!-- ── Background-refresh overlay spinner ─────────────────────────
+         The spinner only turns while the pill is fully shown: it stops as the
+         fade-out starts, so a route change mid-fade leaves nothing animating. -->
     <Transition name="fade">
       <div v-if="isRefreshing && hasData" class="refresh-overlay">
         <div class="refresh-pill">
@@ -908,6 +940,7 @@ function navigateToAsset(assetId: string) {
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;
 }
+.refresh-overlay.fade-leave-active .refresh-spinner { animation: none; }
 
 /* ── Cold loading skeleton ── */
 .loading-state {

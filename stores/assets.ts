@@ -5,9 +5,32 @@ import { feedKeyForAsset } from '~/utils/assetFeeds'
 import { useDataFeedsStore } from '~/stores/dataFeeds'
 import type { Asset } from '~/types/asset'
 import { buildMarketTree, type MarketNode } from '~/utils/marketTree'
-import type { LiveQuote } from '~/server/api/market/quotes.get'
+import { liveSymbols, type LiveQuote } from '~/utils/quoteCache'
+import { createSingleFlight, isFreshAt } from '~/utils/requestGate'
 
 export type AssetSource = 'api' | 'bundled' | 'none'
+
+/** A reload within this window is skipped (the data on screen is that young). */
+export const ASSETS_FRESH_MS = 30_000
+export const QUOTES_FRESH_MS = 30_000
+
+type QuotesResponse = { quotes: Record<string, LiveQuote>; at: string }
+interface Gate {
+  init: ReturnType<typeof createSingleFlight<void>>
+  quotes: ReturnType<typeof createSingleFlight<QuotesResponse>>
+  /** last quotes answer (non-reactive): re-applied without a request while fresh */
+  last?: { key: string; fetchedAt: number; res: QuotesResponse }
+}
+// Per store instance (one per Pinia, so SSR requests never share one).
+const gates = new WeakMap<object, Gate>()
+function gateOf(store: object): Gate {
+  let g = gates.get(store)
+  if (!g) {
+    g = { init: createSingleFlight<void>(), quotes: createSingleFlight<QuotesResponse>() }
+    gates.set(store, g)
+  }
+  return g
+}
 
 export type { Asset } from '~/types/asset'
 
@@ -149,33 +172,53 @@ export const useAssetsStore = defineStore('assets', {
       this.lastUpdated = new Date()
       this.error = null
       priceCache.saveAssets(assets)
-      await this.mergeLiveQuotes(quotesUrl)
+      await this.mergeLiveQuotes({ quotesUrl })
     },
 
-    /** Overlay real prices / 24h change / hourly history where a live market exists. */
-    async mergeLiveQuotes(quotesUrl = publicAssetUrl('/api/market/quotes')) {
-      const symbols = this.assets.map(a => a.symbol).filter(Boolean)
-      if (!symbols.length) return
-      try {
-        const { quotes, at } = await $fetch<{ quotes: Record<string, LiveQuote>; at: string }>(quotesUrl, {
-          query: { symbols: symbols.join(',') },
-        })
-        const feeds = useDataFeedsStore()
-        for (const a of this.assets) {
-          // A stopped feed keeps its last quote and simply leaves the list.
-          if (!feeds.receiving(feedKeyForAsset(a))) continue
-          const q = quotes[a.symbol?.toUpperCase()]
-          if (!q) continue
-          a.current_price = q.price
-          a.change_24h_pct = q.change_24h_pct
-          a.return_history = q.history
-          a.live = { pair: q.pair, proxy: q.proxy, at }
-        }
+    /**
+     * Overlay real prices / 24h change / hourly history where a live market exists.
+     * Asks only for symbols the quotes route can serve (utils/quoteCache LIVE_PAIRS), shares an
+     * in-flight request, and re-applies the last answer without a request while it is younger
+     * than `maxAgeMs` (30 s): /prices, the nav and the feed watchers no longer fire duplicates.
+     */
+    async mergeLiveQuotes(opts: { quotesUrl?: string; maxAgeMs?: number } = {}) {
+      const quotesUrl = opts.quotesUrl ?? publicAssetUrl('/api/market/quotes')
+      const symbols = liveSymbols(this.assets.map(a => a.symbol))
+      if (!symbols.length) {
         this.liveCount = this.assets.filter(x => x.live).length
-      } catch (err) {
-        this.liveCount = this.assets.filter(x => x.live).length
-        console.warn('[assets] live quotes unavailable; showing bundled prices', err)
+        return
       }
+      const gate = gateOf(this)
+      const key = symbols.join(',')
+      let res: QuotesResponse
+      if (gate.last && gate.last.key === key && isFreshAt(gate.last.fetchedAt, Date.now(), opts.maxAgeMs ?? QUOTES_FRESH_MS)) {
+        res = gate.last.res
+      } else {
+        try {
+          res = await gate.quotes.run(key, async () => {
+            const r = await $fetch<QuotesResponse>(quotesUrl, { query: { symbols: key } })
+            gate.last = { key, fetchedAt: Date.now(), res: r }
+            return r
+          })
+        } catch (err) {
+          this.liveCount = this.assets.filter(x => x.live).length
+          console.warn('[assets] live quotes unavailable; showing bundled prices', err)
+          return
+        }
+      }
+      const { quotes, at } = res
+      const feeds = useDataFeedsStore()
+      for (const a of this.assets) {
+        // A stopped feed keeps its last quote and simply leaves the list.
+        if (!feeds.receiving(feedKeyForAsset(a))) continue
+        const q = quotes[a.symbol?.toUpperCase()]
+        if (!q) continue
+        a.current_price = q.price
+        a.change_24h_pct = q.change_24h_pct
+        a.return_history = q.history
+        a.live = { pair: q.pair, proxy: q.proxy, at: q.at ?? at }
+      }
+      this.liveCount = this.assets.filter(x => x.live).length
     },
 
     /**
@@ -183,27 +226,36 @@ export const useAssetsStore = defineStore('assets', {
      *  1. Serve stale-or-fresh cache immediately (zero-latency to user)
      *  2. Kick off background refresh; set isRefreshing so UI shows overlay
      *  3. On completion, swap in fresh data silently
+     *
+     * Every page calls this on mount. A call while one runs gets the same promise; a call
+     * within 30 s of a successful load does nothing (board-optimization O5: /prices and
+     * /risk loaded assets/ + quotes twice). `force` reloads anyway.
      */
-    async initializeStore() {
+    async initializeStore(opts: { force?: boolean } = {}) {
+      if (!opts.force && this.assets.length && this.dataSource !== 'none' && !this.error
+        && isFreshAt(this.lastUpdated?.getTime(), Date.now(), ASSETS_FRESH_MS)) return
       const priceCache = usePriceCache()
-      if (this.isRefreshing) return
+      return gateOf(this).init.run('init', async () => {
+        // ── Step 1: load from cache (ignoring TTL — stale-while-revalidate) ──
+        const cached = priceCache.peekAssets<Asset[]>()
+        if (!this.assets.length && cached && cached.data.length > 0) {
+          this.assets = cached.data
+          this.fromCache = true
+          this.loading = false
+        } else if (!this.assets.length) {
+          // Truly no data yet — show skeleton
+          this.loading = true
+        }
 
-      // ── Step 1: load from cache (ignoring TTL — stale-while-revalidate) ──
-      const cached = priceCache.peekAssets<Asset[]>()
-      if (cached && cached.data.length > 0) {
-        this.assets = cached.data
-        this.fromCache = true
-        this.loading = false
-      } else {
-        // Truly no data yet — show skeleton
-        this.loading = true
-      }
-
-      // ── Step 2: background refresh ────────────────────────────────────────
-      this.isRefreshing = true
-      await this.fetchAssets()
-      this.loading = false
-      this.isRefreshing = false
+        // ── Step 2: background refresh ──────────────────────────────────────
+        this.isRefreshing = true
+        try {
+          await this.fetchAssets()
+        } finally {
+          this.loading = false
+          this.isRefreshing = false
+        }
+      })
     },
 
     updateAssetPrice(assetId: string, newPrice: number) {

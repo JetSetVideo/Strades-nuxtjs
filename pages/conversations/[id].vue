@@ -1,109 +1,132 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { useChatStore } from '@/stores/chat';
+import { useChatStore, describeChatError } from '@/stores/chat';
 import { useUsersStore } from '@/stores/users';
 import { useSharesStore } from '@/stores/shares';
 import { useAgentsStore } from '@/stores/agents';
+import { conversationDisplay, reactionSummary, messageCountLabel, CHAT_REACTIONS } from '~/utils/chatMap';
+import { toDate, fmtTime, fmtDayTime } from '~/utils/format';
 import DatabaseButton from '@/components/Button/Database.vue';
 import ChatShareBar from '@/components/Chat/ShareBar.vue';
 import ChatSharePayload from '@/components/Chat/SharePayload.vue';
 import ChatSharedContextPanel from '@/components/Chat/SharedContextPanel.vue';
 import ChatNewMessageModal from '@/components/Chat/NewMessageModal.vue';
+import UISourceChip from '@/components/UI/SourceChip.vue';
 
 const route = useRoute();
-const conversationId = route.params.id;
+// Reactive: moving from one conversation to another reuses this page.
+const conversationId = computed(() => String(route.params.id));
 
 const chatStore = useChatStore();
 const usersStore = useUsersStore();
 const sharesStore = useSharesStore();
 const agents = useAgentsStore();
-const conversation = ref(null);
-const messages = ref([]);
 const newMessage = ref('');
-const isLoading = ref(true);
+/** 'loading' | 'ok' | 'not-found' | 'error' */
+const status = ref('loading');
+const isLoading = computed(() => status.value === 'loading');
+const sending = ref(false);
+const sendError = ref('');
 const editingMessage = ref(null)
 const fileAttachment = ref(null)
 
 const { userId: currentUserId, getUserId } = useCurrentUser();
+const { isAuthenticated } = useAuth();
+
+const conversation = computed(() =>
+  status.value === 'ok' ? chatStore.getConversationById(conversationId.value) ?? null : null
+);
+const messages = computed(() => chatStore.getConversationMessages(conversationId.value));
+/** A conversation from the user's account: sending goes to the server. */
+const isServer = computed(() => conversation.value?.source === 'server');
 
 // Top-bar "Message" action opens the new-message modal
 const newMessageModalOpen = ref(false);
 usePageAction().onPageAction('chat:new-message', () => { newMessageModalOpen.value = true; });
 
-onMounted(async () => {
+async function load() {
+  status.value = 'loading';
+  sendError.value = '';
+  // People and shares only decorate the page: their failure must not hide the conversation.
+  await Promise.allSettled([usersStore.initializeStore(), sharesStore.hydrate()]);
   try {
-    await chatStore.initializeStore();
-    await usersStore.initializeStore();
-    await sharesStore.hydrate();
-
-    conversation.value = chatStore.getConversationById(conversationId);
-    messages.value = chatStore.getConversationMessages(conversationId);
-
-    // Mark messages as read
-    chatStore.markMessagesAsRead(conversationId, getUserId());
+    const result = await chatStore.openConversation(conversationId.value);
+    status.value = result;
+    if (result === 'ok') {
+      chatStore.markMessagesAsRead(conversationId.value, getUserId());
+      nextTick(() => scrollToBottom());
+    }
   } catch (error) {
     console.error('Failed to load conversation:', error);
-  } finally {
-    isLoading.value = false;
+    status.value = 'error';
   }
-});
+}
 
-const getOtherParticipant = computed(() => {
-  if (!conversation.value) return null;
-  return conversation.value.participants.find(p => p !== getUserId());
-});
+onMounted(load);
+watch([conversationId, isAuthenticated], load);
 
-const getOtherParticipantInfo = computed(() => {
-  if (!getOtherParticipant.value) return null;
-  return usersStore.getUserById(getOtherParticipant.value);
-});
+const lookupUser = (id) => {
+  const u = usersStore.getUserById(id);
+  return u ? { username: u.username, full_name: `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim(), avatar_url: u.avatar_url } : null;
+};
+/** Header: room name + size, or the other person (name, avatar, profile link). */
+const head = computed(() =>
+  conversation.value ? conversationDisplay(conversation.value, getUserId(), lookupUser) : null
+);
 
 const sharedContext = computed(() =>
-  sharesStore.correlate(String(conversationId))
+  sharesStore.correlate(conversationId.value)
 );
 
 const formatTimestamp = (timestamp) => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffInMs = now.getTime() - date.getTime();
-  const diffInHours = diffInMs / (1000 * 60 * 60);
+  const date = toDate(timestamp);
+  if (!date) return '—';
+  const diffInHours = (Date.now() - date.getTime()) / (1000 * 60 * 60);
+  return diffInHours < 24 ? fmtTime(date) : fmtDayTime(date);
+};
 
-  if (diffInHours < 24) {
-    return date.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' });
-  } else if (diffInHours < 168) {
-    return date.toLocaleDateString(APP_LOCALE, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
-  } else {
-    return date.toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const senderName = (message) => message.sender_full_name || message.sender_username || 'Someone';
+
+const sendMessage = async () => {
+  const text = newMessage.value.trim();
+  if (!text || sending.value || !conversation.value) return;
+  sendError.value = '';
+
+  if (isServer.value) {
+    sending.value = true;
+    try {
+      await chatStore.sendMessageRemote(conversationId.value, text);
+      newMessage.value = '';
+      nextTick(() => scrollToBottom());
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      sendError.value = `${describeChatError('send', error)} Your text is kept, try again.`;
+    } finally {
+      sending.value = false;
+    }
+    return;
   }
-};
 
-const refreshMessages = () => {
-  messages.value = chatStore.getConversationMessages(conversationId);
-};
-
-const sendMessage = () => {
-  if (!newMessage.value.trim()) return;
-
+  // Sample conversation (or one started in this tab): the message stays in this tab.
   const uid = getUserId();
   const messageData = {
-    conversation_id: conversationId,
+    conversation_id: conversationId.value,
     sender_id: uid,
     recipient_ids: conversation.value.participants.filter(p => p !== uid),
-    content: newMessage.value,
+    content: text,
     message_type: 'text',
     attachments: [],
     reactions: [],
     reply_to: null,
     metadata: {
-      character_count: newMessage.value.length,
+      character_count: text.length,
       mentions: [],
       hashtags: []
     }
   };
 
   chatStore.sendMessage(messageData);
-  refreshMessages();
   newMessage.value = '';
 
   nextTick(() => {
@@ -111,31 +134,40 @@ const sendMessage = () => {
   });
 };
 
-const shareContent = (kind) => {
+const shareContent = async (kind) => {
   if (!conversation.value) return;
   const uid = getUserId();
   const recipients = conversation.value.participants.filter(p => p !== uid);
   const opinion = agents.personal?.opinion_vector;
+  const title = kind === 'asset'
+    ? 'BTC watch'
+    : kind === 'strategy'
+      ? 'Shared strategy'
+      : 'My allocation';
 
   const record = sharesStore.share({
     kind,
-    conversation_id: String(conversationId),
+    conversation_id: conversationId.value,
     recipient_ids: recipients,
     sender_id: uid,
     asset_symbol: kind === 'asset' ? 'BTC' : undefined,
     asset_id: kind === 'asset' ? 'btc' : undefined,
     strategy_id: kind === 'strategy' ? 'strategy_001' : undefined,
     opinion_vector: kind === 'opinion' ? opinion : undefined,
-    title: kind === 'asset'
-      ? 'BTC watch'
-      : kind === 'strategy'
-        ? 'Shared strategy'
-        : 'My allocation',
+    title,
     note: newMessage.value.trim() || undefined,
   });
 
+  if (isServer.value) {
+    // The server stores text only: the share card stays in this tab, the room gets a line about it.
+    const note = newMessage.value.trim();
+    newMessage.value = `${note ? `${note} — ` : ''}📎 ${title} (shared ${kind})`;
+    await sendMessage();
+    return;
+  }
+
   chatStore.sendMessage({
-    conversation_id: conversationId,
+    conversation_id: conversationId.value,
     sender_id: uid,
     recipient_ids: recipients,
     content: newMessage.value.trim() || `Shared ${kind}`,
@@ -151,7 +183,6 @@ const shareContent = (kind) => {
   });
 
   newMessage.value = '';
-  refreshMessages();
   nextTick(() => scrollToBottom());
 };
 
@@ -162,9 +193,43 @@ const scrollToBottom = () => {
   }
 };
 
-const addReaction = (messageId, reaction) => {
-  chatStore.addReaction(messageId, getUserId(), reaction);
+const addReaction = async (message, emoji) => {
+  if (!isServer.value) {
+    // Sample conversation (or one started in this tab): the reaction stays in this tab.
+    chatStore.addReaction(message.id, getUserId(), emoji);
+    return;
+  }
+  const key = `${message.id}|${emoji}`;
+  if (reacting.value[key]) return;
+  reacting.value = { ...reacting.value, [key]: true };
+  const { [message.id]: _drop, ...rest } = reactionErrors.value;
+  reactionErrors.value = rest;
+  try {
+    await chatStore.toggleReactionRemote(conversationId.value, message.id, emoji);
+  } catch (error) {
+    reactionErrors.value = { ...reactionErrors.value, [message.id]: error?.message || 'Reaction not saved.' };
+  } finally {
+    const { [key]: _done, ...left } = reacting.value;
+    reacting.value = left;
+  }
 };
+/** 'msgId|emoji' → true while the server toggle is in flight (the button is disabled meanwhile). */
+const reacting = ref({});
+/** msgId → why the last reaction failed (shown under that message; the toggle was undone). */
+const reactionErrors = ref({});
+const chipsOf = (message) => reactionSummary(message, getUserId());
+const chipLabel = (chip) =>
+  `${chip.emoji} ${chip.count} ${chip.count === 1 ? 'reaction' : 'reactions'}${chip.mine ? ', including yours — press to remove yours' : ' — press to add yours'}`;
+
+/** Header count: the server's exact count when known, else what is loaded. */
+const countLabel = computed(() => {
+  if (!conversation.value) return '';
+  if (isServer.value) {
+    const fromServer = messageCountLabel(conversation.value);
+    if (fromServer) return fromServer;
+  }
+  return messageCountLabel({ message_count: messages.value.length, source: 'sample' });
+});
 
 const startReply = (messageId) => {
   // Set replying to messageId
@@ -204,13 +269,26 @@ const handleFile = (e) => {
     </div>
 
     <!-- Conversation Not Found -->
-    <div v-else-if="!conversation" class="not-found">
+    <div v-else-if="status === 'not-found'" class="not-found">
       <div class="not-found-content">
         <h1>Conversation Not Found</h1>
-        <p>The conversation with ID "{{ conversationId }}" could not be found.</p>
+        <p v-if="isAuthenticated">This conversation is not in your account: you are not a member, or it was deleted.</p>
+        <p v-else>The sample conversation "{{ conversationId }}" does not exist. Sign in to open your own conversations and rooms.</p>
         <button @click="$router.push('/chat')" class="back-btn">
           ← Back to Chat
         </button>
+      </div>
+    </div>
+
+    <!-- Server error: say so and offer Retry (never a sample stand-in). -->
+    <div v-else-if="status === 'error' || !conversation" class="not-found" role="alert">
+      <div class="not-found-content">
+        <h1>Conversation could not load</h1>
+        <p>The chat server did not answer. Check your connection and retry.</p>
+        <div class="error-actions">
+          <button @click="load" class="back-btn">Retry</button>
+          <button @click="$router.push('/chat')" class="back-btn ghost">← Back to Chat</button>
+        </div>
       </div>
     </div>
 
@@ -220,38 +298,45 @@ const handleFile = (e) => {
       <div class="conversation-header">
         <div class="participant-info">
           <NuxtLink
-            v-if="getOtherParticipant"
-            :to="`/profile/${getOtherParticipant}`"
+            v-if="head.profileId"
+            :to="`/profile/${head.profileId}`"
             class="participant-avatar-link"
           >
             <img
-              :src="getOtherParticipantInfo?.avatar_url || '/avatars/Ellipse5.png'"
-              :alt="getOtherParticipantInfo?.username || 'User'"
+              :src="head.avatar"
+              :alt="head.name"
               class="participant-avatar clickable-avatar"
             />
           </NuxtLink>
           <img
             v-else
-            :src="getOtherParticipantInfo?.avatar_url || '/avatars/Ellipse5.png'"
-            :alt="getOtherParticipantInfo?.username || 'User'"
+            :src="head.avatar"
+            :alt="head.name"
             class="participant-avatar"
           />
           <div class="participant-details">
             <NuxtLink
-              v-if="getOtherParticipant"
-              :to="`/profile/${getOtherParticipant}`"
+              v-if="head.profileId"
+              :to="`/profile/${head.profileId}`"
               class="participant-name-link"
             >
-              <h2 class="participant-name">{{ getOtherParticipantInfo?.username || 'Unknown User' }}</h2>
+              <h2 class="participant-name">{{ head.name }}</h2>
             </NuxtLink>
-            <h2 v-else class="participant-name">{{ getOtherParticipantInfo?.username || 'Unknown User' }}</h2>
-            <p class="conversation-topic">{{ conversation.metadata?.topic || 'General discussion' }}</p>
+            <h2 v-else class="participant-name">{{ head.name }}</h2>
+            <p class="conversation-topic">
+              <template v-if="head.kind">{{ head.kind }} · </template>{{ head.subtitle }}
+              <UISourceChip
+                v-if="conversation.source === 'sample'"
+                source="sample"
+                note="Sample conversation: it is not yours, and messages you type here stay in this tab."
+              />
+            </p>
           </div>
         </div>
         <div class="header-actions">
           <div class="conversation-stats">
-            <span class="stat">{{ messages.length }} messages</span>
-            <span class="stat">Active {{ conversation.is_active ? 'now' : 'earlier' }}</span>
+            <span class="stat">{{ countLabel }}</span>
+            <span class="stat">Last {{ formatTimestamp(conversation.last_message_at) }}</span>
           </div>
           <DatabaseButton />
         </div>
@@ -272,6 +357,7 @@ const handleFile = (e) => {
             :class="['message-item', message.sender_id === currentUserId ? 'sent' : 'received']"
           >
             <div class="message-content">
+              <div v-if="head.isGroup && message.sender_id !== currentUserId" class="message-sender">{{ senderName(message) }}</div>
               <div class="message-text">{{ message.content }}</div>
               <ChatSharePayload
                 v-for="(att, ai) in (message.attachments || []).filter(a => a.type === 'share')"
@@ -280,24 +366,36 @@ const handleFile = (e) => {
               />
               <div class="message-footer">
                 <span class="message-time">{{ formatTimestamp(message.timestamp) }}</span>
-                <div v-if="message.reactions.length > 0" class="message-reactions">
-                  <span
-                    v-for="reaction in message.reactions"
-                    :key="reaction.user_id"
-                    class="reaction"
+                <div v-if="chipsOf(message).length > 0" class="message-reactions" role="group" aria-label="Reactions">
+                  <button
+                    v-for="chip in chipsOf(message)"
+                    :key="chip.emoji"
+                    type="button"
+                    :class="['reaction', { mine: chip.mine }]"
+                    :aria-pressed="chip.mine"
+                    :aria-label="chipLabel(chip)"
+                    :title="chipLabel(chip)"
+                    :disabled="!!reacting[`${message.id}|${chip.emoji}`]"
+                    @click="addReaction(message, chip.emoji)"
                   >
-                    {{ reaction.reaction }}
-                  </span>
+                    <span aria-hidden="true">{{ chip.emoji }}</span>
+                    <span class="reaction-count">{{ chip.count }}</span>
+                  </button>
                 </div>
               </div>
+              <p v-if="reactionErrors[message.id]" class="reaction-error" role="alert">{{ reactionErrors[message.id] }}</p>
             </div>
 
-            <!-- Message Actions (only for own messages) -->
-            <div v-if="message.sender_id === currentUserId" class="message-actions">
+            <!-- React (any message; saved on the server for your conversations, this tab only for samples) -->
+            <div class="message-actions" role="group" aria-label="Add a reaction">
               <button
-                v-for="emoji in ['👍', '❤️', '😂', '😮']"
+                v-for="emoji in CHAT_REACTIONS"
                 :key="emoji"
-                @click="addReaction(message.id, emoji)"
+                type="button"
+                :disabled="!!reacting[`${message.id}|${emoji}`]"
+                :aria-label="`React ${emoji}`"
+                :title="isServer ? `React ${emoji} (saved)` : `React ${emoji} (sample: this tab only)`"
+                @click="addReaction(message, emoji)"
                 class="reaction-btn"
               >
                 {{ emoji }}
@@ -324,12 +422,13 @@ const handleFile = (e) => {
           />
           <button
             @click="sendMessage"
-            :disabled="!newMessage.trim()"
+            :disabled="!newMessage.trim() || sending"
             class="send-button"
           >
-            Send
+            {{ sending ? 'Sending…' : 'Send' }}
           </button>
         </div>
+        <p v-if="sendError" class="send-error" role="alert">{{ sendError }}</p>
 
         <ChatSharedContextPanel
           v-if="sharedContext.length"
@@ -397,6 +496,12 @@ const handleFile = (e) => {
   border: 1px solid var(--border-primary);
   box-shadow: var(--shadow-primary);
 }
+
+.error-actions { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); justify-content: center; }
+.back-btn.ghost { background: transparent; color: var(--text-white); border: 1px solid var(--border-primary); }
+.message-sender { font-size: 0.68rem; font-weight: 700; color: var(--primary-green); margin-bottom: 2px; }
+.send-error { margin: 0.35rem 0 0; font-size: 0.75rem; color: var(--error-red); }
+.reaction-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .not-found-content h1 {
   color: var(--error-red);
@@ -617,7 +722,21 @@ const handleFile = (e) => {
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 0.8rem;
+  border: 1px solid transparent;
+  color: inherit;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
 }
+.reaction.mine { border-color: var(--primary-blue, #00aaff); background: rgba(0, 170, 255, 0.18); }
+.reaction:disabled { opacity: 0.6; cursor: progress; }
+.reaction-count { font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 700; }
+.reaction:focus-visible, .reaction-btn:focus-visible { outline: 2px solid var(--primary-blue, #00aaff); outline-offset: 2px; }
+.reaction-error { margin: 4px 0 0; font-size: 0.7rem; color: var(--error-red); }
+.message-item:focus-within .message-actions { opacity: 1; }
+@media (hover: none) { .message-item .message-actions { opacity: 1; } }
 
 .message-actions {
   display: flex;

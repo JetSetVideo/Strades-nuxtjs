@@ -86,88 +86,112 @@ export function pieClassOf(symbol: string): PieClass {
   return 'stocks'
 }
 
-export function hashSeed(str: string, seed = 0): number {
-  let h1 = 0xdeadbeef ^ seed
-  let h2 = 0x41c6ce57 ^ seed
-  for (let i = 0; i < str.length; i++) {
-    const ch = str.charCodeAt(i)
-    h1 = Math.imul(h1 ^ ch, 2654435761)
-    h2 = Math.imul(h2 ^ ch, 1597334677)
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
-  return 4294967296 * (2097151 & h2) + (h1 >>> 0)
-}
-
-export function mulberry32(seed: number) {
-  let t = seed >>> 0
-  return () => {
-    t = (t + 0x6D2B79F5) >>> 0
-    let r = Math.imul(t ^ (t >>> 15), 1 | t)
-    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-/** Daily (or hourly) equity path. The last sample is the current value. */
-export function equityPath(seedKey: string, points: number, endValue: number, changePct: number): number[] {
+/**
+ * Equity path drawn under the wallet chart. The last sample is the current value.
+ *
+ * Honest data (swarm 2026-10-30b, board-finance F2b): no daily valuation history is
+ * recorded yet, so this is a STRAIGHT LINE from the stored period start
+ * (endValue / (1 + changePct)) to today's value. It used to be a seeded random walk
+ * pinned to both ends, and its Best / Worst / Max DD were read off that noise.
+ * Nothing here is random any more; `seedKey` is kept so callers do not change.
+ * Read Best / Worst / Max DD through `equityStats`, which reports them as pending.
+ */
+export function equityPath(_seedKey: string, points: number, endValue: number, changePct: number): number[] {
   const n = Math.max(2, points)
-  const start = endValue / (1 + changePct / 100)
-  const rand = mulberry32(hashSeed(seedKey))
-  const rawSteps: number[] = []
-  let acc = 0
-  for (let i = 0; i < n; i++) {
-    const step = rand() - 0.45
-    rawSteps.push(step)
-    acc += step
-  }
-  const target = (endValue - start) / Math.max(1, start)
-  const factor = acc === 0 ? 0 : target / acc
+  const growth = 1 + (Number(changePct) || 0) / 100
+  const start = growth > 0 ? endValue / growth : endValue
   const out: number[] = []
-  let v = start
-  for (let i = 0; i < n; i++) {
-    v = Math.max(0.01, v * (1 + rawSteps[i] * factor + (rand() - 0.5) * 0.005))
-    out.push(v)
-  }
+  for (let i = 0; i < n; i++) out.push(start + ((endValue - start) * i) / (n - 1))
   out[n - 1] = endValue
   return out
 }
 
+/** One-line reason shown with every figure that needs a recorded daily equity series. */
+export const NO_EQUITY_HISTORY = 'Needs a daily equity history: not recorded yet.'
+
 /**
- * Share of the book at each sample. Columns sum to 1. The last column is the
- * current share, so the right edge of the chart matches the rows.
+ * A figure that cannot be computed yet. It formats as '—' through the same
+ * `toFixed()` call a number takes, so a template that prints `x.toFixed(1)` shows
+ * '—' instead of an invented value. It is not a number: never do maths on it.
+ */
+export interface PendingFigure {
+  readonly pending: true
+  readonly note: string
+  toFixed(digits?: number): string
+  toString(): string
+}
+
+export function pendingFigure(note: string): PendingFigure {
+  return Object.freeze({
+    pending: true as const,
+    note,
+    toFixed: () => '—',
+    toString: () => '—',
+  })
+}
+
+export function isPending(value: unknown): value is PendingFigure {
+  return !!value && typeof value === 'object' && (value as { pending?: unknown }).pending === true
+}
+
+/** Largest peak-to-trough fall of a value series, in % (≤ 0). 0 for fewer than 2 points. */
+export function maxDrawdownPct(values: number[]): number {
+  let peak = -Infinity
+  let worst = 0
+  for (const v of values) {
+    if (!Number.isFinite(v)) continue
+    if (v > peak) peak = v
+    if (peak > 0) worst = Math.min(worst, ((v - peak) / peak) * 100)
+  }
+  return worst
+}
+
+/**
+ * Best step, worst step and max drawdown of a RECORDED equity series. Without a
+ * recorded series (`recorded` false: the line from `equityPath`) all three are
+ * pending: a straight line has no drawdown to report and its steps are not days.
+ */
+export function equityStats(values: number[], recorded: boolean): {
+  best: number | PendingFigure
+  worst: number | PendingFigure
+  maxDrawdown: number | PendingFigure
+} {
+  if (!recorded || values.length < 2) {
+    const p = pendingFigure(NO_EQUITY_HISTORY)
+    return { best: p, worst: p, maxDrawdown: p }
+  }
+  let best = -Infinity
+  let worst = Infinity
+  for (let i = 1; i < values.length; i++) {
+    const prev = values[i - 1]!
+    if (!(prev > 0)) continue
+    const pct = ((values[i]! - prev) / prev) * 100
+    if (pct > best) best = pct
+    if (pct < worst) worst = pct
+  }
+  return {
+    best: best === -Infinity ? 0 : best,
+    worst: worst === Infinity ? 0 : worst,
+    maxDrawdown: maxDrawdownPct(values),
+  }
+}
+
+/**
+ * Share of the book at each sample. Columns sum to 1. The composition history is
+ * not recorded either, so every column is today's mix (it used to be a seeded
+ * random wander, which put invented $ amounts in the chart read-out).
  */
 export function sharePaths(
   layers: { id: string; share: number }[],
   points: number,
-  seedKey: string,
+  _seedKey: string,
 ): number[][] {
   const n = Math.max(2, points)
   const count = layers.length
   if (!count) return Array.from({ length: n }, () => [])
-
-  const raw = layers.map(layer => {
-    const rand = mulberry32(hashSeed(`${seedKey}::${layer.id}`))
-    const end = Math.max(0, layer.share)
-    let w = Math.max(0.01, end > 0 ? end * (0.55 + rand() * 0.7) : 0.2)
-    const path: number[] = []
-    for (let i = 0; i < n; i++) {
-      const pull = (end - w) * (0.08 + 0.22 * (i / (n - 1)))
-      const noise = (rand() - 0.48) * Math.max(end, 0.05) * 0.12
-      w = Math.max(0.004, w + pull + noise)
-      path.push(w)
-    }
-    return path
-  })
-
-  const out: number[][] = []
-  for (let i = 0; i < n; i++) {
-    const sum = raw.reduce((s, path) => s + path[i], 0)
-    out.push(raw.map(path => (sum > 0 ? path[i] / sum : 1 / count)))
-  }
   const endSum = layers.reduce((s, layer) => s + Math.max(0, layer.share), 0)
-  out[n - 1] = layers.map(layer => (endSum > 0 ? Math.max(0, layer.share) / endSum : 1 / count))
-  return out
+  const column = layers.map(layer => (endSum > 0 ? Math.max(0, layer.share) / endSum : 1 / count))
+  return Array.from({ length: n }, () => [...column])
 }
 
 export interface StackPoint {
@@ -207,7 +231,7 @@ export function stackBands(
       const bottomF = acc
       acc += share
       const topF = Math.min(1, acc)
-      bands[k].points.push({
+      bands[k]!.points.push({
         x: point.x,
         bottom: yBase - span * bottomF,
         top: yBase - span * topF,
@@ -284,14 +308,20 @@ export function walletLayers(wallets: { id: string; name: string; total_value: n
       id: wallet.id,
       group: wallet.id,
       label: wallet.name,
-      color: WALLET_COLORS[index % WALLET_COLORS.length],
+      color: WALLET_COLORS[index % WALLET_COLORS.length]!,
       share: (Number(wallet.total_value) || 0) / sum,
     }))
     .sort((a, b) => a.share - b.share)
 }
 
 export interface RiskProfile {
-  sharpe: number
+  /**
+   * Pending until a daily return series exists. The old figure was mean/std of the
+   * five OVERLAPPING horizon returns (1d, 7d, 30d, 90d, 1y), which is not a Sharpe
+   * ratio (Sharpe = mean(daily r − rf) / std(daily r − rf) · √252, √365 for crypto).
+   */
+  sharpe: PendingFigure
+  sharpeNote: string
   winRate: number
   concentration: number
   riskLevel: 'low' | 'medium' | 'high'
@@ -299,9 +329,11 @@ export interface RiskProfile {
   exposure: Record<PieClass, number>
 }
 
+export const SHARPE_PENDING_NOTE = 'Needs a daily equity history (daily returns): not recorded yet.'
+
 export function riskProfile(
   positions: { symbol: string; allocation_percentage?: number; return_percentage?: number; current_value?: number }[],
-  history?: Record<string, { change_percentage?: number }>,
+  _history?: Record<string, { change_percentage?: number }>,
 ): RiskProfile {
   const exposure: Record<PieClass, number> = { fiat: 0, crypto: 0, stocks: 0, commodities: 0 }
   let weightSum = 0
@@ -314,16 +346,11 @@ export function riskProfile(
     const values = positions.map(position => Number(position.current_value) || 0)
     const sum = values.reduce((a, b) => a + b, 0)
     positions.forEach((position, index) => {
-      exposure[pieClassOf(position.symbol)] += sum > 0 ? (values[index] / sum) * 100 : 0
+      exposure[pieClassOf(position.symbol)] += sum > 0 ? (values[index]! / sum) * 100 : 0
     })
   }
 
-  const periods = ['1d', '7d', '30d', '90d', '1y']
-  const returns = periods.map(period => history?.[period]?.change_percentage ?? 0)
-  const mean = returns.reduce((a, b) => a + b, 0) / returns.length
-  const variance = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / returns.length
-  const std = Math.sqrt(variance)
-  const sharpe = std === 0 ? 0 : mean / std
+  const sharpe = pendingFigure(SHARPE_PENDING_NOTE)
   const winRate = positions.length
     ? (positions.filter(position => (position.return_percentage ?? 0) > 0).length / positions.length) * 100
     : 0
@@ -335,8 +362,42 @@ export function riskProfile(
       ? 'medium'
       : 'low'
   const riskScore = Math.min(100, Math.round(crypto * 0.6 + concentration * 100 * 0.4))
-  return { sharpe, winRate, concentration, riskLevel, riskScore, exposure }
+  return { sharpe, sharpeNote: SHARPE_PENDING_NOTE, winRate, concentration, riskLevel, riskScore, exposure }
 }
+
+/** Where a holding's "Today %" comes from: a live quote with a timestamp, or nothing. */
+export interface QuoteLike {
+  symbol: string
+  change_24h_pct?: number
+  live?: { at?: string } | null
+}
+
+export const TODAY_PENDING_NOTE = 'Needs a live quote with a 24h change: none for this asset yet.'
+
+/**
+ * Holdings "Today %" keyed by asset_id. Only assets with a live quote get a value:
+ * the asset's real 24h price move, which is the holding's own move for a position
+ * held through the day. Unknown stays absent (shown as '—'), never a made-up number.
+ * (It used to be a hash of the asset id: board-finance F2a.)
+ */
+export function holdingTodayPct(
+  positions: { asset_id: string; symbol: string }[],
+  quoteBySymbol: (symbol: string) => QuoteLike | undefined,
+): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const position of positions) {
+    const quote = quoteBySymbol(String(position.symbol || '').toUpperCase())
+    const pct = quote?.change_24h_pct
+    if (quote?.live && typeof pct === 'number' && Number.isFinite(pct)) out[position.asset_id] = pct
+  }
+  return out
+}
+
+/**
+ * The bundled platform wallets (public/data/core/wallets.json) are a demo book
+ * (owner user_001). They are never the signed-in account's money, whoever is signed in.
+ */
+export const SAMPLE_WALLETS_NOTE = 'Sample wallets from the demo account: not your money. Your own paper wallets and bots are in Trade.'
 
 function mergeAssets(wallets: BookWallet[], total: number): BookAsset[] {
   const byId = new Map<string, BookAsset & { cost: number }>()

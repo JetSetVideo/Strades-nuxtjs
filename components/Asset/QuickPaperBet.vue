@@ -1,27 +1,50 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { usePaperStore } from '~/stores/paper'
+import { usePaperStore, type PaperTrade } from '~/stores/paper'
+import { useTradingApi } from '~/composables/useTradingApi'
+import { DEFAULT_PAPER_CAPITAL, paperCapital, paperOwnerId } from '~/utils/paperMarks'
+import { livePrice, quickBetBlock, quoteDecimals } from '~/utils/quickBet'
+import { fmtMoney, fmtSignedMoney } from '~/utils/format'
+import UISourceChip from '~/components/UI/SourceChip.vue'
 
 /**
  * Asset/QuickPaperBet.vue — inline paper trading panel for the asset detail page.
  *
- * Lets the user simulate a bet on the current asset as a % of their wallet,
+ * Lets the user simulate a bet on the current asset as a % of their paper cash,
  * without risking real money. Shows open positions for this asset + a quick
  * form to place a new one.
+ *
+ * Wave 2: P&L is marked to the live price (stores/paper markToMarket); no live
+ * price → "—". Sizing uses the user's paper wallets' free cash, else a labelled
+ * default. Trades are stamped with the signed-in user's id (else "guest").
+ * Wave 4: currentPrice may be null (no quote yet): the form still shows, the price
+ * reads "—" + "no live price yet", and the bet cannot be placed.
  */
 
 const props = defineProps<{
   assetId: string
   assetSymbol: string
-  currentPrice: number
+  /** Live quote, or null when there is none yet (never pass an invented price). */
+  currentPrice: number | null
 }>()
 
-const paper = usePaperStore()
+const price = computed(() => livePrice(props.currentPrice))
+const priceText = computed(() => fmtMoney(price.value, { decimals: quoteDecimals(price.value) }))
 
-onMounted(() => {
+const paper = usePaperStore()
+// Resolve identity in setup (Design.md §10: never inside a computed / store action).
+const { user, isAuthenticated } = useAuth()
+const ownerId = computed(() => paperOwnerId(isAuthenticated.value, user.value?.id))
+const tradingApi = useTradingApi()
+const walletCash = ref<number | null>(null)
+
+onMounted(async () => {
   paper.hydrate()
   paper.markToMarket()
   interval = window.setInterval(() => paper.markToMarket(), 15_000)
+  if (isAuthenticated.value) {
+    try { walletCash.value = paperCapital(await tradingApi.listWallets()) } catch { walletCash.value = null }
+  }
 })
 let interval: number | undefined
 onUnmounted(() => { if (interval) clearInterval(interval) })
@@ -31,20 +54,26 @@ const side = ref<'buy' | 'sell'>('buy')
 const walletPct = ref(5)
 const placedId = ref<string | null>(null)
 
-const notionalValue = computed(() => {
-  // Approximate: $100k default wallet × walletPct
-  return (walletPct.value / 100) * 100_000
-})
+const capital = computed(() => walletCash.value ?? DEFAULT_PAPER_CAPITAL)
+const capitalIsDefault = computed(() => walletCash.value === null)
+const notionalValue = computed(() => (walletPct.value / 100) * capital.value)
+/** Why the bet cannot be placed ('' = it can): no live price, or a 0 % size. */
+const blocked = computed(() => quickBetBlock(price.value, walletPct.value))
 
 const placeBet = () => {
+  const p = price.value
+  if (p === null || blocked.value) return
   const t = paper.placeOrder({
     asset_id: props.assetId,
     asset_symbol: props.assetSymbol,
     side: side.value,
     wallet_pct: walletPct.value,
-    simulated_price: props.currentPrice
+    simulated_price: p,
+    user_id: ownerId.value,
+    capital_usd: walletCash.value,
   })
   placedId.value = t.id
+  paper.markToMarket()
   setTimeout(() => { placedId.value = null }, 2000)
 }
 
@@ -59,13 +88,19 @@ const closedForAsset = computed(() =>
   assetPositions.value.filter(t => t.status === 'closed')
 )
 
-const totalPnl = computed(() =>
-  assetPositions.value.reduce((s, t) =>
-    s + (t.status === 'open' ? t.hypothetical_pnl_value : (t.realized_pnl_value ?? 0)), 0
-  )
-)
+/** P&L of one position, or null when it has no price to be marked against. */
+const pnlOf = (t: PaperTrade): number | null =>
+  t.status === 'open'
+    ? (typeof t.mark_price === 'number' ? t.hypothetical_pnl_value : null)
+    : (t.realized_pnl_value ?? null)
 
-const fmtSigned = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(0)}`
+const unmarked = computed(() => assetPositions.value.filter(t => pnlOf(t) === null).length)
+const totalPnl = computed<number | null>(() => {
+  const known = assetPositions.value.map(pnlOf).filter((v): v is number => v !== null)
+  return known.length ? known.reduce((s, v) => s + v, 0) : null
+})
+
+const fmtSigned = (v: number | null) => fmtSignedMoney(v, { decimals: 0 })
 </script>
 
 <template>
@@ -75,7 +110,9 @@ const fmtSigned = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(0)}`
         <span class="qpb-chip" title="Paper trade — simulated bet as % of wallet">P</span>
         <h4>Paper Trade {{ assetSymbol }}</h4>
       </div>
-      <span class="qpb-price">@ ${{ currentPrice.toLocaleString(APP_LOCALE) }}</span>
+      <span class="qpb-price">@ {{ priceText }}
+        <UISourceChip v-if="price === null" source="pending" note="No live price yet: this asset has no quote right now, so a paper bet cannot be placed. The form stays so you can see the options." />
+      </span>
     </header>
 
     <!-- Quick form -->
@@ -98,15 +135,29 @@ const fmtSigned = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(0)}`
       </div>
       <div class="form-row">
         <label class="form-label">Notional</label>
-        <span class="notional-value">${{ notionalValue.toLocaleString('en-US', { maximumFractionDigits: 0 }) }}</span>
+        <span class="notional-value">{{ fmtMoney(notionalValue, { decimals: 0 }) }}</span>
+        <span class="capital-note">
+          of {{ fmtMoney(capital, { decimals: 0 }) }}
+          {{ capitalIsDefault ? 'default paper capital' : 'paper cash' }}
+          <UISourceChip
+            :source="capitalIsDefault ? 'pending' : 'paper'"
+            :note="capitalIsDefault
+              ? 'No paper wallet found (signed out or none yet): sized on a default $100,000. Create a paper wallet on /trade to size on your own paper cash.'
+              : 'Free cash of your paper wallets (/trade).'"
+          />
+        </span>
       </div>
       <button
         class="place-btn"
         :class="{ placed: placedId }"
+        :disabled="!!blocked"
+        :aria-disabled="!!blocked"
+        :title="blocked || undefined"
         @click="placeBet"
       >
         {{ placedId ? '✓ Placed!' : `Paper ${side === 'buy' ? 'Buy' : 'Sell'} ${assetSymbol}` }}
       </button>
+      <small v-if="blocked" class="qpb-blocked" role="status">{{ blocked }}</small>
     </div>
 
     <!-- Open positions for this asset -->
@@ -115,9 +166,10 @@ const fmtSigned = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(0)}`
       <div v-for="t in openForAsset" :key="t.id" class="pos-row" :data-side="t.side">
         <span class="pos-side">{{ t.side.toUpperCase() }}</span>
         <span class="pos-pct">{{ t.wallet_pct.toFixed(1) }}% wallet</span>
-        <span class="pos-entry">@ ${{ t.simulated_price.toLocaleString(APP_LOCALE) }}</span>
-        <span class="pos-pnl" :data-tone="t.hypothetical_pnl_value >= 0 ? 'pos' : 'neg'">
-          {{ fmtSigned(t.hypothetical_pnl_value) }}
+        <span class="pos-entry">@ {{ fmtMoney(t.simulated_price, { decimals: quoteDecimals(t.simulated_price) }) }}</span>
+        <span class="pos-pnl" :data-tone="pnlOf(t) === null ? 'none' : (pnlOf(t) ?? 0) >= 0 ? 'pos' : 'neg'"
+          :title="pnlOf(t) === null ? 'No live price for this asset: P&L not computed' : `Marked at $${t.mark_price}`">
+          {{ fmtSigned(pnlOf(t)) }}
         </span>
         <button class="pos-close" @click="paper.closeTrade(t.id)" title="Close">✕</button>
       </div>
@@ -125,7 +177,9 @@ const fmtSigned = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(0)}`
 
     <!-- Summary -->
     <div v-if="assetPositions.length" class="qpb-summary">
-      <span>Total P&L: <b :data-tone="totalPnl >= 0 ? 'pos' : 'neg'">{{ fmtSigned(totalPnl) }}</b></span>
+      <span>Total P&L: <b :data-tone="totalPnl === null ? 'none' : totalPnl >= 0 ? 'pos' : 'neg'">{{ fmtSigned(totalPnl) }}</b>
+        <UISourceChip v-if="unmarked" source="pending" :note="`${unmarked} position(s) have no live price, so their P&L is not computed (shown —).`" />
+      </span>
       <span>{{ closedForAsset.length }} closed</span>
     </div>
 
@@ -172,6 +226,7 @@ const fmtSigned = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(0)}`
 .pct-slider { flex: 1; accent-color: var(--primary-blue); }
 .pct-value { font-size: 0.8rem; font-weight: 600; min-width: 40px; text-align: right; }
 .notional-value { font-size: 0.8rem; font-weight: 600; }
+.capital-note { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; font-size: 0.68rem; color: var(--text-gray); }
 
 .place-btn {
   width: 100%;
@@ -186,6 +241,10 @@ const fmtSigned = (v: number) => `${v >= 0 ? '+' : ''}$${v.toFixed(0)}`
   transition: background 0.15s;
 }
 .place-btn:hover { background: color-mix(in oklch, var(--primary-blue) 25%, transparent); }
+.place-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.place-btn:disabled:hover { background: color-mix(in oklch, var(--primary-blue) 12%, transparent); }
+.qpb-blocked { font-size: 0.68rem; color: var(--text-gray); }
+.qpb-price { display: inline-flex; align-items: center; gap: 0.3rem; }
 .place-btn.placed {
   background: color-mix(in oklch, var(--success-green, #00ff88) 15%, transparent);
   border-color: var(--success-green, #00ff88);

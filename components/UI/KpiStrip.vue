@@ -3,13 +3,15 @@
     <div v-for="item in items" :key="item.label" class="kpi" :class="item.tone ?? 'neutral'">
       <span class="kpi-label">{{ item.label }}</span>
       <span class="kpi-value">
-        {{ format(item.value) }}<span v-if="item.suffix" class="kpi-suffix">{{ item.suffix }}</span>
+        {{ show(item).text }}<span v-if="show(item).suffix" class="kpi-suffix">{{ show(item).suffix }}</span>
       </span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { fmtStatValue } from '~/utils/format'
+
 export interface KpiItem {
   label: string
   value: string | number | null | undefined
@@ -19,14 +21,12 @@ export interface KpiItem {
 
 defineProps<{ items: KpiItem[] }>()
 
-function format(v: string | number | null | undefined) {
-  if (v === null || v === undefined) return '—'
-  if (typeof v === 'number') {
-    if (Math.abs(v) >= 1000) return v.toLocaleString(APP_LOCALE, { maximumFractionDigits: 0 })
-    return Number.isInteger(v) ? String(v) : v.toFixed(1)
-  }
-  return v
-}
+/**
+ * Same rule as UIStat (utils/format.ts `fmtStatValue`): "USD" → "$1,234",
+ * "%" → 1 dp (2 dp under 1 %), plain → integers bare, else 2 dp, 0 dp from 1,000.
+ * Strings print as given; null/NaN → "—" without the suffix.
+ */
+const show = (item: KpiItem) => fmtStatValue(item.value, { suffix: item.suffix })
 </script>
 
 <style scoped>

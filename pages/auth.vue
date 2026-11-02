@@ -7,7 +7,7 @@
 definePageMeta({ layout: false })
 useHead({ title: 'Sign in · Strades' })
 
-const { login, register, startDemo, resumeDemo, isAuthenticated } = useAuth()
+const { login, register, activateDemo, resumeDemo, isAuthenticated } = useAuth()
 
 type Mode = 'login' | 'register'
 const route = useRoute()
@@ -80,21 +80,9 @@ async function enterDemoMode() {
   error.value = null
   loading.value = 'demo'
   try {
-    // This device already has a demo: come back to it instead of minting a second one.
-    const saved = storedDemoCode()
-    if (saved) {
-      try {
-        await resumeDemo(saved)
-        demoCookie.value = null
-        await navigateTo(redirectTo.value)
-        return
-      } catch (e: unknown) {
-        if (statusOf(e) !== 404) throw e
-        forgetDemoCode()                 // deleted after 30 idle days or claimed: start a fresh one
-      }
-    }
-    // Preferred: a real demo account, so the whole product (wallets, bots, friends, insights) works.
-    const data = await startDemo()
+    // A real demo account (resumed on this device, else a new one), so the whole product works:
+    // wallets, bots, friends and the profile mirror. activateDemo retries while the server restarts.
+    const data = await activateDemo()
     demoCookie.value = null
     newCode.value = data.demo?.code ?? null
     if (!newCode.value) await navigateTo(redirectTo.value)
@@ -103,7 +91,8 @@ async function enterDemoMode() {
       error.value = 'Too many demo sessions from this network right now. Please create a free account instead.'
       return
     }
-    // Backend unreachable: fall back to the sample-data demo (no wallets or bots there).
+    // Server still unreachable after the retries: browse sample data. The account is created as soon as the
+    // server answers (plugins/demo-account.client.ts, and the button in the profile mirror).
     demoCookie.value = '1'
     await navigateTo('/prices')
   } finally {
@@ -111,10 +100,7 @@ async function enterDemoMode() {
   }
 }
 
-function statusOf(e: unknown): number {
-  return (e as { response?: { status?: number } })?.response?.status
-    ?? (e as { statusCode?: number }).statusCode ?? 0
-}
+const statusOf = httpStatusOf
 
 // "I have a demo id": resume the same demo account on this device.
 const showResume = ref(false)

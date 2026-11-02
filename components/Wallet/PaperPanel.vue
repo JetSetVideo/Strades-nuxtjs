@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { usePaperStore, type PaperTrade } from '~/stores/paper'
 import { useWalletStore } from '~/stores/wallet'
+import { fmtPctFromPercent, fmtRelative } from '~/utils/format'
+import { fmtMoneyKpi, signTone } from '~/utils/valueTree'
 
 /**
  * Wallet/PaperPanel.vue — Paper / Live trading dashboard widget.
@@ -17,7 +19,8 @@ import { useWalletStore } from '~/stores/wallet'
 
 const paper = usePaperStore()
 const walletStore = useWalletStore()
-const { signedUsd, notional, sources } = usePaperFormat()
+const { sources } = usePaperFormat()
+const notional = (v: number) => fmtMoneyKpi(v)
 
 onMounted(() => {
   paper.hydrate()
@@ -55,8 +58,9 @@ interface PanelRow {
   meta: string
   strategy_id?: string
   agent_id?: string
-  pnl: number
-  pnlPct: number
+  /** null = no live price to mark the trade yet → "—" (never a made-up 0) */
+  pnl: number | null
+  pnlPct: number | null
   timestamp: string
   closable: boolean
 }
@@ -66,11 +70,11 @@ const paperRows = computed<PanelRow[]>(() =>
     id: t.id,
     symbol: t.asset_symbol,
     side: t.side,
-    meta: `${t.side.toUpperCase()} · ${t.wallet_pct.toFixed(1)}% wallet · ${notional(t.notional_value)}`,
+    meta: `${t.side.toUpperCase()} · ${fmtPctFromPercent(t.wallet_pct)} wallet · ${notional(t.notional_value)}`,
     strategy_id: t.strategy_id,
     agent_id: t.agent_id,
-    pnl: t.hypothetical_pnl_value,
-    pnlPct: t.hypothetical_pnl_pct,
+    pnl: t.mark_price == null ? null : t.hypothetical_pnl_value,
+    pnlPct: t.mark_price == null ? null : t.hypothetical_pnl_pct,
     timestamp: t.timestamp,
     closable: true,
   }))
@@ -81,7 +85,7 @@ const liveRows = computed<PanelRow[]>(() =>
     id: `live-${a.asset_id}`,
     symbol: a.symbol,
     side: 'buy' as const,
-    meta: `HOLD · ${a.allocation_percentage.toFixed(1)}% wallet · ${notional(a.current_value)}`,
+    meta: `HOLD · ${fmtPctFromPercent(a.allocation_percentage)} wallet · ${notional(a.current_value)}`,
     pnl: a.return_amount,
     pnlPct: a.return_percentage,
     timestamp: liveWallet.value?.updated_at ?? liveWallet.value?.created_at ?? new Date().toISOString(),
@@ -119,19 +123,32 @@ const liveWinRate = computed(() => {
   return (assets.filter(a => a.return_percentage > 0).length / assets.length) * 100
 })
 
+/** Open paper P&L over the trades that have a live mark; null when none has one (→ "—"). */
+const paperMarked = computed(() => paper.openTrades.filter((t: PaperTrade) => t.mark_price != null))
+const paperOpenPnl = computed<number | null>(() =>
+  paperMarked.value.length ? paperMarked.value.reduce((s, t) => s + t.hypothetical_pnl_value, 0) : null,
+)
+const paperOpenLabel = computed(() => {
+  const all = paper.openTrades.length
+  const n = paperMarked.value.length
+  return all && n < all ? `Open P&L (${n}/${all} priced)` : 'Open P&L'
+})
+
+// Money: fmtMoneyKpi ("+$2.00", "−$9.00", "$0.00"; utils/valueTree.ts). Percent: utils/format.ts.
 const kpis = computed(() => {
   if (isPaper.value) {
+    const open = paperOpenPnl.value
     return [
-      { label: 'Open P&L', value: signedUsd(paper.openPnlValue, 0), tone: paper.openPnlValue >= 0 ? 'positive' : 'negative' },
-      { label: 'Realized', value: signedUsd(paper.realizedPnlValue, 0), tone: paper.realizedPnlValue >= 0 ? 'positive' : 'negative' },
-      { label: 'Win rate', value: paper.winRate.toFixed(0), suffix: '%' },
+      { label: paperOpenLabel.value, value: fmtMoneyKpi(open, { signed: true }), tone: open === null ? undefined : signTone(open) },
+      { label: 'Realized', value: fmtMoneyKpi(paper.realizedPnlValue, { signed: true }), tone: signTone(paper.realizedPnlValue) },
+      { label: 'Win rate', value: fmtPctFromPercent(paper.winRate) },
       { label: 'Positions', value: paper.openTrades.length },
     ]
   }
   return [
-    { label: 'Open P&L', value: signedUsd(liveOpenPnl.value, 0), tone: liveOpenPnl.value >= 0 ? 'positive' : 'negative' },
-    { label: 'Realized', value: signedUsd(liveRealized.value, 0), tone: liveRealized.value >= 0 ? 'positive' : 'negative' },
-    { label: 'Win rate', value: liveWinRate.value.toFixed(0), suffix: '%' },
+    { label: 'Open P&L', value: fmtMoneyKpi(liveOpenPnl.value, { signed: true }), tone: signTone(liveOpenPnl.value) },
+    { label: 'Realized', value: fmtMoneyKpi(liveRealized.value, { signed: true }), tone: signTone(liveRealized.value) },
+    { label: 'Win rate', value: fmtPctFromPercent(liveWinRate.value) },
     { label: 'Positions', value: liveAssets.value.length },
   ]
 })
@@ -170,14 +187,10 @@ const emptyCopy = computed(() =>
     : 'No live holdings in this wallet yet.'
 )
 
-const formatPnl = (v: number) => signedUsd(v)
-const formatPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`
-const timeAgo = (ts: string) => {
-  const m = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
-  if (m < 60) return `${Math.max(0, m)}m`
-  if (m < 1440) return `${Math.floor(m / 60)}h`
-  return `${Math.floor(m / 1440)}d`
-}
+const formatPnl = (v: number | null) => (v === null ? '—' : fmtMoneyKpi(v, { signed: true }))
+const formatPct = (v: number | null) => (v === null ? 'no live price' : fmtPctFromPercent(v, { signed: true }))
+const pnlTone = (v: number | null) => (v === null ? undefined : v >= 0 ? 'pos' : 'neg')
+const timeAgo = (ts: string) => fmtRelative(ts)
 
 function setMode(mode: 'paper' | 'live') {
   if (paper.mode === mode) return
@@ -260,10 +273,10 @@ function setMode(mode: 'paper' | 'live') {
             </span>
           </div>
           <div class="pos-right">
-            <span class="pos-pnl" :data-tone="t.pnl >= 0 ? 'pos' : 'neg'">
+            <span class="pos-pnl" :data-tone="pnlTone(t.pnl)" :title="t.pnl === null ? 'No live price for this asset yet: P&L not computed' : undefined">
               {{ formatPnl(t.pnl) }}
             </span>
-            <span class="pos-pct" :data-tone="t.pnl >= 0 ? 'pos' : 'neg'">
+            <span class="pos-pct" :data-tone="pnlTone(t.pnl)">
               {{ formatPct(t.pnlPct) }}
             </span>
             <span class="pos-age">{{ timeAgo(t.timestamp) }}</span>
@@ -288,7 +301,7 @@ function setMode(mode: 'paper' | 'live') {
           class="closed-row"
         >
           <span>{{ t.symbol }}</span>
-          <span class="closed-pnl" :data-tone="t.pnl >= 0 ? 'pos' : 'neg'">
+          <span class="closed-pnl" :data-tone="pnlTone(t.pnl)">
             {{ formatPnl(t.pnl) }}
           </span>
         </div>

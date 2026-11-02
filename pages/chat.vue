@@ -1,16 +1,20 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { navigateTo } from '#app';
 import { useChatStore } from '@/stores/chat';
 import { useUsersStore } from '@/stores/users';
 import { useCommunityStore } from '@/stores/community';
+import { conversationDisplay, messageCountLabel } from '~/utils/chatMap';
+import { toDate, fmtTime, fmtShortDate } from '~/utils/format';
 import ChatNewMessageModal from '@/components/Chat/NewMessageModal.vue';
 import UIScreenShell from '@/components/UI/ScreenShell.vue';
 import UISectionTabs from '@/components/UI/SectionTabs.vue';
+import UISourceChip from '@/components/UI/SourceChip.vue';
 import CommunityPersonCard from '@/components/Community/PersonCard.vue';
 
+// Title literal = routeLabel('/chat') (tests/pageTitles.test.ts; definePageMeta cannot call it).
 definePageMeta({
-    title: "Messages",
+    title: "Chat",
     description: "Chat conversations",
     layout: "default",
 });
@@ -21,11 +25,13 @@ const community = useCommunityStore();
 const isLoading = ref(true);
 
 const { userId: currentUserId, getUserId } = useCurrentUser();
+const { isAuthenticated } = useAuth();
 
-onMounted(async () => {
+async function loadChat(force = false) {
+  isLoading.value = true;
   try {
     await Promise.all([
-      chatStore.initializeStore(),
+      chatStore.ensureLoaded(force),
       usersStore.initializeStore(),
       community.hydrated ? Promise.resolve() : community.fetchCommunity(),
     ]);
@@ -34,37 +40,35 @@ onMounted(async () => {
   } finally {
     isLoading.value = false;
   }
-});
+}
+
+onMounted(() => loadChat());
+// Signing in or out swaps the list (server conversations ↔ samples).
+watch([isAuthenticated, currentUserId], () => loadChat());
+
+const retry = () => loadChat(true);
 
 const userConversations = computed(() => {
   return chatStore.getRecentConversations(getUserId());
 });
 
-const getOtherParticipant = (conversation) => {
-  return conversation.participants.find(p => p !== getUserId());
+const lookupUser = (id) => {
+  const u = usersStore.getUserById(id);
+  return u ? { username: u.username, full_name: `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim(), avatar_url: u.avatar_url } : null;
 };
 
-const getUserInfo = (userId) => {
-  return usersStore.getUserById(userId);
-};
+const display = (conversation) => conversationDisplay(conversation, getUserId(), lookupUser);
 
 const formatLastMessageTime = (timestamp) => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-  if (diffInHours < 24) {
-    return date.toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' });
-  } else if (diffInHours < 168) { // 7 days
-    return date.toLocaleDateString(APP_LOCALE, { weekday: 'short' });
-  } else {
-    return date.toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric' });
-  }
+  const date = toDate(timestamp);
+  if (!date) return '—';
+  const diffInHours = (Date.now() - date.getTime()) / (1000 * 60 * 60);
+  return diffInHours < 24 ? fmtTime(date) : fmtShortDate(date);
 };
 
 const getUnreadCount = (conversation) => {
-  const unreadKey = `unread_count_${getUserId()}`;
-  return conversation[unreadKey] || 0;
+  const own = conversation[`unread_count_${getUserId()}`];
+  return typeof own === 'number' ? own : (conversation.source === 'server' ? conversation.unread_count || 0 : 0);
 };
 
 const navigateToConversation = (conversationId) => {
@@ -87,6 +91,9 @@ function isOnline(id) {
 
 function conversationOnline(conversation) {
   const me = getUserId();
+  if (conversation.source === 'server') {
+    return (conversation.participantDetails || []).some(p => p.user_id !== me && p.is_online);
+  }
   return conversation.participants.some(id => id !== me && isOnline(id));
 }
 
@@ -160,6 +167,20 @@ function onViewProfile(id) {
         </div>
 
         <div class="conversations-section">
+          <!-- Signed in and the API failed: say so, never swap in the samples. -->
+          <div v-if="chatStore.error" class="empty-state error-state" role="alert">
+            <div class="empty-icon">⚠</div>
+            <h3>Your conversations could not load</h3>
+            <p>{{ chatStore.error }}</p>
+            <button class="start-btn" @click="retry">Retry</button>
+          </div>
+
+          <template v-else>
+          <p v-if="chatStore.isSample" class="sample-note">
+            <UISourceChip source="sample" note="Sample conversations so the page is not empty: they are not yours. Sign in to see your chats and rooms." />
+            Sample conversations — <NuxtLink to="/auth?redirect=/chat">sign in</NuxtLink> to see yours.
+          </p>
+
           <div v-if="userConversations.length === 0" class="empty-state">
             <div class="empty-icon">💭</div>
             <h3>No conversations yet</h3>
@@ -178,27 +199,34 @@ function onViewProfile(id) {
               class="conversation-item"
               role="link"
               tabindex="0"
-              :aria-label="`Open conversation with ${getUserInfo(getOtherParticipant(conversation))?.username || 'user'}`"
+              :aria-label="`Open conversation: ${display(conversation).name}`"
               @click="navigateToConversation(conversation.id)"
               @keydown.enter="navigateToConversation(conversation.id)"
             >
               <div class="conversation-avatar">
                 <NuxtLink
-                  :to="`/profile/${getOtherParticipant(conversation)}`"
+                  v-if="display(conversation).profileId"
+                  :to="`/profile/${display(conversation).profileId}`"
                   @click.stop
                 >
                   <img
-                    :src="getUserInfo(getOtherParticipant(conversation))?.avatar_url || '/avatars/Ellipse5.png'"
-                    :alt="getUserInfo(getOtherParticipant(conversation))?.username || 'User'"
+                    :src="display(conversation).avatar"
+                    :alt="display(conversation).name"
                     class="avatar-link-img"
                   />
                 </NuxtLink>
+                <img
+                  v-else
+                  :src="display(conversation).avatar"
+                  :alt="display(conversation).name"
+                  class="avatar-link-img"
+                />
               </div>
 
               <div class="conversation-content">
                 <div class="conversation-header">
                   <h4 class="conversation-name">
-                    {{ getUserInfo(getOtherParticipant(conversation))?.username || 'Unknown User' }}
+                    {{ display(conversation).name }}
                   </h4>
                   <span class="conversation-time">
                     {{ formatLastMessageTime(conversation.last_message_at) }}
@@ -206,9 +234,15 @@ function onViewProfile(id) {
                 </div>
 
                 <div class="conversation-preview">
-                  <p class="conversation-topic">{{ conversation.metadata?.topic || 'General discussion' }}</p>
+                  <p class="conversation-topic">{{ display(conversation).subtitle }}</p>
                   <div class="conversation-meta">
-                    <span class="message-count">{{ conversation.message_count }} messages</span>
+                    <span v-if="display(conversation).kind" class="message-count">{{ display(conversation).kind }}</span>
+                    <span v-if="messageCountLabel(conversation)" class="message-count">{{ messageCountLabel(conversation) }}</span>
+                    <UISourceChip
+                      v-if="conversation.source === 'sample' && !chatStore.isSample"
+                      source="sample"
+                      note="Started in this tab with sample traders: it is not saved on the server."
+                    />
                     <span
                       v-if="getUnreadCount(conversation) > 0"
                       class="unread-badge"
@@ -220,6 +254,7 @@ function onViewProfile(id) {
               </div>
             </div>
           </div>
+          </template>
         </div>
       </div>
 
@@ -486,6 +521,17 @@ function onViewProfile(id) {
 }
 
 /* Friends / Discover grid */
+.sample-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.45rem;
+  font-size: 0.75rem;
+  color: var(--text-gray);
+}
+.sample-note a { color: var(--primary-green); }
+.error-state h3 { color: var(--error-red); }
 .person-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAgentsStore } from '~/stores/agents'
-import { useOpinionsStore } from '~/stores/opinions'
+import { useOpinionsStore, type PlugsApi } from '~/stores/opinions'
+import { plugSyncNote } from '~/utils/plugsSync'
 import { useAgentTracker } from '~/composables/useAgentTracker'
 
 import UIPageHeader from '@/components/UI/PageHeader.vue'
@@ -33,7 +34,20 @@ const parent = computed(() =>
 
 const weight = ref(0.5)
 
+// Plugged agents are saved to the account (GET/PUT /api/v1/settings/plugs/); signed out = this tab only.
+const { isAuthenticated, user } = useAuth()
+const nuxtApp = useNuxtApp()
+function connectPlugs() {
+  void opinions.connect({ signedIn: isAuthenticated.value, userId: user.value?.id, api: nuxtApp.$api as PlugsApi })
+}
+watch(isAuthenticated, connectPlugs)
+const plugNote = computed(() => plugSyncNote(opinions.sync, opinions.syncError))
+// The slider follows the stored weight (after the saved list loads, or after a failed save is undone).
+const storedWeight = computed(() => agent.value ? opinions.plugs.find(p => p.agent_id === agent.value!.id)?.weight : undefined)
+watch(storedWeight, (w) => { if (typeof w === 'number') weight.value = w })
+
 onMounted(async () => {
+  connectPlugs()
   if (!agents.hydrated) await agents.fetchAgents()
   if (agent.value) {
     const existing = opinions.plugs.find(p => p.agent_id === agent.value!.id)
@@ -101,6 +115,10 @@ const isClassifier = computed(() => agent.value?.model_type === 'classifier')
     <nav v-if="parent" class="breadcrumb">
       forked from <NuxtLink :to="`/agents/${parent.id}`">{{ parent.name }}</NuxtLink>
     </nav>
+
+    <p v-if="plugNote" class="plug-sync" :data-state="opinions.sync" :role="opinions.sync === 'error' ? 'alert' : 'status'">
+      {{ plugNote }}
+    </p>
 
     <!-- Hero card -->
     <UICard padding="loose">
@@ -224,6 +242,8 @@ const isClassifier = computed(() => agent.value?.model_type === 'classifier')
   gap: 1rem;
   align-items: center;
 }
+.plug-sync { margin: 0; font-size: 0.72rem; color: var(--text-gray, rgba(255,255,255,0.6)); }
+.plug-sync[data-state="error"] { color: var(--error-red, #ff6b6b); }
 @media (max-width: 720px) {
   .dna-grid { grid-template-columns: 1fr; justify-items: center; }
 }

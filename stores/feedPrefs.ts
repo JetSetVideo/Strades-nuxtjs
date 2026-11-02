@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { userGet, userSet } from '~/utils/userStorage'
 
 /**
  * Which API feeds the user wants to keep receiving, keyed by provider id
@@ -30,7 +31,7 @@ export const useFeedPrefsStore = defineStore('feedPrefs', {
     hydrate() {
       if (this.hydrated || !import.meta.client) return
       try {
-        const raw = localStorage.getItem(KEY)
+        const raw = userGet(KEY)
         const parsed = raw ? JSON.parse(raw) : null
         if (parsed && typeof parsed === 'object') this.enabled = parsed
       } catch { /* private mode / bad JSON → all feeds stay enabled */ }
@@ -40,7 +41,7 @@ export const useFeedPrefsStore = defineStore('feedPrefs', {
     setEnabled(id: string, on: boolean) {
       this.enabled = { ...this.enabled, [id]: on }
       try {
-        localStorage.setItem(KEY, JSON.stringify(this.enabled))
+        userSet(KEY, JSON.stringify(this.enabled))
       } catch { /* storage unavailable: keep in memory for this session */ }
     },
 

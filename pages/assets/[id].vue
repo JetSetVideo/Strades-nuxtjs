@@ -27,6 +27,7 @@ import SupplyTree from '~/components/Asset/SupplyTree.vue'
 import WorldMap from '~/components/Asset/WorldMap.vue'
 import AssetCommodityPipeline from '~/components/Asset/CommodityPipeline.vue'
 import AssetQuickPaperBet from '~/components/Asset/QuickPaperBet.vue'
+import { livePrice } from '~/utils/quickBet'
 import { isBetAsset, BET_COLOR, betSourceLabel } from '~/utils/betAssets'
 import { priceKindOf, fmtPrice, fmtPct, volIndexOf, fmtAxisPrice, TYPE_LABEL, TYPE_COLOR, type MapPoint, type TreeNode } from '~/utils/assetChart'
 import { useAppearanceStore } from '~/stores/appearance'
@@ -1018,7 +1019,8 @@ const tags = computed(() => [...(asset.value?.tags ?? [])])
       <!-- ── Paper trade ── -->
       <section id="sec-trade" class="ad-card">
         <h2>Paper trade</h2>
-        <AssetQuickPaperBet :asset-id="String(asset.id)" :asset-symbol="asset.symbol" :current-price="Number(asset.current_price) || 100" />
+        <!-- No fake price: without a quote the form still shows but cannot be submitted (QuickPaperBet takes null). -->
+        <AssetQuickPaperBet :asset-id="String(asset.id)" :asset-symbol="asset.symbol" :current-price="livePrice(asset.current_price)" />
       </section>
 
       <!-- ── Related ── -->

@@ -5,7 +5,8 @@
  * catalog (wallets, trades, mind, friends). Free desks show the whole record
  * and leave audience controls locked. A paid role can change who sees a block.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { cancelSubtreeAnimations } from '~/utils/animations'
 import { useUsersStore } from '@/stores/users'
 import { useWalletStore } from '@/stores/wallet'
 import { useAgentsStore } from '@/stores/agents'
@@ -36,7 +37,9 @@ import {
   FREE_WALLET_CAP,
   ageOf,
   buildDeskCalendar,
+  deskFigures,
   isPaidRole,
+  ownBookUserId,
   visitorSees,
   type Audience,
   type HistoryRow,
@@ -99,11 +102,10 @@ const RISK: Record<string, string> = {
   very_high: 'Ultra',
 }
 
-const bookId = computed(() => {
-  const id = authUser.value?.id || sessionUserId.value
-  if (id && usersStore.getUserById(id)) return id
-  return BOOK_USER_ID
-})
+/** The signed-in account's own catalog row, or null: never another user's numbers (P4). */
+const ownId = computed(() => ownBookUserId(authUser.value?.id || sessionUserId.value, id => !!usersStore.getUserById(id)))
+const isOwnBook = computed(() => ownId.value !== null)
+const bookId = computed(() => ownId.value ?? BOOK_USER_ID) // portrait layout only, never numbers
 const user = computed(() => usersStore.getUserById(bookId.value) ?? null)
 const catalogSelf = computed(() => {
   const id = authUser.value?.id
@@ -122,9 +124,9 @@ const faceHandle = computed(() => {
 })
 const publishedName = computed(() => (paid.value && face.hideRealName ? `@${faceHandle.value}` : faceName.value))
 const portraitUrl = computed(() => face.avatarDataUrl || (catalogSelf.value ? user.value?.avatar_url || '' : ''))
-const wallets = computed(() => walletStore.getUserWallets(bookId.value))
-const ownBots = computed(() => bots.list.filter(b => b.owner_id === bookId.value))
-const ownStrategies = computed(() => strategies.getStrategiesByCreator(bookId.value))
+const wallets = computed(() => isOwnBook.value ? walletStore.getUserWallets(bookId.value) : [])
+const ownBots = computed(() => isOwnBook.value ? bots.list.filter(b => b.owner_id === bookId.value) : [])
+const ownStrategies = computed(() => isOwnBook.value ? strategies.getStrategiesByCreator(bookId.value) : [])
 const personalAgent = computed(() => agents.personal)
 
 function todayIso() {
@@ -149,7 +151,7 @@ const calendar = computed(() => {
     histories: walletStore.walletHistory as Record<string, Record<string, HistoryRow> | undefined>,
     walletIds: wallets.value.map(w => w.id),
     trades: trades.value,
-    seed: u.monthly_calendar ?? [],
+    seed: isOwnBook.value ? u.monthly_calendar ?? [] : [],
     today: todayIso(),
     walletId: walletFilter.value,
     asset: assetFilter.value,
@@ -388,25 +390,13 @@ const friendCards = computed<CommunityUser[]>(() => {
 
 const opinion = computed(() => opinions.getProfile(bookId.value))
 
-const bookValue = computed(() => {
-  const sum = wallets.value.reduce((s, w) => s + w.total_value, 0)
-  return sum || user.value?.total_portfolio_value || 0
-})
-
-const desk = computed(() => {
-  const value = Math.min(1_000_000_000, Math.max(0, bookValue.value))
-  const win = Math.min(100, Math.max(0, user.value?.win_rate ?? 0))
-  const total = ownBots.value.length
-  const live = ownBots.value.filter(b => b.status === 'live').length
-  return {
-    value,
-    win,
-    live,
-    bots: total,
-    coverage: total ? live / total : 0,
-    edge: win >= 55 ? 'ahead' : win >= 45 ? 'even' : 'behind',
-  }
-})
+const desk = computed(() => deskFigures({
+  own: isOwnBook.value,
+  walletValues: wallets.value.map(w => w.total_value),
+  catalogValue: user.value?.total_portfolio_value,
+  winRate: user.value?.win_rate,
+  bots: ownBots.value,
+}))
 
 const personaLine = computed(() => {
   const u = user.value
@@ -492,7 +482,7 @@ onMounted(async () => {
     community.hydrated ? Promise.resolve() : community.fetchCommunity(),
     isAuthenticated.value ? refreshPortfolio().catch(() => null) : Promise.resolve(),
     $fetch<StatsSlice[]>('/data/user/statistics.json').then(rows => {
-      stats.value = rows.find(s => s.user_id === bookId.value) ?? null
+      stats.value = isOwnBook.value ? rows.find(s => s.user_id === bookId.value) ?? null : null
     }).catch(() => { stats.value = null }),
     $fetch<DiscussionRow[]>('/data/social/discussions.json').then(rows => {
       discussions.value = rows
@@ -500,10 +490,16 @@ onMounted(async () => {
   ])
   loading.value = false
 })
+
+// Leak fix (board-optimization O1b): a pulsing skeleton span (the mirror's `.mi-skel span`,
+// infinite animation) left on the document timeline held this whole page after navigation.
+// Stop every animation under the page before it leaves the DOM.
+const pageRoot = ref<HTMLElement | null>(null)
+onBeforeUnmount(() => { cancelSubtreeAnimations(pageRoot.value) })
 </script>
 
 <template>
-  <div class="profile-page">
+  <div ref="pageRoot" class="profile-page">
     <template v-if="loading && !user">
       <div class="skel-hero">
         <AppSkeletonLoader height="72px" width="72px" />
@@ -532,16 +528,18 @@ onMounted(async () => {
         :portrait="portraitUrl"
         :plan="paid ? 'Paid' : 'Free'"
         :paid="paid"
+        :figures-pending="!isOwnBook"
         :note="catalogSelf ? '' : 'Demo portrait and name. The book, mind, wallets, and circle are the account already in the app. The portrait and the name open Settings.'"
       />
 
       <section class="desk spread" aria-label="Desk summary">
-        <span><em>Value</em> {{ money(desk.value) }}</span>
-        <span><em>Win</em> {{ desk.win.toFixed(0) }}%</span>
-        <span><em>Avatars</em> {{ desk.live }}/{{ desk.bots }}</span>
-        <span><em>Coverage</em> {{ Math.round(desk.coverage * 100) }}%</span>
-        <span><em>Edge</em> <b :class="desk.edge">{{ desk.edge }}</b></span>
-        <span><em>Level</em> {{ user.experience.level }} {{ user.experience.title }}</span>
+        <span><em>Value</em> {{ desk.value == null ? '—' : money(desk.value) }}</span>
+        <span><em>Win</em> {{ desk.win == null ? '—' : `${desk.win.toFixed(0)}%` }}</span>
+        <span><em>Avatars</em> {{ desk.bots == null ? '—' : `${desk.live}/${desk.bots}` }}</span>
+        <span><em>Coverage</em> {{ desk.coverage == null ? '—' : `${Math.round(desk.coverage * 100)}%` }}</span>
+        <span><em>Edge</em> <b :class="desk.edge ?? ''">{{ desk.edge ?? '—' }}</b></span>
+        <span><em>Level</em> {{ isOwnBook ? `${user.experience.level} ${user.experience.title}` : '—' }}</span>
+        <UISourceChip v-if="!desk.own" source="pending" :note="desk.note" />
       </section>
 
       <!-- Insights v2 mirror (notifications deep-link to #intelligence; "Open Insights →" lives in its header) -->

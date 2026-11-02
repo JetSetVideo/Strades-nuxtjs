@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
-import { POINTS_FOR, areaPath, equityPath, linePath, stackBands } from '~/utils/walletBook'
+import { NO_EQUITY_HISTORY, POINTS_FOR, areaPath, equityPath, equityStats, isPending, linePath, stackBands } from '~/utils/walletBook'
+import { fmtDate, fmtMoney, fmtPctFromPercent, fmtShortDate, fmtTime } from '~/utils/format'
+import { fmtMoneyKpi } from '~/utils/valueTree'
 
 interface PerfPoint { change: number; change_percentage: number }
 
@@ -168,54 +170,27 @@ const dateTicks = computed(() => {
   ]
 })
 
-const drawdownPct = computed(() => {
-  if (!series.value.length) return 0
-  let peak = -Infinity
-  let maxDD = 0
-  for (const p of series.value) {
-    if (p.value > peak) peak = p.value
-    const dd = (p.value - peak) / peak * 100
-    if (dd < maxDD) maxDD = dd
-  }
-  return maxDD
-})
-
-const bestWorstStep = computed(() => {
-  if (series.value.length < 2) return { best: 0, worst: 0 }
-  let best = -Infinity
-  let worst = Infinity
-  for (let i = 1; i < series.value.length; i++) {
-    const pct = (series.value[i].value - series.value[i - 1].value) / series.value[i - 1].value * 100
-    if (pct > best) best = pct
-    if (pct < worst) worst = pct
-  }
-  return { best: best === -Infinity ? 0 : best, worst: worst === Infinity ? 0 : worst }
-})
+/**
+ * Best / Worst / Max DD need a recorded daily equity series. `equityPath` is a straight
+ * line (stored period start -> today), so these stay pending ('—') until one exists:
+ * then pass that series and `true`.
+ */
+const stats = computed(() => equityStats(series.value.map(p => p.value), false)) // no recorded series yet
+const pct = (v: number | { toFixed(): string }, sign = false) =>
+  isPending(v) ? '—' : fmtPctFromPercent(v as number, { signed: sign })
 
 const isPositive = computed(() => (props.performanceHistory?.[props.period]?.change_percentage ?? 0) >= 0)
 const stroke = computed(() => isPositive.value ? 'var(--app-color-up, var(--success-green, #00ff88))' : 'var(--app-color-down, #ff4d6a)')
 const fillFrom = computed(() => isPositive.value ? 'rgba(0,255,136,0.42)' : 'rgba(255,77,106,0.42)')
 
-const fmt = (n: number) => Math.round(n).toLocaleString(APP_LOCALE)
-const fmtAxis = (n: number) => {
-  const abs = Math.abs(n)
-  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}m`
-  if (abs >= 10_000) return `$${Math.round(n / 1000)}k`
-  return `$${fmt(n)}`
-}
+// Money: the readout uses fmtMoneyKpi (same as the KPI strip); axis ticks are compact whole dollars ("$950", "$12.3k").
+const fmtAxis = (n: number) => fmtMoney(n, { compact: true, decimals: 0 })
 
+// Dates via utils/format.ts: 1d → "15:41"; other periods → "Nov 2"; the hover readout on 1y adds the year.
 function fmtWhen(ms: number, withTime = false) {
-  const d = new Date(ms)
-  if (props.period === '1d' || withTime && props.period === '1d') {
-    return d.toLocaleString(APP_LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false })
-  }
-  if (props.period === '1y') {
-    return d.toLocaleDateString(APP_LOCALE, { month: 'short', year: '2-digit' })
-  }
-  if (props.period === '7d') {
-    return d.toLocaleDateString(APP_LOCALE, { weekday: 'short', day: 'numeric' })
-  }
-  return d.toLocaleDateString(APP_LOCALE, { day: 'numeric', month: 'short' })
+  if (props.period === '1d') return fmtTime(ms)
+  if (props.period === '1y' && withTime) return fmtDate(ms)
+  return fmtShortDate(ms)
 }
 
 const periodLabel = computed(() => ({
@@ -302,14 +277,14 @@ const readout = computed(() => {
   if (i == null || !point) return null
   const lines: ReadLine[] = [
     { text: fmtWhen(point.t, true), color: 'rgba(255,255,255,0.55)' },
-    { text: `$${fmt(point.value)}`, color: '#fff' },
+    { text: fmtMoneyKpi(point.value), color: '#fff' },
   ]
   const sleeves = visibleBands.value.slice().reverse()
   for (const band of sleeves) {
     const share = band.shares[i] ?? 0
     if (share <= 0.004) continue
     const name = band.label.length > 16 ? `${band.label.slice(0, 15)}…` : band.label
-    lines.push({ text: `${name}  $${fmt(share * point.value)}`, color: band.color })
+    lines.push({ text: `${name}  ${fmtMoneyKpi(share * point.value)}`, color: band.color })
   }
   const w = Math.min(plotRight.value - PAD_L, Math.max(...lines.map(line => line.text.length)) * 6.15 + 16)
   const h = 8 + lines.length * 13
@@ -333,15 +308,16 @@ const readout = computed(() => {
       <div class="head-stats">
         <span class="stat" title="Highest single-step gain">
           <em>Best</em>
-          <strong class="pos">+{{ bestWorstStep.best.toFixed(2) }}%</strong>
+          <strong :class="isPending(stats.best) ? '' : 'pos'">{{ pct(stats.best, true) }}</strong>
         </span>
         <span class="stat" title="Lowest single-step loss">
           <em>Worst</em>
-          <strong class="neg">{{ bestWorstStep.worst.toFixed(2) }}%</strong>
+          <strong :class="isPending(stats.worst) ? '' : 'neg'">{{ pct(stats.worst) }}</strong>
         </span>
         <span class="stat" title="Max peak-to-trough drawdown over the period">
           <em>Max DD</em>
-          <strong :class="drawdownPct < 0 ? 'neg' : ''">{{ drawdownPct.toFixed(2) }}%</strong>
+          <strong>{{ pct(stats.maxDrawdown) }}</strong>
+          <UISourceChip v-if="isPending(stats.maxDrawdown)" source="pending" :note="NO_EQUITY_HISTORY" />
         </span>
       </div>
     </header>

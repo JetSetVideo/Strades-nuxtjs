@@ -26,6 +26,7 @@ import { useStrategiesStore } from '~/stores/strategies'
 import { useChatStore } from '~/stores/chat'
 import { useCurrentUser } from '~/composables/useCurrentUser'
 import { assetClassTheme, resolveAssetClass } from '~/utils/assetClass'
+import { dockLabel, dockMatch } from '~/utils/routes'
 import {
   agentSphere, blendHistory, compactUsd, intradayCurve, signedPct, strategySphere, subsolarLongitude, unreadFor, walletRings,
   type IntradayCurve, type PanelId, type Share, type SpherePoint,
@@ -170,9 +171,9 @@ export function useNavPanels() {
     }
   })
 
-  // ── Lab: every strategy on the globe (agents only when no book is loaded) ──
+  // ── Lab: the user's own strategies on the globe (samples are not theirs; agents only when there is none) ──
   const lab = computed(() => {
-    const books = strategies.strategies
+    const books = strategies.ownStrategies
     if (books.length) {
       const points: SpherePoint[] = strategySphere(books.map(s => ({
         id: s.id,
@@ -252,16 +253,19 @@ export function useNavPanels() {
     }
   })
 
+  // Labels and `match` come from utils/routes.ts: the tab name is its area's home
+  // page label, and every page of the area keeps the tab lit (no stray /monitor,
+  // /summarizer lights Lab, /arena lights Chat — see DESIGN-AUDIT.md §2.2).
   const panels = computed<NavPanel[]>(() => [
-    { id: 'prices', to: '/prices', label: 'Prices', accent: '0,180,255', match: ['/prices', '/assets', '/predict', '/deals'],
+    { id: 'prices', to: '/prices', label: dockLabel('prices'), accent: '0,180,255', match: dockMatch('prices'),
       summary: prices.value.summary, value: prices.value.value, icon: { curve: prices.value.curve, tone: prices.value.tone } },
-    { id: 'news', to: '/news', label: 'News', accent: '0,170,255', match: ['/news', '/articles', '/summarizer'],
+    { id: 'news', to: '/news', label: dockLabel('news'), accent: '0,170,255', match: dockMatch('news'),
       summary: newsPanel.value.summary, value: newsPanel.value.value, icon: { now: now.value, unread: newsPanel.value.unread } },
-    { id: 'wallet', to: '/wallet', label: 'Wallet', accent: '245,166,35', match: ['/wallet', '/trade', '/risk'],
+    { id: 'wallet', to: '/wallet', label: dockLabel('wallet'), accent: '245,166,35', match: dockMatch('wallet'),
       summary: walletPanel.value.summary, value: walletPanel.value.value, icon: { wallets: walletPanel.value.wallets, classes: walletPanel.value.classes } },
-    { id: 'lab', to: '/strategies', label: 'Lab', accent: '0,255,136', match: ['/strategies', '/strategy', '/agents', '/bots', '/creator', '/monitor', '/arena'],
+    { id: 'lab', to: '/strategies', label: dockLabel('lab'), accent: '0,255,136', match: dockMatch('lab'),
       summary: lab.value.summary, value: lab.value.value, icon: { points: lab.value.points, running: lab.value.running, waiting: lab.value.waiting, stopped: lab.value.stopped } },
-    { id: 'chat', to: '/chat', label: 'Chat', accent: '120,220,180', match: ['/chat', '/conversations'],
+    { id: 'chat', to: '/chat', label: dockLabel('chat'), accent: '120,220,180', match: dockMatch('chat'),
       summary: chatPanel.value.summary, value: chatPanel.value.value, icon: { unread: chatPanel.value.unread, urgent: chatPanel.value.urgent } },
   ])
 

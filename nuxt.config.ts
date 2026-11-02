@@ -1,5 +1,11 @@
 import { defineNuxtConfig } from 'nuxt/config'
 
+// The Django API (same default as runtimeConfig.public.apiBase below). Also the target of the
+// /api/auth/** proxy rule; NUXT_API_PROXY_TARGET overrides it when the server reaches the API on
+// another address than the browser would.
+const API_BASE = (process.env.NUXT_API_PROXY_TARGET || process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000')
+  .replace(/\/+$/, '')
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-10-01',
   // Nuxt DevTools auto-enables in dev, which puts a floating "6 ms / gear" pill
@@ -27,6 +33,22 @@ export default defineNuxtConfig({
   // One sign-in page: the old "/" landing card duplicated /auth. Signed-in users
   // are forwarded from /auth to the app by middleware/auth.global.ts.
   routeRules: {
+    // Security headers on every page (board-security S14). frame-ancestors/X-Frame-Options: the
+    // trade and wallet pages cannot be framed (clickjacking). A full CSP comes later (Nuxt's inline
+    // payload script needs nonces first).
+    '/**': {
+      headers: {
+        'X-Frame-Options': 'DENY',
+        'Content-Security-Policy': "frame-ancestors 'none'",
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+      },
+    },
+    // Auth endpoints go through this origin so the httpOnly refresh cookie the API sets
+    // (Path=/api/auth/) is first-party (board-security S5; composables/useAuth.ts). Everything else
+    // still calls the API directly with the Bearer token. Target = the API base at build time.
+    '/api/auth/**': { proxy: `${API_BASE}/api/auth/**` },
     '/': { redirect: '/auth' },
     '/monitor': { redirect: '/strategies' },
   },

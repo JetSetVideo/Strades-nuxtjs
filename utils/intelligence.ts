@@ -483,9 +483,10 @@ export function describeComplementarity(c: PairOperators['complementarity'], a: 
 
 export function describeSpace(s: PairOperators['space']): string {
   if (!s) return 'Location unknown.'
-  const place = (p: PlaceInfo) => [p.city, p.country].filter(Boolean).join(', ') || 'unknown place'
+  // Cities are no longer served for other people (privacy); distance comes rounded to 500 km.
   const tz = finite(s.tz_gap_h) ? (s.tz_gap_h === 0 ? 'same time zone' : `${Math.abs(s.tz_gap_h)} h apart`) : 'time gap unknown'
-  return `${place(s.a)} ↔ ${place(s.b)} · ${intelKm(s.km)} · ${tz}${s.same_country ? ' · same country' : ''}`
+  const km = finite(s.km) ? (s.km === 0 ? 'under 250 km apart' : `about ${intelKm(s.km)} apart`) : 'distance unknown'
+  return `${km} · ${tz}${s.same_country ? ' · same country' : ''}`
 }
 
 // ── Week timeline (SVG) ──

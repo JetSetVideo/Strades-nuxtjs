@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { useOpinionsStore } from '~/stores/opinions'
 import { useAllocationStore } from '~/stores/allocation'
+import { fmtPctFromPercent, fmtProbability } from '~/utils/format'
+import { fmtMoneyKpi } from '~/utils/valueTree'
 
 interface PerfPoint { change: number; change_percentage: number }
 interface Wallet {
@@ -58,9 +60,11 @@ const periodPnl = computed<PerfPoint>(() => {
 
 const isPositive = computed(() => periodPnl.value.change >= 0)
 
-const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
-const fmtSigned = (n: number) => `${n >= 0 ? '+' : ''}$${fmt(Math.abs(n))}`
-const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
+// Money and percent via the shared formatters: fmtMoneyKpi ("$9,756.84", "+$2.00", "−$9.00", "$0.00")
+// and utils/format.ts percent (1 dp, 2 dp under 1 %).
+const fmt = (n: number) => fmtMoneyKpi(n)
+const fmtSigned = (n: number) => fmtMoneyKpi(n, { signed: true })
+const fmtPct = (n: number) => fmtPctFromPercent(n, { signed: true })
 
 const todayPnl = computed(() => props.wallet?.daily_change ?? 0)
 const todayPct = computed(() => props.wallet?.daily_change_percentage ?? 0)
@@ -119,12 +123,12 @@ const unrealized = computed(() =>
     <div class="secondary-row">
       <div class="sub">
         <span class="sub-label">Available</span>
-        <span class="sub-value">${{ fmt(portfolio?.available_balance ?? wallet.available_balance ?? 0) }}</span>
+        <span class="sub-value">{{ fmt(portfolio?.available_balance ?? wallet.available_balance ?? 0) }}</span>
       </div>
       <div class="sub-divider" />
       <div class="sub" title="What the open positions cost to buy — not their current market value">
         <span class="sub-label">Invested <span class="sub-hint">cost</span></span>
-        <span class="sub-value">${{ fmt(portfolio?.invested_amount ?? wallet.invested_amount ?? 0) }}</span>
+        <span class="sub-value">{{ fmt(portfolio?.invested_amount ?? wallet.invested_amount ?? 0) }}</span>
       </div>
       <div class="sub-divider" />
       <div
@@ -143,18 +147,18 @@ const unrealized = computed(() =>
     </div>
 
     <!-- Swarm advisory ghost overlay (Phase 22.1) -->
-    <div v-if="showSwarm" class="swarm-ghost" :title="`Swarm diverges from your wallet by ${swarmDivergence.toFixed(1)}%`">
+    <div v-if="showSwarm" class="swarm-ghost" :title="`Swarm diverges from your wallet by ${fmtPctFromPercent(swarmDivergence)}`">
       <div class="swarm-row">
         <span class="swarm-chip">SWARM ×{{ opinions.activeCount }}</span>
         <span class="swarm-msg">
           Agents want
           <b :class="{ pos: topDelta.delta > 0, neg: topDelta.delta < 0 }">
-            {{ topDelta.delta > 0 ? '+' : '' }}{{ topDelta.delta.toFixed(1) }}% {{ topDelta.key }}
+            {{ fmtPctFromPercent(topDelta.delta, { signed: true }) }} {{ topDelta.key }}
           </b>
-          · diverge {{ swarmDivergence.toFixed(0) }}%
+          · diverge {{ fmtPctFromPercent(swarmDivergence) }}
         </span>
-        <span class="swarm-confidence" :title="`Swarm confidence ${Math.round(opinions.swarmConfidence * 100)}% (diversity ${Math.round(opinions.diversityScore * 100)}%)`">
-          {{ Math.round(opinions.swarmConfidence * 100) }}%
+        <span class="swarm-confidence" :title="`Swarm confidence ${fmtProbability(opinions.swarmConfidence)} (diversity ${fmtProbability(opinions.diversityScore)})`">
+          {{ fmtProbability(opinions.swarmConfidence) }}
         </span>
         <button class="swarm-apply" @click.stop="opinions.commitToWallet()">Match</button>
       </div>
