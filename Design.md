@@ -188,7 +188,7 @@ Strades is a social desk. People build avatars together, and those avatars train
 ### Menu (`components/Navigation/DrawerMenu.vue`, data in `utils/routes.ts`)
 Every page name lives once, in `utils/routes.ts` (`ROUTES`: path, label, area, icon, hint). The drawer, the bottom bar (label and which tab lights up) and global search read it; page titles read `routeLabel(path)` (10 of 38 pages on 2026-11-02; two literal titles still differ from the registry: `pages/news.vue` "News Intelligence Workspace" and `pages/insights.vue` "Insights · Strades"), so a menu label equals the page title. `tests/routes.test.ts` fails if a registry path has no file under `pages/`, a page file is missing from the registry, or two pages share a label or an icon.
 
-The drawer has six areas. Five own a bottom-bar tab; You opens from the drawer and the profile avatar. A page with an id in its path (detail) belongs to its area: it opens that drawer group and lights that tab.
+The drawer has six areas. Five own a bottom-bar tab; You opens from the drawer. The top bar has no profile mark. A back corner (two strokes at a right angle, pointing left) sits beside the logo on every page except the five dock homes, and it returns to the previous page. A page with an id in its path (detail) belongs to its area: it opens that drawer group and lights that tab.
 
 | Area | Bottom-bar tab | Drawer pages | Detail pages |
 | --- | --- | --- | --- |

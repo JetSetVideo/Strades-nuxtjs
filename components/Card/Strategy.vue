@@ -191,6 +191,7 @@ const freqLabel = (f: string) => {
         <div class="feat-name-row">
           <StrategyMark :category="String(strategy.category || '')" />
           <span class="feat-name">{{ strategy.name }}</span>
+          <UISourceChip v-if="strategy.sample" source="sample" note="Catalog sample shown to every user: its figures are sample data, not one of your strategies." />
           <span class="status-dot" :style="{ background: statusMeta.color }"
             :class="{ beating: strategy.status === 'active' }" />
         </div>
@@ -308,9 +309,9 @@ const freqLabel = (f: string) => {
 
     <!-- Actions -->
     <div class="feat-actions" @click.stop>
-      <button class="act-btn primary" @click="emit('copy')">✎ Edit</button>
+      <button class="act-btn primary" @click="emit('copy')">{{ strategy.sample ? '⧉ Use as template' : '✎ Edit' }}</button>
       <button class="act-btn" @click="emit('view')">→ View</button>
-      <button class="act-btn" :class="strategy.status || 'stopped'" @click="emit('toggle')">
+      <button v-if="!strategy.sample" class="act-btn" :class="strategy.status || 'stopped'" @click="emit('toggle')">
         {{ runLabel }}
       </button>
       <ChatShareTo v-if="strategy.id" :item="{ kind: 'strategy', id: String(strategy.id), title: String(strategy.name ?? 'Strategy'), url: `/strategy/${strategy.id}` }" />

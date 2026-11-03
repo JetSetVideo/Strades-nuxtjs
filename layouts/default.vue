@@ -5,7 +5,6 @@ import { useNotificationsStore } from '~/stores/notifications'
 import NavigationTop from '~/components/Navigation/Top.vue'
 import NavigationBar from '~/components/Navigation/Bar.vue'
 import NotificationButton from '~/components/Button/Notification.vue'
-import ButtonAvatar from '~/components/Button/Avatar.vue'
 
 const { data: searchHistory } = await useAsyncData<SearchHistory[]>(
   'searchHistory',
@@ -28,8 +27,6 @@ const unreadCount = computed(() => notificationsStore.unreadCount)
   <div class="app-shell">
     <NavigationTop :search-history="searchHistory" :search-suggestions="searchSuggestions">
       <NotificationButton :unread-count="unreadCount" />
-      <!-- "You" area home in 1 click (utils/routes.ts: You lives behind the top-bar avatar). -->
-      <ButtonAvatar to="/profile" />
     </NavigationTop>
     <main class="page-frame">
       <slot />

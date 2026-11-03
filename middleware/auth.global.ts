@@ -19,7 +19,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const serverSeesSession = import.meta.server
     && (String(useCookie('strades_session').value ?? '') === '1' || !!useCookie('strades_refresh').value)
 
-  const PUBLIC_ROUTES = ['/auth', '/about', '/contact']
+  // /test (component gallery + strategy card lab) shows sample data only: public in dev builds so lab captures need no sign-in.
+  const PUBLIC_ROUTES = ['/auth', '/about', '/contact', ...(import.meta.dev ? ['/test'] : [])]
   const isPublic = PUBLIC_ROUTES.some(p => to.path === p || to.path.startsWith(p + '/'))
 
   // useCookie decodes with destr: the stored "1" comes back as the NUMBER 1, so compare as text

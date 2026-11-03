@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import type { StrategySummary } from '~/types/strategy'
-import StrategyCard from '@/components/Card/Strategy.vue'
+import { computed } from 'vue'
+// Strategy card list (swarm 2026-11-02 "cards", round 2): the final list owns the grid — one card height per device class,
+// min/max card widths, equal sizes whatever the data — and renders FinCard (CardLab/R2). It gets the full catalog/server
+// record and its code view from the store when they exist, and the summary alone otherwise.
+import FinList from '@/components/CardLab/R2/FinList.vue'
+import { useStrategiesStore } from '~/stores/strategies'
+import { strategyToCodeView } from '~/utils/strategyCode'
+
+const store = useStrategiesStore()
+const fullOf = (s: StrategySummary) => store.strategies.find(x => x.id === s.id) ?? null
+const codeOf = (s: StrategySummary) => {
+  const f = fullOf(s)
+  if (!f) return null
+  try { return strategyToCodeView(f as never) } catch { return null }
+}
 
 const props = defineProps<{
   strategies: StrategySummary[]
@@ -16,28 +30,26 @@ const emit = defineEmits<{
   'delete': [s: StrategySummary]
 }>()
 
-const isSelected = (s: StrategySummary) =>
-  (props.selectedStrategies ?? []).some(sel => sel.id === s.id)
+const items = computed(() => props.strategies.map(s => ({ strategy: s as Record<string, any>, full: fullOf(s), code: codeOf(s) })))
+const selectedIds = computed(() => (props.selectedStrategies ?? []).map(s => String(s.id)))
+const at = (i: number) => props.strategies[i]!
 </script>
 
 <template>
   <div class="carousel-root">
-    <!-- ── Strategy card wall — every strategy gets the full "trading card" treatment ── -->
-    <div v-if="strategies.length" class="card-grid">
-      <div v-for="s in strategies" :key="s.id" class="card-slot">
-        <StrategyCard
-          :strategy="s"
-          variant="featured"
-          :selected="isSelected(s)"
-          @select="emit('select-strategy', s)"
-          @copy="emit('copy', s)"
-          @share="emit('share', s)"
-          @view="emit('view', s)"
-          @toggle="emit('toggle', s)"
-          @delete="emit('delete', s)"
-        />
-      </div>
-    </div>
+    <!-- ── Strategy card wall — every strategy gets the full "trading card" treatment, all cards one size ── -->
+    <FinList
+      v-if="strategies.length"
+      :items="items"
+      variant="strategies"
+      :selected-ids="selectedIds"
+      @select="i => emit('select-strategy', at(i))"
+      @copy="i => emit('copy', at(i))"
+      @share="i => emit('share', at(i))"
+      @view="i => emit('view', at(i))"
+      @toggle="i => emit('toggle', at(i))"
+      @delete="i => emit('delete', at(i))"
+    />
 
     <!-- Empty state -->
     <div v-else class="empty-carousel">
@@ -58,7 +70,7 @@ const isSelected = (s: StrategySummary) =>
 /* ── Card wall — a responsive grid of dense "trading card" strategy tiles ── */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
   gap: var(--spacing-sm);
   align-items: start;
 }

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { PropType } from 'vue'
 import type { SearchHistory, SearchSuggestion } from '@/types'
 import SearchBar from '~/components/Navigation/SearchBar.vue'
 import DrawerMenu from '~/components/Navigation/DrawerMenu.vue'
+import { ROUTE_AREAS } from '~/utils/routes'
 
 defineProps({
   searchHistory: { type: Array as PropType<SearchHistory[]>, default: () => [] },
@@ -13,6 +14,17 @@ defineProps({
 const drawerOpen = ref(false)
 const toggleDrawer = () => { drawerOpen.value = !drawerOpen.value }
 const { playHover, playClick } = useNavSound()
+const route = useRoute()
+const router = useRouter()
+/** The five dock homes already have the bottom bar. Everywhere else, this corner goes back. */
+const showBack = computed(() => {
+  const path = route.path.replace(/\/+$/, '') || '/'
+  return !ROUTE_AREAS.some(area => area.dock && area.home === path)
+})
+function goBack() {
+  playClick()
+  router.back()
+}
 </script>
 
 <template>
@@ -29,18 +41,17 @@ const { playHover, playClick } = useNavSound()
     >
       <img src="/logos/strades-mark.png" alt="" />
     </button>
-    <!-- Visible menu cue (board-ia IA-2): the logo is the door to 22 pages, the ☰ says so. -->
     <button
+      v-if="showBack"
       type="button"
-      class="menu-cue"
-      :class="{ 'is-covered': drawerOpen }"
-      :aria-label="drawerOpen ? 'Close menu' : 'Open menu'"
-      :aria-expanded="drawerOpen"
-      title="Menu"
-      @mouseenter="playHover"
-      @click="toggleDrawer(); playClick()"
+      class="nav-back"
+      aria-label="Back"
+      title="Back"
+      @click="goBack"
     >
-      <span class="menu-bars" aria-hidden="true"><span /><span /><span /></span>
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M10 2 L4 8 L10 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="miter" />
+      </svg>
     </button>
 
     <SearchBar
@@ -136,30 +147,25 @@ const { playHover, playClick } = useNavSound()
   min-width: 0;
 }
 
-/* ☰ cue tucked against the logo (same bars as DrawerMenu.vue .trigger); pulls the gap in
-   so the search bar keeps its width. */
-.menu-cue {
+/* Two strokes at 90°, corner pointing left. Same slot the menu cue used. */
+.nav-back {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 18px;
+  width: 22px;
   height: 28px;
   margin-left: -0.3rem;
   padding: 0;
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255, 255, 255, 0.78);
   cursor: pointer;
-  transition: color 0.15s ease;
 }
-.menu-cue:hover { color: #fff; }
-.menu-cue:focus-visible,
-.brand-btn:focus-visible { outline: 2px solid var(--primary-green, #00ff88); outline-offset: 2px; }
-.menu-cue.is-covered { visibility: hidden; }
-.menu-bars { display: inline-flex; flex-direction: column; gap: 3px; }
-.menu-bars span { display: block; width: 12px; height: 1.5px; background: currentColor; border-radius: 1px; }
-@media (prefers-reduced-motion: reduce) { .menu-cue { transition: none; } }
+.nav-back svg { width: 14px; height: 14px; display: block; }
+.nav-back:hover { color: #fff; }
+.brand-btn:focus-visible,
+.nav-back:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: 2px; }
 
 .right-cluster {
   display: flex; align-items: center; gap: 0.4rem;

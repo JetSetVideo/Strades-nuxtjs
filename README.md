@@ -8,7 +8,7 @@ Strades is a closed-beta, **paper-trading** social platform: no real money moves
 
 ## Five user jobs
 
-Everything in the app serves one of five jobs: **trade** (Prices → asset → paper order → Wallet/History), **predict** (Markets › Predict or an asset page → call → pending → scored), **communicate / share / comment** (Chat dock, News, articles), **review** wallets, agents and strategies (Wallet dock, Lab dock), and **direct + train** the avatar (top-bar avatar → Profile, Insights, Settings). The step-by-step map — which page, which click, which component, which endpoint, what works and what is missing — lives in **`~/Desktop/Strades-comms/PROCESSES.md` § "Five user jobs"**; the component → page → job table is the latest swarm `COMPONENT-MAP*.md`.
+Everything in the app serves one of five jobs: **trade** (Prices → asset → paper order → Wallet/History), **predict** (Markets › Predict or an asset page → call → pending → scored), **communicate / share / comment** (Chat dock, News, articles), **review** wallets, agents and strategies (Wallet dock, Lab dock), and **direct + train** the avatar (drawer → You / Profile, Insights, Settings). The step-by-step map — which page, which click, which component, which endpoint, what works and what is missing — lives in **`~/Desktop/Strades-comms/PROCESSES.md` § "Five user jobs"**; the component → page → job table is the latest swarm `COMPONENT-MAP*.md`.
 
 ---
 

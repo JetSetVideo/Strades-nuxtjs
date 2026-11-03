@@ -78,10 +78,24 @@ const firstPost = computed(() => {
 })
 
 const COUNT = 19
+
+// Strategy card lab: /test?lab=baseline|A|B|C|final|all[&w=<card px>] (swarm 2026-11-02 "cards").
+const route = useRoute()
+const lab = computed(() => (typeof route.query.lab === 'string' ? route.query.lab : ''))
+const labWidth = computed(() => (Number(route.query.w) > 0 ? Number(route.query.w) : undefined))
 </script>
 
 <template>
-  <div class="test-page">
+  <div v-if="lab" class="test-page">
+    <NavigationBackLink />
+    <UIPageHeader :title="`${routeLabel('/test')} · strategy card lab`" :subtitle="`Variant: ${lab}. The 5 catalog sample strategies, one card design at a time.`">
+      <template #actions>
+        <UISourceChip source="sample" note="Catalog sample strategies: sample data, not anyone's account." />
+      </template>
+    </UIPageHeader>
+    <CardLabBench :only="lab" :width="labWidth" :n="Number(route.query.n) || undefined" />
+  </div>
+  <div v-else class="test-page">
     <NavigationBackLink />
     <UIPageHeader :title="routeLabel('/test')" :subtitle="`The ${COUNT} components no page uses, each with sample props. A component that fails shows its error in its own card.`">
       <template #actions>

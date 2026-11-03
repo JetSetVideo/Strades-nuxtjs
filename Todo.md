@@ -310,7 +310,7 @@ Evidence and per-item detail: `~/Desktop/Strades-comms/swarm-2026-10-30b/SUMMARY
 - [x] **43.11** C2–C5 backend (people `can_message`, friends, message `reply_to` / `share` / `?before=` paging, news share delivery + capped comments) — impl-social-api, full pytest 313 passed. Frontend: picker, profile Message/Follow, reply ↩ written (impl-social, code); `/news` still local (43.18).
 - [ ] **43.12** C6 `inputs` in `GET /api/v1/intelligence/me/` (what the avatar learned from).
 - [ ] **43.13** C7 `PATCH /api/v1/strategies/<id>/` — backend landed (`test_strategy_api.py`); Creator Save on an existing id must call it (review lane).
-- [x] **43.14** C8 `useOwnBook()` (`tests/review-ownBook.test.ts`), Wallet dock reads it (impl-nav step 4, `tests/nav-dock.test.ts`); C10 `<NavigationBackLink>` / `<NavigationAreaLinks>` (`tests/nav-routes.test.ts`); top-bar avatar → /profile and ☰ menu cue (impl-nav). C9 `<ChatShareTo>` written (impl-social, code; insertion on strategy/bot/call pages = parent).
+- [x] **43.14** C8 `useOwnBook()` (`tests/review-ownBook.test.ts`), Wallet dock reads it (impl-nav step 4, `tests/nav-dock.test.ts`); C10 `<NavigationBackLink>` / `<NavigationAreaLinks>` (`tests/nav-routes.test.ts`). The top-bar profile mark and the ☰ menu cue were removed; the logo still opens the drawer, and a back corner sits in the cue's place off the five dock homes. C9 `<ChatShareTo>` written (impl-social, code; insertion on strategy/bot/call pages = parent).
 - [x] **43.15** Docs: backend Agent.md/README rebuilt from settings.py; frontend README doc map + five jobs; PROCESSES.md § Five user jobs; Components.md/Structure.md phantoms removed; API.md = contract index (docs lane).
 
 **Still open (carried from 10-30b SUMMARY "OPEN after wave 4" + this ledger):**

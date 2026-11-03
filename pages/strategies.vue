@@ -183,7 +183,25 @@ onMounted(fetchStrategies)
     <NavigationAreaLinks area="lab" />
 
     <StrategySavedList />
-    <StrategyLiveDesk :strategies="strategiesStore.ownStrategies" />
+    <StrategyLiveDesk
+      :strategies="strategiesStore.ownStrategies"
+      :running="bookState.running"
+      :paused="bookState.paused"
+      :stopped="bookState.stopped"
+      :run-focus="runFocus"
+      @focus="toggleRun"
+    >
+      <template #tools>
+        <div id="strategy-filter-controls" class="filter-controls" />
+        <div class="sort-wrap">
+          <select v-model="sortBy" class="sort-select">
+            <option v-for="opt in SORT_OPTIONS" :key="opt.id" :value="opt.id">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+      </template>
+    </StrategyLiveDesk>
     <StrategyBoard :strategies="strategiesStore.ownStrategies" :focus-ids="selectedStrategies.map(s => s.id)" />
 
     <!-- ── Page header: title + controls ── -->
@@ -194,22 +212,6 @@ onMounted(fetchStrategies)
         <span class="strategy-count">
           {{ sortedStrategies.length }}<span class="count-of"> / {{ strategies.length }}</span>
         </span>
-        <span class="run-ind" role="group" :aria-label="`${bookState.running} running, ${bookState.paused} paused, ${bookState.stopped} stopped`">
-          <button type="button" class="up" :class="{ on: runFocus === 'running' }" :aria-pressed="runFocus === 'running'" aria-label="Show running" @click="toggleRun('running')">{{ bookState.running }}</button>
-          <button type="button" class="wait" :class="{ on: runFocus === 'paused' }" :aria-pressed="runFocus === 'paused'" aria-label="Show paused" @click="toggleRun('paused')">{{ bookState.paused }}</button>
-          <button type="button" class="down" :class="{ on: runFocus === 'stopped' }" :aria-pressed="runFocus === 'stopped'" aria-label="Show stopped" @click="toggleRun('stopped')">{{ bookState.stopped }}</button>
-        </span>
-      </div>
-      <div class="header-right">
-        <!-- Filters teleports its toggle here, left of the sort. -->
-        <div id="strategy-filter-controls" class="filter-controls" />
-        <div class="sort-wrap">
-          <select v-model="sortBy" class="sort-select">
-            <option v-for="opt in SORT_OPTIONS" :key="opt.id" :value="opt.id">
-              {{ opt.label }}
-            </option>
-          </select>
-        </div>
       </div>
     </div>
 
@@ -219,12 +221,7 @@ onMounted(fetchStrategies)
     <!-- ── Main content ── -->
     <div class="content-area">
 
-      <!-- No strategy of the user's own: say so, keep the way to make one, samples stay below. -->
-      <p v-if="!strategies.length" class="own-empty">
-        No strategy of yours yet —
-        <NuxtLink to="/creator" class="own-empty-link">Create one</NuxtLink>
-        <template v-if="sampleStrategies.length">, or open a sample below.</template>
-      </p>
+      <p v-if="!strategies.length" class="own-empty">No strategy</p>
 
       <!-- Carousel: featured + compact row -->
       <Carousel
@@ -238,16 +235,14 @@ onMounted(fetchStrategies)
         @copy="s => navigateTo(`/creator?id=${s.id}`)"
       />
 
-      <!-- Catalog samples: not the user's, each row labelled Sample. -->
+      <!-- Catalog samples: not the user's. Same full cards as the user's own, each chipped Sample (founder 11-02). -->
       <section v-if="sampleStrategies.length" class="sample-list" aria-label="Sample strategies">
         <h2 class="sample-head">Sample strategies <UISourceChip source="sample" /></h2>
-        <div v-for="s in sampleStrategies" :key="s.id" class="sample-row">
-          <NuxtLink :to="`/strategy/${s.id}`" class="sample-name">{{ s.name }}</NuxtLink>
-          <UISourceChip source="sample" />
-          <span class="sample-gain" :data-tone="(s.monthlyGain ?? 0) >= 0 ? 'pos' : 'neg'">
-            {{ (s.monthlyGain ?? 0) >= 0 ? '+' : '' }}{{ (s.monthlyGain ?? 0).toFixed(1) }}% / mo
-          </span>
-        </div>
+        <Carousel
+          :strategies="sampleStrategies"
+          @view="s => navigateTo(`/strategy/${s.id}`)"
+          @copy="s => navigateTo(`/creator?id=${s.id}`)"
+        />
       </section>
 
     </div>
@@ -346,8 +341,7 @@ onMounted(fetchStrategies)
   color: var(--text-white);
 }
 .page-sub { font-size: 0.8rem; color: var(--text-gray, #9aa); }
-.own-empty { margin: 0.5rem 0 1rem; font-size: 0.9rem; color: var(--text-gray, #9aa); }
-.own-empty-link { color: var(--primary-blue); font-weight: 700; }
+.own-empty { margin: 0.5rem 0 1rem; font-size: 0.9rem; font-weight: 700; color: #ff4d5e; }
 .sample-list { margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.35rem; }
 .sample-head { display: flex; align-items: center; gap: 0.4rem; margin: 0 0 0.25rem; font-size: 0.95rem; font-weight: 700; color: var(--text-white); }
 .sample-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.6rem; border-radius: 8px;
@@ -360,43 +354,6 @@ onMounted(fetchStrategies)
 
 .count-of { color: var(--text-gray); font-weight: 400; }
 
-.run-ind {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-style: normal;
-}
-.run-ind button {
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 0 5px;
-  cursor: pointer;
-}
-.run-ind button.on { border-color: currentColor; }
-.run-ind button::before {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 3px;
-  border-radius: 50%;
-  background: currentColor;
-  vertical-align: 1px;
-}
-.run-ind .up { color: #3dd68c; }
-.run-ind .wait { color: #ffb020; }
-.run-ind .down { color: #ff7b8a; }
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .filter-controls {
   display: flex;
   align-items: center;

@@ -42,7 +42,7 @@ Launches a paper bot on a prediction market (Kalshi) via `launchBot`; twin of `<
 18 options in 6 groups via `composables/usePrimarySettings.ts` (`GET/PATCH /api/v1/settings/primary/`); every option shown even when unset, each with an anchor `#set-<key>` and the sentence of what it drives. Wired: backtest capital, fee, slippage, opening cash, bot risk budget.
 
 ### Navigation/BackLink.vue, AreaLinks.vue (C10, landed by the nav lane)
-`<NavigationBackLink />` renders "← <area home>" from `utils/routes.ts`; `<NavigationAreaLinks area="lab" />` lists an area's drawer pages as chips. The parent inserts them into detail pages.
+`<NavigationBackLink />` renders "← <area home>" from `utils/routes.ts`. `<NavigationAreaLinks area="lab" />` lists an area's drawer pages as chips across the row, skipping Strategy Creator. The current chip is white, with a light shadow whose horizontal offset follows its place in the row.
 
 ### Agent/CompareTray.vue (review lane, wave 2)
 New in wave 2; see `impl-review.md` for its role.
@@ -120,10 +120,10 @@ The selected tab is the page's area in `utils/routes.ts` (`dockFor(path)`), so d
 **Land map.** `utils/navGlobeLand.ts` is generated; do not edit it by hand. Regenerate with `deno run -A scripts/nav-globe-land.ts`. The run touches `deno.lock`; revert that file afterwards.
 
 ### Navigation/Top.vue
-Composes the brand/menu button, the search bar (`Navigation/SearchBar.vue`), the context actions and the GMT clock. It holds no living icons; those are in the bottom bar above. SearchBar logs `search_used` training events.
+Composes the brand/menu button, a back corner on pages that are not the five dock homes, the search bar (`Navigation/SearchBar.vue`), the context actions and the GMT clock. It holds no living icons and no profile mark; those icons are in the bottom bar above. SearchBar logs `search_used` training events.
 
 ### Navigation/DrawerMenu.vue
-Right-hand sheet opened from the brand button (and the ☰ cue). It does not fetch. It renders the six areas of `utils/routes.ts` (`drawerGroups()`: Markets, News, Portfolio, Lab, Community, You — all open by default) plus the footer links Help / About / Contact. Width reads `--drawer-width` (`clamp(16rem, 32vw, 22rem)`). The current route is marked `is-current`. Hints hide under 640px.
+Right-hand sheet opened from the brand button. It does not fetch. It renders the six areas of `utils/routes.ts` (`drawerGroups()`: Markets, News, Portfolio, Lab, Community, You — all open by default) plus the footer links Help / About / Contact. Width reads `--drawer-width` (`clamp(16rem, 32vw, 22rem)`). The current route is marked `is-current`. Hints hide under 640px.
 
 ---
 
