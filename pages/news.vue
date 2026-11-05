@@ -33,7 +33,6 @@ await Promise.all([
 newsStore.applyQuery(route.query as Record<string, string | string[] | undefined>)
 
 const kpis = computed(() => [
-  { label: 'Results', value: newsStore.filteredItems.length },
   { label: 'Saved', value: newsStore.currentUserState.bookmarks.length },
   { label: 'Stress', value: Math.round(macro.geopolitical_stress * 100), suffix: '%' },
   { label: 'Followed', value: newsStore.currentUserState.followedAuthors.length + influencers.followed.length },
@@ -149,6 +148,7 @@ const publishPost = (payload: Parameters<typeof newsStore.publishPost>[0]) => {
               @share="newsStore.shareItem(item.id, $event.recipients, $event.note)"
               @follow-author="newsStore.toggleFollowAuthor(item.author.id)"
               @read="newsStore.recordRead(item.id, 5000)"
+              @vote="newsStore.voteOnPoll(item.id, $event)"
             />
           </template>
 

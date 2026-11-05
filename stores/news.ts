@@ -22,6 +22,7 @@ import {
   type NewsItem,
   type NewsPoliticalScale,
   type NewsReactionState,
+  type NewsPoll,
   type NewsShare,
   type NewsSource,
   type NewsSortMode,
@@ -40,6 +41,7 @@ import {
   serializeNewsQuery,
   sortNewsItems,
 } from '~/utils/newsWorkspace'
+import { castPollVote } from '~/utils/newsPoll'
 
 interface SocialPostSeed {
   id: string
@@ -1028,6 +1030,7 @@ export const useNewsStore = defineStore('newsStore', {
       title?: string
       assets?: string[]
       geographicOrigin?: NewsItem['geographicOrigin']
+      poll?: NewsPoll
     }) {
       const user = useCurrentUser()
       const profile = user.profile.value
@@ -1072,6 +1075,7 @@ export const useNewsStore = defineStore('newsStore', {
         shares: [],
         counters: { likes: 0, dislikes: 0, comments: 0, shares: 0, bookmarks: 0, judgments: 0 },
         predictionSummary: buildPredictionSummary(input.assets ?? [], []),
+        poll: input.poll,
       }
 
       const state = this.ensureUserState()
@@ -1080,6 +1084,20 @@ export const useNewsStore = defineStore('newsStore', {
       this.items.unshift(mergePersistedItem(item, state))
       this.persist()
       return item
+    },
+
+    /** One opinion per person. Choosing another option moves the earlier vote. */
+    voteOnPoll(itemId: string, optionId: string) {
+      const userId = useCurrentUser().getUserId()
+      const apply = (item: NewsItem): NewsItem => (
+        item.id === itemId && item.poll
+          ? { ...item, poll: castPollVote(item.poll, userId, optionId) }
+          : item
+      )
+      this.items = this.items.map(apply)
+      const state = this.ensureUserState()
+      state.publishedItems = state.publishedItems.map(apply)
+      this.persist()
     },
 
     importExternalLink(input: {

@@ -36,6 +36,7 @@ const onJudge = (value: NewsPoliticalScale | null) => {
     @share="newsStore.shareItem(item.id, $event.recipients, $event.note)"
     @follow-author="newsStore.toggleFollowAuthor(item.author.id)"
     @read="newsStore.recordRead(item.id, 5000)"
+    @vote="newsStore.voteOnPoll(item.id, $event)"
   />
 </template>
 

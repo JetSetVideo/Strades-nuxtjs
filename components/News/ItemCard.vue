@@ -5,6 +5,7 @@ import ButtonBookmark from '@/components/Button/Bookmark.vue'
 import ChatShareTo from '@/components/Chat/ShareTo.vue'
 import type { NewsItem, NewsPoliticalScale } from '~/types/news'
 import { economicLabelFromValue, politicalScaleFromValue, sentimentLabelFromValue } from '~/types/news'
+import { pollVoteTotal } from '~/utils/newsPoll'
 
 const props = defineProps<{
   item: NewsItem
@@ -19,8 +20,10 @@ const emit = defineEmits<{
   (e: 'share', payload: { recipients: string[]; note: string }): void
   (e: 'follow-author'): void
   (e: 'read'): void
+  (e: 'vote', optionId: string): void
 }>()
 
+const { getUserId } = useCurrentUser()
 const metadataOpen = ref(false)
 const commentsOpen = ref(false)
 const commentDraft = ref('')
@@ -59,6 +62,10 @@ const pointerStyle = computed(() => {
     transform: `translateX(-50%) rotate(${rotate}deg)`,
   }
 })
+
+const pollTotal = computed(() => props.item.poll ? pollVoteTotal(props.item.poll) : 0)
+const pollShare = (count: number) => pollTotal.value ? `${Math.round((count / pollTotal.value) * 100)}%` : '0%'
+const myVote = (voterIds: string[]) => voterIds.includes(getUserId())
 
 const allocationEntries = computed(() => {
   const allocation = props.item.allocation
@@ -158,6 +165,24 @@ const onCardClick = (event: MouseEvent) => {
     </div>
 
     <p class="body">{{ item.content }}</p>
+
+    <div v-if="item.poll" class="poll" @click.stop>
+      <p class="poll-question">{{ item.poll.question }}</p>
+      <button
+        v-for="option in item.poll.options"
+        :key="option.id"
+        type="button"
+        class="poll-option"
+        :class="{ mine: myVote(option.voterIds) }"
+        :aria-pressed="myVote(option.voterIds)"
+        @click="emit('vote', option.id)"
+      >
+        <span class="poll-fill" :style="{ width: pollShare(option.voterIds.length) }" />
+        <span class="poll-label">{{ option.label }}</span>
+        <span class="poll-count">{{ option.voterIds.length }}</span>
+      </button>
+      <p class="poll-total">{{ pollTotal }} {{ pollTotal === 1 ? 'opinion' : 'opinions' }}</p>
+    </div>
 
     <div class="intelligence-rail">
       <span class="axis"><small>POL</small>{{ politicalLabel }}</span>
@@ -276,6 +301,63 @@ const onCardClick = (event: MouseEvent) => {
 .news-item-card:focus-visible {
   outline: 2px solid var(--primary-green, #00ff88);
   outline-offset: 2px;
+}
+
+.poll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+.poll-question,
+.poll-total {
+  margin: 0;
+}
+.poll-question {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.88);
+}
+.poll-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 28px;
+  padding: 0.28rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.82);
+  font: inherit;
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+.poll-option.mine {
+  border-color: rgba(255,255,255,0.72);
+  color: #fff;
+}
+.poll-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(255,255,255,0.08);
+  pointer-events: none;
+}
+.poll-option.mine .poll-fill { background: rgba(255,255,255,0.16); }
+.poll-label,
+.poll-count { position: relative; }
+.poll-count {
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.65rem;
+}
+.poll-total {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
 }
 
 .headline-row,

@@ -317,26 +317,14 @@ const filteredMoves = computed(() =>
     .filter(a => typeof priceChanges[a.id] === 'number')
     .map(a => ({ asset: a, pct: priceChanges[a.id] as number }))
 )
-const moodBasis = computed(() => filteredMoves.value.length)
-
 const gainers = computed(() =>
   filteredMoves.value.filter(({ pct }) => pct > 0).length
 )
 const losers = computed(() =>
   filteredMoves.value.filter(({ pct }) => pct < 0).length
 )
-const topGainer = computed(() => {
-  const ups = filteredMoves.value.filter(({ pct }) => pct > 0)
-  if (!ups.length) return null
-  const best = ups.reduce((a, b) => b.pct > a.pct ? b : a)
-  return { symbol: best.asset.symbol, pct: best.pct }
-})
-const topLoser = computed(() => {
-  const downs = filteredMoves.value.filter(({ pct }) => pct < 0)
-  if (!downs.length) return null
-  const worst = downs.reduce((a, b) => b.pct < a.pct ? b : a)
-  return { symbol: worst.asset.symbol, pct: worst.pct }
-})
+/** Assets in the current list. Follows filters, so it updates with the counts. */
+const listedCount = computed(() => filtered.value.length)
 
 // Overall sentiment of the visible list (bull ≥ 0)
 const marketSentiment = computed(() => {
@@ -442,8 +430,6 @@ function navigateToAsset(assetId: string) {
           <button :class="{ active: viewMode === 'map' }" @click="viewMode = 'map'" title="Map view">🌍 Map</button>
         </div>
 
-        <ChartStyleToggle />
-
         <!-- Bet-only time horizon: hides bets resolving beyond the window. -->
         <div v-if="hasBetAssets" class="horizon-chips">
           <span class="horizon-label">Bet horizon</span>
@@ -518,28 +504,21 @@ function navigateToAsset(assetId: string) {
             <span class="ms-icon">{{ marketSentiment >= 0.5 ? '🟢' : marketSentiment >= 0 ? '🟡' : '🔴' }}</span>
             <span class="ms-label">{{ marketSentiment >= 0.5 ? 'Bullish' : marketSentiment >= 0 ? 'Neutral' : 'Bearish' }}</span>
             <span class="ms-val">{{ marketSentiment >= 0 ? '+' : '' }}{{ marketSentiment.toFixed(2) }}%</span>
-            <span class="ms-basis" :title="`Average 24 h move of the ${moodBasis} live-quoted assets in this list. Simulated assets have no 24 h move and are left out.`">{{ moodBasis ? `from ${moodBasis} live` : 'no live quote yet' }}</span>
           </div>
 
           <div class="market-stats">
-            <div class="mstat-pair up">
-              <div class="mstat">
+            <div class="mstat-counts" aria-label="Assets up, down, and listed">
+              <div class="mstat up">
                 <span class="mstat-icon">↑</span>
                 <span class="mstat-val">{{ gainers }}</span>
               </div>
-              <div v-if="topGainer" class="mstat highlight">
-                ↑ {{ topGainer.symbol }} +{{ topGainer.pct.toFixed(1) }}%
-              </div>
-            </div>
-
-            <div class="mstat-pair down">
-              <div class="mstat">
+              <span class="mstat-slash" aria-hidden="true">/</span>
+              <div class="mstat down">
                 <span class="mstat-icon">↓</span>
                 <span class="mstat-val">{{ losers }}</span>
               </div>
-              <div v-if="topLoser" class="mstat highlight">
-                ↓ {{ topLoser.symbol }} {{ topLoser.pct.toFixed(1) }}%
-              </div>
+              <span class="mstat-slash" aria-hidden="true">/</span>
+              <div class="mstat listed" :title="`${listedCount} assets in this list`">{{ listedCount }}</div>
             </div>
 
             <div class="mstat-meta" v-if="avgPrice != null || totalMarketCap">
@@ -551,6 +530,7 @@ function navigateToAsset(assetId: string) {
               </div>
             </div>
           </div>
+          <ChartStyleToggle class="market-style" />
         </div>
 
         <div class="asset-grid">
@@ -669,7 +649,6 @@ function navigateToAsset(assetId: string) {
 .ms-icon  { font-size: 0.6rem; }
 .ms-label { font-size: 0.62rem; }
 .ms-val   { font-size: 0.68rem; font-weight: 800; }
-.ms-basis { font-size: 0.6rem; opacity: 0.7; white-space: nowrap; }
 
 .market-stats {
   display: flex;
@@ -680,14 +659,19 @@ function navigateToAsset(assetId: string) {
   min-width: 0;
 }
 
-.mstat-pair {
+.mstat-counts {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
-.mstat-pair.up { color: var(--app-color-up, var(--success-green)); }
-.mstat-pair.down { color: var(--app-color-down, var(--error-red)); }
+
+.mstat-slash {
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
 
 .mstat {
   display: flex;
@@ -697,9 +681,12 @@ function navigateToAsset(assetId: string) {
   line-height: 1.2;
 }
 
+.mstat.up { color: var(--app-color-up, var(--success-green)); }
+.mstat.down { color: var(--app-color-down, var(--error-red)); }
+.mstat.listed { color: #fff; font-weight: 700; }
+
 .mstat-icon { font-size: 0.72rem; font-weight: 900; }
 .mstat-val  { font-weight: 700; }
-.mstat.highlight { font-weight: 700; font-size: 0.6rem; white-space: nowrap; }
 
 .mstat-meta {
   display: flex;
@@ -715,6 +702,10 @@ function navigateToAsset(assetId: string) {
   font-size: 0.58rem;
   font-family: var(--font-market-data, inherit);
   white-space: nowrap;
+}
+.market-style {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 @media (max-width: 420px) {

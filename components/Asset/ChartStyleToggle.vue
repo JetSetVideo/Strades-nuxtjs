@@ -15,29 +15,39 @@ const style = computed(() => (ready.value ? appearance.chartStyle : 'line'))
   <div class="cst" role="group" aria-label="Chart style for every chart">
     <button
       type="button" :class="{ active: style === 'line' }" :aria-pressed="style === 'line'"
-      title="Line charts" @click="appearance.setChartStyle('line')"
+      aria-label="Line charts" title="Line charts" @click="appearance.setChartStyle('line')"
     >
       <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M1.5 12 5.5 7l3 3 6-7" /></svg>
-      Line
     </button>
     <button
       type="button" :class="{ active: style === 'candle' }" :aria-pressed="style === 'candle'"
-      title="Candlestick charts" @click="appearance.setChartStyle('candle')"
+      aria-label="Candlestick charts" title="Candlestick charts" @click="appearance.setChartStyle('candle')"
     >
       <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="currentColor" stroke="currentColor" stroke-width="1.2"><path d="M4 1.5v13M12 1.5v13" fill="none" /><rect x="2.5" y="4" width="3" height="6" rx=".4" /><rect x="10.5" y="6" width="3" height="5" rx=".4" fill="none" /></svg>
-      Candles
     </button>
   </div>
 </template>
 
 <style scoped>
-.cst { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; border: 1px solid var(--border-primary, rgba(255,255,255,.12)); background: rgba(255,255,255,.02); }
-.cst button {
-  display: inline-flex; align-items: center; gap: 4px;
-  min-height: 26px; padding: 0 8px; border-radius: 6px; border: 0;
-  background: transparent; color: var(--text-gray, #9aa0a6);
-  font: 600 0.7rem/1 var(--font-family-secondary, inherit); cursor: pointer;
+.cst {
+  display: inline-flex;
+  gap: 1px;
+  padding: 1px;
+  border-radius: 5px;
+  border: 1px solid rgba(48, 48, 54, 0.55);
+  background: rgba(8, 8, 10, 0.72);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.72);
 }
-.cst button:hover { color: var(--text-white, #fff); }
-.cst button.active { background: rgba(0,255,136,0.1); color: var(--primary-green, #00ff88); }
+.cst button {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 22px; min-width: 22px; padding: 0 5px; border-radius: 4px; border: 0;
+  background: transparent; color: rgba(255, 255, 255, 0.42);
+  cursor: pointer;
+}
+.cst button:hover { color: #fff; }
+.cst button.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.65);
+}
 </style>

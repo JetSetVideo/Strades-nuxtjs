@@ -96,6 +96,19 @@ export interface NewsHistoryEvent {
   dwellMs?: number
 }
 
+/** One choice on a note. `voterIds` are the people who picked it. */
+export interface NewsPollOption {
+  id: string
+  label: string
+  voterIds: string[]
+}
+
+/** A question attached to a note so readers can leave one opinion each. */
+export interface NewsPoll {
+  question: string
+  options: NewsPollOption[]
+}
+
 export interface NewsItem {
   id: string
   kind: NewsKind
@@ -131,6 +144,7 @@ export interface NewsItem {
   shares: NewsShare[]
   counters: NewsCounters
   predictionSummary: NewsPredictionSummary[]
+  poll?: NewsPoll
 }
 
 export interface NewsFacetExcludes {

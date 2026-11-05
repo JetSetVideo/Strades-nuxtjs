@@ -13,6 +13,7 @@ const emit = defineEmits<{
     allocation?: { fiat: number; crypto: number; stocks: number; commodities: number }
     assets?: string[]
     geographicOrigin?: { lat: number; lng: number; name?: string; area?: string }
+    poll?: { question: string; options: { id: string; label: string; voterIds: string[] }[] }
   }): void
 }>()
 
@@ -24,9 +25,20 @@ const sentiment = ref(0)
 const attachAllocation = ref(false)
 const assets = ref('')
 const locationName = ref('')
+const pollOn = ref(false)
+const pollQuestion = ref('')
+const pollOptions = ref<string[]>(['', ''])
 const maxLen = 700
 const remaining = computed(() => maxLen - content.value.length)
-const canPublish = computed(() => content.value.trim().length >= 12 && remaining.value >= 0)
+const pollLabels = computed(() => pollOptions.value.map(value => value.trim()).filter(Boolean))
+const pollReady = computed(() => {
+  if (!pollOn.value) return true
+  const labels = pollLabels.value
+  return pollQuestion.value.trim().length >= 3
+    && labels.length >= 2
+    && new Set(labels.map(label => label.toLowerCase())).size === labels.length
+})
+const canPublish = computed(() => content.value.trim().length >= 12 && remaining.value >= 0 && pollReady.value)
 
 const sentimentLabel = computed(() => {
   if (sentiment.value > 0.33) return 'Bullish'
@@ -49,6 +61,19 @@ const reset = () => {
   attachAllocation.value = false
   assets.value = ''
   locationName.value = ''
+  pollOn.value = false
+  pollQuestion.value = ''
+  pollOptions.value = ['', '']
+}
+
+const addPollOption = () => {
+  if (pollOptions.value.length >= 4) return
+  pollOptions.value = [...pollOptions.value, '']
+}
+
+const removePollOption = (index: number) => {
+  if (pollOptions.value.length <= 2) return
+  pollOptions.value = pollOptions.value.filter((_, i) => i !== index)
 }
 
 const publish = () => {
@@ -69,6 +94,16 @@ const publish = () => {
           crypto: Math.round(alloc.crypto),
           stocks: Math.round(alloc.stocks),
           commodities: Math.round(alloc.commodities),
+        }
+      : undefined,
+    poll: pollOn.value
+      ? {
+          question: pollQuestion.value.trim(),
+          options: pollLabels.value.map((label, index) => ({
+            id: `opt-${index + 1}`,
+            label,
+            voterIds: [],
+          })),
         }
       : undefined,
   })
@@ -160,6 +195,39 @@ watch(() => props.open, v => {
             <span>Attach my current allocation</span>
           </label>
 
+          <label class="alloc-toggle">
+            <input v-model="pollOn" type="checkbox">
+            <span>Add a poll</span>
+          </label>
+
+          <div v-if="pollOn" class="poll-editor">
+            <input
+              v-model="pollQuestion"
+              class="body-input compact"
+              type="text"
+              maxlength="120"
+              placeholder="Question for the desk"
+            >
+            <label v-for="(_, index) in pollOptions" :key="index" class="poll-option-row">
+              <input
+                v-model="pollOptions[index]"
+                class="body-input compact"
+                type="text"
+                maxlength="80"
+                :placeholder="`Option ${index + 1}`"
+                :aria-label="`Poll option ${index + 1}`"
+              >
+              <button
+                v-if="pollOptions.length > 2"
+                type="button"
+                class="poll-remove"
+                :aria-label="`Remove option ${index + 1}`"
+                @click="removePollOption(index)"
+              >✕</button>
+            </label>
+            <button v-if="pollOptions.length < 4" type="button" class="poll-add" @click="addPollOption">Add option</button>
+          </div>
+
           <footer class="foot">
             <button class="cancel" @click="close">Cancel</button>
             <button class="publish" :disabled="!canPublish" @click="publish">Publish</button>
@@ -192,6 +260,8 @@ watch(() => props.open, v => {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  max-height: min(82vh, 760px);
+  overflow-y: auto;
 }
 .head {
   display: flex;
@@ -319,6 +389,39 @@ watch(() => props.open, v => {
   user-select: none;
 }
 .alloc-toggle input { accent-color: var(--primary-green, #00ff88); }
+
+.poll-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.poll-option-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.poll-option-row .body-input { flex: 1; }
+.poll-remove,
+.poll-add {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.poll-remove {
+  width: 1.6rem;
+  height: 1.6rem;
+  flex: none;
+}
+.poll-add {
+  align-self: flex-start;
+  padding: 0.28rem 0.6rem;
+}
+.poll-remove:hover,
+.poll-add:hover { color: #fff; border-color: rgba(255,255,255,0.28); }
 
 .foot {
   display: flex;

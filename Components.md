@@ -54,11 +54,11 @@ New in wave 2; see `impl-review.md` for its role.
   - sticky search, view selection, sort selection, high-value facets, date range, import/write actions
 - `components/News/ItemCard.vue`
   - canonical story presentation for social, editorial, and imported links
-  - includes provenance, axis/sentiment labels, allocation, prediction context, save/share/comment/judgment actions
+  - includes provenance, axis/sentiment labels, allocation, prediction context, save/share/comment/judgment actions, and a poll when the note has one
 - `components/News/ExternalImportModal.vue`
   - manual provenance capture for external URLs
 - `components/News/ComposerModal.vue`
-  - user-authored signal/article creation with category, sentiment, optional assets, optional geography, optional allocation
+  - user-authored signal/article creation with category, sentiment, optional assets, optional geography, optional allocation, optional poll
 
 ### Rail
 - `components/News/InfluencerRail.vue`
@@ -66,7 +66,7 @@ New in wave 2; see `impl-review.md` for its role.
 - (`Social/ArticlePost.vue` and `Widget/NewsCard.vue` are UNUSED copies — `<NewsItemCard>` is the only news card; D9.)
 
 ### Interaction contract
-- Save, comment, share, like/dislike, and political judgment all dispatch through the news store.
+- Save, comment, share, like/dislike, political judgment, and poll votes all dispatch through the news store. A poll takes one vote per person; choosing another option moves that vote.
 - History events are created for read/save/share/comment/judge/publish/import actions.
 - Story cards must not mutate props directly.
 
@@ -403,7 +403,7 @@ The one SVG price chart (line or candles from `appearance.chartStyle`). `size="m
 Record a call: horizon chips (1D…1Y, past shown = 1.5 × horizon), tap / drag / arrow keys in the future zone, release saves (`predictions.savePrediction`, keeps revisions) and sends `prediction_set` to the training buffer + `prediction_create` to the backend activity log. Offered range = largest rise / fall seen over the same length in the past (×1.25).
 
 ### Asset/ChartStyleToggle.vue
-Line / Candles for every chart at once (prices page and asset page tops).
+Icon switch for every chart at once. On `/prices` it sits at the right end of the market bar. The asset page keeps it in the page header. The active icon is white.
 
 ### Asset/SupplyTree.vue
 Suppliers → asset → clients tree for the asset page, with similar assets stacked under the asset (dashed). Link width follows each partner's share; nodes show share % and nominal value, column headers show the totals. Nodes that are listed assets open their page. Data: `public/data/supply_chain/<id>.json` (shares, values), else names from `public/data/asset_profiles.json`.
